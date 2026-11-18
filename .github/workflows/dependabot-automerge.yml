@@ -2,26 +2,20 @@
 # Major ones wait for a human approval.
 name: Dependabot auto-merge
 
-# pull_request_target reads Actions secrets on Dependabot PRs; safe as no step checks out or runs PR code.
-on: pull_request_target
+# A merge by GITHUB_TOKEN triggers no push workflows; release-plz and Pages catch up on the next push.
+on: pull_request
 
 permissions: {}
 
 jobs:
   automerge:
-    if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' }}
+    if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' && github.repository == 'lajosbencz/egui_mineral' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
-      pull-requests: read
+      contents: write
+      pull-requests: write
     steps:
-      - id: app
-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
-        with:
-          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
-          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
-          permission-contents: write
-          permission-pull-requests: write
       - id: meta
         uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
       # fetch-metadata calls 0.9 -> 0.10 minor; Cargo and the cargo-major group call it breaking.
@@ -32,4 +26,4 @@ jobs:
         run: gh pr merge --auto --squash "$PR"
         env:
           PR: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ steps.app.outputs.token }}
+          GH_TOKEN: ${{ github.token }}
