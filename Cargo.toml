@@ -46,7 +46,8 @@ proc-macro2 = "1.0.107"
 criterion = "0.8.2"
 futures-executor = "0.3.34"
 fluent-bundle = "0.16.0"
-rfd = "0.18.0"
+# Default `wayland` links libwayland-client for dialog parenting, which is never set.
+rfd = { version = "0.18.0", default-features = false, features = ["xdg-portal"] }
 arboard = "3.7.0"
 # Pinned: zbus 5 like accesskit_unix; 4.19 links a second zbus. See docs/blockers.md.
 notify-rust = "~4.18"
