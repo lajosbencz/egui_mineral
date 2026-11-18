@@ -1,0 +1,12 @@
+[package]
+name = "md3_tokens"
+description = "Generates egui_mineral_material spec constants from the Compose Material3 token sources"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lints]
+workspace = true

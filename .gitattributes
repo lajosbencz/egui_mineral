@@ -1,0 +1,2 @@
+crates/egui_mineral_material/src/spec/generated/** linguist-generated=true
+tools/md3_tokens/vendor/** linguist-vendored=true

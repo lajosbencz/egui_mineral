@@ -1,0 +1,69 @@
+[package]
+name = "egui_mineral_material"
+description = "Material Design 3 stylekit for egui_mineral"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+# Ships Apache-2.0 data derived from Jetpack Compose (LICENSE-APACHE, NOTICE).
+license = "GPL-3.0-or-later AND Apache-2.0"
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+keywords.workspace = true
+categories.workspace = true
+exclude = ["clippy.toml"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+targets = ["x86_64-unknown-linux-gnu", "wasm32-unknown-unknown"]
+
+[features]
+default = ["icu", "persist-fs", "bundled-icons"]
+# Material Symbols Rounded fonts (filled and outlined, 3 MB); without it, `Material::icon_fonts` is required.
+bundled-icons = []
+# `egui_mineral/icu`: ICU4X locale formatting.
+icu = ["egui_mineral/icu"]
+# `egui_mineral/persist-fs`: file-backed persistence.
+persist-fs = ["egui_mineral/persist-fs"]
+# Component provenance: `catalog` module. Unstable: outside semver.
+unstable-catalog = []
+# Public generated MD3 values: `spec::tokens` and `spec::defaults`. Unstable: outside semver.
+unstable-spec = []
+# TOML theme files and live reload; native targets only.
+theme-file = ["dep:toml", "dep:notify-debouncer-mini"]
+
+[dependencies]
+egui_mineral.workspace = true
+egui.workspace = true
+serde.workspace = true
+material-colors.workspace = true
+egui_material_icons.workspace = true
+tracing.workspace = true
+thiserror.workspace = true
+parking_lot.workspace = true
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+notify-debouncer-mini = { workspace = true, optional = true }
+toml = { workspace = true, optional = true }
+
+[dev-dependencies]
+futures-executor.workspace = true
+egui_kittest.workspace = true
+toml.workspace = true
+
+[[test]]
+name = "spec"
+required-features = ["unstable-spec", "icu"]
+
+# Asserts ICU4X locale output.
+[[test]]
+name = "behavior"
+required-features = ["icu"]
+
+[[test]]
+name = "agent"
+required-features = ["icu"]
+
+[lints]
+workspace = true

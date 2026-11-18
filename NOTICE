@@ -1,0 +1,10 @@
+egui_mineral
+Copyright the egui_mineral contributors. Licensed under GPL-3.0-or-later (LICENSE).
+
+This product includes data derived from Jetpack Compose Material3 design tokens
+(androidx/androidx, compose/material3/material3/src/commonMain/kotlin/androidx/compose/material3/tokens),
+Copyright The Android Open Source Project, licensed under the Apache License, Version 2.0
+(LICENSE-APACHE). The generated files are crates/egui_mineral_material/src/spec/tokens/*.rs; each names
+its source file and androidx commit. The unmodified sources are vendored in tools/md3_tokens/vendor/.
+crates/egui_mineral_material/src/spec/defaults/*.rs carry values from Compose Material3 component sources
+(compose/material3/material3/src), same copyright and license; each names its source.

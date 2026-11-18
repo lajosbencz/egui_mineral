@@ -1,0 +1,107 @@
+[package]
+name = "egui_mineral"
+description = "Unopinionated egui core: unified input, layout, touch ergonomics, semantics, agents"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+keywords.workspace = true
+categories.workspace = true
+exclude = ["clippy.toml"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+targets = ["x86_64-unknown-linux-gnu", "wasm32-unknown-unknown"]
+
+[features]
+default = ["icu", "persist-fs"]
+# ICU4X locale formatting, collation and direction; without it `AsciiFormat`.
+icu = [
+    "dep:icu_decimal",
+    "dep:icu_locale_core",
+    "dep:icu_locale",
+    "dep:icu_datetime",
+    "dep:icu_calendar",
+    "dep:icu_time",
+    "dep:icu_list",
+    "dep:icu_collator",
+    "dep:icu_provider",
+    "dep:writeable",
+    "dep:fixed_decimal",
+]
+persist-fs = ["dep:toml", "dep:serde_json", "dep:dirs"]
+platform-native = ["dep:rfd", "dep:arboard", "dep:notify-rust", "dep:wasm-bindgen-futures"]
+# Chromium streams `save_file_writer` to disk (File System Access API); other browsers buffer.
+web-save-stream = ["platform-native"]
+
+[dependencies]
+jiff.workspace = true
+egui.workspace = true
+tracing.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+futures-channel.workspace = true
+futures-util.workspace = true
+egui_mineral_macros.workspace = true
+percent-encoding.workspace = true
+unicode-segmentation.workspace = true
+egui_taffy.workspace = true
+parking_lot.workspace = true
+toml = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+unic-langid.workspace = true
+fluent-bundle.workspace = true
+nucleo-matcher.workspace = true
+icu_decimal = { workspace = true, optional = true }
+icu_locale_core = { workspace = true, optional = true }
+icu_locale = { workspace = true, optional = true }
+icu_datetime = { workspace = true, optional = true }
+icu_calendar = { workspace = true, optional = true }
+icu_time = { workspace = true, optional = true }
+icu_list = { workspace = true, optional = true }
+icu_collator = { workspace = true, optional = true }
+intl-memoizer.workspace = true
+icu_provider = { workspace = true, optional = true }
+writeable = { workspace = true, optional = true }
+fixed_decimal = { workspace = true, optional = true }
+
+# `file-handle-inner`: the browser `File` behind a picked handle, for chunked reads.
+rfd = { workspace = true, optional = true, features = ["file-handle-inner"] }
+sys-locale.workspace = true
+# 0.13 speaks unic-langid like fluent-bundle 0.16; 0.14 moved to icu_locid 1.x.
+fluent-langneg.workspace = true
+dirs = { workspace = true, optional = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+arboard = { workspace = true, optional = true }
+notify-rust = { workspace = true, optional = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+web-sys = { workspace = true, features = ["Window", "Storage", "Navigator", "Clipboard", "Notification", "NotificationOptions", "NotificationPermission", "Blob", "File"] }
+wasm-bindgen.workspace = true
+js-sys.workspace = true
+wasm-bindgen-futures = { workspace = true, optional = true }
+
+[dev-dependencies]
+criterion.workspace = true
+egui_kittest.workspace = true
+proptest.workspace = true
+
+[[test]]
+name = "icu_trimmed"
+required-features = ["icu"]
+
+[[bench]]
+name = "perf"
+harness = false
+
+[package.metadata.cargo-machete]
+# Never imported; enables icu_provider/sync so ICU formatters are Send + Sync.
+ignored = ["icu_provider"]
+
+[lints]
+workspace = true

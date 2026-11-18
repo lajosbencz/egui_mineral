@@ -1,0 +1,459 @@
+//! Typed runtime: [`Runtime::new`] is the only way to obtain one, and widgets are shown only through the
+//! [`MineralUi`] it hands out, so configuration cannot be read before it exists.
+//!
+//! A runtime serves any number of windows (viewports) of one `Context`; each window runs its own pass
+//! ([`Runtime::pass`]) with its own input, semantic tree, shortcuts and agent. Several runtimes, also of
+//! different stylekits, share a `Context` one per window; an embedded window's runtime nests its pass in the
+//! host's. `eframe::App::ui` calls [`Runtime::pass`]. Outside any pass, shortcut calls go to the viewport's
+//! outermost runtime.
+
+use std::{
+    collections::VecDeque,
+    sync::{
+        Arc, Weak,
+        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
+    },
+};
+
+use egui::{Context, Id, RawInput, Style, Ui, ViewportId, ViewportIdMap};
+use parking_lot::{Mutex, MutexGuard};
+
+use crate::{
+    agent::{AgentHandle, AgentHost},
+    focus,
+    i18n::{Catalog, I18n, I18nError},
+    input::{InputAdapter, InputContext, RawPass, UnifiedInputEvent},
+    motion::Motion,
+    policy::Policies,
+    semantic::{self, SemanticTree},
+    shortcut,
+    widget::MineralUi,
+};
+
+/// Visual layer over the headless core: design values, message catalogs, style and egui setup.
+pub trait Stylekit: Send + Sync + 'static {
+    /// For the platform of `ctx`; sanitized by [`Runtime::new`].
+    fn policies(&self, ctx: &Context) -> Policies;
+    /// Library catalogs, source language first.
+    fn catalogs(&self) -> &'static [Catalog];
+    /// Fonts and other additive `Context` setup; runs once in [`Runtime::new`].
+    ///
+    /// # Errors
+    /// Kit-specific setup failure.
+    fn setup(&self, ctx: &Context) -> Result<(), Box<dyn std::error::Error + Send + Sync>>;
+    /// Style of the runtime's root `Ui`s (window roots, areas); called per root, so keep it cheap.
+    fn style(&self, ctx: &Context) -> Arc<Style>;
+}
+
+/// Failure building a [`Runtime`].
+#[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
+pub enum InitError {
+    /// Root locale failed to load or a catalog does not parse.
+    #[error("i18n: {0}")]
+    I18n(#[from] I18nError),
+    /// [`Stylekit::setup`] failed.
+    #[error("stylekit setup: {0}")]
+    Stylekit(#[source] Box<dyn std::error::Error + Send + Sync>),
+}
+
+struct PassState {
+    adapter: InputAdapter,
+    input: InputContext,
+    tree: Option<Arc<SemanticTree>>,
+    history: VecDeque<UnifiedInputEvent>,
+    semantics_requested: bool,
+    agent: AgentHost,
+    agent_handle: AgentHandle,
+    active: bool,
+}
+
+impl PassState {
+    fn new(ctx: &Context, viewport: ViewportId) -> Self {
+        let (agent, agent_handle) = AgentHost::new(ctx, viewport);
+        Self {
+            adapter: InputAdapter::default(),
+            input: InputContext::default(),
+            tree: None,
+            history: VecDeque::new(),
+            semantics_requested: false,
+            agent,
+            agent_handle,
+            active: false,
+        }
+    }
+}
+
+struct Passes {
+    ctx: Context,
+    map: Mutex<ViewportIdMap<PassState>>,
+}
+
+impl Passes {
+    fn lock(&self) -> MutexGuard<'_, ViewportIdMap<PassState>> {
+        self.map.lock()
+    }
+
+    // Lock order: egui `Context` reads happen before this lock, never under it.
+    fn with<R>(&self, viewport: ViewportId, f: impl FnOnce(&mut PassState) -> R) -> R {
+        f(self
+            .lock()
+            .entry(viewport)
+            .or_insert_with(|| PassState::new(&self.ctx, viewport)))
+    }
+
+    fn inject(&self, raw: &mut RawInput) {
+        // `raw` carries the rect only when it changed; otherwise the previous pass's applies.
+        let screen = raw
+            .screen_rect
+            .unwrap_or_else(|| self.ctx.input_for(raw.viewport_id, egui::InputState::viewport_rect));
+        let mut map = self.lock();
+        if let Some(st) = map.get_mut(&raw.viewport_id)
+            && st.agent.inject(raw, st.tree.as_deref(), screen)
+        {
+            st.adapter.mark_synthetic();
+        }
+    }
+}
+
+#[derive(Default)]
+struct AgentPlugin {
+    runtimes: Vec<Weak<Passes>>,
+}
+
+impl egui::Plugin for AgentPlugin {
+    fn debug_name(&self) -> &'static str {
+        "egui_mineral::agent"
+    }
+
+    fn input_hook(&mut self, _ctx: &Context, raw: &mut RawInput) {
+        self.runtimes.retain(|w| w.strong_count() > 0);
+        for passes in self.runtimes.iter().filter_map(Weak::upgrade) {
+            passes.inject(raw);
+        }
+    }
+}
+
+static NEXT_ID: AtomicU64 = AtomicU64::new(0);
+
+#[derive(Clone, Copy, Default)]
+struct Owner {
+    current: Option<u64>,
+    outermost: u64,
+}
+
+// Leaves the pass on drop, also when `add` unwinds.
+struct PassGuard<'a> {
+    core: &'a Core,
+    viewport: ViewportId,
+    owner: Id,
+    outer: Option<u64>,
+}
+
+impl Drop for PassGuard<'_> {
+    fn drop(&mut self) {
+        self.core.passes.with(self.viewport, |st| st.active = false);
+        let outer = self.outer;
+        self.core
+            .ctx
+            .data_mut(|d| d.get_temp_mut_or_default::<Owner>(self.owner).current = outer);
+    }
+}
+
+fn owner_id(viewport: ViewportId) -> Id {
+    Id::unique(("mineral::pass_owner", viewport))
+}
+
+pub(crate) fn pass_scoped(ctx: &Context, name: &'static str) -> Id {
+    let viewport = ctx.viewport_id();
+    let owner = ctx
+        .data(|d| d.get_temp::<Owner>(owner_id(viewport)))
+        .map(|o| o.current.unwrap_or(o.outermost));
+    Id::unique((name, viewport, owner))
+}
+
+/// Kit-independent configuration and per-viewport pass state; what core models read instead of the egui
+/// `Context`.
+pub struct Core {
+    id: u64,
+    ctx: Context,
+    i18n: I18n,
+    policies: Policies,
+    motion: Motion,
+    passes: Arc<Passes>,
+    collect_semantics: AtomicBool,
+    input_history: AtomicUsize,
+}
+
+crate::kit::opaque_debug!(Core);
+
+impl Core {
+    pub(crate) fn id(&self) -> u64 {
+        self.id
+    }
+
+    /// Context this runtime was built for.
+    pub fn ctx(&self) -> &Context {
+        &self.ctx
+    }
+
+    /// Locale, formatter and messages.
+    pub fn i18n(&self) -> &I18n {
+        &self.i18n
+    }
+
+    /// Sanitized at construction.
+    pub fn policies(&self) -> &Policies {
+        &self.policies
+    }
+
+    /// Reduced-motion preference.
+    pub fn motion(&self) -> &Motion {
+        &self.motion
+    }
+
+    /// Input of the current viewport's pass; empty before its first [`Runtime::pass`].
+    pub fn input(&self) -> InputContext {
+        let viewport = self.ctx.viewport_id();
+        self.passes.lock().get(&viewport).map_or_default(|st| st.input.clone())
+    }
+}
+
+/// [`Core`] plus the stylekit `K`; shared (`Arc`) by its windows and every [`MineralUi`] it hands out.
+pub struct Runtime<K> {
+    core: Core,
+    kit: K,
+    style: fn(&K, &Context) -> Arc<Style>,
+}
+
+crate::kit::opaque_debug!(Runtime<K>);
+
+impl<K: Stylekit> Runtime<K> {
+    /// Runs [`Stylekit::setup`] and selects the system locale, else the CLDR root; semantics off, no input
+    /// history.
+    ///
+    /// # Errors
+    /// [`InitError::Stylekit`] when setup fails, [`InitError::I18n`] when the root locale fails to load or a
+    /// catalog does not parse.
+    pub fn new(ctx: &Context, kit: K) -> Result<Arc<Self>, InitError> {
+        let i18n = I18n::new(ctx, kit.catalogs())?;
+        Self::with_i18n(ctx, kit, i18n)
+    }
+
+    /// As [`Self::new`] with a prepared `i18n` (e.g. a fixed locale or [`AsciiFormat`](crate::i18n::AsciiFormat));
+    /// the kit's catalogs are added to it.
+    ///
+    /// # Errors
+    /// As [`Self::new`].
+    pub fn with_i18n(ctx: &Context, kit: K, i18n: I18n) -> Result<Arc<Self>, InitError> {
+        kit.setup(ctx).map_err(InitError::Stylekit)?;
+        for &catalog in kit.catalogs() {
+            i18n.add_resource(catalog)?;
+        }
+        let passes = Arc::new(Passes {
+            ctx: ctx.clone(),
+            map: Mutex::default(),
+        });
+        ctx.plugin_or_default::<AgentPlugin>()
+            .lock()
+            .runtimes
+            .push(Arc::downgrade(&passes));
+        let core = Core {
+            id: NEXT_ID.fetch_add(1, Ordering::Relaxed),
+            ctx: ctx.clone(),
+            i18n,
+            policies: kit.policies(ctx).sanitized(),
+            motion: Motion::default(),
+            passes,
+            collect_semantics: AtomicBool::new(false),
+            input_history: AtomicUsize::new(0),
+        };
+        Ok(Arc::new(Self {
+            core,
+            kit,
+            style: K::style,
+        }))
+    }
+}
+
+impl<K> Runtime<K> {
+    /// Wraps a plain `Ui`, e.g. inside egui closures: `ui.horizontal(|ui| { let ui = &mut rt.ui(ui); .. })`.
+    /// Root `Ui`s (area, window) get the kit's style.
+    pub fn ui<'a>(&'a self, ui: &'a mut Ui) -> MineralUi<'a, K> {
+        if ui.stack().is_root_ui() {
+            ui.set_style(self.style());
+        }
+        MineralUi::new(ui, self)
+    }
+
+    /// One pass of the current viewport: agent queue, semantic collection, shortcuts and IAL, then `add`
+    /// on the viewport's root `Ui`, then the semantic tree and agent replies. Inside another pass of the
+    /// same viewport (embedded window) only wraps `ui`.
+    pub fn pass<R>(&self, ui: &mut Ui, add: impl FnOnce(&mut MineralUi<'_, K>) -> R) -> R {
+        let viewport = self.core.ctx.viewport_id();
+        let nested = self
+            .core
+            .passes
+            .with(viewport, |st| std::mem::replace(&mut st.active, true));
+        if nested {
+            return add(&mut self.ui(ui));
+        }
+        let ctx = &self.core.ctx;
+        let owner = owner_id(viewport);
+        let outer = ctx.data_mut(|d| {
+            let o = d.get_temp_mut_or_default::<Owner>(owner);
+            let outer = o.current.replace(self.core.id);
+            o.outermost = outer.map_or(self.core.id, |_| o.outermost);
+            outer
+        });
+        let _restore = PassGuard {
+            core: &self.core,
+            viewport,
+            owner,
+            outer,
+        };
+        self.begin_pass(viewport);
+        ui.set_style(self.style());
+        let r = add(&mut MineralUi::new(ui, self));
+        self.end_pass(viewport);
+        r
+    }
+
+    /// Kit style for root `Ui`s and frames built outside one; egui's global style stays the app's.
+    pub fn style(&self) -> Arc<Style> {
+        (self.style)(&self.kit, &self.core.ctx)
+    }
+
+    /// Kit-independent part.
+    pub fn core(&self) -> &Core {
+        &self.core
+    }
+
+    /// Stylekit state.
+    pub fn kit(&self) -> &K {
+        &self.kit
+    }
+
+    /// Context this runtime was built for.
+    pub fn ctx(&self) -> &Context {
+        &self.core.ctx
+    }
+
+    /// Shortcut for `core().i18n()`.
+    pub fn i18n(&self) -> &I18n {
+        &self.core.i18n
+    }
+
+    /// Collects a semantic tree every pass of every viewport (inspector); agents get one on demand regardless.
+    pub fn set_collect_semantics(&self, collect_semantics: bool) {
+        self.core.collect_semantics.store(collect_semantics, Ordering::Relaxed);
+    }
+
+    /// Toggled by [`Self::set_collect_semantics`].
+    pub fn collect_semantics(&self) -> bool {
+        self.core.collect_semantics.load(Ordering::Relaxed)
+    }
+
+    /// Asks for a tree in the next pass of `viewport` only; repeat each pass.
+    pub fn request_semantics(&self, viewport: ViewportId) {
+        self.core.passes.with(viewport, |st| st.semantics_requested = true);
+    }
+
+    /// Keeps the last `n` input events of each viewport for [`Self::recent_input`].
+    pub fn set_input_history(&self, input_history: usize) {
+        self.core.input_history.store(input_history, Ordering::Relaxed);
+    }
+
+    /// Retained event count per viewport; 0 keeps none.
+    pub fn input_history(&self) -> usize {
+        self.core.input_history.load(Ordering::Relaxed)
+    }
+
+    /// Cloneable handle for async agent hosts acting on `viewport`; safe to send to other threads.
+    pub fn agent(&self, viewport: ViewportId) -> AgentHandle {
+        self.core.passes.with(viewport, |st| st.agent_handle.clone())
+    }
+
+    /// Tree of the latest pass of `viewport` that collected one.
+    pub fn tree(&self, viewport: ViewportId) -> Option<Arc<SemanticTree>> {
+        self.core.passes.lock().get(&viewport).and_then(|st| st.tree.clone())
+    }
+
+    /// Oldest first, at most [`Self::input_history`] events of `viewport`.
+    pub fn recent_input(&self, viewport: ViewportId) -> Vec<UnifiedInputEvent> {
+        self.core
+            .passes
+            .lock()
+            .get(&viewport)
+            .map_or_default(|st| st.history.iter().copied().collect())
+    }
+
+    fn begin_pass(&self, viewport: ViewportId) {
+        let core = &self.core;
+        let ctx = &core.ctx;
+        let collect = self.collect_semantics();
+        let wanted = core.passes.with(viewport, |st| {
+            st.agent.begin_pass();
+            std::mem::take(&mut st.semantics_requested) || st.agent.wants_tree() || collect
+        });
+        semantic::begin_pass(ctx, wanted);
+        shortcut::begin_pass(core);
+        focus::track_modality(ctx);
+        let keep = self.input_history();
+        let raw = RawPass::read(ctx);
+        let repaint_after = core.passes.with(viewport, |st| {
+            let repaint_after;
+            (st.input, repaint_after) = st.adapter.process(raw, &core.policies.gestures);
+            if keep > 0 {
+                st.history.extend(st.input.events.iter().copied());
+                let excess = st.history.len().saturating_sub(keep);
+                st.history.drain(..excess);
+            }
+            repaint_after
+        });
+        if let Some(after) = repaint_after {
+            ctx.request_repaint_after(after);
+        }
+    }
+
+    fn end_pass(&self, viewport: ViewportId) {
+        let tree = semantic::end_pass(&self.core.ctx).map(Arc::new);
+        // A discarded pass changed what it showed: its tree and the previous one are stale, and the rerun
+        // (whose input hook runs too) collects again for the queued requests.
+        let discard = self.core.ctx.will_discard();
+        self.core.passes.with(viewport, |st| {
+            if discard {
+                st.tree = None;
+            } else {
+                if let Some(tree) = &tree {
+                    st.agent.respond(tree);
+                }
+                st.tree = tree;
+            }
+        });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::panic::{AssertUnwindSafe, catch_unwind};
+
+    use super::*;
+    use crate::test_support::{ctx, input, run, runtime};
+
+    #[test]
+    fn unwinding_add_leaves_the_pass() {
+        let ctx = ctx();
+        let rt = runtime(&ctx);
+        run(&ctx, input(vec![]), |ui| {
+            let viewport = ui.ctx().viewport_id();
+            let unwound = catch_unwind(AssertUnwindSafe(|| rt.pass(ui, |_| panic!("app"))));
+            assert!(unwound.is_err());
+            assert!(!rt.core.passes.with(viewport, |st| st.active), "pass left active");
+            let current = ui
+                .ctx()
+                .data_mut(|d| d.get_temp_mut_or_default::<Owner>(owner_id(viewport)).current);
+            assert_eq!(current, None, "owner left set");
+        });
+    }
+}

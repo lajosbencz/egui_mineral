@@ -1,0 +1,238 @@
+use crate::Material;
+use crate::MaterialExt;
+use egui::{Pos2, Rangef, Rect, Response, Sense, Stroke, Vec2, pos2, vec2};
+use egui_material_icons::MaterialIcon;
+use egui_mineral::semantic::KeyedSalt;
+use egui_mineral::widget::{Availability, MineralUi};
+use egui_mineral::{
+    i18n::Direction,
+    semantic::{self, Role, SemanticNode, StableId},
+};
+
+use crate::communication::{CircularProgressIndicator, PlainTooltip};
+use crate::spec::{ColorRole, TypeScale, tokens::divider};
+use crate::widget::{
+    common::{self, Interaction},
+    parts,
+};
+
+// Non-MD3 desktop status bar on the 4dp grid
+const HEIGHT: f32 = 24.0;
+const PAD_X: f32 = 8.0;
+const ICON: f32 = 16.0;
+const ICON_GAP: f32 = 4.0;
+const CONTAINER: ColorRole = ColorRole::SurfaceContainer;
+const CONTENT: ColorRole = ColorRole::OnSurfaceVariant;
+const TEXT: TypeScale = TypeScale::BodySmall;
+
+#[derive(Clone, Copy, Debug)]
+enum Lead {
+    Icon(MaterialIcon),
+    // `None`: indeterminate
+    Progress(Option<f32>),
+}
+
+/// Text, with an optional icon or progress indicator, in a [`StatusBar`].
+#[derive(Clone, Debug)]
+#[must_use]
+pub struct StatusItem {
+    text: String,
+    lead: Option<Lead>,
+    tooltip: Option<String>,
+    clickable: bool,
+}
+
+impl StatusItem {
+    /// `text` is shown and is the accessible name.
+    pub fn new(text: impl Into<String>) -> Self {
+        Self {
+            text: text.into(),
+            lead: None,
+            tooltip: None,
+            clickable: false,
+        }
+    }
+
+    /// Icon before the text; replaces a [`progress`](Self::progress).
+    pub fn icon(mut self, icon: MaterialIcon) -> Self {
+        self.lead = Some(Lead::Icon(icon));
+        self
+    }
+
+    /// Circular progress before the text: the fraction done, `None` for indeterminate; replaces an
+    /// [`icon`](Self::icon). The indicator is named by the item text, agent key
+    /// `<id_salt>-<index>-progress`.
+    pub fn progress(mut self, value: Option<f32>) -> Self {
+        self.lead = Some(Lead::Progress(value));
+        self
+    }
+
+    /// [`PlainTooltip`] on hover; also the item's accessible description.
+    pub fn tooltip(mut self, tooltip: impl Into<String>) -> Self {
+        self.tooltip = Some(tooltip.into());
+        self
+    }
+
+    /// Focusable button, reported in [`StatusBarResponse::clicked`]; default `false`.
+    pub fn clickable(mut self, clickable: bool) -> Self {
+        self.clickable = clickable;
+        self
+    }
+}
+
+impl<S: Into<String>> From<S> for StatusItem {
+    fn from(text: S) -> Self {
+        Self::new(text)
+    }
+}
+
+/// Result of [`StatusBar::show`].
+#[derive(Clone, Debug)]
+#[non_exhaustive]
+pub struct StatusBarResponse {
+    /// Bar response.
+    pub response: Response,
+    /// Index, in insertion order, of the clickable item clicked this frame.
+    pub clicked: Option<usize>,
+}
+
+/// Desktop status bar: items at the reading start and end of a full-width strip; non-MD3. Show it
+/// last in a bottom panel. Items that do not fit are dropped from the end of the start group.
+#[derive(Clone, Debug)]
+#[must_use = "call .show(..)"]
+pub struct StatusBar {
+    salt: KeyedSalt,
+    label: String,
+    // Item and whether it sits at the end.
+    items: Vec<(StatusItem, bool)>,
+}
+
+impl StatusBar {
+    /// `label` names the bar for assistive technology. Item agent keys `<id_salt>-<index>-status-item`.
+    pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>) -> Self {
+        Self {
+            salt: id_salt.into(),
+            label: label.into(),
+            items: Vec::new(),
+        }
+    }
+
+    crate::widget::setters! {
+        /// Replaces the `<id_salt>` key prefix.
+        agent_key(salt)
+    }
+
+    /// Item at the reading start, after the previous ones.
+    pub fn item(mut self, item: impl Into<StatusItem>) -> Self {
+        self.items.push((item.into(), false));
+        self
+    }
+
+    /// Item at the reading end, before the previous trailing ones.
+    pub fn trailing(mut self, item: impl Into<StatusItem>) -> Self {
+        self.items.push((item.into(), true));
+        self
+    }
+
+    /// Allocates the full available width.
+    pub fn show(self, ui: &mut MineralUi<'_, Material>) -> StatusBarResponse {
+        let rt = ui.rt();
+        let t = rt.tokens();
+        let dir = rt.i18n().direction();
+        let id = ui.make_persistent_id(self.salt.id_salt());
+        let w = ui.available_width();
+        let (rect, _) = ui.allocate_exact_size(vec2(w, HEIGHT), Sense::hover());
+        let response = ui.interact(rect, id, Sense::hover());
+        let p = ui.painter();
+        p.rect_filled(rect, 0, t.role(CONTAINER));
+        p.hline(
+            rect.x_range(),
+            rect.top(),
+            Stroke::new(divider::THICKNESS, t.role(divider::COLOR)),
+        );
+
+        let content = t.role(CONTENT);
+        let galleys: Vec<_> = self
+            .items
+            .iter()
+            .map(|(it, _)| parts::type_galley(rt.core(), ui.painter(), &it.text, TEXT, content, None))
+            .collect();
+        let width = |i: usize| {
+            let icon = self.items[i].0.lead.map_or(0.0, |_| ICON + ICON_GAP);
+            2.0 * PAD_X + icon + galleys[i].size().x
+        };
+        // Logical offsets from each edge; the end group claims its space first.
+        let mut slots: Vec<Option<Rect>> = vec![None; self.items.len()];
+        let mut end = 0.0;
+        for i in (0..self.items.len()).filter(|&i| self.items[i].1) {
+            slots[i] = Some(slot(rect, dir, true, end, width(i)));
+            end += width(i);
+        }
+        let mut start = 0.0;
+        for i in (0..self.items.len()).filter(|&i| !self.items[i].1) {
+            if start + width(i) + end > rect.width() {
+                break;
+            }
+            slots[i] = Some(slot(rect, dir, false, start, width(i)));
+            start += width(i);
+        }
+
+        let mut clicked = None;
+        for (i, ((item, _), galley)) in self.items.iter().zip(galleys).enumerate() {
+            let Some(r) = slots[i] else { continue };
+            let sense = if item.clickable { Sense::click() } else { Sense::hover() };
+            let resp = ui.interact(r, id.with(i), sense);
+            if item.clickable {
+                if resp.clicked() {
+                    clicked = Some(i);
+                }
+                let state = Interaction::of(&resp, Availability::Enabled);
+                common::state_focus(ui.painter(), r, 0, content, state, &t);
+            }
+            let inner = Rect::from_x_y_ranges(r.left() + PAD_X..=r.right() - PAD_X, r.y_range());
+            let mut x = dir.start_x(inner, Rangef::point(0.0));
+            if let Some(lead) = item.lead {
+                let c = pos2(dir.start_x(inner, Rangef::point(ICON / 2.0)), r.center().y);
+                match lead {
+                    Lead::Icon(icon) => common::icon(ui.painter(), c, icon, ICON, content),
+                    Lead::Progress(value) => self.progress(ui, i, &item.text, value, c),
+                }
+                x = dir.start_x(inner, Rangef::point(ICON + ICON_GAP));
+            }
+            let gx = if dir == Direction::Rtl { x - galley.size().x } else { x };
+            ui.painter()
+                .galley(pos2(gx, r.center().y - galley.size().y / 2.0), galley, content);
+            if let Some(tip) = &item.tooltip {
+                PlainTooltip::new(tip).show(rt, &resp);
+            }
+            let role = if item.clickable { Role::Button } else { Role::Label };
+            semantic::emit(ui.ctx(), Some(resp.id), r, || {
+                SemanticNode::new(StableId::of(&self.salt, (i, "status-item")), role, &item.text)
+            });
+        }
+        semantic::emit(ui.ctx(), Some(response.id), rect, || {
+            SemanticNode::new(StableId::of(&self.salt, "status-bar"), Role::Status, &self.label)
+        });
+        StatusBarResponse { response, clicked }
+    }
+}
+
+impl StatusBar {
+    fn progress(&self, ui: &mut MineralUi<'_, Material>, i: usize, text: &str, value: Option<f32>, center: Pos2) {
+        let salt = self.salt.child((i, "progress"));
+        match value {
+            Some(v) => CircularProgressIndicator::determinate(salt, v),
+            None => CircularProgressIndicator::indeterminate(salt),
+        }
+        .label(text)
+        .agent_key(StableId::of(&self.salt, (i, "progress")))
+        .show_in(ui, Rect::from_center_size(center, Vec2::splat(ICON)));
+    }
+}
+
+// `w` wide at logical offset `from` of the start (or end) edge.
+fn slot(bar: Rect, dir: Direction, at_end: bool, from: f32, w: f32) -> Rect {
+    let d = if at_end { dir.reversed() } else { dir };
+    let x = d.start_x(bar, Rangef::new(from, from + w));
+    Rect::from_x_y_ranges(x..=x + w, bar.y_range())
+}

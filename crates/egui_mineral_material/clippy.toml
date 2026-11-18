@@ -1,0 +1,13 @@
+# Per-crate config replaces the root clippy.toml (no merge); keep base options in sync.
+allow-unwrap-in-tests = true
+
+disallowed-methods = [
+  { path = "std::thread::spawn", reason = "docs/rules.md rule 11: apps own threads through their Spawner" },
+  { path = "std::thread::Builder::spawn", reason = "docs/rules.md rule 11: apps own threads through their Spawner" },
+  { path = "wasm_bindgen_futures::spawn_local", reason = "docs/rules.md rule 11: apps own tasks through their Spawner" },
+  { path = "tokio::spawn", reason = "docs/rules.md rules 9 and 11: no Tokio, no spawning in libraries" },
+  # Rule 10: from_secs_f* panics on negative, NaN or overflowing input.
+  { path = "std::time::Duration::from_secs_f64", reason = "docs/rules.md rule 10: panics on negative/non-finite input; use Duration::try_from_secs_f64 on validated input" },
+  { path = "std::time::Duration::from_secs_f32", reason = "docs/rules.md rule 10: panics on negative/non-finite input; use Duration::try_from_secs_f32 on validated input" },
+  { path = "egui::Context::request_repaint", reason = "docs/rules.md performance rules: use request_repaint_after or a bounded animation; an event that changed state may expect() with a reason" },
+]

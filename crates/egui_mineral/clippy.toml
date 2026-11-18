@@ -1,0 +1,31 @@
+# Per-crate config replaces the root clippy.toml (no merge); keep base options in sync.
+allow-unwrap-in-tests = true
+
+disallowed-methods = [
+  # Rule 11: the core spawns no threads or tasks; apps own them through their Spawner.
+  { path = "std::thread::spawn", reason = "docs/rules.md rule 11: the core spawns nothing, apps spawn via Spawner" },
+  { path = "std::thread::Builder::spawn", reason = "docs/rules.md rule 11: the core spawns nothing, apps spawn via Spawner" },
+  { path = "wasm_bindgen_futures::spawn_local", reason = "docs/rules.md rule 11: the core spawns nothing, apps spawn via Spawner" },
+  { path = "tokio::spawn", reason = "docs/rules.md rules 9 and 11: the core has no Tokio and spawns nothing" },
+
+  # Rule 5: the core is headless; stylekits paint from core responses.
+  { path = "egui::Ui::painter", reason = "docs/rules.md rule 5: the core does not paint" },
+  { path = "egui::Context::layer_painter", reason = "docs/rules.md rule 5: the core does not paint" },
+  { path = "egui::Color32::from_rgb", reason = "docs/rules.md rule 5: no design-system colors in the core" },
+  { path = "egui::Color32::from_rgba_unmultiplied", reason = "docs/rules.md rule 5: no design-system colors in the core" },
+  { path = "egui::Color32::from_rgba_premultiplied", reason = "docs/rules.md rule 5: no design-system colors in the core" },
+  { path = "egui::Color32::from_gray", reason = "docs/rules.md rule 5: no design-system colors in the core" },
+  { path = "egui::Color32::from_black_alpha", reason = "docs/rules.md rule 5: no design-system colors in the core" },
+  { path = "egui::Color32::from_white_alpha", reason = "docs/rules.md rule 5: no design-system colors in the core" },
+  { path = "egui::Stroke::new", reason = "docs/rules.md rule 5: no visual styling in the core" },
+
+  # Rule 10: from_secs_f* panics on negative, NaN or overflowing input.
+  { path = "std::time::Duration::from_secs_f64", reason = "docs/rules.md rule 10: panics on negative/non-finite input; use Duration::try_from_secs_f64 on validated input" },
+  { path = "std::time::Duration::from_secs_f32", reason = "docs/rules.md rule 10: panics on negative/non-finite input; use Duration::try_from_secs_f32 on validated input" },
+  # Perf rules: never repaint unconditionally.
+  { path = "egui::Context::request_repaint", reason = "docs/rules.md performance rules: use request_repaint_after or a bounded animation; an event that changed state may expect() with a reason" },
+]
+
+disallowed-types = [
+  { path = "egui::Painter", reason = "docs/rules.md rule 5: the core does not paint" },
+]

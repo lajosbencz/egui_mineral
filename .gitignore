@@ -20,12 +20,13 @@ Thumbs.db
 ehthumbs.db
 desktop.ini
 
-# Editors and tools: JetBrains, VS Code, Vim, Emacs, Claude Code's local settings, the Playwright MCP server.
+# Editors and tools: JetBrains, VS Code, Vim, Emacs, Claude Code's local settings and worktrees, the Playwright MCP server.
 .idea/
 .vscode/
 *.swp
 *~
 .claude/settings.local.json
+.claude/worktrees/
 .playwright-mcp/
 
 # Project
