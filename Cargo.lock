@@ -232,7 +232,7 @@ dependencies = [
  "objc2-core-foundation",
  "objc2-core-graphics",
  "objc2-foundation 0.3.2",
- "parking_lot",
+ "parking_lot 0.12.5",
  "percent-encoding",
  "windows-sys 0.61.2",
  "wl-clipboard-rs",
@@ -1059,7 +1059,7 @@ dependencies = [
  "objc2 0.6.5",
  "objc2-app-kit 0.3.2",
  "objc2-foundation 0.3.2",
- "parking_lot",
+ "parking_lot 0.12.5",
  "percent-encoding",
  "pollster",
  "profiling",
@@ -1189,7 +1189,7 @@ dependencies = [
  "egui_taffy",
  "fixed_decimal",
  "fluent-bundle",
- "fluent-langneg",
+ "fluent-langneg 0.14.2",
  "futures-channel",
  "futures-util",
  "icu_calendar",
@@ -1206,7 +1206,7 @@ dependencies = [
  "js-sys",
  "notify-rust",
  "nucleo-matcher",
- "parking_lot",
+ "parking_lot 0.13.0",
  "percent-encoding",
  "proptest",
  "rfd",
@@ -1221,7 +1221,7 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
- "writeable",
+ "writeable 0.6.4",
 ]
 
 [[package]]
@@ -1248,7 +1248,7 @@ dependencies = [
  "futures-executor",
  "material-colors",
  "notify-debouncer-mini",
- "parking_lot",
+ "parking_lot 0.13.0",
  "serde",
  "thiserror 2.0.21",
  "toml",
@@ -1278,7 +1278,7 @@ checksum = "4562fd4d3f37268901368dbc9170d098ba3af3239b13b33867af7118e007690e"
 dependencies = [
  "egui",
  "log",
- "parking_lot",
+ "parking_lot 0.12.5",
  "stackbox",
  "taffy",
 ]
@@ -1352,7 +1352,7 @@ dependencies = [
  "harfrust",
  "log",
  "nohash-hasher",
- "parking_lot",
+ "parking_lot 0.12.5",
  "profiling",
  "self_cell",
  "serde",
@@ -1463,7 +1463,7 @@ dependencies = [
  "displaydoc",
  "ryu",
  "smallvec",
- "writeable",
+ "writeable 0.6.4",
 ]
 
 [[package]]
@@ -1489,7 +1489,7 @@ version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "01203cb8918f5711e73891b347816d932046f95f54207710bda99beaeb423bf4"
 dependencies = [
- "fluent-langneg",
+ "fluent-langneg 0.13.1",
  "fluent-syntax",
  "intl-memoizer",
  "intl_pluralrules",
@@ -1506,6 +1506,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7eebbe59450baee8282d71676f3bfed5689aeab00b27545e83e5f14b1195e8b0"
 dependencies = [
  "unic-langid",
+]
+
+[[package]]
+name = "fluent-langneg"
+version = "0.14.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1d5439a5e4ef14dc761bfe1d6ecbc4ba6fd698814ee65e7e623fa85aa9348dcc"
+dependencies = [
+ "icu_locid",
 ]
 
 [[package]]
@@ -1931,7 +1940,7 @@ dependencies = [
  "icu_locale_core",
  "icu_locale_fallback",
  "icu_provider",
- "tinystr",
+ "tinystr 0.8.5",
  "zerovec",
 ]
 
@@ -1998,8 +2007,8 @@ dependencies = [
  "icu_provider",
  "icu_time",
  "potential_utf",
- "tinystr",
- "writeable",
+ "tinystr 0.8.5",
+ "writeable 0.6.4",
  "zerovec",
 ]
 
@@ -2022,7 +2031,7 @@ dependencies = [
  "icu_locale_fallback",
  "icu_plurals",
  "icu_provider",
- "writeable",
+ "writeable 0.6.4",
  "zerovec",
 ]
 
@@ -2042,7 +2051,7 @@ dependencies = [
  "icu_locale_fallback",
  "icu_provider",
  "regex-automata",
- "writeable",
+ "writeable 0.6.4",
  "zerovec",
 ]
 
@@ -2063,7 +2072,7 @@ dependencies = [
  "icu_locale_data",
  "icu_locale_fallback",
  "icu_provider",
- "tinystr",
+ "tinystr 0.8.5",
  "zerovec",
 ]
 
@@ -2074,10 +2083,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "25d29b57c17c6528d0dc4c2141cfa2d08200465acb537a3909c8b9b8a4a984c0"
 dependencies = [
  "displaydoc",
- "litemap",
+ "litemap 0.8.3",
  "serde",
- "tinystr",
- "writeable",
+ "tinystr 0.8.5",
+ "writeable 0.6.4",
  "zerovec",
 ]
 
@@ -2097,7 +2106,7 @@ dependencies = [
  "icu_locale_fallback_data",
  "icu_provider",
  "potential_utf",
- "tinystr",
+ "tinystr 0.8.5",
  "zerovec",
 ]
 
@@ -2106,6 +2115,18 @@ name = "icu_locale_fallback_data"
 version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3632ebbd0c5c3637ba1a40bdf8288f2cb9d2268e73441a69d5fc73d7cfbaa87c"
+
+[[package]]
+name = "icu_locid"
+version = "1.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "13acbb8371917fc971be86fc8057c41a64b521c184808a698c02acc242dbf637"
+dependencies = [
+ "displaydoc",
+ "litemap 0.7.5",
+ "tinystr 0.7.6",
+ "writeable 0.5.5",
+]
 
 [[package]]
 name = "icu_normalizer"
@@ -2139,7 +2160,7 @@ dependencies = [
  "displaydoc",
  "either",
  "serde",
- "writeable",
+ "writeable 0.6.4",
  "zerovec",
 ]
 
@@ -2193,7 +2214,7 @@ dependencies = [
  "icu_locale_core",
  "serde",
  "stable_deref_trait",
- "writeable",
+ "writeable 0.6.4",
  "yoke",
  "zerofrom",
  "zerotrie",
@@ -2213,7 +2234,7 @@ dependencies = [
  "icu_provider",
  "icu_time_data",
  "serde",
- "writeable",
+ "writeable 0.6.4",
  "zerotrie",
  "zerovec",
 ]
@@ -2584,6 +2605,12 @@ checksum = "32a66949e030da00e8c7d4434b251670a91556f4144941d37452769c25d58a53"
 
 [[package]]
 name = "litemap"
+version = "0.7.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "23fb14cb19457329c82206317a5663005a4d404783dc74f4252769b0d5f42856"
+
+[[package]]
+name = "litemap"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "47d9d19d1d6efa0109d2f65ff4c85cddd50bd572e5a00127ab10987290bcefae"
@@ -2599,6 +2626,15 @@ name = "lock_api"
 version = "0.4.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "224399e74b87b5f3557511d98dff8b14089b3dadafcab6bb93eab67d3aace965"
+dependencies = [
+ "scopeguard",
+]
+
+[[package]]
+name = "lock_api"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "65d91b22da179613dcf4d6ec8349563f52a363f6849e03b00dd0a185ec4a59af"
 dependencies = [
  "scopeguard",
 ]
@@ -3349,8 +3385,18 @@ version = "0.12.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "93857453250e3077bd71ff98b6a65ea6621a19bb0f559a85248955ac12c45a1a"
 dependencies = [
- "lock_api",
- "parking_lot_core",
+ "lock_api 0.4.14",
+ "parking_lot_core 0.9.12",
+]
+
+[[package]]
+name = "parking_lot"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a9cf937ca4e1d0b7578784559063422fc39ae7c5a00f02471f2614d5486fd226"
+dependencies = [
+ "lock_api 0.5.0",
+ "parking_lot_core 0.10.0",
 ]
 
 [[package]]
@@ -3362,6 +3408,18 @@ dependencies = [
  "cfg-if",
  "libc",
  "redox_syscall 0.5.18",
+ "smallvec",
+ "windows-link 0.2.1",
+]
+
+[[package]]
+name = "parking_lot_core"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9cfff060068cc18aa7815010fcaf80c68c7fb9e85fc7f5c0f9bf142c21d19826"
+dependencies = [
+ "libc",
+ "redox_syscall 0.9.5",
  "smallvec",
  "windows-link 0.2.1",
 ]
@@ -3602,7 +3660,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d83eb9bc6d8e5cf568e7a1101d60ee05e81ed50ea106026f3d18deeb046d7661"
 dependencies = [
  "serde_core",
- "writeable",
+ "writeable 0.6.4",
  "zerovec",
 ]
 
@@ -4495,6 +4553,15 @@ dependencies = [
 
 [[package]]
 name = "tinystr"
+version = "0.7.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9117f5d4db391c1cf6927e7bea3db74b9a1c1add8f7eda9ffd5364f40f57b82f"
+dependencies = [
+ "displaydoc",
+]
+
+[[package]]
+name = "tinystr"
 version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "abc840c238154d58f9e86b2792261edfde565a17696e1cda1a449de27979801a"
@@ -4707,7 +4774,7 @@ version = "0.9.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dce1bf08044d4b7a94028c93786f8566047edc11110595914de93362559bc658"
 dependencies = [
- "tinystr",
+ "tinystr 0.8.5",
 ]
 
 [[package]]
@@ -5117,7 +5184,7 @@ dependencies = [
  "js-sys",
  "log",
  "naga",
- "parking_lot",
+ "parking_lot 0.12.5",
  "portable-atomic",
  "profiling",
  "raw-window-handle",
@@ -5150,7 +5217,7 @@ dependencies = [
  "naga",
  "naga-types",
  "once_cell",
- "parking_lot",
+ "parking_lot 0.12.5",
  "portable-atomic",
  "profiling",
  "raw-window-handle",
@@ -5237,7 +5304,7 @@ dependencies = [
  "objc2-quartz-core 0.3.2",
  "once_cell",
  "ordered-float",
- "parking_lot",
+ "parking_lot 0.12.5",
  "portable-atomic",
  "portable-atomic-util",
  "profiling",
@@ -5704,6 +5771,12 @@ name = "write16"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d1890f4022759daae28ed4fe62859b1236caebfc61ede2f63ed4e695f3f6d936"
+
+[[package]]
+name = "writeable"
+version = "0.5.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1e9df38ee2d2c3c5948ea468a8406ff0db0b29ae1ffde1bcf20ef305bcc95c51"
 
 [[package]]
 name = "writeable"
