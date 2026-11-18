@@ -16,6 +16,12 @@ updates:
       cargo-security:
         applies-to: security-updates
         patterns: ["*"]
+    ignore:
+      # Majors tied to dependents: fluent-langneg to fluent-bundle's unic-langid, parking_lot to egui and wgpu.
+      - dependency-name: fluent-langneg
+        update-types: [version-update:semver-major]
+      - dependency-name: parking_lot
+        update-types: [version-update:semver-major]
     commit-message:
       prefix: "chore(deps)"
   - package-ecosystem: rust-toolchain
