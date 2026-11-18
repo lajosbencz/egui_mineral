@@ -1,0 +1,109 @@
+name: Hygiene
+
+# Lints that need no build
+on:
+  pull_request:
+  push:
+    branches: [master]
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hygiene-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  typos:
+    name: Spelling
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: crate-ci/typos@276087d9a4f06398b3e04825487805e2d7375888 # v1.52.2
+
+  deny:
+    name: Dependency policy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
+
+  rules:
+    name: Structural rules
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      AST_GREP_VERSION: 0.51.2
+      AST_GREP_SHA256: 40604c21c38d4c7581c56bdddeef277c56bf3c0113620aa96e78ae87e82366df
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Not in install-action: checked against its published digest.
+      - name: ast-grep
+        run: |
+          curl -sSfL "https://github.com/ast-grep/ast-grep/releases/download/$AST_GREP_VERSION/app-x86_64-unknown-linux-gnu.zip" \
+            -o "$RUNNER_TEMP/ast-grep.zip"
+          echo "$AST_GREP_SHA256  $RUNNER_TEMP/ast-grep.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/ast-grep.zip" -d "$RUNNER_TEMP/ast-grep"
+          "$RUNNER_TEMP/ast-grep/ast-grep" test
+          "$RUNNER_TEMP/ast-grep/ast-grep" scan crates tools examples
+
+  machete:
+    name: Unused dependencies
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        with:
+          tool: cargo-machete@0.9.2
+          fallback: none
+      - run: cargo machete
+
+  workflows:
+    name: Workflows
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      ACTIONLINT_VERSION: 1.7.12
+      ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        with:
+          tool: shellcheck,zizmor
+          fallback: none
+      - name: actionlint
+        run: |
+          curl -sSfL "https://github.com/rhysd/actionlint/releases/download/v$ACTIONLINT_VERSION/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" \
+            -o "$RUNNER_TEMP/actionlint.tar.gz"
+          echo "$ACTIONLINT_SHA256  $RUNNER_TEMP/actionlint.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/actionlint.tar.gz" -C "$RUNNER_TEMP" actionlint
+          "$RUNNER_TEMP/actionlint"
+      - run: zizmor .github
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  result:
+    name: Hygiene result
+    if: ${{ always() }}
+    needs: [typos, deny, rules, machete, workflows]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        run: exit 1

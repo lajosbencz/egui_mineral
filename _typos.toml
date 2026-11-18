@@ -1,0 +1,5 @@
+[default.extend-identifiers]
+Writeable = "Writeable"
+
+[default.extend-words]
+writeable = "writeable"

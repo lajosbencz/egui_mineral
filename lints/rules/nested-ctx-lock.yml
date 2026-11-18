@@ -1,0 +1,40 @@
+id: nested-ctx-lock
+language: rust
+severity: error
+message: Context/Ui/i18n call inside an egui lock closure; egui's RwLock is not re-entrant (deadlock). Read the value before the closure.
+rule:
+  kind: call_expression
+  all:
+    - has:
+        field: function
+        kind: field_expression
+        has:
+          field: field
+          regex: ^(input|input_mut|memory|memory_mut|data|data_mut|options|options_mut)$
+    - has:
+        field: arguments
+        has:
+          kind: closure_expression
+          has:
+            field: body
+            stopBy: end
+            any:
+              # ctx.x(..), ui.x(..), ui.ctx().x(..); accessors that do not lock are fine
+              - kind: call_expression
+                has:
+                  field: function
+                  kind: field_expression
+                  all:
+                    - has:
+                        field: value
+                        regex: ^(ctx|ui|self\.ctx|[a-z_]+\.ctx\(\))$
+                    - not:
+                        has:
+                          field: field
+                          regex: ^(ctx|clone|id|scope_id|layer_id|viewport_id)$
+              # i18n::tr(ctx, ..) and friends read ctx data
+              - kind: call_expression
+                has:
+                  field: function
+                  kind: scoped_identifier
+                  regex: (^|::)i18n::\w+$

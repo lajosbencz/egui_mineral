@@ -1,0 +1,59 @@
+id: ui-literal
+language: rust
+severity: error
+message: Library code renders no literal text; use i18n::tr with a `mineral-*` id and ship it in the stylekit catalog (docs/conventions.md i18n).
+files:
+  - crates/egui_mineral/src/**
+  - crates/egui_mineral_material/src/**
+ignores:
+  - '**/tests/**'
+  - '**/tests.rs'
+utils:
+  cfg-test-attr:
+    kind: attribute_item
+    regex: ^#\[(cfg\(.*\btest\b.*\)|test)\]$
+  test-item:
+    any:
+      - kind: mod_item
+      - kind: function_item
+    follows:
+      matches: cfg-test-attr
+      stopBy:
+        not:
+          kind: attribute_item
+rule:
+  all:
+    - kind: string_literal
+    # Letters only: empty, whitespace and pure-symbol literals are fine.
+    - regex: \p{L}
+    # Id salts such as "mineral::tree_control".
+    - not:
+        regex: ^"\w+::\w
+    - inside:
+        kind: arguments
+        inside:
+          kind: call_expression
+          has:
+            field: function
+            any:
+              # ui.label("..") and friends
+              - kind: field_expression
+                has:
+                  field: field
+                  regex: ^(label|heading|button|small_button|checkbox|radio|radio_value|selectable_label|selectable_value|link|hyperlink|collapsing|on_hover_text|on_disabled_hover_text|hint_text|monospace|strong|weak)$
+              # egui::Button::new(".."), material Button::new(id, ".."); a leading id literal is fine.
+              - kind: scoped_identifier
+                regex: (^|::)[A-Z]\w*::new$
+                not:
+                  regex: (^|::)(Id|IdSalt|StableId|IcuFormat|AsciiFormat|LanguageIdentifier|Error|ValidationError)::new$
+    - not:
+        all:
+          - nthChild: 1
+          - not:
+              nthChild:
+                position: 1
+                reverse: true
+    - not:
+        inside:
+          stopBy: end
+          matches: test-item

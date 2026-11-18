@@ -1,0 +1,145 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_PROFILE_DEV_DEBUG: line-tables-only
+  CARGO_PROFILE_TEST_DEBUG: line-tables-only
+
+jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          save-if: ${{ github.event_name == 'push' }}
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libxkbcommon-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        with:
+          tool: cargo-nextest
+          fallback: none
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+      - run: cargo clippy -p egui_mineral_material --all-targets -- -D warnings
+      - run: cargo clippy -p egui_mineral -p egui_mineral_material --all-targets --no-default-features -- -D warnings
+      - run: cargo clippy -p egui_mineral --target wasm32-unknown-unknown --no-default-features -- -D warnings
+      - run: cargo clippy -p egui_mineral_material --target wasm32-unknown-unknown -- -D warnings
+      - run: cargo clippy -p egui_mineral_material --target wasm32-unknown-unknown --no-default-features -- -D warnings
+      - run: cargo clippy -p egui_mineral_material --target wasm32-unknown-unknown --all-features -- -D warnings
+      - run: cargo clippy -p showcase --target wasm32-unknown-unknown -- -D warnings
+      - run: cargo nextest run --workspace --all-features --profile ci
+      - run: cargo nextest run -p egui_mineral -p egui_mineral_material --no-default-features --features egui_mineral_material/bundled-icons --profile ci
+      # datagen must match the locked ICU4X version
+      - name: Trimmed ICU4X data
+        run: |
+          cargo install icu4x-datagen --locked --version "$(cargo pkgid icu_datetime | sed 's/.*@//')"
+          icu4x-datagen --format baked --markers all --locales en ar --out "$RUNNER_TEMP/icu_en_ar"
+          ICU4X_DATA_DIR="$RUNNER_TEMP/icu_en_ar" cargo nextest run -p egui_mineral --test icu_trimmed --run-ignored only --profile ci
+      - run: cargo test --doc --workspace --all-features
+      - run: cargo doc --workspace --no-deps --all-features
+        env:
+          RUSTDOCFLAGS: -D warnings
+      - run: cargo doc -p egui_mineral -p egui_mineral_material --no-deps --no-default-features
+        env:
+          RUSTDOCFLAGS: -D warnings
+      - name: docs.rs build
+        run: |
+          rustup toolchain install nightly --profile minimal
+          cargo +nightly doc -p egui_mineral -p egui_mineral_material --all-features --no-deps
+        env:
+          RUSTDOCFLAGS: --cfg docsrs -D warnings
+      - run: cargo package -p egui_mineral -p egui_mineral_macros -p egui_mineral_material
+
+  # Fails when specs change, never blocks merging
+  spec:
+    name: Generated spec
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          save-if: false
+      - name: Generated spec is current
+        run: |
+          cargo run -p md3_tokens -- generate
+          changes=$(git status --porcelain -- crates/egui_mineral_material/src/spec)
+          [ -z "$changes" ] && exit 0
+          {
+            echo '## Stale generated spec'
+            echo '```'
+            echo "$changes"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "$changes"
+          exit 1
+
+  # Fails on any public API change vs the PR base, never blocks merging
+  public-api:
+    name: Public API diff
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      # cargo-public-api builds rustdoc JSON with nightly.
+      - run: rustup toolchain install nightly --profile minimal --target wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          save-if: false
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        with:
+          tool: cargo-public-api@0.52.0
+          fallback: cargo-install
+      - name: Diff against base
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          status=0
+          for crate in egui_mineral egui_mineral_material; do
+          for target in x86_64-unknown-linux-gnu wasm32-unknown-unknown; do
+            echo "## \`$crate\` ($target)" >> "$GITHUB_STEP_SUMMARY"
+            echo '```diff' >> "$GITHUB_STEP_SUMMARY"
+            features=$(cargo metadata --no-deps --format-version 1 | jq -r --arg c "$crate" \
+              '.packages[] | select(.name == $c) | .features | keys | map(select(startswith("unstable") | not)) | join(",")')
+            cargo public-api -p "$crate" --features "$features" --target "$target" -sss diff --deny all "$BASE_SHA..$HEAD_SHA" \
+              | tee -a "$GITHUB_STEP_SUMMARY" || status=1
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          done
+          done
+          exit "$status"
+
+  result:
+    name: CI result
+    if: ${{ always() }}
+    needs: [check]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        run: exit 1

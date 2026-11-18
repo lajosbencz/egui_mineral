@@ -1,0 +1,80 @@
+name: Pages
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - crates/**
+      - examples/showcase/**
+      - tools/**
+      - Cargo.lock
+      - Cargo.toml
+      - rust-toolchain.toml
+      - .github/workflows/pages.yml
+      - .github/pages/**
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  PUBLIC_URL: /egui_mineral/material/
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install Rust toolchain
+        run: rustup toolchain install --profile minimal
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          save-if: ${{ github.ref == 'refs/heads/master' }}
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        with:
+          tool: trunk@0.22.1
+          fallback: none
+      # ICU4X data for the showcase's locales only (pages::LOCALES).
+      # Datagen must match the locked ICU4X version.
+      - name: Trimmed ICU4X data
+        run: |
+          cargo install icu4x-datagen --locked --version "$(cargo pkgid icu_datetime | sed 's/.*@//')"
+          icu4x-datagen --format baked --markers all --locales en de hu ja ar --out "$RUNNER_TEMP/icu_data"
+          echo "ICU4X_DATA_DIR=$RUNNER_TEMP/icu_data" >> "$GITHUB_ENV"
+      - name: Build showcase
+        working-directory: examples/showcase
+        run: trunk build --release --public-url "$PUBLIC_URL"
+      - name: Assemble site
+        run: |
+          mkdir site
+          cp -r .github/pages/. site/
+          cp -r examples/showcase/dist site/material
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site
+
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

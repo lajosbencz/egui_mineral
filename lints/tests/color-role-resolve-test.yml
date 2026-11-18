@@ -1,0 +1,19 @@
+id: color-role-resolve
+valid:
+  - |
+    fn f(t: &Tokens) {
+        let c = t.role(ROLE);
+    }
+  - |
+    fn f(c: &ColorScheme) {
+        let x = ROLE.resolve(c);
+    }
+invalid:
+  - |
+    fn f(t: &Tokens) {
+        let c = ROLE.resolve(&t.color);
+    }
+  - |
+    fn f(&self) {
+        let c = ROLE.resolve(&self.t.color);
+    }

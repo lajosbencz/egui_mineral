@@ -1,0 +1,37 @@
+id: no-panic
+language: rust
+severity: error
+message: Library code never panics; return `Result`, or replace the value via `egui_mineral::kit::sanitize` (docs/rules.md rule 10).
+files:
+  - crates/egui_mineral/src/**
+  - crates/egui_mineral_material/src/**
+ignores:
+  - '**/tests/**'
+  - '**/tests.rs'
+  - '**/test_support.rs'
+utils:
+  cfg-test-attr:
+    kind: attribute_item
+    regex: ^#\[(cfg\(.*\btest\b.*\)|test)\]$
+  test-item:
+    any:
+      - kind: mod_item
+      - kind: function_item
+    follows:
+      matches: cfg-test-attr
+      stopBy:
+        not:
+          kind: attribute_item
+rule:
+  all:
+    - any:
+        - kind: macro_invocation
+          has:
+            field: macro
+            regex: ^(debug_)?assert(_eq|_ne)?$
+        - kind: line_comment
+          regex: ^//[/!]\s*#\s*Panics\b
+    - not:
+        inside:
+          stopBy: end
+          matches: test-item

@@ -1,0 +1,45 @@
+id: builder-unchecked-float
+valid:
+  - |
+    impl W {
+        pub fn width(mut self, w: f32) -> Self {
+            self.w = sanitize::at_least(w, 0.0.., "width");
+            self
+        }
+    }
+  - |
+    impl W {
+        pub fn fraction(mut self, f: f32) -> Self {
+            self.inner = self.inner.fraction(f);
+            self
+        }
+    }
+  - |
+    impl W {
+        fn width(mut self, w: f32) -> Self {
+            self.w = w;
+            self
+        }
+    }
+  - |
+    impl W {
+        pub fn count(mut self, n: usize) -> Self {
+            self.n = n;
+            self
+        }
+    }
+invalid:
+  - |
+    impl W {
+        pub fn width(mut self, w: f32) -> Self {
+            self.w = w;
+            self
+        }
+    }
+  - |
+    impl W {
+        pub fn delay(mut self, secs: f64) -> Self {
+            self.delay = Some(secs);
+            self
+        }
+    }

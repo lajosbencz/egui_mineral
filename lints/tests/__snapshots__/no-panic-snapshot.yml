@@ -1,0 +1,39 @@
+id: no-panic
+snapshots:
+  "/// Width.\n///\n/// # Panics\n/// When negative.\npub fn w() {}\n":
+    labels:
+    - source: |
+        /// # Panics
+      style: primary
+      start: 15
+      end: 28
+  "fn f(a: u8) {\n    assert_eq!(a, 1);\n}\n":
+    labels:
+    - source: assert_eq!(a, 1)
+      style: primary
+      start: 18
+      end: 34
+    - source: assert_eq
+      style: secondary
+      start: 18
+      end: 27
+  "fn f(a: u8) {\n    debug_assert!(a > 1);\n}\n":
+    labels:
+    - source: debug_assert!(a > 1)
+      style: primary
+      start: 18
+      end: 38
+    - source: debug_assert
+      style: secondary
+      start: 18
+      end: 30
+  "pub fn width(w: f32) {\n    assert!(w > 0.0, \"w\");\n}\n":
+    labels:
+    - source: assert!(w > 0.0, "w")
+      style: primary
+      start: 27
+      end: 48
+    - source: assert
+      style: secondary
+      start: 27
+      end: 33

@@ -1,0 +1,43 @@
+id: private-doc
+language: rust
+severity: error
+message: Doc comment on a non-public item; delete it, or keep a `//` spec pointer or quirk.
+note: docs/conventions.md (comments).
+rule:
+  kind: line_comment
+  regex: ^///
+  not:
+    precedes:
+      kind: line_comment
+      regex: ^///
+  precedes:
+    stopBy:
+      not:
+        any:
+          - kind: attribute_item
+          - kind: line_comment
+    any:
+      - kind: function_item
+      - kind: function_signature_item
+      - kind: struct_item
+      - kind: enum_item
+      - kind: union_item
+      - kind: const_item
+      - kind: static_item
+      - kind: type_item
+      - kind: trait_item
+      - kind: mod_item
+      - kind: field_declaration
+    not:
+      any:
+        - has:
+            kind: visibility_modifier
+            regex: ^pub$
+        - inside:
+            kind: enum_variant
+            stopBy: end
+        - inside:
+            kind: declaration_list
+            any:
+              - inside: { kind: trait_item }
+              - inside: { kind: impl_item, has: { field: trait, regex: "." } }

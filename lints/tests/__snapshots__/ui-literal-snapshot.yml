@@ -1,0 +1,242 @@
+id: ui-literal
+snapshots:
+  "#[cfg(test)]\nfn helper(ui: &mut Ui) {}\nfn f(ui: &mut Ui) {\n    ui.label(\"Hello\");\n}\n":
+    labels:
+    - source: "\"Hello\""
+      style: primary
+      start: 72
+      end: 79
+    - source: label
+      style: secondary
+      start: 66
+      end: 71
+    - source: ui.label
+      style: secondary
+      start: 63
+      end: 71
+    - source: ui.label("Hello")
+      style: secondary
+      start: 63
+      end: 80
+    - source: ("Hello")
+      style: secondary
+      start: 71
+      end: 80
+  "#[cfg(test)]\nmod tests {}\nfn f(ui: &mut Ui) {\n    ui.label(\"Hello\");\n}\n":
+    labels:
+    - source: "\"Hello\""
+      style: primary
+      start: 59
+      end: 66
+    - source: label
+      style: secondary
+      start: 53
+      end: 58
+    - source: ui.label
+      style: secondary
+      start: 50
+      end: 58
+    - source: ui.label("Hello")
+      style: secondary
+      start: 50
+      end: 67
+    - source: ("Hello")
+      style: secondary
+      start: 58
+      end: 67
+  "fn f() {\n    let n = SemanticNode::new(id, Role::Button, \"Sign In\");\n}\n":
+    labels:
+    - source: "\"Sign In\""
+      style: primary
+      start: 57
+      end: 66
+    - source: SemanticNode::new
+      style: secondary
+      start: 21
+      end: 38
+    - source: SemanticNode::new(id, Role::Button, "Sign In")
+      style: secondary
+      start: 21
+      end: 67
+    - source: (id, Role::Button, "Sign In")
+      style: secondary
+      start: 38
+      end: 67
+  "fn f(ui: &mut Ui) {\n    let t = RichText::new(\"Name\");\n}\n":
+    labels:
+    - source: "\"Name\""
+      style: primary
+      start: 46
+      end: 52
+    - source: RichText::new
+      style: secondary
+      start: 32
+      end: 45
+    - source: RichText::new("Name")
+      style: secondary
+      start: 32
+      end: 53
+    - source: ("Name")
+      style: secondary
+      start: 45
+      end: 53
+  "fn f(ui: &mut Ui) {\n    ui.add(egui::Button::new(\"Save\"));\n}\n":
+    labels:
+    - source: "\"Save\""
+      style: primary
+      start: 49
+      end: 55
+    - source: egui::Button::new
+      style: secondary
+      start: 31
+      end: 48
+    - source: egui::Button::new("Save")
+      style: secondary
+      start: 31
+      end: 56
+    - source: ("Save")
+      style: secondary
+      start: 48
+      end: 56
+  "fn f(ui: &mut Ui) {\n    ui.add(egui::Label::new(\"Name\"));\n}\n":
+    labels:
+    - source: "\"Name\""
+      style: primary
+      start: 48
+      end: 54
+    - source: egui::Label::new
+      style: secondary
+      start: 31
+      end: 47
+    - source: egui::Label::new("Name")
+      style: secondary
+      start: 31
+      end: 55
+    - source: ("Name")
+      style: secondary
+      start: 47
+      end: 55
+  "fn f(ui: &mut Ui) {\n    ui.button(\"Save\");\n}\n":
+    labels:
+    - source: "\"Save\""
+      style: primary
+      start: 34
+      end: 40
+    - source: button
+      style: secondary
+      start: 27
+      end: 33
+    - source: ui.button
+      style: secondary
+      start: 24
+      end: 33
+    - source: ui.button("Save")
+      style: secondary
+      start: 24
+      end: 41
+    - source: ("Save")
+      style: secondary
+      start: 33
+      end: 41
+  "fn f(ui: &mut Ui) {\n    ui.heading(\"Settings\");\n}\n":
+    labels:
+    - source: "\"Settings\""
+      style: primary
+      start: 35
+      end: 45
+    - source: heading
+      style: secondary
+      start: 27
+      end: 34
+    - source: ui.heading
+      style: secondary
+      start: 24
+      end: 34
+    - source: ui.heading("Settings")
+      style: secondary
+      start: 24
+      end: 46
+    - source: ("Settings")
+      style: secondary
+      start: 34
+      end: 46
+  "fn f(ui: &mut Ui) {\n    ui.label(\"Hello\");\n}\n":
+    labels:
+    - source: "\"Hello\""
+      style: primary
+      start: 33
+      end: 40
+    - source: label
+      style: secondary
+      start: 27
+      end: 32
+    - source: ui.label
+      style: secondary
+      start: 24
+      end: 32
+    - source: ui.label("Hello")
+      style: secondary
+      start: 24
+      end: 41
+    - source: ("Hello")
+      style: secondary
+      start: 32
+      end: 41
+  "fn f(ui: &mut Ui) {\n    ui.label(\"x\").on_hover_text(\"Copy\");\n}\n":
+    labels:
+    - source: "\"x\""
+      style: primary
+      start: 33
+      end: 36
+    - source: label
+      style: secondary
+      start: 27
+      end: 32
+    - source: ui.label
+      style: secondary
+      start: 24
+      end: 32
+    - source: ui.label("x")
+      style: secondary
+      start: 24
+      end: 37
+    - source: ("x")
+      style: secondary
+      start: 32
+      end: 37
+  "fn f(ui: &mut Ui) {\n    ui.mineral(Chip::new(\"tag\", ChipKind::Assist, \"Filter\"));\n}\n":
+    labels:
+    - source: "\"Filter\""
+      style: primary
+      start: 70
+      end: 78
+    - source: Chip::new
+      style: secondary
+      start: 35
+      end: 44
+    - source: Chip::new("tag", ChipKind::Assist, "Filter")
+      style: secondary
+      start: 35
+      end: 79
+    - source: ("tag", ChipKind::Assist, "Filter")
+      style: secondary
+      start: 44
+      end: 79
+  "fn f(ui: &mut Ui) {\n    ui.mineral(PushButton::new(\"ok\", \"OK\"));\n}\n":
+    labels:
+    - source: "\"OK\""
+      style: primary
+      start: 57
+      end: 61
+    - source: PushButton::new
+      style: secondary
+      start: 35
+      end: 50
+    - source: PushButton::new("ok", "OK")
+      style: secondary
+      start: 35
+      end: 62
+    - source: ("ok", "OK")
+      style: secondary
+      start: 50
+      end: 62

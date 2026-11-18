@@ -1,0 +1,60 @@
+[graph]
+all-features = true
+
+[advisories]
+# only flag direct deps
+unmaintained = "workspace"
+ignore = []
+
+[licenses]
+confidence-threshold = 0.8
+unused-allowed-license = "allow"
+# GPL-3.0 compatible only (FSF list). GPL-2.0-only,
+# EPL, CDDL, SSPL, etc. stay out.
+allow = [
+  "GPL-3.0-only",
+  "GPL-3.0-or-later",
+  "GPL-2.0-or-later",
+  "LGPL-2.1-or-later",
+  "LGPL-3.0-only",
+  "LGPL-3.0-or-later",
+  "MPL-2.0",
+  "MIT",
+  "MIT-0",
+  "0BSD",
+  "Unlicense",
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "ISC",
+  "Zlib",
+  "Unicode-3.0",
+  "BSL-1.0",
+  "CC0-1.0",
+  # egui default fonts; bundled data, not linked code
+  "OFL-1.1",
+  "Ubuntu-font-1.0",
+]
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+allow-wildcard-paths = true
+deny = [
+  # no C deps
+  { name = "openssl-sys" },
+  { name = "openssl" },
+  { name = "libsqlite3-sys" },
+  # Rule 3: no backend types in the core or the stylekit. dev-dependencies count too
+  { name = "eframe", wrappers = ["showcase"], reason = "docs/rules.md rule 3: backend only in apps/tools" },
+  { name = "winit", wrappers = ["eframe", "egui-winit", "egui-wgpu", "accesskit_winit"], reason = "docs/rules.md rule 3: backend only in apps/tools" },
+  # Rule 9: no async runtime in libraries
+  # cfg(all(target_os = "emscripten", wasm_bindgen_unstable_tokio)), never built here.
+  { name = "tokio", wrappers = ["wasm-bindgen-futures"], reason = "docs/rules.md rule 9: apps bring their own executor via Spawner" },
+  { name = "async-std", reason = "docs/rules.md rule 9: apps bring their own executor via Spawner" },
+]
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"

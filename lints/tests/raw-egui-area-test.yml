@@ -1,0 +1,27 @@
+id: raw-egui-area
+valid:
+  - |
+    fn f(core: &Core, id: Id) {
+        kit::overlay::area(core, id).show(ctx, |_| {});
+    }
+  - |
+    fn f(core: &Core, id: Id) {
+        let modal = Modal::new(id).area(kit::overlay::modal_area(core, id));
+    }
+invalid:
+  - |
+    fn f(id: Id) {
+        egui::Area::new(id).show(ctx, |_| {});
+    }
+  - |
+    fn f(id: Id) {
+        Area::new(id);
+    }
+  - |
+    fn f(id: Id) {
+        let area = egui::Modal::default_area(id);
+    }
+  - |
+    fn f(id: Id) {
+        let area = Modal::default_area(id);
+    }

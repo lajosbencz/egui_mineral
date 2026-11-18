@@ -1,0 +1,15 @@
+id: raw-egui-area
+language: rust
+severity: error
+message: Areas and modals go through kit::overlay::area and kit::overlay::modal_area (reduced-motion fade gate, reading-direction layout).
+files:
+  - crates/**/src/**
+  - examples/**
+ignores:
+  - crates/egui_mineral/src/kit/overlay.rs
+rule:
+  kind: call_expression
+  has:
+    field: function
+    kind: scoped_identifier
+    regex: (^|::)(Area::new|Modal::default_area)$

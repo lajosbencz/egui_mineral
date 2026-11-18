@@ -1,0 +1,37 @@
+id: restating-doc
+valid:
+  - |
+    /// <https://m3.material.io/components/chips>
+    struct Chip;
+  - |
+    /// Milliseconds.
+    fn delay() -> u64 { 0 }
+  - |
+    /// 12-hour clock with the day period before the time.
+    fn period_first() -> bool { true }
+  - |
+    /// Anchored to the trigger.
+    /// The popup flips when it overflows.
+    fn place() {}
+  - |
+    /// Setting up is deferred.
+    fn init() {}
+invalid:
+  - |
+    /// Returns the width.
+    fn width() -> f32 { 0.0 }
+  - |
+    /// Creates a new chip.
+    fn new() -> Chip { Chip }
+  - |
+    /// Whether the chip is selected.
+    fn selected() -> bool { true }
+  - |
+    /// The chip label.
+    struct Label;
+  - |
+    /// A chip.
+    struct Chip;
+  - |
+    /// Builder for chips.
+    struct ChipBuilder;

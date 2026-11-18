@@ -1,0 +1,38 @@
+id: data-mut-get-temp
+language: rust
+severity: error
+message: get_temp only reads; use data(..) (shared lock), or remove_temp under data_mut to take the value without a clone.
+utils:
+  get-temp-call:
+    kind: call_expression
+    has:
+      field: function
+      any:
+        - kind: field_expression
+          has: { field: field, regex: ^get_temp$ }
+        # d.get_temp::<T>(..)
+        - kind: generic_function
+          has:
+            field: function
+            kind: field_expression
+            has: { field: field, regex: ^get_temp$ }
+rule:
+  kind: call_expression
+  all:
+    - has:
+        field: function
+        kind: field_expression
+        has:
+          field: field
+          regex: ^data_mut$
+    - has:
+        field: arguments
+        has:
+          kind: closure_expression
+          has:
+            field: body
+            any:
+              - matches: get-temp-call
+              - has:
+                  stopBy: end
+                  matches: get-temp-call

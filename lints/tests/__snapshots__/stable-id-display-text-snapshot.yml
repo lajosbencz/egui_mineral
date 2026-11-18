@@ -1,0 +1,56 @@
+id: stable-id-display-text
+snapshots:
+  "fn f(&self) {\n    let a = StableId::new(format!(\"{}-{}\", self.key, self.label));\n}\n":
+    labels:
+    - source: StableId::new(format!("{}-{}", self.key, self.label))
+      style: primary
+      start: 26
+      end: 79
+    - source: StableId::new
+      style: secondary
+      start: 26
+      end: 39
+    - source: label
+      style: secondary
+      start: 72
+      end: 77
+    - source: label
+      style: secondary
+      start: 72
+      end: 77
+  "fn f(key: &str, name: &str) {\n    let a = StableId::new(format!(\"{key}-{name}\"));\n}\n":
+    labels:
+    - source: StableId::new(format!("{key}-{name}"))
+      style: primary
+      start: 42
+      end: 80
+    - source: StableId::new
+      style: secondary
+      start: 42
+      end: 55
+    - source: "{key}-{name}"
+      style: secondary
+      start: 65
+      end: 77
+    - source: "{key}-{name}"
+      style: secondary
+      start: 65
+      end: 77
+  "fn f(label: &str) {\n    let a = StableId::new(label);\n}\n":
+    labels:
+    - source: StableId::new(label)
+      style: primary
+      start: 32
+      end: 52
+    - source: StableId::new
+      style: secondary
+      start: 32
+      end: 45
+    - source: label
+      style: secondary
+      start: 46
+      end: 51
+    - source: label
+      style: secondary
+      start: 46
+      end: 51

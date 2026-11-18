@@ -1,0 +1,38 @@
+id: raw-egui-widget
+language: rust
+severity: error
+message: Apps use stylekit components; raw egui and ecosystem widgets go through the interop pattern (examples/showcase/src/pages/interop.rs, docs/conventions.md).
+files:
+  - examples/**
+ignores:
+  - examples/showcase/src/pages/interop.rs
+rule:
+  any:
+    - kind: call_expression
+      has:
+        field: function
+        any:
+          # ui.button(..) and friends
+          - kind: field_expression
+            has:
+              field: field
+              regex: ^(button|small_button|radio_value|selectable_label|selectable_value|toggle_value|text_edit_singleline|text_edit_multiline|link|hyperlink|drag_angle|color_edit_button_srgba|color_edit_button_rgb|color_edit_button_hsva)$
+          # egui::Slider::new(..), egui::TextEdit::singleline(..)
+          - kind: scoped_identifier
+            regex: ^egui::(widgets::)?(Button|Checkbox|DragValue|Slider|TextEdit|ComboBox|RadioButton|SelectableLabel|ProgressBar|Spinner|Hyperlink|Link|ImageButton)::\w+$
+    # ui.checkbox(&mut b, text), ui.radio(on, text); one-argument kit builders (ListSlot::checkbox) are fine.
+    - kind: call_expression
+      all:
+        - has:
+            field: function
+            kind: field_expression
+            has:
+              field: field
+              regex: ^(checkbox|radio)$
+        - has:
+            field: arguments
+            has:
+              nthChild: 2
+    # use egui::Slider; use egui::{Ui, widgets::TextEdit}; use egui::*;
+    - kind: use_declaration
+      regex: ^(pub(\([^)]*\))?\s+)?use\s+(::)?egui::(widgets::)?(\*|(Button|Checkbox|DragValue|Slider|TextEdit|ComboBox|RadioButton|SelectableLabel|ProgressBar|Spinner|Hyperlink|Link|ImageButton)\b|\{[^;]*(\*|\b(Button|Checkbox|DragValue|Slider|TextEdit|ComboBox|RadioButton|SelectableLabel|ProgressBar|Spinner|Hyperlink|Link|ImageButton)\b))

@@ -1,0 +1,44 @@
+id: builder-unchecked-float
+language: rust
+severity: error
+message: A public builder setter stores a float without passing it through `egui_mineral::kit::sanitize` (docs/rules.md rule 10).
+rule:
+  kind: function_item
+  all:
+    - has:
+        kind: visibility_modifier
+    - has:
+        field: return_type
+        regex: ^Self$
+    - has:
+        field: parameters
+        all:
+          - has:
+              kind: self_parameter
+          - has:
+              kind: parameter
+              all:
+                - has:
+                    field: pattern
+                    pattern: $P
+                - has:
+                    field: type
+                    regex: ^f(32|64)$
+    # Stores the argument as is; delegating to another (sanitizing) setter is fine.
+    - has:
+        field: body
+        has:
+          stopBy: end
+          kind: assignment_expression
+          has:
+            field: right
+            any:
+              - pattern: $P
+              - pattern: Some($P)
+    - not:
+        has:
+          field: body
+          has:
+            stopBy: end
+            kind: scoped_identifier
+            regex: '(^|::)sanitize::'

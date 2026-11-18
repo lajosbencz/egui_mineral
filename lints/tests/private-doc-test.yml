@@ -1,0 +1,53 @@
+id: private-doc
+valid:
+  - |
+    /// Public.
+    pub fn f() {}
+  - |
+    pub struct S {
+        /// Public field.
+        pub x: f32,
+    }
+  - |
+    pub trait T {
+        /// Trait item.
+        fn f(&self);
+    }
+  - |
+    impl Default for S {
+        /// Trait impl item.
+        fn default() -> Self { S }
+    }
+  - |
+    pub enum E {
+        V {
+            /// Variant field.
+            x: f32,
+        },
+    }
+  - |
+    impl egui::Widget for S {
+        /// Scoped trait impl item.
+        fn ui(self) {}
+    }
+  - |
+    // Compose `TimeSelector`.
+    fn selector() {}
+invalid:
+  - |
+    /// Private.
+    fn f() {}
+  - |
+    /// Crate-visible.
+    #[derive(Debug)]
+    pub(crate) struct S;
+  - |
+    pub(crate) struct S {
+        /// Private field.
+        x: f32,
+    }
+  - |
+    impl S {
+        /// Inherent private method.
+        fn g(&self) {}
+    }

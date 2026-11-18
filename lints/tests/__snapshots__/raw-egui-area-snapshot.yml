@@ -1,0 +1,42 @@
+id: raw-egui-area
+snapshots:
+  "fn f(id: Id) {\n    Area::new(id);\n}\n":
+    labels:
+    - source: Area::new(id)
+      style: primary
+      start: 19
+      end: 32
+    - source: Area::new
+      style: secondary
+      start: 19
+      end: 28
+  "fn f(id: Id) {\n    egui::Area::new(id).show(ctx, |_| {});\n}\n":
+    labels:
+    - source: egui::Area::new(id)
+      style: primary
+      start: 19
+      end: 38
+    - source: egui::Area::new
+      style: secondary
+      start: 19
+      end: 34
+  "fn f(id: Id) {\n    let area = Modal::default_area(id);\n}\n":
+    labels:
+    - source: Modal::default_area(id)
+      style: primary
+      start: 30
+      end: 53
+    - source: Modal::default_area
+      style: secondary
+      start: 30
+      end: 49
+  "fn f(id: Id) {\n    let area = egui::Modal::default_area(id);\n}\n":
+    labels:
+    - source: egui::Modal::default_area(id)
+      style: primary
+      start: 30
+      end: 59
+    - source: egui::Modal::default_area
+      style: secondary
+      start: 30
+      end: 55

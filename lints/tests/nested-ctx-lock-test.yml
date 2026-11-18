@@ -1,0 +1,32 @@
+id: nested-ctx-lock
+valid:
+  - |
+    fn f(ctx: &egui::Context) {
+        let locale = i18n::format(ctx);
+        ctx.input(|i| parse(i, &locale));
+    }
+  - |
+    fn f(ui: &mut egui::Ui) {
+        ui.data_mut(|d| d.insert_temp(ui.ctx().clone().viewport_id().into(), 1));
+    }
+  - |
+    fn f(ctx: &egui::Context) {
+        ctx.data_mut(|d| d.get_temp_mut_or_default::<u32>(id).clone());
+    }
+invalid:
+  - |
+    fn f(ctx: &egui::Context) {
+        ctx.input(|i| i.time + ctx.pointer_hover_pos().map_or(0.0, |p| p.x as f64));
+    }
+  - |
+    fn f(ui: &mut egui::Ui) {
+        ui.data_mut(|d| d.insert_temp(id, ui.available_width()));
+    }
+  - |
+    fn f(ctx: &egui::Context) {
+        ctx.memory(|m| m.has_focus(id) && crate::i18n::tr(ctx, "x", &[]).is_empty());
+    }
+  - |
+    fn f(ui: &egui::Ui) {
+        ui.ctx().data(|d| ui.ctx().input(|i| i.time));
+    }

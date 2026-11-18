@@ -1,0 +1,44 @@
+id: restating-doc
+snapshots:
+  "/// A chip.\nstruct Chip;\n":
+    labels:
+    - source: |
+        /// A chip.
+      style: primary
+      start: 0
+      end: 12
+  "/// Builder for chips.\nstruct ChipBuilder;\n":
+    labels:
+    - source: |
+        /// Builder for chips.
+      style: primary
+      start: 0
+      end: 23
+  "/// Creates a new chip.\nfn new() -> Chip { Chip }\n":
+    labels:
+    - source: |
+        /// Creates a new chip.
+      style: primary
+      start: 0
+      end: 24
+  "/// Returns the width.\nfn width() -> f32 { 0.0 }\n":
+    labels:
+    - source: |
+        /// Returns the width.
+      style: primary
+      start: 0
+      end: 23
+  "/// The chip label.\nstruct Label;\n":
+    labels:
+    - source: |
+        /// The chip label.
+      style: primary
+      start: 0
+      end: 20
+  "/// Whether the chip is selected.\nfn selected() -> bool { true }\n":
+    labels:
+    - source: |
+        /// Whether the chip is selected.
+      style: primary
+      start: 0
+      end: 34

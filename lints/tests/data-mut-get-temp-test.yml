@@ -1,0 +1,17 @@
+id: data-mut-get-temp
+valid:
+  - |
+    fn f(ctx: &egui::Context) {
+        let s = ctx.data(|d| d.get_temp::<u32>(id));
+        let t = ctx.data_mut(|d| d.remove_temp::<u32>(id));
+        ctx.data_mut(|d| *d.get_temp_mut_or_default::<u32>(id) += 1);
+    }
+invalid:
+  - |
+    fn f(ctx: &egui::Context) {
+        let s = ctx.data_mut(|d| d.get_temp::<u32>(id));
+    }
+  - |
+    fn f(ui: &egui::Ui) {
+        let s: Option<u32> = ui.data_mut(|d| d.get_temp(id)).map(|v| v + 1);
+    }

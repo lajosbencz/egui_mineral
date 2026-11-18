@@ -1,0 +1,22 @@
+id: stable-id-display-text
+language: rust
+severity: error
+message: Agent keys derive from the id salt and indices, never from displayed text (label, name, title, ...).
+rule:
+  kind: call_expression
+  all:
+    - has:
+        field: function
+        kind: scoped_identifier
+        regex: (^|::)StableId::new$
+    - has:
+        field: arguments
+        has:
+          stopBy: end
+          any:
+            - kind: field_expression
+              has: { field: field, regex: ^(label|name|title|headline|text|supporting|description)$ }
+            - kind: identifier
+              regex: ^(label|name|title|headline|text|supporting|description)$
+            - kind: string_content
+              regex: \{(label|name|title|headline|text|supporting|description)\}

@@ -1,0 +1,74 @@
+id: data-mut-get-temp
+snapshots:
+  "fn f(ctx: &egui::Context) {\n    let s = ctx.data_mut(|d| d.get_temp::<u32>(id));\n}\n":
+    labels:
+    - source: ctx.data_mut(|d| d.get_temp::<u32>(id))
+      style: primary
+      start: 40
+      end: 79
+    - source: data_mut
+      style: secondary
+      start: 44
+      end: 52
+    - source: ctx.data_mut
+      style: secondary
+      start: 40
+      end: 52
+    - source: get_temp
+      style: secondary
+      start: 59
+      end: 67
+    - source: d.get_temp
+      style: secondary
+      start: 57
+      end: 67
+    - source: d.get_temp::<u32>
+      style: secondary
+      start: 57
+      end: 74
+    - source: d.get_temp::<u32>(id)
+      style: secondary
+      start: 57
+      end: 78
+    - source: "|d| d.get_temp::<u32>(id)"
+      style: secondary
+      start: 53
+      end: 78
+    - source: "|d| d.get_temp::<u32>(id)"
+      style: secondary
+      start: 53
+      end: 78
+  "fn f(ui: &egui::Ui) {\n    let s: Option<u32> = ui.data_mut(|d| d.get_temp(id)).map(|v| v + 1);\n}\n":
+    labels:
+    - source: ui.data_mut(|d| d.get_temp(id))
+      style: primary
+      start: 47
+      end: 78
+    - source: data_mut
+      style: secondary
+      start: 50
+      end: 58
+    - source: ui.data_mut
+      style: secondary
+      start: 47
+      end: 58
+    - source: get_temp
+      style: secondary
+      start: 65
+      end: 73
+    - source: d.get_temp
+      style: secondary
+      start: 63
+      end: 73
+    - source: d.get_temp(id)
+      style: secondary
+      start: 63
+      end: 77
+    - source: "|d| d.get_temp(id)"
+      style: secondary
+      start: 59
+      end: 77
+    - source: "|d| d.get_temp(id)"
+      style: secondary
+      start: 59
+      end: 77

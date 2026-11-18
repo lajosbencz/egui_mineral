@@ -1,0 +1,46 @@
+id: private-doc
+snapshots:
+  "/// Crate-visible.\n#[derive(Debug)]\npub(crate) struct S;\n":
+    labels:
+    - source: |
+        /// Crate-visible.
+      style: primary
+      start: 0
+      end: 19
+    - source: pub(crate) struct S;
+      style: secondary
+      start: 36
+      end: 56
+  "/// Private.\nfn f() {}\n":
+    labels:
+    - source: |
+        /// Private.
+      style: primary
+      start: 0
+      end: 13
+    - source: fn f() {}
+      style: secondary
+      start: 13
+      end: 22
+  "impl S {\n    /// Inherent private method.\n    fn g(&self) {}\n}\n":
+    labels:
+    - source: |
+        /// Inherent private method.
+      style: primary
+      start: 13
+      end: 42
+    - source: fn g(&self) {}
+      style: secondary
+      start: 46
+      end: 60
+  "pub(crate) struct S {\n    /// Private field.\n    x: f32,\n}\n":
+    labels:
+    - source: |
+        /// Private field.
+      style: primary
+      start: 26
+      end: 45
+    - source: "x: f32"
+      style: secondary
+      start: 49
+      end: 55

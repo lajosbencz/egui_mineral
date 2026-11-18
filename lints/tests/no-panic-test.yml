@@ -1,0 +1,36 @@
+id: no-panic
+valid:
+  - |
+    fn f(w: f32) -> f32 {
+        sanitize::at_least(w, 0.0.., "w")
+    }
+  - |
+    #[cfg(test)]
+    mod tests {
+        #[test]
+        fn t() {
+            assert_eq!(1, 1);
+        }
+    }
+  - |
+    /// Width in points.
+    pub fn w() {}
+invalid:
+  - |
+    pub fn width(w: f32) {
+        assert!(w > 0.0, "w");
+    }
+  - |
+    fn f(a: u8) {
+        assert_eq!(a, 1);
+    }
+  - |
+    fn f(a: u8) {
+        debug_assert!(a > 1);
+    }
+  - |
+    /// Width.
+    ///
+    /// # Panics
+    /// When negative.
+    pub fn w() {}

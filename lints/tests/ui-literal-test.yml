@@ -1,0 +1,102 @@
+id: ui-literal
+valid:
+  - |
+    fn f(ui: &mut Ui, ctx: &Context) {
+        ui.label(tr(ctx, "mineral-ok", &[]));
+        ui.label("");
+        ui.label("   ");
+        ui.button("...");
+        ui.heading("-");
+    }
+  - |
+    fn f(ctx: &Context) {
+        ui.mineral(PushButton::new("ok", label));
+        let t = Tooltip::new("");
+        let id = StableId::new("ok-button");
+        let l = IcuFormat::new("en-US");
+        let e = std::io::Error::new(ErrorKind::NotFound, "no directory");
+    }
+  - |
+    fn f(ui: &MineralUi) {
+        let c = RowControl::new(ui, r, "mineral::tree_control", c, center);
+    }
+  - |
+    fn f(ui: &mut Ui) {
+        ui.add_space(4.0);
+        ui.data_mut(|d| d.insert_temp(id, "text"));
+        tracing::warn!("missing message");
+    }
+  - |
+    #[cfg(test)]
+    mod tests {
+        fn t(ui: &mut Ui) {
+            ui.label("Hello");
+            PushButton::new("ok", "OK");
+        }
+    }
+  - |
+    #[cfg(all(test, panic = "unwind"))]
+    #[allow(unused)]
+    mod tests {
+        fn t(ui: &mut Ui) {
+            ui.heading("Hello");
+        }
+    }
+  - |
+    #[test]
+    fn t(ui: &mut Ui) {
+        ui.on_hover_text("Hello");
+    }
+invalid:
+  - |
+    fn f(ui: &mut Ui) {
+        ui.label("Hello");
+    }
+  - |
+    fn f(ui: &mut Ui) {
+        ui.heading("Settings");
+    }
+  - |
+    fn f(ui: &mut Ui) {
+        ui.button("Save");
+    }
+  - |
+    fn f(ui: &mut Ui) {
+        ui.add(egui::Button::new("Save"));
+    }
+  - |
+    fn f(ui: &mut Ui) {
+        ui.add(egui::Label::new("Name"));
+    }
+  - |
+    fn f(ui: &mut Ui) {
+        let t = RichText::new("Name");
+    }
+  - |
+    fn f(ui: &mut Ui) {
+        ui.label("x").on_hover_text("Copy");
+    }
+  - |
+    fn f(ui: &mut Ui) {
+        ui.mineral(PushButton::new("ok", "OK"));
+    }
+  - |
+    fn f(ui: &mut Ui) {
+        ui.mineral(Chip::new("tag", ChipKind::Assist, "Filter"));
+    }
+  - |
+    fn f() {
+        let n = SemanticNode::new(id, Role::Button, "Sign In");
+    }
+  - |
+    #[cfg(test)]
+    fn helper(ui: &mut Ui) {}
+    fn f(ui: &mut Ui) {
+        ui.label("Hello");
+    }
+  - |
+    #[cfg(test)]
+    mod tests {}
+    fn f(ui: &mut Ui) {
+        ui.label("Hello");
+    }

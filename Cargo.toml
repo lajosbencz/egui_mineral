@@ -1,0 +1,137 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/egui_mineral",
+    "crates/egui_mineral_macros",
+    "crates/egui_mineral_material",
+    "crates/egui_mineral_fluent",
+    "examples/showcase",
+    "tools/mineral_inspector",
+    "tools/md3_tokens",
+]
+
+[workspace.package]
+version = "0.1.0-alpha"
+edition = "2024"
+rust-version = "1.100"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/lajosbencz/egui_mineral"
+homepage = "https://lajosbencz.github.io/egui_mineral/"
+readme = "README.md"
+keywords = ["egui", "gui", "ui", "widgets", "accessibility"]
+categories = ["gui", "accessibility"]
+
+[workspace.dependencies]
+egui_mineral = { path = "crates/egui_mineral", version = "=0.1.0-alpha", default-features = false }
+egui_mineral_macros = { path = "crates/egui_mineral_macros", version = "=0.1.0-alpha" }
+egui_mineral_material = { path = "crates/egui_mineral_material", version = "=0.1.0-alpha" }
+mineral_inspector = { path = "tools/mineral_inspector" }
+
+egui = { version = "0.37.0", features = ["serde"] }
+eframe = "0.37.0"
+egui_kittest = "0.37.0"
+proptest = "1.12.0"
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+toml = "1.2.1"
+thiserror = "2.0.21"
+futures-channel = "0.3.34"
+futures-util = { version = "0.3.34", default-features = false, features = ["std"] }
+unic-langid = "0.9.6"
+syn = "3.0.10"
+quote = "1.0.47"
+proc-macro2 = "1.0.107"
+criterion = "0.8.2"
+futures-executor = "0.3.34"
+fluent-bundle = "0.16.0"
+rfd = "0.18.0"
+arboard = "3.7.0"
+# Pinned: zbus 5 like accesskit_unix; 4.19 links a second zbus. See docs/blockers.md.
+notify-rust = "~4.18"
+notify-debouncer-mini = "0.7.0"
+parking_lot = "0.12.5"
+material-colors = "0.5.0"
+egui_material_icons = { version = "0.9.0", features = ["filled", "outline"] }
+icu_decimal = { version = "2.4.0", features = ["ryu"] }
+icu_locale_core = "2.4.0"
+icu_locale = "2.4.0"
+icu_datetime = { version = "2.4.0", default-features = false, features = ["compiled_data"] }
+icu_calendar = { version = "2.4.0", default-features = false, features = ["compiled_data"] }
+icu_time = { version = "2.4.0", default-features = false, features = ["compiled_data"] }
+icu_list = "2.4.0"
+icu_collator = "2.4.0"
+intl-memoizer = "0.5.3"
+# `sync`: Arc-backed data so formatters are Send + Sync.
+icu_provider = { version = "2.4.0", features = ["sync"] }
+writeable = "0.6.4"
+nucleo-matcher = "0.3.1"
+sys-locale = "0.3.2"
+fluent-langneg = "0.13.1"
+fixed_decimal = { version = "0.7.3", features = ["ryu"] }
+dirs = "7.0.0"
+percent-encoding = "2.3.2"
+unicode-segmentation = "1.13.3"
+# tz-system + tzdb: local "today"; bundle only where the OS lacks zoneinfo; js: wasm clock.
+jiff = { version = "0.2.45", default-features = false, features = ["std", "tz-system", "tzdb-zoneinfo", "tzdb-bundle-platform", "js"] }
+egui_taffy = "0.16.0"
+web-sys = "0.3.107"
+wasm-bindgen = "0.2.130"
+js-sys = "0.3.107"
+wasm-bindgen-futures = "0.4.80"
+gloo-timers = "0.4.1"
+tracing-web = "0.1.4"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_docs = "deny"
+unreachable_pub = "warn"
+
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+missing_errors_doc = "deny"
+missing_panics_doc = "deny"
+todo = "deny"
+unimplemented = "deny"
+cast_possible_truncation = "allow"
+cast_precision_loss = "allow"
+many_single_char_names = "allow"
+struct_excessive_bools = "allow"
+missing_assert_message = "deny"
+let_underscore_must_use = "deny"
+let_underscore_untyped = "deny"
+unwrap_used = "deny"
+unwrap_in_result = "deny"
+panic_in_result_fn = "deny"
+fallible_impl_from = "deny"
+allow_attributes = "deny"
+string_slice = "deny"
+non_ascii_literal = "deny"
+partial_pub_fields = "deny"
+same_name_method = "deny"
+disallowed_methods = "deny"
+disallowed_types = "deny"
+dbg_macro = "deny"
+print_stdout = "deny"
+print_stderr = "deny"
+
+[workspace.lints.rustdoc]
+bare_urls = "deny"
+broken_intra_doc_links = "deny"
+private_intra_doc_links = "deny"
+invalid_html_tags = "deny"
+unescaped_backticks = "deny"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+strip = "symbols"
+
+# Browser bundle size; selected by examples/showcase/index.html.
+[profile.wasm-release]
+inherits = "release"
+opt-level = "s"
+strip = "debuginfo"

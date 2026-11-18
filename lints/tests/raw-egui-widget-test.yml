@@ -1,0 +1,68 @@
+id: raw-egui-widget
+valid:
+  - |
+    fn f(ui: &mut Ui) {
+        ui.mineral(CheckButton::new("c", &mut on));
+    }
+  - |
+    fn f(ui: &mut Ui) {
+        ui.mineral(ValueSlider::new("s", "Volume", &mut v, range));
+    }
+  - |
+    fn f(ui: &mut Ui) {
+        ui.label("plain label");
+        ui.separator();
+    }
+  - |
+    fn f(ui: &mut Ui) {
+        if button(ui, "go", "Go") {}
+    }
+  - |
+    fn f() {
+        ListItem::new("r", "Row").leading(ListSlot::new().checkbox(on).radio(sel));
+    }
+  - |
+    use egui::{Ui, Vec2};
+  - |
+    use egui_mineral_material::prelude::{PushButton, ValueSlider};
+invalid:
+  - |
+    use egui::Slider;
+  - |
+    use egui::{Ui, widgets::TextEdit};
+  - |
+    use egui::{self, Button as B};
+  - |
+    use egui::*;
+  - |
+    fn f(ui: &mut Ui) {
+        ui.button("Go");
+    }
+  - |
+    fn f(ui: &mut Ui) {
+        ui.checkbox(&mut on, "On");
+    }
+  - |
+    fn f(ui: &mut Ui) {
+        ui.radio(on, "On");
+    }
+  - |
+    fn f(ui: &mut Ui) {
+        ui.selectable_value(&mut x, 1, "One");
+    }
+  - |
+    fn f(ui: &mut Ui) {
+        ui.add(egui::DragValue::new(&mut n));
+    }
+  - |
+    fn f(ui: &mut Ui) {
+        ui.add(egui::TextEdit::singleline(&mut s));
+    }
+  - |
+    fn f(ui: &mut Ui) {
+        ui.add(egui::Slider::new(&mut v, 0.0..=1.0));
+    }
+  - |
+    fn f(ui: &mut Ui) {
+        egui::ComboBox::from_id_salt("c").show_ui(ui, |_| {});
+    }

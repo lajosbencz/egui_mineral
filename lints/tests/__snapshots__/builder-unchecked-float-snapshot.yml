@@ -1,0 +1,102 @@
+id: builder-unchecked-float
+snapshots:
+  "impl W {\n    pub fn delay(mut self, secs: f64) -> Self {\n        self.delay = Some(secs);\n        self\n    }\n}\n":
+    labels:
+    - source: |-
+        pub fn delay(mut self, secs: f64) -> Self {
+                self.delay = Some(secs);
+                self
+            }
+      style: primary
+      start: 13
+      end: 108
+    - source: pub
+      style: secondary
+      start: 13
+      end: 16
+    - source: Self
+      style: secondary
+      start: 50
+      end: 54
+    - source: mut self
+      style: secondary
+      start: 26
+      end: 34
+    - source: secs
+      style: secondary
+      start: 36
+      end: 40
+    - source: f64
+      style: secondary
+      start: 42
+      end: 45
+    - source: "secs: f64"
+      style: secondary
+      start: 36
+      end: 45
+    - source: "(mut self, secs: f64)"
+      style: secondary
+      start: 25
+      end: 46
+    - source: Some(secs)
+      style: secondary
+      start: 78
+      end: 88
+    - source: self.delay = Some(secs)
+      style: secondary
+      start: 65
+      end: 88
+    - source: self.delay = Some(secs)
+      style: secondary
+      start: 65
+      end: 88
+  "impl W {\n    pub fn width(mut self, w: f32) -> Self {\n        self.w = w;\n        self\n    }\n}\n":
+    labels:
+    - source: |-
+        pub fn width(mut self, w: f32) -> Self {
+                self.w = w;
+                self
+            }
+      style: primary
+      start: 13
+      end: 92
+    - source: pub
+      style: secondary
+      start: 13
+      end: 16
+    - source: Self
+      style: secondary
+      start: 47
+      end: 51
+    - source: mut self
+      style: secondary
+      start: 26
+      end: 34
+    - source: w
+      style: secondary
+      start: 36
+      end: 37
+    - source: f32
+      style: secondary
+      start: 39
+      end: 42
+    - source: "w: f32"
+      style: secondary
+      start: 36
+      end: 42
+    - source: "(mut self, w: f32)"
+      style: secondary
+      start: 25
+      end: 43
+    - source: w
+      style: secondary
+      start: 71
+      end: 72
+    - source: self.w = w
+      style: secondary
+      start: 62
+      end: 72
+    - source: self.w = w
+      style: secondary
+      start: 62
+      end: 72

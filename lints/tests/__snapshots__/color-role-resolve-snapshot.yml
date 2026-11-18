@@ -1,0 +1,14 @@
+id: color-role-resolve
+snapshots:
+  "fn f(&self) {\n    let c = ROLE.resolve(&self.t.color);\n}\n":
+    labels:
+    - source: ROLE.resolve(&self.t.color)
+      style: primary
+      start: 26
+      end: 53
+  "fn f(t: &Tokens) {\n    let c = ROLE.resolve(&t.color);\n}\n":
+    labels:
+    - source: ROLE.resolve(&t.color)
+      style: primary
+      start: 31
+      end: 53

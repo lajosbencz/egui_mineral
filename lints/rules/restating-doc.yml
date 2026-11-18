@@ -1,0 +1,11 @@
+id: restating-doc
+language: rust
+severity: error
+message: Doc comment restates the item; delete it or state a fact (units, invariant, spec pointer).
+rule:
+  kind: line_comment
+  regex: ^///\s*(Returns?|Creates?|Sets?|Gets?|Whether|The|A|An|This|Constructs?|New|Builder for)\b
+  not:
+    follows:
+      kind: line_comment
+      regex: ^///

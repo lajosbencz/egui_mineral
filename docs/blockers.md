@@ -1,0 +1,11 @@
+# Blockers
+
+Gaps that need a change outside this repository.
+
+| Area | State | Blocked on | Unblocks when |
+|---|---|---|---|
+| Bidi text | egui shapes text (harfrust) but has no bidi reordering: mixed LTR/RTL runs render in logical order. The `TextEdit` caret is off in RTL. Layout mirroring (`I18n::direction`) works. | egui: [#1016](https://github.com/emilk/egui/issues/1016), draft [#8577](https://github.com/emilk/egui/pull/8577) (unicode-bidi), [#8576](https://github.com/emilk/egui/issues/8576) / [#8698](https://github.com/emilk/egui/pull/8698) (caret). | Merged upstream and released. |
+| Native file dialogs | rfd 0.18 runs each xdg-portal dialog and file read on its own detached thread. Dropping the future does not close the dialog. These threads have no owner. | rfd: cancellable dialogs with owned workers. | rfd exposes cancellation, `NativePlatform` drops the dialog with the future. |
+| Percent, currency, units, compact numbers, relative time | Not in `LocaleFormat`, percent text comes from the `mineral-percent` catalog message. | ICU4X ships these only in `icu_experimental` (unstable API). | Stabilized in ICU4X, add `LocaleFormat` methods. |
+| Rounded clipping of arbitrary content | Carousel items render truly rounded only for images (`show_images`). Other content gets corner masks painted in the background colour. | egui clips to rectangles only, no render-to-texture or stencil clip. | egui gains shape clipping or offscreen rendering. |
+| Duplicate zbus | `notify-rust` 4.19 uses zbus 6, `accesskit_unix` 0.24 (via eframe) zbus 5, both versions would link (~1.3 MB). `notify-rust` is held to `~4.18` (zbus 5). | accesskit: `accesskit_unix` on zbus 6. | eframe ships an accesskit on zbus 6, unpin `notify-rust`. |

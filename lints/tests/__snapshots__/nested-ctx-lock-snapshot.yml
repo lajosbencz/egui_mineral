@@ -1,0 +1,134 @@
+id: nested-ctx-lock
+snapshots:
+  "fn f(ctx: &egui::Context) {\n    ctx.input(|i| i.time + ctx.pointer_hover_pos().map_or(0.0, |p| p.x as f64));\n}\n":
+    labels:
+    - source: ctx.input(|i| i.time + ctx.pointer_hover_pos().map_or(0.0, |p| p.x as f64))
+      style: primary
+      start: 32
+      end: 107
+    - source: input
+      style: secondary
+      start: 36
+      end: 41
+    - source: ctx.input
+      style: secondary
+      start: 32
+      end: 41
+    - source: ctx
+      style: secondary
+      start: 55
+      end: 58
+    - source: ctx.pointer_hover_pos
+      style: secondary
+      start: 55
+      end: 76
+    - source: ctx.pointer_hover_pos()
+      style: secondary
+      start: 55
+      end: 78
+    - source: "|i| i.time + ctx.pointer_hover_pos().map_or(0.0, |p| p.x as f64)"
+      style: secondary
+      start: 42
+      end: 106
+    - source: "|i| i.time + ctx.pointer_hover_pos().map_or(0.0, |p| p.x as f64)"
+      style: secondary
+      start: 42
+      end: 106
+  "fn f(ctx: &egui::Context) {\n    ctx.memory(|m| m.has_focus(id) && crate::i18n::tr(ctx, \"x\", &[]).is_empty());\n}\n":
+    labels:
+    - source: ctx.memory(|m| m.has_focus(id) && crate::i18n::tr(ctx, "x", &[]).is_empty())
+      style: primary
+      start: 32
+      end: 108
+    - source: memory
+      style: secondary
+      start: 36
+      end: 42
+    - source: ctx.memory
+      style: secondary
+      start: 32
+      end: 42
+    - source: crate::i18n::tr
+      style: secondary
+      start: 66
+      end: 81
+    - source: crate::i18n::tr(ctx, "x", &[])
+      style: secondary
+      start: 66
+      end: 96
+    - source: "|m| m.has_focus(id) && crate::i18n::tr(ctx, \"x\", &[]).is_empty()"
+      style: secondary
+      start: 43
+      end: 107
+    - source: "|m| m.has_focus(id) && crate::i18n::tr(ctx, \"x\", &[]).is_empty()"
+      style: secondary
+      start: 43
+      end: 107
+  "fn f(ui: &egui::Ui) {\n    ui.ctx().data(|d| ui.ctx().input(|i| i.time));\n}\n":
+    labels:
+    - source: ui.ctx().data(|d| ui.ctx().input(|i| i.time))
+      style: primary
+      start: 26
+      end: 71
+    - source: data
+      style: secondary
+      start: 35
+      end: 39
+    - source: ui.ctx().data
+      style: secondary
+      start: 26
+      end: 39
+    - source: ui.ctx()
+      style: secondary
+      start: 44
+      end: 52
+    - source: ui.ctx().input
+      style: secondary
+      start: 44
+      end: 58
+    - source: ui.ctx().input(|i| i.time)
+      style: secondary
+      start: 44
+      end: 70
+    - source: "|d| ui.ctx().input(|i| i.time)"
+      style: secondary
+      start: 40
+      end: 70
+    - source: "|d| ui.ctx().input(|i| i.time)"
+      style: secondary
+      start: 40
+      end: 70
+  "fn f(ui: &mut egui::Ui) {\n    ui.data_mut(|d| d.insert_temp(id, ui.available_width()));\n}\n":
+    labels:
+    - source: ui.data_mut(|d| d.insert_temp(id, ui.available_width()))
+      style: primary
+      start: 30
+      end: 86
+    - source: data_mut
+      style: secondary
+      start: 33
+      end: 41
+    - source: ui.data_mut
+      style: secondary
+      start: 30
+      end: 41
+    - source: ui
+      style: secondary
+      start: 64
+      end: 66
+    - source: ui.available_width
+      style: secondary
+      start: 64
+      end: 82
+    - source: ui.available_width()
+      style: secondary
+      start: 64
+      end: 84
+    - source: "|d| d.insert_temp(id, ui.available_width())"
+      style: secondary
+      start: 42
+      end: 85
+    - source: "|d| d.insert_temp(id, ui.available_width())"
+      style: secondary
+      start: 42
+      end: 85

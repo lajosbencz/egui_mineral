@@ -1,0 +1,138 @@
+id: raw-egui-widget
+snapshots:
+  "fn f(ui: &mut Ui) {\n    egui::ComboBox::from_id_salt(\"c\").show_ui(ui, |_| {});\n}\n":
+    labels:
+    - source: egui::ComboBox::from_id_salt("c")
+      style: primary
+      start: 24
+      end: 57
+    - source: egui::ComboBox::from_id_salt
+      style: secondary
+      start: 24
+      end: 52
+  "fn f(ui: &mut Ui) {\n    ui.add(egui::DragValue::new(&mut n));\n}\n":
+    labels:
+    - source: egui::DragValue::new(&mut n)
+      style: primary
+      start: 31
+      end: 59
+    - source: egui::DragValue::new
+      style: secondary
+      start: 31
+      end: 51
+  "fn f(ui: &mut Ui) {\n    ui.add(egui::Slider::new(&mut v, 0.0..=1.0));\n}\n":
+    labels:
+    - source: egui::Slider::new(&mut v, 0.0..=1.0)
+      style: primary
+      start: 31
+      end: 67
+    - source: egui::Slider::new
+      style: secondary
+      start: 31
+      end: 48
+  "fn f(ui: &mut Ui) {\n    ui.add(egui::TextEdit::singleline(&mut s));\n}\n":
+    labels:
+    - source: egui::TextEdit::singleline(&mut s)
+      style: primary
+      start: 31
+      end: 65
+    - source: egui::TextEdit::singleline
+      style: secondary
+      start: 31
+      end: 57
+  "fn f(ui: &mut Ui) {\n    ui.button(\"Go\");\n}\n":
+    labels:
+    - source: ui.button("Go")
+      style: primary
+      start: 24
+      end: 39
+    - source: button
+      style: secondary
+      start: 27
+      end: 33
+    - source: ui.button
+      style: secondary
+      start: 24
+      end: 33
+  "fn f(ui: &mut Ui) {\n    ui.checkbox(&mut on, \"On\");\n}\n":
+    labels:
+    - source: ui.checkbox(&mut on, "On")
+      style: primary
+      start: 24
+      end: 50
+    - source: checkbox
+      style: secondary
+      start: 27
+      end: 35
+    - source: ui.checkbox
+      style: secondary
+      start: 24
+      end: 35
+    - source: "\"On\""
+      style: secondary
+      start: 45
+      end: 49
+    - source: "\"On\""
+      style: secondary
+      start: 45
+      end: 49
+  "fn f(ui: &mut Ui) {\n    ui.radio(on, \"On\");\n}\n":
+    labels:
+    - source: ui.radio(on, "On")
+      style: primary
+      start: 24
+      end: 42
+    - source: radio
+      style: secondary
+      start: 27
+      end: 32
+    - source: ui.radio
+      style: secondary
+      start: 24
+      end: 32
+    - source: "\"On\""
+      style: secondary
+      start: 37
+      end: 41
+    - source: "\"On\""
+      style: secondary
+      start: 37
+      end: 41
+  "fn f(ui: &mut Ui) {\n    ui.selectable_value(&mut x, 1, \"One\");\n}\n":
+    labels:
+    - source: ui.selectable_value(&mut x, 1, "One")
+      style: primary
+      start: 24
+      end: 61
+    - source: selectable_value
+      style: secondary
+      start: 27
+      end: 43
+    - source: ui.selectable_value
+      style: secondary
+      start: 24
+      end: 43
+  "use egui::*;\n":
+    labels:
+    - source: use egui::*;
+      style: primary
+      start: 0
+      end: 12
+  "use egui::Slider;\n":
+    labels:
+    - source: use egui::Slider;
+      style: primary
+      start: 0
+      end: 17
+  "use egui::{Ui, widgets::TextEdit};\n":
+    labels:
+    - source: use egui::{Ui, widgets::TextEdit};
+      style: primary
+      start: 0
+      end: 34
+  "use egui::{self, Button as B};\n":
+    labels:
+    - source: use egui::{self, Button as B};
+      style: primary
+      start: 0
+      end: 30
