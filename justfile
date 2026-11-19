@@ -130,19 +130,28 @@ spec:
     echo "$changes"
     exit 1
 
-# Public API diff of the libraries between two commits (non-blocking in CI)
+# Public API diff of the libraries between two commits; removals and changes fail unless the crate's breaking version (0.MINOR, MAJOR from 1.0) rises
 api-diff base head="HEAD":
     #!/usr/bin/env bash
     set -euo pipefail
     summary=${GITHUB_STEP_SUMMARY:-/dev/null}
     status=0
+    breaking() {
+        git show "$1:crates/$2/Cargo.toml" | sed -nE '0,/^version/s/^version = "([0-9]+)\.([0-9]+)\..*/\1 \2/p' \
+            | awk '{ print ($1 == "0") ? "0." $2 : $1 }'
+    }
     for crate in egui_mineral egui_mineral_material; do
+    deny=(--deny removed --deny changed)
+    if [ "$(breaking "{{ base }}" "$crate")" != "$(breaking "{{ head }}" "$crate")" ]; then
+        deny=()
+        echo "\`$crate\`: breaking version bump, removals and changes allowed" | tee -a "$summary"
+    fi
     for target in x86_64-unknown-linux-gnu wasm32-unknown-unknown; do
         echo "## \`$crate\` ($target)" | tee -a "$summary"
         echo '```diff' >> "$summary"
         features=$(cargo metadata --no-deps --format-version 1 | jq -r --arg c "$crate" \
             '.packages[] | select(.name == $c) | .features | keys | map(select(startswith("unstable") | not)) | join(",")')
-        cargo public-api -p "$crate" --features "$features" --target "$target" -sss diff --deny removed --deny changed "{{ base }}..{{ head }}" \
+        cargo public-api -p "$crate" --features "$features" --target "$target" -sss diff "${deny[@]}" "{{ base }}..{{ head }}" \
             | tee -a "$summary" || status=1
         echo '```' >> "$summary"
     done
