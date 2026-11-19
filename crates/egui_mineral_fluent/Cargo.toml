@@ -1,13 +1,55 @@
 [package]
 name = "egui_mineral_fluent"
-description = "Fluent Design stylekit for egui_mineral (placeholder)"
+description = "Fluent 2 (Fluent UI React v9) stylekit for egui_mineral"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords.workspace = true
+categories.workspace = true
+exclude = ["clippy.toml"]
 publish = false
 
+[package.metadata.docs.rs]
+features = ["icu", "persist-fs", "bundled-icons", "unstable-catalog", "unstable-spec"]
+rustdoc-args = ["--cfg", "docsrs"]
+targets = ["x86_64-unknown-linux-gnu", "wasm32-unknown-unknown"]
+
+[features]
+default = ["icu", "persist-fs", "bundled-icons"]
+# Fluent UI System Icons resizable font (1.6 MB); without it use `Fluent::with_icon_font`.
+bundled-icons = []
+# `egui_mineral/icu`: ICU4X locale formatting.
+icu = ["egui_mineral/icu"]
+# `egui_mineral/persist-json`: JSON codec.
+persist-json = ["egui_mineral/persist-json"]
+# `egui_mineral/persist-toml`: TOML codec.
+persist-toml = ["egui_mineral/persist-toml"]
+# `egui_mineral/persist-fs`: file-backed persistence.
+persist-fs = ["egui_mineral/persist-fs"]
+# Component provenance: `catalog` module. Unstable: outside semver.
+unstable-catalog = []
+# Spec tokens and component defaults as public API. Unstable: outside semver.
+unstable-spec = []
+
+[dependencies]
+egui_mineral.workspace = true
+egui.workspace = true
+parking_lot.workspace = true
+
+[dev-dependencies]
+egui_kittest.workspace = true
+
+[[test]]
+name = "spec"
+required-features = ["unstable-spec", "icu", "bundled-icons"]
+
+[[test]]
+name = "behavior"
+required-features = ["icu", "bundled-icons"]
 
 [lints]
 workspace = true

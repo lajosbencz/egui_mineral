@@ -1,6 +1,6 @@
 name: Pages
 
-# The showcase tracks the released crates; release-plz publishes one release per crate with the App token, so each triggers this.
+# The showcases track the released crates; release-plz publishes one release per crate with the App token, so each triggers this.
 on:
   release:
     types: [published]
@@ -14,7 +14,7 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
-  PUBLIC_URL: /egui_mineral/material/
+  PUBLIC_URL: /egui_mineral/
 
 jobs:
   build:
@@ -33,21 +33,25 @@ jobs:
         with:
           tool: trunk@0.22.1
           fallback: none
-      # ICU4X data for the showcase's locales only (pages::LOCALES).
+      # ICU4X data for the showcases' locales only (pages::LOCALES of both).
       # Datagen must match the locked ICU4X version.
       - name: Trimmed ICU4X data
         run: |
           cargo install icu4x-datagen --locked --version "$(cargo pkgid icu_datetime | sed 's/.*@//')"
           icu4x-datagen --format baked --markers all --locales en de hu ja ar --out "$RUNNER_TEMP/icu_data"
           echo "ICU4X_DATA_DIR=$RUNNER_TEMP/icu_data" >> "$GITHUB_ENV"
-      - name: Build showcase
-        working-directory: examples/showcase
-        run: trunk build --release --public-url "$PUBLIC_URL"
+      - name: Build Fluent showcase
+        working-directory: examples/showcase-fluent
+        run: trunk build --release --public-url "${PUBLIC_URL}fluent/"
+      - name: Build Material showcase
+        working-directory: examples/showcase-material
+        run: trunk build --release --public-url "${PUBLIC_URL}material/"
       - name: Assemble site
         run: |
           mkdir site
           cp -r .github/pages/. site/
-          cp -r examples/showcase/dist site/material
+          cp -r examples/showcase-fluent/dist site/fluent
+          cp -r examples/showcase-material/dist site/material
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: site

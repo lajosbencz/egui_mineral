@@ -1,0 +1,1052 @@
+use egui::{Id, Key, Margin, Modifiers, Rangef, Rect, Response, Sense, Stroke, Ui, pos2, text::LayoutJob, vec2};
+use egui_mineral::{
+    anchor::{Align, Anchor, Side},
+    focus::RovingFocus,
+    i18n::I18n,
+    kit::{self, state::TempState},
+    layout::{Axis, Constraints, Measure, MinTarget},
+    overlay::{self, Dismiss, OverlayResponse, Popup},
+    semantic::{self, AgentKey, KeyedSalt, Role, SemanticNode},
+    widget::{Availability, Interaction, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
+};
+
+use crate::ColorToken::{
+    ColorNeutralBackground1, ColorNeutralBackground1Hover, ColorNeutralBackground1Pressed, ColorNeutralForeground2,
+    ColorNeutralForeground2BrandSelected, ColorNeutralForeground2Hover, ColorNeutralForeground2Pressed,
+    ColorNeutralForeground3, ColorNeutralForeground3Hover, ColorNeutralForeground3Pressed,
+    ColorNeutralForegroundDisabled, ColorNeutralStroke1, ColorNeutralStroke2,
+};
+use crate::{
+    Fluent, FluentExt, FluentIcon, Rt,
+    icons::{ICON_CHECKMARK, ICON_CHEVRON_LEFT, ICON_CHEVRON_RIGHT},
+    spec::{
+        defaults::menu as d,
+        tokens::{geometry as g, typography as ty},
+    },
+    surfaces::overlay::{Look, framed},
+    theme::{Elevation, Radius, Tokens},
+    typography::{self, TypeRamp},
+    widget::{
+        focus as ring, paint,
+        state::{Ramp, State},
+    },
+};
+
+/// Fluent `MenuItem`: the content of a [`MenuUi`] row.
+#[derive(Clone, Debug)]
+#[must_use]
+pub struct MenuItem {
+    label: String,
+    icon: Option<FluentIcon>,
+    secondary: Option<String>,
+    disabled: bool,
+    salt: Option<KeyedSalt>,
+}
+
+impl MenuItem {
+    /// Visible text and accessible name.
+    pub fn new(label: impl Into<String>) -> Self {
+        Self {
+            label: label.into(),
+            icon: None,
+            secondary: None,
+            disabled: false,
+            salt: None,
+        }
+    }
+
+    /// `icon` slot; every row of the menu reserves it once one has an icon.
+    pub fn icon(mut self, icon: FluentIcon) -> Self {
+        self.icon = Some(icon);
+        self
+    }
+
+    /// `secondaryContent` slot: trailing caption text such as a shortcut.
+    pub fn secondary_content(mut self, text: impl Into<String>) -> Self {
+        self.secondary = Some(text.into());
+        self
+    }
+
+    crate::widget::setters! {
+        item_salt
+    }
+
+    crate::widget::setters! {
+        /// Not operable.
+        disabled
+    }
+}
+
+impl From<&str> for MenuItem {
+    fn from(s: &str) -> Self {
+        Self::new(s)
+    }
+}
+
+impl From<String> for MenuItem {
+    fn from(s: String) -> Self {
+        Self::new(s)
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Kind {
+    Item,
+    Checkbox(bool),
+    Radio(bool),
+    Submenu(bool),
+    SplitMain,
+}
+
+impl Kind {
+    const fn checkmark(self) -> bool {
+        matches!(self, Self::Checkbox(_) | Self::Radio(_))
+    }
+
+    const fn checked(self) -> bool {
+        matches!(self, Self::Checkbox(true) | Self::Radio(true))
+    }
+}
+
+// What the previous pass saw: the rows reserve slots and stretch to the widest one.
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct Memo {
+    width: f32,
+    checkmarks: bool,
+    icons: bool,
+}
+
+impl TempState for Memo {}
+
+impl Memo {
+    const MIN_WIDTH: f32 = d::POPOVER_MIN_WIDTH - 2.0 * d::POPOVER_PADDING;
+
+    const MAX_WIDTH: f32 = d::POPOVER_MAX_WIDTH - 2.0 * d::POPOVER_PADDING;
+
+    const FIRST: Self = Self {
+        width: Self::MIN_WIDTH,
+        checkmarks: false,
+        icons: false,
+    };
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+struct Level {
+    open_sub: Option<usize>,
+    hover: Option<(usize, f64)>,
+    focus_sub: bool,
+}
+
+impl TempState for Level {}
+
+struct Row<'a> {
+    salt: KeyedSalt,
+    item: &'a MenuItem,
+    kind: Kind,
+    memo: Memo,
+    width: f32,
+}
+
+fn text_width(ui: &MineralUi<'_, Fluent>, text: &str, ramp: TypeRamp) -> f32 {
+    let job = LayoutJob::single_section(text.to_owned(), ramp.format(ui.ctx(), egui::Color32::PLACEHOLDER));
+    ui.painter().layout_job(job).size().x
+}
+
+impl Row<'_> {
+    // MenuItem flex row: padding, `gap` between the slots present
+    fn natural(ui: &MineralUi<'_, Fluent>, item: &MenuItem, kind: Kind, memo: Memo) -> f32 {
+        let slot = d::ICON_SIZE + d::ITEM_GAP;
+        let mut w = 2.0 * d::ITEM_PADDING;
+        if memo.checkmarks || kind.checkmark() {
+            w += slot;
+        }
+        if memo.icons || item.icon.is_some() {
+            w += slot;
+        }
+        w += text_width(ui, &item.label, TypeRamp::Body1) + 2.0 * d::CONTENT_PADDING;
+        if let Some(s) = &item.secondary {
+            w += d::ITEM_GAP + text_width(ui, s, TypeRamp::Caption1) + 2.0 * d::CONTENT_PADDING;
+        }
+        if matches!(kind, Kind::Submenu(_)) {
+            w += slot;
+        }
+        if kind == Kind::SplitMain {
+            w += d::SPLIT_TRIGGER_WIDTH;
+        }
+        w
+    }
+}
+
+impl Row<'_> {
+    fn trailing(&self, ui: &MineralUi<'_, Fluent>, t: &Tokens, s: State, rect: Rect, cy: f32, color: egui::Color32) {
+        let dir = ui.i18n().direction();
+        let at = |from: f32, w: f32| dir.start_x(rect, Rangef::new(from, from + w));
+        let slot = d::ICON_SIZE + d::ITEM_GAP;
+        let secondary = Ramp::new(
+            ColorNeutralForeground3,
+            ColorNeutralForeground3Hover,
+            ColorNeutralForeground3Pressed,
+            ColorNeutralForegroundDisabled,
+        );
+        let trailing = rect.width() - d::ITEM_PADDING;
+        if matches!(self.kind, Kind::Submenu(_)) {
+            let chevron = dir.pick(ICON_CHEVRON_RIGHT, ICON_CHEVRON_LEFT);
+            let left = trailing - d::ICON_SIZE;
+            paint::icon(
+                ui.painter(),
+                pos2(at(left, d::ICON_SIZE) + d::ICON_SIZE / 2.0, cy),
+                chevron,
+                false,
+                d::ICON_SIZE,
+                color,
+            );
+        }
+        if let Some(text) = &self.item.secondary {
+            let end = if matches!(self.kind, Kind::Submenu(_)) {
+                trailing - slot
+            } else {
+                trailing
+            };
+            let galley = ui.painter().layout_job(LayoutJob::single_section(
+                text.clone(),
+                typography::format(
+                    ui.ctx(),
+                    ty::FONT_SIZE_BASE_200,
+                    ty::LINE_HEIGHT_BASE_300,
+                    ty::FONT_WEIGHT_REGULAR,
+                    secondary.pick(s, t),
+                ),
+            ));
+            let w = galley.size().x;
+            let sx = at(end - d::CONTENT_PADDING - w, w);
+            ui.painter()
+                .galley(pos2(sx, cy - galley.size().y / 2.0), galley, secondary.pick(s, t));
+        }
+    }
+}
+
+impl MineralWidget for Row<'_> {
+    type Kit = Fluent;
+    type State = ();
+    type Output = ();
+
+    fn id_salt(&self) -> egui::IdSalt {
+        self.salt.id_salt()
+    }
+
+    fn enabled(&self) -> bool {
+        !self.item.disabled
+    }
+
+    fn sense(&self) -> Sense {
+        Sense::click()
+    }
+
+    fn min_target(&self) -> MinTarget {
+        MinTarget::None
+    }
+
+    fn layout(&self, _: &MineralUi<'_, Fluent>, c: Constraints, (): &()) -> Measure {
+        c.constrain(vec2(self.width, d::ITEM_MIN_HEIGHT)).into()
+    }
+
+    fn update(&mut self, ui: &mut MineralUi<'_, Fluent>, frame: &WidgetFrame<'_>, (): &mut ()) -> WidgetResponse {
+        let t = ui.tokens();
+        let r = &frame.response;
+        let availability = Availability::disabled_if(self.item.disabled);
+        kit::input::hover_cursor(ui.core(), r, availability);
+        kit::focus::follow_press(r);
+        let i = Interaction::of(r, availability);
+        let open = self.kind == Kind::Submenu(true);
+        let s = if open && !i.disabled {
+            State::Hover
+        } else {
+            State::of(i)
+        };
+        let engaged = s.engaged();
+        let rect = frame.zones.visual;
+        let radius = Radius::Medium.on(rect);
+        let fill = Ramp::new(
+            ColorNeutralBackground1,
+            ColorNeutralBackground1Hover,
+            ColorNeutralBackground1Pressed,
+            ColorNeutralBackground1,
+        );
+        let fg = Ramp::new(
+            ColorNeutralForeground2,
+            ColorNeutralForeground2Hover,
+            ColorNeutralForeground2Pressed,
+            ColorNeutralForegroundDisabled,
+        );
+        ui.painter().rect_filled(rect, radius, fill.pick(s, &t));
+        let color = fg.pick(s, &t);
+        let icon_color = if engaged && !i.disabled {
+            t.color(ColorNeutralForeground2BrandSelected)
+        } else {
+            color
+        };
+        let dir = ui.i18n().direction();
+        let cy = rect.top() + d::ITEM_PADDING + typography::TypeRamp::Body1.line_height() / 2.0;
+        let at = |from: f32, w: f32| dir.start_x(rect, Rangef::new(from, from + w));
+        let mut x = d::ITEM_PADDING;
+        let slot = d::ICON_SIZE + d::ITEM_GAP;
+        if self.memo.checkmarks || self.kind.checkmark() {
+            if self.kind.checked() {
+                paint::icon(
+                    ui.painter(),
+                    pos2(at(x, d::ICON_SIZE) + d::ICON_SIZE / 2.0, cy),
+                    ICON_CHECKMARK,
+                    true,
+                    d::CHECKMARK_SIZE,
+                    color,
+                );
+            }
+            x += slot;
+        }
+        if self.memo.icons || self.item.icon.is_some() {
+            if let Some(icon) = self.item.icon {
+                paint::icon(
+                    ui.painter(),
+                    pos2(at(x, d::ICON_SIZE) + d::ICON_SIZE / 2.0, cy),
+                    icon,
+                    engaged && !i.disabled,
+                    d::ICON_SIZE,
+                    icon_color,
+                );
+            }
+            x += slot;
+        }
+        let galley = ui.painter().layout_job(LayoutJob::single_section(
+            self.item.label.clone(),
+            TypeRamp::Body1.format(ui.ctx(), color),
+        ));
+        let tx = at(x + d::CONTENT_PADDING, galley.size().x);
+        ui.painter().galley(pos2(tx, cy - galley.size().y / 2.0), galley, color);
+        self.trailing(ui, &t, s, rect, cy, color);
+        if i.focused {
+            ring::outline(ui.painter(), rect, radius, &t);
+        }
+        WidgetResponse::new(r.clone(), ()).with_changed(r.clicked() && !self.item.disabled)
+    }
+
+    fn semantics(&self, _: &I18n, _: &WidgetResponse, (): &()) -> Option<SemanticNode> {
+        let role = match self.kind {
+            Kind::Checkbox(_) => Role::MenuItemCheckBox,
+            Kind::Radio(_) => Role::MenuItemRadio,
+            _ => Role::MenuItem,
+        };
+        let mut n = SemanticNode::new(AgentKey::Kind("menuitem").id(&self.salt), role, &self.item.label)
+            .clickable(Availability::disabled_if(self.item.disabled));
+        if self.kind.checkmark() {
+            n.state.checked = Some(self.kind.checked().into());
+        }
+        if let Kind::Submenu(open) = self.kind {
+            n.state.expanded = Some(open);
+        }
+        Some(n)
+    }
+}
+
+struct SplitTrigger<'a> {
+    salt: KeyedSalt,
+    label: &'a str,
+    open: bool,
+    disabled: bool,
+}
+
+impl MineralWidget for SplitTrigger<'_> {
+    type Kit = Fluent;
+    type State = ();
+    type Output = ();
+
+    kit::widget_meta!(salt, enabled, no_target);
+
+    fn sense(&self) -> Sense {
+        Sense::click()
+    }
+
+    fn layout(&self, _: &MineralUi<'_, Fluent>, c: Constraints, (): &()) -> Measure {
+        c.constrain(vec2(d::SPLIT_TRIGGER_WIDTH, d::ITEM_MIN_HEIGHT)).into()
+    }
+
+    fn update(&mut self, ui: &mut MineralUi<'_, Fluent>, frame: &WidgetFrame<'_>, (): &mut ()) -> WidgetResponse {
+        let t = ui.tokens();
+        let r = &frame.response;
+        let availability = Availability::disabled_if(self.disabled);
+        kit::input::hover_cursor(ui.core(), r, availability);
+        kit::focus::follow_press(r);
+        let i = Interaction::of(r, availability);
+        let s = if self.open && !i.disabled {
+            State::Hover
+        } else {
+            State::of(i)
+        };
+        let rect = frame.zones.visual;
+        let dir = ui.i18n().direction();
+        let radius = Radius::Medium.on(rect);
+        // splitItemTrigger: the start corners are square
+        let flat = |c: egui::CornerRadius| match dir {
+            egui_mineral::i18n::Direction::Ltr => egui::CornerRadius { nw: 0, sw: 0, ..c },
+            egui_mineral::i18n::Direction::Rtl => egui::CornerRadius { ne: 0, se: 0, ..c },
+        };
+        let fill = Ramp::new(
+            ColorNeutralBackground1,
+            ColorNeutralBackground1Hover,
+            ColorNeutralBackground1Pressed,
+            ColorNeutralBackground1,
+        );
+        ui.painter().rect_filled(rect, flat(radius), fill.pick(s, &t));
+        let color = Ramp::new(
+            ColorNeutralForeground2,
+            ColorNeutralForeground2Hover,
+            ColorNeutralForeground2Pressed,
+            ColorNeutralForegroundDisabled,
+        )
+        .pick(s, &t);
+        let at = |from: f32, w: f32| dir.start_x(rect, Rangef::new(from, from + w));
+        let cy = rect.center().y;
+        ui.painter().rect_filled(
+            Rect::from_center_size(
+                pos2(at(0.0, g::STROKE_WIDTH_THIN) + g::STROKE_WIDTH_THIN / 2.0, cy),
+                vec2(g::STROKE_WIDTH_THIN, d::SPLIT_SEPARATOR_HEIGHT),
+            ),
+            0,
+            t.color(ColorNeutralStroke1),
+        );
+        let x = g::STROKE_WIDTH_THIN + d::ITEM_GAP;
+        let chevron = dir.pick(ICON_CHEVRON_RIGHT, ICON_CHEVRON_LEFT);
+        paint::icon(
+            ui.painter(),
+            pos2(at(x, d::ICON_SIZE) + d::ICON_SIZE / 2.0, cy),
+            chevron,
+            false,
+            d::ICON_SIZE,
+            color,
+        );
+        if i.focused {
+            ring::outline(ui.painter(), rect, radius, &t);
+        }
+        WidgetResponse::new(r.clone(), ()).with_changed(r.clicked() && !self.disabled)
+    }
+
+    fn semantics(&self, _: &I18n, response: &WidgetResponse, (): &()) -> Option<SemanticNode> {
+        let mut n = SemanticNode::new(AgentKey::Kind("menusplit").id(&self.salt), Role::MenuItem, self.label)
+            .clickable(Availability::disabled_if(self.disabled));
+        n.state.expanded = Some(self.open);
+        n.state.focused = response.has_focus();
+        Some(n)
+    }
+}
+
+/// Result of one [`MenuUi`] row.
+#[derive(Clone, Debug)]
+#[non_exhaustive]
+pub struct MenuItemResponse<R = ()> {
+    /// Focusable row.
+    pub response: Response,
+    /// Focusable row.was activated this pass.
+    pub clicked: bool,
+    /// Submenu content while it is open; `()` for other rows.
+    pub inner: R,
+}
+
+#[derive(Default)]
+struct Shared {
+    close: bool,
+    inside: Vec<Rect>,
+}
+
+/// Places the rows of a [`Menu`] or submenu.
+pub struct MenuUi<'u, 's> {
+    ui: &'u mut Ui,
+    rt: &'u Rt,
+    salt: KeyedSalt,
+    memo: Memo,
+    seen: Memo,
+    state: Level,
+    index: usize,
+    ids: Vec<Id>,
+    enabled: Vec<bool>,
+    initials: Vec<Option<char>>,
+    splits: Vec<(usize, Id)>,
+    shared: &'s mut Shared,
+}
+
+kit::opaque_debug!(MenuUi<'_, '_>);
+
+impl MenuUi<'_, '_> {
+    fn row(&mut self, item: &MenuItem, kind: Kind) -> (Response, bool, bool) {
+        let i = self.index;
+        self.index += 1;
+        let salt = item.salt.clone().unwrap_or_else(|| self.salt.child(i));
+        let mut mui = self.rt.ui(self.ui);
+        let natural = Row::natural(&mui, item, kind, self.memo);
+        self.seen.width = self.seen.width.max(natural);
+        self.seen.checkmarks |= kind.checkmark();
+        self.seen.icons |= item.icon.is_some();
+        let mut width = self.memo.width.max(natural).min(d::ITEM_MAX_WIDTH);
+        if kind == Kind::SplitMain {
+            width -= d::SPLIT_TRIGGER_WIDTH;
+        }
+        let out = mui.mineral(Row {
+            salt,
+            item,
+            kind,
+            memo: self.memo,
+            width,
+        });
+        let clicked = out.changed();
+        let response = out.into_response();
+        self.ids.push(response.id);
+        self.enabled.push(!item.disabled);
+        self.initials.push(initial(&item.label));
+        let ctx = self.ui.ctx().clone();
+        let now = ctx.input(|i| i.time);
+        let mut held = false;
+        if response.hovered() {
+            match self.state.hover {
+                Some((h, since)) if h == i => held = now - since >= d::HOVER_DELAY.as_secs_f64(),
+                _ => self.state.hover = Some((i, now)),
+            }
+            if !held {
+                ctx.request_repaint_after(d::HOVER_DELAY);
+            }
+        } else if self.state.hover.is_some_and(|(h, _)| h == i) {
+            self.state.hover = None;
+        }
+        (response, clicked, held)
+    }
+
+    fn activate(&mut self, clicked: bool, persist: bool) {
+        if clicked && !persist {
+            self.shared.close = true;
+        }
+    }
+
+    /// `MenuItem`: activating it closes the whole menu.
+    pub fn item(&mut self, item: impl Into<MenuItem>) -> MenuItemResponse {
+        let item = item.into();
+        let (response, clicked, held) = self.row(&item, Kind::Item);
+        if held && self.state.open_sub.is_some() {
+            self.state.open_sub = None;
+        }
+        self.activate(clicked, false);
+        MenuItemResponse {
+            response,
+            clicked: clicked && !item.disabled,
+            inner: (),
+        }
+    }
+
+    /// `MenuItemCheckbox`: a click flips `checked`; the menu stays open.
+    pub fn checkbox_item(&mut self, item: impl Into<MenuItem>, checked: &mut bool) -> MenuItemResponse {
+        let item = item.into();
+        let (response, clicked, held) = self.row(&item, Kind::Checkbox(*checked));
+        if held && self.state.open_sub.is_some() {
+            self.state.open_sub = None;
+        }
+        let clicked = clicked && !item.disabled;
+        if clicked {
+            *checked = !*checked;
+        }
+        MenuItemResponse {
+            response,
+            clicked,
+            inner: (),
+        }
+    }
+
+    /// `MenuItemRadio`: a click writes `value` into `group`; the menu stays open.
+    pub fn radio_item<T: PartialEq>(&mut self, item: impl Into<MenuItem>, group: &mut T, value: T) -> MenuItemResponse {
+        let item = item.into();
+        let (response, clicked, held) = self.row(&item, Kind::Radio(*group == value));
+        if held && self.state.open_sub.is_some() {
+            self.state.open_sub = None;
+        }
+        let clicked = clicked && !item.disabled;
+        if clicked {
+            *group = value;
+        }
+        MenuItemResponse {
+            response,
+            clicked,
+            inner: (),
+        }
+    }
+
+    /// `MenuSplitGroup`: a row split into a main action and a submenu trigger. Activating the main part closes the
+    /// whole menu; the trigger opens `add` beside the row on click, Enter, `hoverDelay` of hovering or the
+    /// start-to-end arrow on it. That arrow on the main part moves focus to the trigger, its opposite back.
+    pub fn split_item<R>(
+        &mut self,
+        item: impl Into<MenuItem>,
+        add: impl FnOnce(&mut MenuUi<'_, '_>) -> R,
+    ) -> MenuItemResponse<Option<R>> {
+        let item = item.into();
+        let i = self.index;
+        let open = self.state.open_sub == Some(i);
+        let (response, clicked, held) = self.row(&item, Kind::SplitMain);
+        let ctx = self.ui.ctx().clone();
+        let dir = self.rt.i18n().direction();
+        let trigger_rect = {
+            let w = d::SPLIT_TRIGGER_WIDTH;
+            let x = dir.pick(response.rect.right(), response.rect.left() - w);
+            Rect::from_min_size(pos2(x, response.rect.top()), vec2(w, response.rect.height()))
+        };
+        let rt = self.rt;
+        let trigger = {
+            let mut child = self.ui.new_child(egui::UiBuilder::new().max_rect(trigger_rect));
+            rt.ui(&mut child).mineral(SplitTrigger {
+                salt: self.salt.child(("split", i)),
+                label: &item.label,
+                open,
+                disabled: item.disabled,
+            })
+        };
+        let trigger_id = trigger.id;
+        let triggered = trigger.changed();
+        self.splits.push((i, trigger_id));
+        let forward = dir.forward_key();
+        let backward = if forward == Key::ArrowRight {
+            Key::ArrowLeft
+        } else {
+            Key::ArrowRight
+        };
+        let on_main = !item.disabled && response.has_focus();
+        if on_main && ctx.input_mut(|input| input.consume_key(Modifiers::NONE, forward)) {
+            ctx.memory_mut(|m| m.request_focus(trigger_id));
+        }
+        let on_trigger = trigger.has_focus();
+        let by_key = !item.disabled && on_trigger && ctx.input_mut(|input| input.consume_key(Modifiers::NONE, forward));
+        if on_trigger && ctx.input_mut(|input| input.consume_key(Modifiers::NONE, backward)) {
+            ctx.memory_mut(|m| m.request_focus(response.id));
+        }
+        let held_trigger = trigger.hovered() && !item.disabled && self.hold(i, trigger.hovered());
+        if !item.disabled && (triggered || by_key) {
+            self.state.open_sub = Some(i);
+            self.state.focus_sub = true;
+        } else if held_trigger {
+            self.state.open_sub = Some(i);
+        } else if held && self.state.open_sub == Some(i) {
+            self.state.open_sub = None;
+        }
+        self.activate(clicked, false);
+        if self.state.open_sub != Some(i) {
+            return MenuItemResponse {
+                response,
+                clicked: clicked && !item.disabled,
+                inner: None,
+            };
+        }
+        let focus_first = std::mem::take(&mut self.state.focus_sub);
+        let sub_salt = self.salt.child(("sub", i));
+        let shared = &mut *self.shared;
+        let group = response.rect.union(trigger_rect);
+        let area = Popup::new(sub_salt.clone(), Anchor::new(Side::End, Align::Start))
+            .role(Role::Menu)
+            .name(&item.label)
+            .show_at(rt, group, |ui, _| {
+                level(rt, ui, &sub_salt, focus_first, true, shared, add)
+            });
+        shared.inside.push(area.response.rect);
+        let (inner, back) = area.inner;
+        if back {
+            self.state.open_sub = None;
+            ctx.memory_mut(|m| m.request_focus(trigger_id));
+        }
+        MenuItemResponse {
+            response,
+            clicked: false,
+            inner: Some(inner),
+        }
+    }
+
+    // `hoverDelay` over a part that is not a row of its own: true once `hovered` has lasted that long.
+    fn hold(&mut self, i: usize, hovered: bool) -> bool {
+        let ctx = self.ui.ctx().clone();
+        let now = ctx.input(|input| input.time);
+        match self.state.hover {
+            Some((h, since)) if h == i && hovered => {
+                let held = now - since >= d::HOVER_DELAY.as_secs_f64();
+                if !held {
+                    ctx.request_repaint_after(d::HOVER_DELAY);
+                }
+                held
+            }
+            _ if hovered => {
+                self.state.hover = Some((i, now));
+                ctx.request_repaint_after(d::HOVER_DELAY);
+                false
+            }
+            _ => false,
+        }
+    }
+
+    /// `MenuDivider`.
+    pub fn divider(&mut self) {
+        let w = self.ui.available_width();
+        let (rect, _) = self
+            .ui
+            .allocate_exact_size(vec2(w, 2.0 * d::DIVIDER_MARGIN + g::STROKE_WIDTH_THIN), Sense::hover());
+        let t = self.rt.tokens();
+        self.ui.painter().hline(
+            rect.left() - d::DIVIDER_BLEED..=rect.right() + d::DIVIDER_BLEED,
+            rect.center().y,
+            Stroke::new(g::STROKE_WIDTH_THIN, t.color(ColorNeutralStroke2)),
+        );
+    }
+
+    /// `MenuGroup` with its `MenuGroupHeader`; `add` places the group's rows.
+    pub fn group<R>(&mut self, header: impl Into<String>, add: impl FnOnce(&mut Self) -> R) -> R {
+        let header = header.into();
+        let t = self.rt.tokens();
+        let w = self.memo.width.max(self.seen.width).min(d::ITEM_MAX_WIDTH);
+        let (rect, _) = self
+            .ui
+            .allocate_exact_size(vec2(w, d::GROUP_HEADER_HEIGHT), Sense::hover());
+        let color = t.color(ColorNeutralForeground3);
+        let galley = self.ui.painter().layout_job(LayoutJob::single_section(
+            header.clone(),
+            typography::format(
+                self.ui.ctx(),
+                ty::FONT_SIZE_BASE_200,
+                ty::LINE_HEIGHT_BASE_200,
+                ty::FONT_WEIGHT_SEMIBOLD,
+                color,
+            ),
+        ));
+        let dir = self.rt.i18n().direction();
+        let x = dir.start_x(
+            rect,
+            Rangef::new(d::GROUP_HEADER_PADDING, d::GROUP_HEADER_PADDING + galley.size().x),
+        );
+        self.ui
+            .painter()
+            .galley(pos2(x, rect.center().y - galley.size().y / 2.0), galley, color);
+        let key = AgentKey::Kind("menugroup").id(&self.salt.child(("group", self.index)));
+        semantic::emit(self.ui.ctx(), None, rect, || {
+            SemanticNode::new(key, Role::Group, &header)
+        });
+        add(self)
+    }
+
+    /// `Menu` as a submenu: a row with a chevron that opens `add` beside it on click, the start-to-end arrow,
+    /// or `hoverDelay` of hovering.
+    pub fn submenu<R>(
+        &mut self,
+        item: impl Into<MenuItem>,
+        add: impl FnOnce(&mut MenuUi<'_, '_>) -> R,
+    ) -> MenuItemResponse<Option<R>> {
+        let item = item.into();
+        let i = self.index;
+        let open = self.state.open_sub == Some(i);
+        let (response, clicked, held) = self.row(&item, Kind::Submenu(open));
+        let ctx = self.ui.ctx().clone();
+        let forward = self.rt.i18n().direction().forward_key();
+        let by_key = !item.disabled
+            && response.has_focus()
+            && ctx.input_mut(|input| input.consume_key(Modifiers::NONE, forward));
+        if !item.disabled && (clicked || by_key) {
+            self.state.open_sub = Some(i);
+            self.state.focus_sub = true;
+        } else if held && !item.disabled {
+            self.state.open_sub = Some(i);
+        } else if held {
+            self.state.open_sub = None;
+        }
+        if self.state.open_sub != Some(i) {
+            return MenuItemResponse {
+                response,
+                clicked: false,
+                inner: None,
+            };
+        }
+        let focus_first = std::mem::take(&mut self.state.focus_sub);
+        let sub_salt = self.salt.child(("sub", i));
+        let rt = self.rt;
+        let shared = &mut *self.shared;
+        let area = Popup::new(sub_salt.clone(), Anchor::new(Side::End, Align::Start))
+            .role(Role::Menu)
+            .name(&item.label)
+            .show_at(rt, response.rect, |ui, _| {
+                level(rt, ui, &sub_salt, focus_first, true, shared, add)
+            });
+        shared.inside.push(area.response.rect);
+        let (inner, back) = area.inner;
+        if back {
+            self.state.open_sub = None;
+            ctx.memory_mut(|m| m.request_focus(response.id));
+        }
+        MenuItemResponse {
+            response,
+            clicked: false,
+            inner: Some(inner),
+        }
+    }
+}
+
+// Surface of one menu level; returns the content result and whether the level asked to close itself.
+fn level<R>(
+    rt: &Rt,
+    ui: &mut Ui,
+    salt: &KeyedSalt,
+    focus_first: bool,
+    is_sub: bool,
+    shared: &mut Shared,
+    add: impl FnOnce(&mut MenuUi<'_, '_>) -> R,
+) -> (R, bool) {
+    let ctx = ui.ctx().clone();
+    let t = rt.tokens();
+    let id = ui.make_persistent_id(salt.id_salt());
+    let memo_id = id.with("mineral::menu-memo");
+    let loaded = Memo::try_load(&ctx, memo_id);
+    let memo = loaded.unwrap_or_else(|| {
+        ctx.request_discard("mineral: unsized container");
+        Memo::FIRST
+    });
+    let look = Look {
+        fill: t.color(ColorNeutralBackground1),
+        radius: g::BORDER_RADIUS_MEDIUM,
+        elevation: Elevation::E16,
+    };
+    let state = Level::load(&ctx, id.with("mineral::menu-level"));
+    let inner = framed(ui, &t, &look, Margin::same(d::POPOVER_PADDING as i8), |ui| {
+        ui.set_width(memo.width);
+        ui.spacing_mut().item_spacing.y = d::LIST_GAP;
+        let mut mui = MenuUi {
+            ui,
+            rt,
+            salt: salt.clone(),
+            memo,
+            seen: Memo {
+                width: 0.0,
+                checkmarks: false,
+                icons: false,
+            },
+            state,
+            index: 0,
+            ids: Vec::new(),
+            enabled: Vec::new(),
+            initials: Vec::new(),
+            splits: Vec::new(),
+            shared,
+        };
+        let out = add(&mut mui);
+        let MenuUi {
+            ids,
+            enabled,
+            initials,
+            splits,
+            seen,
+            state,
+            ..
+        } = mui;
+        (out, ids, enabled, initials, splits, seen, state)
+    });
+    let (out, ids, enabled, initials, splits, seen, state) = inner.inner;
+    state.store(&ctx, id.with("mineral::menu-level"));
+    let next = Memo {
+        width: seen.width.clamp(Memo::MIN_WIDTH, Memo::MAX_WIDTH),
+        ..seen
+    };
+    // A level whose size equals FIRST must still store, or it reads as unsized and discards every pass.
+    if loaded.is_none() || next != memo {
+        next.store(&ctx, memo_id);
+    }
+    if next != memo {
+        egui_mineral::motion::request_frame(&ctx);
+    }
+    let within = ctx
+        .memory(egui::Memory::focused)
+        .is_some_and(|f| ids.contains(&f) || splits.iter().any(|(_, t)| *t == f));
+    // The area's sizing pass drops focus requests, so the request repeats until focus lands.
+    let pending_id = id.with("mineral::menu-focus");
+    let pending = !within && (focus_first || ctx.data(|d| d.get_temp::<bool>(pending_id)).unwrap_or(false));
+    if pending {
+        if let Some(first) = ids.iter().zip(&enabled).find_map(|(id, on)| on.then_some(*id)) {
+            ctx.memory_mut(|m| m.request_focus(first));
+        }
+        ctx.data_mut(|d| d.insert_temp(pending_id, true));
+        egui_mineral::motion::request_frame(&ctx);
+    } else {
+        ctx.data_mut(|d| d.remove::<bool>(pending_id));
+    }
+    RovingFocus::new(Axis::Vertical)
+        .wrap(d::WRAP)
+        .update(rt.core(), &ids, |i| enabled.get(i).copied().unwrap_or(false));
+    step_from_trigger(rt, &ids, &enabled, &splits);
+    let mut back = false;
+    if within {
+        if ctx.input(|i| i.key_pressed(Key::Tab)) {
+            shared.close = true;
+        }
+        let key = rt.i18n().direction().forward_key();
+        let back_key = if key == Key::ArrowRight {
+            Key::ArrowLeft
+        } else {
+            Key::ArrowRight
+        };
+        if let Some(i) = focused_index(&ctx, &ids)
+            && let Some(to) = typeahead(&ctx, i, &initials, &enabled).and_then(|to| ids.get(to))
+        {
+            ctx.memory_mut(|m| m.request_focus(*to));
+        }
+        if is_sub {
+            back = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, back_key)) | overlay_escape(&ctx);
+        }
+    }
+    (out, back)
+}
+
+// Up and Down on a split trigger step to the neighbouring rows.
+fn step_from_trigger(rt: &Rt, ids: &[Id], enabled: &[bool], splits: &[(usize, Id)]) {
+    let ctx = rt.ctx();
+    let Some(&(row, trigger)) = ctx
+        .memory(egui::Memory::focused)
+        .and_then(|f| splits.iter().find(|(_, t)| *t == f))
+    else {
+        return;
+    };
+    kit::focus::lock_arrows(ctx, trigger, kit::focus::Arrows::Axis(Axis::Vertical));
+    let dir = rt.i18n().direction();
+    let roving = RovingFocus::new(Axis::Vertical).wrap(d::WRAP);
+    let enabled_at = |i: usize| enabled.get(i).copied().unwrap_or(false);
+    for key in kit::input::plain_key_presses(ctx) {
+        if let Some(to) = roving
+            .target(key, dir, row, ids.len(), enabled_at)
+            .and_then(|to| ids.get(to))
+        {
+            ctx.memory_mut(|m| m.request_focus(*to));
+        }
+    }
+}
+
+fn initial(label: &str) -> Option<char> {
+    label.chars().next().and_then(|c| c.to_lowercase().next())
+}
+
+fn focused_index(ctx: &egui::Context, ids: &[Id]) -> Option<usize> {
+    let focused = ctx.memory(egui::Memory::focused)?;
+    ids.iter().position(|&id| id == focused)
+}
+
+// useMenuList focusItemMatchingFirstCharacter: next enabled row after `from` whose label starts with the typed
+// character, wrapping; one-character text events only.
+fn typeahead(ctx: &egui::Context, from: usize, initials: &[Option<char>], enabled: &[bool]) -> Option<usize> {
+    let typed = ctx.input(|i| {
+        i.events.iter().rev().find_map(|e| match e {
+            egui::Event::Text(t) => {
+                let mut chars = t.chars();
+                chars.next().filter(|c| !c.is_whitespace() && chars.next().is_none())
+            }
+            _ => None,
+        })
+    })?;
+    let key = typed.to_lowercase().next()?;
+    let n = initials.len();
+    (1..=n)
+        .map(|k| (from + k) % n)
+        .find(|&i| enabled.get(i).copied().unwrap_or(false) && initials[i] == Some(key))
+}
+
+fn overlay_escape(ctx: &egui::Context) -> bool {
+    kit::overlay::consume_escape(ctx)
+}
+
+/// Fluent `Menu`: a popup list of rows anchored below its trigger. The trigger's clicks toggle it, Escape,
+/// Tab and outside presses close it, and so does a row that is not a checkbox, radio or submenu.
+/// Arrow keys move between rows (wrapping), the start-to-end arrow opens a submenu and its opposite closes one.
+#[derive(Clone, Debug)]
+#[must_use = "call .show(..)"]
+pub struct Menu {
+    salt: KeyedSalt,
+    key: AgentKey,
+    label: String,
+    side: Side,
+    align: Align,
+}
+
+impl Menu {
+    /// `label` names the popup for assistive technology; below the trigger, start aligned.
+    /// Agent key `<id_salt>-menu`.
+    pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>) -> Self {
+        Self {
+            salt: id_salt.into(),
+            key: AgentKey::Kind("menu"),
+            label: label.into(),
+            side: Side::Bottom,
+            align: Align::Start,
+        }
+    }
+
+    crate::widget::setters! {
+        /// Replaces the `<id_salt>-menu` agent key.
+        agent_key(key)
+    }
+
+    /// Side of the trigger; default [`Side::Bottom`].
+    pub fn side(mut self, side: Side) -> Self {
+        self.side = side;
+        self
+    }
+
+    /// Alignment along the trigger; default [`Align::Start`].
+    pub fn align(mut self, align: Align) -> Self {
+        self.align = align;
+        self
+    }
+
+    /// Shown while `open`, anchored to `trigger`; `add` places the rows. The first enabled row takes focus on opening.
+    pub fn show<R>(
+        self,
+        rt: &Rt,
+        trigger: &Response,
+        open: &mut bool,
+        add: impl FnOnce(&mut MenuUi<'_, '_>) -> R,
+    ) -> OverlayResponse<R> {
+        let ctx = rt.ctx();
+        let mut dismissed = None;
+        if trigger.clicked() {
+            *open = !*open;
+            if !*open {
+                dismissed = Some(Dismiss::Close);
+            }
+        }
+        let mut out = OverlayResponse::closed();
+        out.dismissed = dismissed;
+        if !*open {
+            return out;
+        }
+        let opened_id = trigger.id.with(("mineral::fluent-menu", self.salt.id_salt()));
+        let pass = ctx.cumulative_pass_nr();
+        let last: Option<u64> = ctx.data(|d| d.get_temp(opened_id));
+        let opened = last.is_none_or(|p| p + 1 < pass);
+        let mut shared = Shared::default();
+        let area = Popup::new(self.salt.child("area"), Anchor::new(self.side, self.align))
+            .role(Role::Menu)
+            .name(&self.label)
+            .show_at(rt, trigger.rect, |ui, _| {
+                level(rt, ui, &self.salt, opened, false, &mut shared, add)
+            });
+        ctx.data_mut(|d| d.insert_temp(opened_id, pass));
+        let (inner, _) = area.inner;
+        let mut inside = vec![area.response.rect, trigger.rect];
+        inside.append(&mut shared.inside);
+        let dismissal = overlay::dismissal(rt.core(), area.response.layer_id, &inside, Some(trigger.id));
+        let tab_closed = shared.close;
+        if tab_closed {
+            ctx.memory_mut(|m| m.request_focus(trigger.id));
+        }
+        let dismissal = dismissal.or(tab_closed.then_some(Dismiss::Close));
+        *open = dismissal.is_none();
+        if !*open {
+            ctx.data_mut(|d| d.remove::<u64>(opened_id));
+        }
+        let key = self.key.id(&self.salt);
+        let label = self.label;
+        semantic::emit(ctx, Some(area.response.id), area.response.rect, || {
+            SemanticNode::new(key, Role::Menu, label)
+        });
+        OverlayResponse::shown(area.response, Some(inner), dismissal)
+    }
+}

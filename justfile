@@ -41,21 +41,22 @@ fmt:
 
 # Every feature alone, the default set and none, per published crate, native and wasm32; the all-features line covers `unstable-hotpatch` (native only, never in the matrix)
 clippy:
-    for c in egui_mineral egui_mineral_material; do \
+    for c in egui_mineral egui_mineral_material egui_mineral_fluent; do \
         cargo hack clippy -p "$c" --each-feature --exclude-features unstable-hotpatch --all-targets -- -D warnings; \
         cargo hack clippy -p "$c" --each-feature --exclude-features unstable-hotpatch --target wasm32-unknown-unknown -- -D warnings; \
     done
     cargo clippy --workspace --all-targets --all-features -- -D warnings
-    cargo clippy -p showcase --target wasm32-unknown-unknown -- -D warnings
+    cargo clippy -p showcase-material --target wasm32-unknown-unknown -- -D warnings
+    cargo clippy -p showcase-fluent --target wasm32-unknown-unknown -- -D warnings
 
 # Features of the published crates but `unstable-hotpatch`
-test_features := "egui_mineral/platform-native,egui_mineral/web-save-stream,egui_mineral_material/theme-file,egui_mineral_material/unstable-catalog,egui_mineral_material/unstable-spec"
+test_features := "egui_mineral/platform-native,egui_mineral/web-save-stream,egui_mineral_material/theme-file,egui_mineral_material/unstable-catalog,egui_mineral_material/unstable-spec,egui_mineral_fluent/unstable-catalog,egui_mineral_fluent/unstable-spec"
 
 # Extra args go to nextest, e.g. `--no-run`
 test *args:
-    cargo nextest run --workspace --features egui_mineral_material/unstable-spec {{ args }}
+    cargo nextest run --workspace --features egui_mineral_material/unstable-spec,egui_mineral_fluent/unstable-spec {{ args }}
     cargo nextest run --workspace --features {{ test_features }} {{ args }}
-    cargo nextest run -p egui_mineral -p egui_mineral_material --no-default-features --features egui_mineral_material/bundled-icons {{ args }}
+    cargo nextest run -p egui_mineral -p egui_mineral_material -p egui_mineral_fluent --no-default-features --features egui_mineral_material/bundled-icons,egui_mineral_fluent/bundled-icons {{ args }}
 
 # icu4x-datagen matching the locked ICU4X version
 icu-datagen:
@@ -77,15 +78,17 @@ hotpatch-guard:
 # Mirrors `[package.metadata.docs.rs] features` of each crate
 docsrs_core := "icu,persist-fs,platform-native,web-save-stream"
 docsrs_material := "icu,persist-fs,bundled-icons,theme-file,unstable-catalog,unstable-spec"
+docsrs_fluent := "icu,persist-fs,bundled-icons,unstable-catalog,unstable-spec"
 
 # Doctests, rustdoc and the docs.rs build
 doc:
     cargo test --doc --workspace --features {{ test_features }}
     RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --features {{ test_features }}
-    RUSTDOCFLAGS="-D warnings" cargo doc -p egui_mineral -p egui_mineral_material --no-deps --no-default-features
+    RUSTDOCFLAGS="-D warnings" cargo doc -p egui_mineral -p egui_mineral_material -p egui_mineral_fluent --no-deps --no-default-features
     for t in x86_64-unknown-linux-gnu wasm32-unknown-unknown; do \
         RUSTDOCFLAGS="--cfg docsrs -D warnings" cargo +nightly doc -p egui_mineral --no-deps --target "$t" --features {{ docsrs_core }}; \
         RUSTDOCFLAGS="--cfg docsrs -D warnings" cargo +nightly doc -p egui_mineral_material --no-deps --target "$t" --features {{ docsrs_material }}; \
+        RUSTDOCFLAGS="--cfg docsrs -D warnings" cargo +nightly doc -p egui_mineral_fluent --no-deps --target "$t" --features {{ docsrs_fluent }}; \
     done
 
 # Published crates; their READMEs are generated from the crate docs
@@ -127,12 +130,13 @@ minimal-versions:
     trap 'cp "$lock" Cargo.lock; rm -f "$lock"' EXIT
     cargo +nightly check --workspace --all-features -Z direct-minimal-versions
 
-# Regenerates the MD3 spec; fails when it changed (non-blocking in CI)
+# Regenerates the MD3 and Fluent specs; fails when it changed (non-blocking in CI)
 spec:
     #!/usr/bin/env bash
     set -euo pipefail
     cargo run -p md3_tokens -- generate
-    changes=$(git status --porcelain -- crates/egui_mineral_material/src/spec)
+    cargo run -p fluent_tokens -- generate
+    changes=$(git status --porcelain -- crates/egui_mineral_material/src/spec crates/egui_mineral_fluent/src/spec)
     [ -z "$changes" ] && exit 0
     if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
         printf '## Stale generated spec\n```\n%s\n```\n' "$changes" >> "$GITHUB_STEP_SUMMARY"
@@ -179,8 +183,8 @@ hygiene: typos deny rules machete workflows
 hotpatch:
     @dx --version | grep -q ' {{ dx_version }}' || { echo "needs dioxus-cli {{ dx_version }}: cargo install dioxus-cli --version {{ dx_version }} --locked"; exit 1; }
     # dx 0.7.10 misses cargo's build-dir fingerprints (docs/blockers.md): force the relink it captures.
-    touch examples/showcase/src/main.rs
-    dx serve --hotpatch --interactive false --platform linux --package showcase --features egui_mineral/unstable-hotpatch
+    touch examples/showcase-material/src/main.rs
+    dx serve --hotpatch --interactive false --platform linux --package showcase-material --features egui_mineral/unstable-hotpatch
 
 # CI runs crate-ci/typos
 typos:

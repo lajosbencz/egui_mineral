@@ -2,7 +2,7 @@
 
 Core APIs kept but not exercised by any layer.
 
-- [`crates/egui_mineral_fluent`](../crates/egui_mineral_fluent): placeholder. Needs a Fluent Design stylekit (tokens, components, a `Stylekit`) to exercise the core as a second layer.
+- [`crates/egui_mineral_fluent`](../crates/egui_mineral_fluent): only the actions exemplars, `Divider`, `Text` and `Label` are ported. The other Fluent UI React v9 components (inputs, feedback, surfaces, navigation, data) are open.
 
 ## Deferred requests
 

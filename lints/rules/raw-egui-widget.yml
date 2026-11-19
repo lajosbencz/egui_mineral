@@ -1,11 +1,12 @@
 id: raw-egui-widget
 language: rust
 severity: error
-message: Apps use stylekit components; raw egui and ecosystem widgets go through the interop pattern (examples/showcase/src/pages/interop.rs, docs/conventions.md).
+message: Apps use stylekit components; raw egui and ecosystem widgets go through the interop pattern (examples/showcase-*/src/pages/interop.rs, docs/conventions.md).
 files:
   - examples/**
 ignores:
-  - examples/showcase/src/pages/interop.rs
+  - examples/showcase-material/src/pages/interop.rs
+  - examples/showcase-fluent/src/pages/interop.rs
 rule:
   any:
     - kind: call_expression

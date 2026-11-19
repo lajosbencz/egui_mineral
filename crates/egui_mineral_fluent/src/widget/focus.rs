@@ -1,0 +1,54 @@
+use egui::{CornerRadius, Painter, Rect, Stroke, StrokeKind};
+
+use crate::{ColorToken, spec::tokens::geometry, theme::Tokens};
+
+// react-tabster createFocusOutlineStyle: `strokeWidthThick` `colorStrokeFocus2` outside, `strokeWidthThin`
+// `colorStrokeFocus1` inside.
+pub(crate) fn outline(p: &Painter, rect: Rect, r: CornerRadius, t: &Tokens) {
+    p.rect_stroke(
+        rect,
+        r,
+        Stroke::new(geometry::STROKE_WIDTH_THIN, t.color(ColorToken::ColorStrokeFocus1)),
+        StrokeKind::Inside,
+    );
+    p.rect_stroke(
+        rect,
+        r,
+        Stroke::new(geometry::STROKE_WIDTH_THICK, t.color(ColorToken::ColorStrokeFocus2)),
+        StrokeKind::Outside,
+    );
+}
+
+// react-button useButtonStyles.styles.ts createCustomFocusIndicatorStyle: the `strokeWidthThin` border turns
+// `colorStrokeFocus2` and gains a `strokeWidthThin` inset ring of it; `on_brand` adds the primary's
+// `strokeWidthThick` `colorNeutralForegroundOnBrand` inset ring under it.
+pub(crate) fn inset(p: &Painter, rect: Rect, r: CornerRadius, on_brand: bool, t: &Tokens) {
+    if on_brand {
+        p.rect_stroke(
+            rect.shrink(geometry::STROKE_WIDTH_THIN),
+            r,
+            Stroke::new(
+                geometry::STROKE_WIDTH_THICK,
+                t.color(ColorToken::ColorNeutralForegroundOnBrand),
+            ),
+            StrokeKind::Inside,
+        );
+    }
+    p.rect_stroke(
+        rect,
+        r,
+        Stroke::new(
+            geometry::STROKE_WIDTH_THIN + geometry::STROKE_WIDTH_THIN,
+            t.color(ColorToken::ColorStrokeFocus2),
+        ),
+        StrokeKind::Inside,
+    );
+}
+
+// react-link useLinkStyles.styles.ts focusIndicator: `double` underline in `colorStrokeFocus2`.
+pub(crate) fn double_underline(p: &Painter, left: f32, right: f32, baseline: f32, t: &Tokens) {
+    let stroke = Stroke::new(geometry::STROKE_WIDTH_THIN, t.color(ColorToken::ColorStrokeFocus2));
+    for dy in [0.0, geometry::STROKE_WIDTH_THICK] {
+        p.hline(left..=right, baseline + dy, stroke);
+    }
+}

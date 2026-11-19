@@ -12,7 +12,8 @@ app  ->  egui_mineral_material (opinionated MD3 stylekit)
 | [`crates/egui_mineral_macros`](crates/egui_mineral_macros) | yes | `#[derive(Route)]` |
 | [`crates/egui_mineral_material`](crates/egui_mineral_material) | yes | Material Design 3 stylekit |
 | [`crates/egui_mineral_fluent`](crates/egui_mineral_fluent) | no | Fluent stylekit |
-| [`examples/showcase`](examples/showcase) | no | Demo of features |
+| [`examples/showcase-material`](examples/showcase-material) | no | Demo of features, Material |
+| [`examples/showcase-fluent`](examples/showcase-fluent) | no | Demo of features, Fluent |
 | [`tools/mineral_inspector`](tools/mineral_inspector) | no | Debug inspector |
 | [`tools/md3_tokens`](tools/md3_tokens) | no | MD3 token generator |
 | [`docs`](docs) | - | Prose: rules, conventions, testing |

@@ -8,3 +8,16 @@ Copyright The Android Open Source Project, licensed under the Apache License, Ve
 its source file and androidx commit. The unmodified sources are vendored in tools/md3_tokens/vendor/.
 crates/egui_mineral_material/src/spec/defaults/*.rs carry values from Compose Material3 component sources
 (compose/material3/material3/src), same copyright and license; each names its source.
+
+This product includes data derived from Fluent UI React v9 design tokens and component styles
+(microsoft/fluentui, packages/tokens/src and packages/react-components), Copyright (c) Microsoft Corporation,
+licensed under the MIT License (tools/fluent_tokens/vendor/<commit>/LICENSE). The generated files are
+crates/egui_mineral_fluent/src/spec/tokens/*.rs; each names its source files and fluentui commit. The unmodified
+sources are vendored in tools/fluent_tokens/vendor/. crates/egui_mineral_fluent/src/spec/defaults/*.rs carry values
+from the vendored component style files (use*Styles.styles.ts), same copyright and license; each names its source.
+
+This product includes the Fluent UI System Icons resizable font and its codepoint map
+(microsoft/fluentui-system-icons, fonts/FluentSystemIcons-Resizable.*), Copyright (c) 2020 Microsoft Corporation,
+licensed under the MIT License (tools/fluent_tokens/vendor-icons/<commit>/LICENSE). The font is
+crates/egui_mineral_fluent/assets/FluentSystemIcons-Resizable.ttf, unmodified; crates/egui_mineral_fluent/src/icons.rs
+is generated from the vendored codepoint map and names its commit.

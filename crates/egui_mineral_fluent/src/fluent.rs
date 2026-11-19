@@ -1,0 +1,137 @@
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+};
+
+use egui::{Context, Style, Theme};
+use egui_mineral::{
+    i18n::Catalog,
+    policy::Policies,
+    runtime::{Runtime, Stylekit},
+    widget::MineralUi,
+};
+use parking_lot::Mutex;
+
+use crate::{
+    BrandRamp,
+    spec::tokens::brand::BRAND_WEB,
+    theme::{Scheme, TokenStore, Tokens},
+};
+
+/// Fluent 2 [`Stylekit`]: high contrast, brand ramp and the tokens and styles of each [`Scheme`]. Pass it to
+/// [`Runtime::new`](egui_mineral::runtime::Runtime::new); the brightness shown is the runtime's
+/// ([`Core::theme`](egui_mineral::runtime::Core::theme)).
+#[derive(Debug)]
+pub struct Fluent {
+    high_contrast: AtomicBool,
+    tokens: Mutex<TokenStore>,
+    icon_font: &'static [u8],
+}
+
+impl Fluent {
+    /// Web light and dark tokens of the Fluent web brand (`BRAND_WEB`), with the bundled icon font (1.6 MB).
+    #[cfg(feature = "bundled-icons")]
+    pub fn new() -> Self {
+        Self::with_icon_font(crate::fonts::BUNDLED_ICONS)
+    }
+
+    /// `Self::new` with `ttf` instead of the bundled icon font: a Fluent UI System Icons resizable font (or a
+    /// subset of it).
+    pub fn with_icon_font(ttf: &'static [u8]) -> Self {
+        Self {
+            high_contrast: AtomicBool::new(false),
+            tokens: Mutex::new(TokenStore::new(BRAND_WEB)),
+            icon_font: ttf,
+        }
+    }
+
+    /// High contrast replaces the light and dark schemes.
+    pub fn high_contrast(&self) -> bool {
+        self.high_contrast.load(Ordering::Relaxed)
+    }
+
+    /// Switches to or from the high contrast scheme.
+    pub fn set_high_contrast(&self, ctx: &Context, high_contrast: bool) {
+        self.high_contrast.store(high_contrast, Ordering::Relaxed);
+        repaint(ctx);
+    }
+
+    /// Brand ramp of the web light and dark schemes.
+    pub fn brand(&self) -> BrandRamp {
+        self.tokens.lock().brand()
+    }
+
+    /// Rebuilds the web light and dark tokens from `brand`; high contrast has no brand.
+    pub fn set_brand(&self, ctx: &Context, brand: BrandRamp) {
+        self.tokens.lock().set_brand(brand);
+        repaint(ctx);
+    }
+
+    /// Scheme shown at `theme` ([`Core::theme`](egui_mineral::runtime::Core::theme)): [`Scheme::HighContrast`]
+    /// when set, else that brightness.
+    pub fn scheme(&self, theme: Theme) -> Scheme {
+        if self.high_contrast() {
+            Scheme::HighContrast
+        } else {
+            theme.into()
+        }
+    }
+
+    /// Tokens of `scheme`; widgets read `ui.tokens()` ([`FluentExt`]).
+    pub fn tokens(&self, scheme: Scheme) -> Arc<Tokens> {
+        self.tokens.lock().tokens(scheme)
+    }
+}
+
+#[expect(clippy::disallowed_methods, reason = "one pass after the theme changed")]
+fn repaint(ctx: &Context) {
+    ctx.request_repaint();
+}
+
+#[cfg(feature = "bundled-icons")]
+impl Default for Fluent {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Stylekit for Fluent {
+    fn policies(&self, ctx: &Context) -> Policies {
+        crate::policy::policies(ctx.os())
+    }
+
+    fn catalogs(&self) -> &'static [Catalog] {
+        &[("en-US", include_str!("../locales/en-US.ftl"))]
+    }
+
+    fn setup(&self, ctx: &Context) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        crate::fonts::install_icons(ctx, self.icon_font);
+        Ok(())
+    }
+
+    fn style(&self, _: &Context, theme: Theme) -> Arc<Style> {
+        let scheme = self.scheme(theme);
+        self.tokens.lock().style(scheme)
+    }
+}
+
+/// Runtime of a Fluent app.
+pub type Rt = Runtime<Fluent>;
+
+/// Fluent state on a [`Rt`] or Fluent [`MineralUi`].
+pub trait FluentExt {
+    /// Tokens of the current scheme.
+    fn tokens(&self) -> Arc<Tokens>;
+}
+
+impl FluentExt for Rt {
+    fn tokens(&self) -> Arc<Tokens> {
+        self.kit().tokens(self.kit().scheme(self.theme()))
+    }
+}
+
+impl FluentExt for MineralUi<'_, Fluent> {
+    fn tokens(&self) -> Arc<Tokens> {
+        self.rt().tokens()
+    }
+}

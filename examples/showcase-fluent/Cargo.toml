@@ -1,0 +1,32 @@
+[package]
+name = "showcase-fluent"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+egui_mineral_fluent = { workspace = true, features = ["icu", "bundled-icons", "unstable-catalog", "unstable-spec"] }
+mineral_inspector.workspace = true
+# glow: a smaller web bundle than eframe's default wgpu.
+eframe = { workspace = true, features = ["accesskit", "clipboard", "default_fonts", "glow", "links", "system_fonts", "wayland", "web_screen_reader", "x11"] }
+egui.workspace = true
+tracing.workspace = true
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tracing-subscriber.workspace = true
+# Restores eframe's default `winit/default`: Wayland client-side decorations and dlopen.
+winit.workspace = true
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+tracing-subscriber.workspace = true
+tracing-web.workspace = true
+wasm-bindgen-futures.workspace = true
+web-sys = { workspace = true, features = ["Window", "Document", "Element", "HtmlCanvasElement"] }
+
+[lints]
+workspace = true
+
+[package.metadata.cargo-machete]
+ignored = ["winit"]

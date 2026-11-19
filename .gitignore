@@ -29,4 +29,6 @@ desktop.ini
 .playwright-mcp/
 
 # Project
-/examples/showcase/dist
+/examples/showcase-fluent/dist
+/examples/showcase-material/dist
+/examples/showcase-fluent/dist

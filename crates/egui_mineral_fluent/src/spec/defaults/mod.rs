@@ -1,0 +1,57 @@
+//! Values Fluent UI React v9 hard-codes in component `use*Styles.styles.ts` files instead of reading a token,
+//! at [`SOURCE_COMMIT`](crate::spec::tokens::SOURCE_COMMIT). Each module names its file under
+//! `packages/react-components/`; re-check them when re-pinning.
+
+pub mod accordion;
+pub mod avatar;
+pub mod badge;
+pub mod breadcrumb;
+pub mod button;
+pub mod calendar;
+pub mod card;
+pub mod carousel;
+pub mod checkbox;
+pub mod color_picker;
+pub mod combobox;
+pub mod compound_button;
+pub mod counter_badge;
+pub mod date_picker;
+pub mod dialog;
+pub mod divider;
+pub mod drawer;
+pub mod field;
+pub mod info_label;
+pub mod input;
+pub mod list;
+pub mod menu;
+pub mod menu_button;
+pub mod menu_grid;
+pub mod message_bar;
+pub mod nav;
+pub mod persona;
+pub mod popover;
+pub mod presence_badge;
+pub mod progress_bar;
+pub mod radio;
+pub mod rating;
+pub mod rating_display;
+pub mod search_box;
+pub mod select;
+pub mod skeleton;
+pub mod slider;
+pub mod spin_button;
+pub mod spinner;
+pub mod split_button;
+pub mod swatch_picker;
+pub mod switch;
+pub mod tab;
+pub mod table;
+pub mod tag;
+pub mod tag_picker;
+pub mod teaching_popover;
+pub mod textarea;
+pub mod time_picker;
+pub mod toast;
+pub mod toolbar;
+pub mod tooltip;
+pub mod tree;

@@ -1,0 +1,12 @@
+[package]
+name = "fluent_tokens"
+description = "Generates egui_mineral_fluent spec constants from the Fluent UI React v9 token sources"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lints]
+workspace = true

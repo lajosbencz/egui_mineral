@@ -14,7 +14,7 @@ all on top of [egui](https://github.com/emilk/egui).
 It's cross-platform:
 
 - Open in the [browser](https://lajosbencz.github.io/egui_mineral/material/)
-- Or after cloning the repo, run: `cargo run -p showcase`.
+- Or after cloning the repo, run: `cargo run -p showcase-material` or `cargo run -p showcase-fluent`.
 
 ## Release size
 WASM showcase: `8.7 MB` (gzipped: `3.3 MB`).
@@ -30,10 +30,10 @@ Savings over a default build, uncompressed WASM:
 
 How to opt-out:
 
-1. Disable `bundled-icons` and build with `Material::with_icon_fonts`. The showcase's [`build.rs`](examples/showcase/build.rs) subsets the fonts to the icons it uses.
+1. Disable `bundled-icons` and build with `Material::with_icon_fonts`. The showcase's [`build.rs`](examples/showcase-material/build.rs) subsets the fonts to the icons it uses.
 2. Disable eframe's `default_fonts` feature and install your own fonts with `egui::Context::set_fonts`.
 3. Set `ICU4X_DATA_DIR` to data for your locales ([`i18n`](https://docs.rs/egui_mineral/latest/egui_mineral/i18n/)), or disable `icu`.
-4. Build eframe without its default features and enable `glow`, as the [showcase](examples/showcase/) does.
+4. Build eframe without its default features and enable `glow`, as the [showcase](examples/showcase-material/) does.
 
 ## Use
 

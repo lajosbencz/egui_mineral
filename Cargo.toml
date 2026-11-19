@@ -5,9 +5,11 @@ members = [
     "crates/egui_mineral_macros",
     "crates/egui_mineral_material",
     "crates/egui_mineral_fluent",
-    "examples/showcase",
+    "examples/showcase-fluent",
+    "examples/showcase-material",
     "tools/mineral_inspector",
     "tools/md3_tokens",
+    "tools/fluent_tokens",
 ]
 
 [workspace.package]
@@ -24,6 +26,7 @@ categories = ["gui", "accessibility"]
 egui_mineral = { path = "crates/egui_mineral", version = "0.4.1", default-features = false }
 egui_mineral_macros = { path = "crates/egui_mineral_macros", version = "0.4.0" }
 egui_mineral_material = { path = "crates/egui_mineral_material", version = "0.4.1", default-features = false }
+egui_mineral_fluent = { path = "crates/egui_mineral_fluent", default-features = false }
 mineral_inspector = { path = "tools/mineral_inspector" }
 
 egui = { version = "0.37.0", features = ["serde"] }
@@ -133,7 +136,7 @@ codegen-units = 1
 strip = "symbols"
 panic = "abort"
 
-# Browser bundle size; selected by examples/showcase/index.html.
+# Browser bundle size; selected by examples/showcase-{material,fluent}/index.html.
 [profile.wasm-release]
 inherits = "release"
 opt-level = "s"
