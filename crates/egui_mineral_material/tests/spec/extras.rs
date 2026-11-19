@@ -161,3 +161,35 @@ fn field_wrappers_forward_the_text_chrome() {
     p.text("#");
     p.text("pick");
 }
+
+#[test]
+fn date_and_tag_fields_take_density_label_visibility_and_affixes() {
+    use egui_mineral_material::{
+        MaterialUiExt as _,
+        adaptive::Density,
+        extras::{DateField, TagsField},
+        spec::TypeScale,
+    };
+    let content = TypeScale::BodyLarge.line_height() + 8.0;
+    let mut date = None;
+    let p = crate::support::render_zones(|ui| {
+        ui.with_density(Density::MIN, |ui| {
+            ui.mineral(DateField::new("d", "Date", &mut date).label_visible(false).suffix("UTC"))
+                .zones()
+        })
+    });
+    let field = p.zones.expect("zones reported").visual;
+    assert_eq!(field.height(), content);
+    assert_eq!(p.node("d-date").name, "Date");
+    assert!(field.contains_rect(p.text("UTC")) && p.text("UTC").left() > field.center().x);
+
+    let mut tags = vec!["a".to_owned()];
+    let p = crate::support::render_zones(|ui| {
+        ui.with_density(Density::MIN, |ui| {
+            ui.mineral(TagsField::new("t", "Tags", &mut tags).label_visible(false).prefix("#"))
+                .zones()
+        })
+    });
+    assert_eq!(p.node("t-tags").name, "Tags");
+    p.text("#");
+}

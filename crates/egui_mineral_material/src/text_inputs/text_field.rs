@@ -726,13 +726,25 @@ macro_rules! field_chrome_setters {
         $crate::text_inputs::text_field::field_chrome_setters!(text chrome);
     };
     (text $($path:ident).+) => {
+        $crate::text_inputs::text_field::field_chrome_setters!(affix $($path).+);
+
         /// Hint shown while empty.
         pub fn placeholder(mut self, placeholder: impl Into<String>) -> Self {
             self.$($path).+.placeholder = Some(placeholder.into());
             self
         }
 
-        /// Type style of the value, placeholder and affixes; default [`TypeScale::BodyLarge`]($crate::spec::TypeScale::BodyLarge).
+        /// Character limit, with a counter below the field.
+        pub fn max_chars(mut self, max_chars: usize) -> Self {
+            self.$($path).+.max_chars = Some(max_chars);
+            self
+        }
+    };
+    (affix) => {
+        $crate::text_inputs::text_field::field_chrome_setters!(affix chrome);
+    };
+    (affix $($path:ident).+) => {
+        /// Type style of the value and affixes; default [`TypeScale::BodyLarge`]($crate::spec::TypeScale::BodyLarge).
         /// Lines past the first are spaced by its line height; the first keeps the 24dp line box.
         pub fn text_style(mut self, text_style: $crate::spec::TypeScale) -> Self {
             self.$($path).+.text_style = Some(text_style);
@@ -748,12 +760,6 @@ macro_rules! field_chrome_setters {
         /// Text after the input, e.g. a unit.
         pub fn suffix(mut self, suffix: impl Into<String>) -> Self {
             self.$($path).+.suffix = Some(suffix.into());
-            self
-        }
-
-        /// Character limit, with a counter below the field.
-        pub fn max_chars(mut self, max_chars: usize) -> Self {
-            self.$($path).+.max_chars = Some(max_chars);
             self
         }
 
@@ -978,15 +984,7 @@ impl<'a> TextField<'a> {
     fn text_width(&self, ui: &MineralUi<'_, Material>, width: f32) -> f32 {
         let rt = ui.rt();
         let span = width - content_inset(rt, ui.density(), self.chrome.leading.is_some()) - content_inset(rt, ui.density(), self.has_trailing());
-        let room = |s: &Option<String>| {
-            s.as_deref().map_or(0.0, |s| {
-                line_galley(ui.painter(), s, self.input_style(), Color32::PLACEHOLDER, span)
-                    .size()
-                    .x
-                    + tf::AFFIX_PADDING
-            })
-        };
-        span - room(&self.chrome.prefix) - room(&self.chrome.suffix)
+        span - affix_room(ui, &self.chrome, span)
     }
 
     fn lines(&self, ui: &MineralUi<'_, Material>, width: f32, buffer: &EditBuffer<String>) -> usize {
@@ -1126,72 +1124,6 @@ impl TextField<'_> {
             out.edit = buffer.cancel();
             ctx.memory_mut(|m| m.surrender_focus(edit_id));
         }
-    }
-
-    fn paint_chrome(
-        &self,
-        ui: &MineralUi<'_, Material>,
-        decor: &DecorOut,
-        base: Id,
-        focused: bool,
-        empty: bool,
-        lines: usize,
-    ) -> Rect {
-        let rt = ui.rt();
-        let colors = decor.colors;
-        // Compose `placeholderOpacity` and `affixOpacity`: hidden under an expanded label.
-        let shown_unfocused = !self.labeled();
-        let placeholder_alpha = egui_mineral::motion::spring(
-            rt.core(),
-            base.with("placeholder"),
-            f32::from(focused || shown_unfocused),
-            if focused {
-                motion::SLOW_EFFECTS
-            } else {
-                motion::FAST_EFFECTS
-            },
-        );
-        let affix_alpha = egui_mineral::motion::spring(
-            rt.core(),
-            base.with("affix"),
-            f32::from(focused || shown_unfocused || !empty),
-            motion::FAST_EFFECTS,
-        );
-        let dir = rt.i18n().direction();
-        let p = ui.painter().clone();
-        let affix = |s: &Option<String>| {
-            s.as_deref()
-                .map(|s| line_galley(&p, s, self.input_style(), colors.affix, decor.span.span()))
-        };
-        let (prefix, suffix) = (affix(&self.chrome.prefix), affix(&self.chrome.suffix));
-        let room = |g: &Option<Arc<Galley>>| g.as_ref().map_or(0.0, |g| g.size().x + tf::AFFIX_PADDING);
-        let (lead_room, trail_room) = (room(&prefix), room(&suffix));
-        let Sides { left, right } = dir.sides(lead_room, trail_room);
-        let (x0, x1) = (decor.span.min + left, decor.span.max - right);
-        let text_rect = Rect::from_min_max(
-            pos2(x0, decor.text_top),
-            pos2(
-                x1.max(x0),
-                decor.text_top + line_h() + (lines - 1) as f32 * self.input_style().line_height(),
-            ),
-        );
-        let fade = |c: Color32, a: f32| c.gamma_multiply(a.clamp(0.0, 1.0));
-        if affix_alpha > 0.0 {
-            if let Some(g) = prefix {
-                let x = dir.span_x(decor.span, Rangef::new(0.0, 0.0 + g.size().x));
-                p.galley(pos2(x, decor.text_top), g, fade(colors.affix, affix_alpha));
-            }
-            if let Some(g) = suffix {
-                let x = dir.reversed().span_x(decor.span, Rangef::new(0.0, 0.0 + g.size().x));
-                p.galley(pos2(x, decor.text_top), g, fade(colors.affix, affix_alpha));
-            }
-        }
-        if let (Some(ph), true) = (&self.chrome.placeholder, empty && placeholder_alpha > 0.0) {
-            let g = line_galley(&p, ph, self.input_style(), colors.placeholder, text_rect.width());
-            let x = dir.start_x(text_rect, Rangef::new(0.0, 0.0 + g.size().x));
-            p.galley(pos2(x, text_rect.top()), g, fade(colors.placeholder, placeholder_alpha));
-        }
-        text_rect
     }
 
     fn show_editor(
@@ -1339,6 +1271,86 @@ impl TextField<'_> {
     }
 }
 
+// Width the prefix and suffix take of a `span` wide content area.
+pub(crate) fn affix_room(ui: &MineralUi<'_, Material>, chrome: &FieldChrome, span: f32) -> f32 {
+    let style = chrome.text_style.unwrap_or(INPUT_FONT);
+    let room = |s: &Option<String>| {
+        s.as_deref().map_or(0.0, |s| {
+            line_galley(ui.painter(), s, style, Color32::PLACEHOLDER, span).size().x + tf::AFFIX_PADDING
+        })
+    };
+    room(&chrome.prefix) + room(&chrome.suffix)
+}
+
+// Affixes and placeholder in the content span; the editor rect they leave.
+pub(crate) fn paint_affixes(
+ui: &MineralUi<'_, Material>,
+chrome: &FieldChrome,
+labeled: bool,
+decor: &DecorOut,
+    base: Id,
+    focused: bool,
+    empty: bool,
+    lines: usize,
+) -> Rect {
+    let rt = ui.rt();
+    let style = chrome.text_style.unwrap_or(INPUT_FONT);
+    let colors = decor.colors;
+    // Compose `placeholderOpacity` and `affixOpacity`: hidden under an expanded label.
+    let shown_unfocused = !labeled;
+    let placeholder_alpha = egui_mineral::motion::spring(
+        rt.core(),
+        base.with("placeholder"),
+        f32::from(focused || shown_unfocused),
+        if focused {
+            motion::SLOW_EFFECTS
+        } else {
+            motion::FAST_EFFECTS
+        },
+    );
+    let affix_alpha = egui_mineral::motion::spring(
+        rt.core(),
+        base.with("affix"),
+        f32::from(focused || shown_unfocused || !empty),
+        motion::FAST_EFFECTS,
+    );
+    let dir = rt.i18n().direction();
+    let p = ui.painter().clone();
+    let affix = |s: &Option<String>| {
+        s.as_deref()
+            .map(|s| line_galley(&p, s, style, colors.affix, decor.span.span()))
+    };
+    let (prefix, suffix) = (affix(&chrome.prefix), affix(&chrome.suffix));
+    let room = |g: &Option<Arc<Galley>>| g.as_ref().map_or(0.0, |g| g.size().x + tf::AFFIX_PADDING);
+    let (lead_room, trail_room) = (room(&prefix), room(&suffix));
+    let Sides { left, right } = dir.sides(lead_room, trail_room);
+    let (x0, x1) = (decor.span.min + left, decor.span.max - right);
+    let text_rect = Rect::from_min_max(
+        pos2(x0, decor.text_top),
+        pos2(
+            x1.max(x0),
+            decor.text_top + line_h() + (lines - 1) as f32 * style.line_height(),
+        ),
+    );
+    let fade = |c: Color32, a: f32| c.gamma_multiply(a.clamp(0.0, 1.0));
+    if affix_alpha > 0.0 {
+        if let Some(g) = prefix {
+            let x = dir.span_x(decor.span, Rangef::new(0.0, 0.0 + g.size().x));
+            p.galley(pos2(x, decor.text_top), g, fade(colors.affix, affix_alpha));
+        }
+        if let Some(g) = suffix {
+            let x = dir.reversed().span_x(decor.span, Rangef::new(0.0, 0.0 + g.size().x));
+            p.galley(pos2(x, decor.text_top), g, fade(colors.affix, affix_alpha));
+        }
+    }
+    if let (Some(ph), true) = (&chrome.placeholder, empty && placeholder_alpha > 0.0) {
+        let g = line_galley(&p, ph, style, colors.placeholder, text_rect.width());
+        let x = dir.start_x(text_rect, Rangef::new(0.0, 0.0 + g.size().x));
+        p.galley(pos2(x, text_rect.top()), g, fade(colors.placeholder, placeholder_alpha));
+    }
+    text_rect
+}
+
 impl MineralWidget for TextField<'_> {
     type Kit = Material;
     type State = EditBuffer<String>;
@@ -1390,7 +1402,7 @@ impl MineralWidget for TextField<'_> {
         let colors = decor.colors;
         self.revealed = bool::load(&ctx, base.with("reveal"));
 
-        let text_rect = self.paint_chrome(ui, &decor, base, focused, empty, lines);
+        let text_rect = paint_affixes(ui, &self.chrome, self.labeled(), &decor, base, focused, empty, lines);
         let mut te = self.show_editor(
             ui,
             buffer,

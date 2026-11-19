@@ -32,7 +32,7 @@ const DOT_RADIUS: f32 = CELL_FONT.size() / 4.0;
 fn cell_size(rt: &Rt, density: Density) -> egui::Vec2 {
     vec2(
         text_field::icon_slot(rt, density),
-        text_field::field_h(density, TextFieldVariant::Outlined, false),
+        text_field::field_h(density, TextFieldVariant::Outlined, false).max(CELL_FONT.line_height() + 8.0),
     )
 }
 

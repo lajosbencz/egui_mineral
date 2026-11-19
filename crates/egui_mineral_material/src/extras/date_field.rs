@@ -21,6 +21,7 @@ use egui_mineral::{
     widget::{MineralWidget, WidgetFrame, WidgetResponse},
 };
 
+use crate::spec::TypeScale;
 use crate::text_inputs::text_field::{self, Decor, DecorOut, INPUT_FONT, field_h, line_galley};
 use crate::{spec::defaults::text_field as tf, tr};
 
@@ -61,6 +62,11 @@ impl<'a> DateField<'a> {
     }
 
     crate::text_inputs::text_field::field_chrome_setters!();
+    crate::text_inputs::text_field::field_chrome_setters!(affix);
+
+    fn labeled(&self) -> bool {
+        !self.chrome.label_hidden && !self.label.is_empty()
+    }
 
     /// Allowed range; out-of-range entries show an error. Default unbounded.
     pub fn bounds(mut self, bounds: DateBounds) -> Self {
@@ -164,6 +170,7 @@ fn apply_events(
 fn paint_segments(
     ui: &MineralUi<'_, Material>,
     decor: &DecorOut,
+    style: TypeScale,
     seg: &DateSegments,
     active_seg: Option<usize>,
     fmt: &dyn i18n::LocaleFormat,
@@ -182,7 +189,7 @@ fn paint_segments(
         // The active segment shows as selected text.
         let selection = text_field::FieldColors::selection(&t);
         let mut place = |text: String, color, selected: bool, idx: Option<usize>| {
-            let g = line_galley(p, &text, INPUT_FONT, color, span);
+            let g = line_galley(p, &text, style, color, span);
             let w = g.size().x;
             let rr = Rect::from_min_size(
                 pos2(dir.span_x(decor.span, Rangef::new(offset, offset + w)), decor.text_top),
@@ -237,9 +244,9 @@ impl MineralWidget for DateField<'_> {
         let w = c.constrain(vec2(tf::MIN_WIDTH, 0.0)).x;
         // The supporting row is always reserved: parse errors appear without a layout shift.
         text_field::measure(
-            c.constrain(vec2(w, field_h(ui.density(), self.chrome.variant, !self.label.is_empty()))),
+            c.constrain(vec2(w, field_h(ui.density(), self.chrome.variant, self.labeled()))),
             self.chrome.variant,
-            !self.label.is_empty(),
+            self.labeled(),
             true,
         )
     }
@@ -316,9 +323,9 @@ impl MineralWidget for DateField<'_> {
         let decor = Decor {
             id: r.id,
             variant: self.chrome.variant,
-            label: &self.label,
+            label: if self.labeled() { &self.label } else { "" },
             focused,
-            floated: focused || !seg.is_empty(),
+            floated: focused || !seg.is_empty() || !self.labeled(),
             error: error.is_some(),
             disabled: self.disabled,
             leading: self.chrome.leading,
@@ -327,7 +334,21 @@ impl MineralWidget for DateField<'_> {
         .paint(ui, field, &t);
         let colors = decor.colors;
 
-        let seg_rects = paint_segments(ui, &decor, &seg, focused.then_some(st.active), fmt.as_ref());
+        let rect = text_field::paint_affixes(
+            ui,
+            &self.chrome,
+            self.labeled(),
+            &decor,
+            r.id,
+            focused,
+            seg.is_empty(),
+            1,
+        );
+        let inner = DecorOut {
+            span: Rangef::new(rect.left(), rect.right()),
+            ..decor
+        };
+        let seg_rects = paint_segments(ui, &inner, self.chrome.text_style.unwrap_or(INPUT_FONT), &seg, focused.then_some(st.active), fmt.as_ref());
         if !self.disabled {
             if r.hovered() {
                 ctx.set_cursor_icon(CursorIcon::Text);

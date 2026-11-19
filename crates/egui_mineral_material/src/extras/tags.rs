@@ -1,8 +1,6 @@
-use crate::adaptive::Density;
 use crate::Material;
 use crate::MaterialExt;
 use crate::MaterialUiExt as _;
-use crate::Rt;
 use crate::text_inputs::text_field::FieldChrome;
 use egui::{Key, Modifiers, Rangef, Rect, Ui, pos2, vec2};
 use egui_mineral::i18n::I18n;
@@ -23,7 +21,7 @@ use crate::selection::{
     select::{CHIP_GAP, ChipRows, chip_flow, chip_size, place_chip},
 };
 use crate::spec::defaults::text_field as tf;
-use crate::text_inputs::text_field::{self, Decor, INPUT_FONT, content_inset, line_galley, line_h};
+use crate::text_inputs::text_field::{self, Decor, DecorOut, INPUT_FONT, content_inset, line_galley, line_h};
 
 // No MD3 value; five bodyLarge digits
 const INPUT_MIN: f32 = 80.0;
@@ -71,6 +69,7 @@ impl<'a> TagsField<'a> {
     }
 
     crate::text_inputs::text_field::field_chrome_setters!();
+    crate::text_inputs::text_field::field_chrome_setters!(affix);
 
     /// Hint shown in the empty input.
     pub fn placeholder(mut self, placeholder: impl Into<String>) -> Self {
@@ -100,8 +99,14 @@ impl<'a> TagsField<'a> {
         agent_key(key)
     }
 
-    fn content_width(&self, rt: &Rt, density: Density, w: f32) -> f32 {
-        w - content_inset(rt, density, self.chrome.leading.is_some()) - content_inset(rt, density, false)
+    fn labeled(&self) -> bool {
+        !self.chrome.label_hidden && !self.label.is_empty()
+    }
+
+    fn content_width(&self, ui: &MineralUi<'_, Material>, w: f32) -> f32 {
+        let (rt, density) = (ui.rt(), ui.density());
+        let span = w - content_inset(rt, density, self.chrome.leading.is_some()) - content_inset(rt, density, false);
+        span - text_field::affix_room(ui, &self.chrome, span)
     }
 
     fn paint_chips(
@@ -131,7 +136,7 @@ impl<'a> TagsField<'a> {
 
     fn flow(&self, ui: &MineralUi<'_, Material>, w: f32) -> (Vec<f32>, Vec<(usize, f32)>, usize) {
         let widths: Vec<f32> = self.tags.iter().map(|t| chip_size(ui, t).x).collect();
-        let (pos, rows) = chip_flow(&widths, self.content_width(ui.rt(), ui.density(), w), INPUT_MIN);
+        let (pos, rows) = chip_flow(&widths, self.content_width(ui, w), INPUT_MIN);
         (widths, pos, rows)
     }
 
@@ -153,12 +158,12 @@ impl MineralWidget for TagsField<'_> {
 
     fn layout(&self, ui: &MineralUi<'_, Material>, c: Constraints, (): &Self::State) -> Measure {
         let w = c.constrain(vec2(tf::MIN_WIDTH, 0.0)).x;
-        let rows = ChipRows::new(ui, self.chrome.variant, !self.label.is_empty(), !self.tags.is_empty());
-        let h = rows.field_height(ui.density(), self.chrome.variant, !self.label.is_empty(), self.flow(ui, w).2);
+        let rows = ChipRows::new(ui, self.chrome.variant, self.labeled(), !self.tags.is_empty());
+        let h = rows.field_height(ui.density(), self.chrome.variant, self.labeled(), self.flow(ui, w).2);
         text_field::measure(
             c.constrain(vec2(w, h)),
             self.chrome.variant,
-            !self.label.is_empty(),
+            self.labeled(),
             self.has_support(),
         )
     }
@@ -201,9 +206,9 @@ impl MineralWidget for TagsField<'_> {
         let decor = Decor {
             id: base,
             variant: self.chrome.variant,
-            label: &self.label,
+            label: if self.labeled() { &self.label } else { "" },
             focused,
-            floated: focused || !self.tags.is_empty() || !input.is_empty(),
+            floated: focused || !self.tags.is_empty() || !input.is_empty() || !self.labeled(),
             error: self.chrome.error.is_some(),
             disabled: self.disabled,
             leading: self.chrome.leading,
@@ -211,8 +216,22 @@ impl MineralWidget for TagsField<'_> {
         }
         .paint(ui, field, &t);
         let colors = decor.colors;
+        let content = text_field::paint_affixes(
+            ui,
+            &self.chrome,
+            self.labeled(),
+            &decor,
+            base,
+            focused,
+            self.tags.is_empty() && input.is_empty(),
+            1,
+        );
+        let decor = DecorOut {
+            span: Rangef::new(content.left(), content.right()),
+            ..decor
+        };
         let span = decor.span.span();
-        let rows = ChipRows::new(ui, self.chrome.variant, !self.label.is_empty(), !self.tags.is_empty());
+        let rows = ChipRows::new(ui, self.chrome.variant, self.labeled(), !self.tags.is_empty());
         let x_of = |x: f32, w: f32| dir.span_x(decor.span, Rangef::new(x, x + w));
 
         let removed = self.paint_chips(ui, &rows, field.top(), &x_of, &widths, &pos);
@@ -233,12 +252,12 @@ impl MineralWidget for TagsField<'_> {
         let input_rect = Rect::from_min_size(pos2(x_of(x, w), row_top), vec2(w, line_h()));
         if let (Some(ph), true) = (
             &self.placeholder,
-            input.is_empty() && self.tags.is_empty() && (focused || self.label.is_empty()),
+            input.is_empty() && self.tags.is_empty() && (focused || !self.labeled()),
         ) {
             paint_placeholder(ui, ph, input_rect, row_top, colors.placeholder, dir);
         }
         let interactive = !self.disabled && !self.full();
-        let te = text_field::BareEdit::new(edit_id, input_rect, INPUT_FONT.format(ctx, colors.input), &colors, &t)
+        let te = text_field::BareEdit::new(edit_id, input_rect, self.chrome.text_style.unwrap_or(INPUT_FONT).format(ctx, colors.input), &colors, &t)
             .show(ui, &mut input, |ui, edit| ui.add(edit.interactive(interactive)));
         if !focused && frame.response.clicked() {
             ctx.memory_mut(|m| m.request_focus(edit_id));
