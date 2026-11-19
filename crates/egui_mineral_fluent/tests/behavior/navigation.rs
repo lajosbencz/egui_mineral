@@ -696,6 +696,53 @@ fn menu_grid_exposes_grid_rows_and_cells() {
 }
 
 #[test]
+fn menu_grid_rows_size_from_content_and_share_the_widest_row() {
+    let mut h = grid();
+    h.run();
+    h.run();
+    let widths = [0, 1, 2].map(|r| h.rect(&format!("g-{r}-gridrow")).width());
+    assert!(widths.iter().all(|w| (w - widths[0]).abs() < 0.5), "{widths:?}");
+    assert!(widths[0] < 290.0, "short rows do not fill the 290 maximum: {widths:?}");
+}
+
+// Headless text has no width, so the rows are sized by action cells (24 wide, 4 apart, 6 padding each side).
+fn action_row(actions: usize) -> MenuGridRow {
+    (0..actions).fold(MenuGridRow::new(), |row, i| {
+        row.cell(MenuGridAction::new(format!("Action {i}"), ICON_PIN))
+    })
+}
+
+fn action_grid(widest: usize) -> Harness<'static, ()> {
+    let mut open = true;
+    harness((), move |ui, ()| {
+        let trigger = ui.mineral(PushButton::new("trigger", "Open")).into_response();
+        MenuGrid::new("g", "Actions").show(ui.rt(), &trigger, &mut open, |g| {
+            g.row(action_row(1));
+            g.row(action_row(widest));
+        });
+    })
+}
+
+#[test]
+fn menu_grid_rows_stop_growing_at_the_maximum_width() {
+    let mut h = action_grid(11);
+    h.run();
+    h.run();
+    assert_eq!(h.rect("g-1-gridrow").width(), 290.0);
+    assert_eq!(h.rect("g-0-gridrow").width(), 290.0, "rows share the widest");
+}
+
+#[test]
+fn menu_grid_rows_grow_to_the_widest_row_only() {
+    let mut h = action_grid(6);
+    h.run();
+    h.run();
+    let expected = 6.0 * 24.0 + 5.0 * 4.0 + 12.0;
+    assert_eq!(h.rect("g-1-gridrow").width(), expected);
+    assert_eq!(h.rect("g-0-gridrow").width(), expected);
+}
+
+#[test]
 fn menu_grid_clicks_activate_the_cell_and_disabled_cells_ignore_them() {
     let mut h = grid();
     h.run();

@@ -3,7 +3,7 @@ use egui_mineral::{
     anchor::{Align, Anchor, Side},
     focus::{self, Cell, Grid, GridSize, on_grid_key},
     i18n::I18n,
-    kit,
+    kit::{self, state::TempState},
     layout::{Constraints, Measure, MinTarget},
     overlay::{self, Dismiss, Popup},
     semantic::{self, AgentKey, KeyedSalt, Role, SemanticNode},
@@ -336,6 +336,54 @@ pub struct MenuGridRowResponse {
     pub activated: Option<usize>,
 }
 
+// Widest row of the previous pass: rows stretch to it, as the menu popover sizes to its content.
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct Memo {
+    width: f32,
+}
+
+impl TempState for Memo {}
+
+impl Memo {
+    const MIN_WIDTH: f32 = menu::POPOVER_MIN_WIDTH - 2.0 * menu::POPOVER_PADDING;
+
+    fn sized(ctx: &egui::Context, id: Id) -> Self {
+        Self::try_load(ctx, id).unwrap_or(Self { width: Self::MIN_WIDTH })
+    }
+
+    // Stores the widest row seen this pass and asks for a pass when it changed.
+    fn update(self, ctx: &egui::Context, id: Id, seen: f32) {
+        let next = Self {
+            width: seen.clamp(Self::MIN_WIDTH, d::ROW_MAX_WIDTH),
+        };
+        if next != self {
+            next.store(ctx, id);
+            egui_mineral::motion::request_frame(ctx);
+        }
+    }
+}
+
+fn text_width(ui: &MineralUi<'_, Fluent>, text: &str, ramp: TypeRamp) -> f32 {
+    let job = LayoutJob::single_section(text.to_owned(), ramp.format(ui.ctx(), egui::Color32::PLACEHOLDER));
+    ui.painter().layout_job(job).size().x
+}
+
+impl MenuGridCell {
+    fn natural_width(&self, ui: &MineralUi<'_, Fluent>) -> f32 {
+        match self {
+            Self::Item(i) => {
+                let icon = i.icon.map_or(0.0, |_| d::ICON_SIZE + d::ROW_GAP);
+                let sub = i
+                    .sub_text
+                    .as_ref()
+                    .map_or(0.0, |s| text_width(ui, s, TypeRamp::Caption2));
+                icon + text_width(ui, &i.label, TypeRamp::Body1).max(sub) + 2.0 * d::CONTENT_PADDING
+            }
+            Self::Action(_) => d::ACTION_WIDTH,
+        }
+    }
+}
+
 struct Slot {
     id: Id,
     enabled: bool,
@@ -351,6 +399,8 @@ pub struct MenuGridUi<'u, 's> {
     row: usize,
     slots: Vec<Slot>,
     activated: Option<Cell>,
+    memo: Memo,
+    seen: f32,
 }
 
 kit::opaque_debug!(MenuGridUi<'_, '_>);
@@ -369,7 +419,11 @@ impl MenuGridUi<'_, '_> {
         let (block, inline) = d::ROW_PADDING;
         let content = cells_in.iter().map(MenuGridCell::height).fold(0.0_f32, f32::max);
         let height = (content + 2.0 * block).max(d::ROW_MIN_HEIGHT);
-        let width = self.ui.available_width().min(d::ROW_MAX_WIDTH);
+        let natural = 2.0 * inline
+            + d::ROW_GAP * cells_in.len().saturating_sub(1) as f32
+            + cells_in.iter().map(|c| c.natural_width(self.ui)).sum::<f32>();
+        self.seen = self.seen.max(natural);
+        let width = self.memo.width.max(natural).min(d::ROW_MAX_WIDTH);
         let (rect, response) = self.ui.allocate_exact_size(vec2(width, height), Sense::hover());
         let over = self.ui.rect_contains_pointer(rect);
         let pressed = over && self.ui.input(|i| i.pointer.primary_down());
@@ -524,15 +578,18 @@ impl MenuGrid {
             radius: g::BORDER_RADIUS_MEDIUM,
             elevation: Elevation::E16,
         };
+        let memo_id = id.with("mineral::menu-grid-memo");
+        let memo = Memo::sized(ctx, memo_id);
         let mut slots = Vec::new();
         let mut activated = None;
+        let mut seen = 0.0;
         let area = Popup::new(salt.child("area"), Anchor::new(Side::Bottom, Align::Start))
             .role(Role::Grid)
             .name(&label)
             .show_at(rt, trigger.rect, |ui, _| {
                 framed(ui, &t, &look, Margin::same(menu::POPOVER_PADDING as i8), |ui| {
                     ui.scope_builder(UiBuilder::new().layout(dir.column()), |ui| {
-                        ui.set_max_width(d::ROW_MAX_WIDTH);
+                        ui.set_width(memo.width);
                         ui.spacing_mut().item_spacing.y = d::GRID_GAP;
                         let mut grid = MenuGridUi {
                             ui: &mut rt.ui(ui),
@@ -541,10 +598,13 @@ impl MenuGrid {
                             row: 0,
                             slots: Vec::new(),
                             activated: None,
+                            memo,
+                            seen: 0.0,
                         };
                         let inner = add(&mut grid);
                         slots = grid.slots;
                         activated = grid.activated;
+                        seen = grid.seen;
                         inner
                     })
                     .inner
@@ -552,6 +612,7 @@ impl MenuGrid {
                 .inner
             });
         ctx.data_mut(|d| d.insert_temp(seen_id, slots.len()));
+        memo.update(ctx, memo_id, seen);
         let within = ctx
             .memory(egui::Memory::focused)
             .is_some_and(|f| slots.iter().any(|s| s.id == f));

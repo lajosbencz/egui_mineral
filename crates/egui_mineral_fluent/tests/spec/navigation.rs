@@ -422,7 +422,12 @@ fn menu_grid_rows_hold_the_cells_with_padding_and_the_row_gap() {
     assert!((r0.height() - tall).abs() < 0.5, "{r0:?}");
     assert!((r1.height() - mgdef::ROW_MIN_HEIGHT).abs() < 0.5, "{r1:?}");
     assert!((r1.top() - r0.bottom() - mgdef::GRID_GAP).abs() < 0.5, "{r0:?} {r1:?}");
-    assert!((r0.width() - mgdef::ROW_MAX_WIDTH).abs() < 0.5, "{r0:?}");
+    let min = egui_mineral_fluent::spec::defaults::menu::POPOVER_MIN_WIDTH
+        - 2.0 * egui_mineral_fluent::spec::defaults::menu::POPOVER_PADDING;
+    assert!(
+        r0.width() >= min - 0.5 && r0.width() <= mgdef::ROW_MAX_WIDTH + 0.5,
+        "sized from content: {r0:?}"
+    );
     let (item, action) = (tab_rect(&p, "g-0-0-gridcell"), tab_rect(&p, "g-0-1-gridcell"));
     assert!((item.left() - r0.left() - inline).abs() < 0.5, "{item:?}");
     assert!((action.width() - mgdef::ACTION_WIDTH).abs() < 0.5, "{action:?}");
