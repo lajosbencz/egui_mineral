@@ -300,6 +300,10 @@ fn main() -> eframe::Result {
     tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .init();
+    std::panic::set_hook(Box::new(|info| {
+        let backtrace = std::backtrace::Backtrace::capture();
+        tracing::error!(%backtrace, "{info}");
+    }));
     eframe::run_native(
         "egui_mineral showcase",
         eframe::NativeOptions::default(),
@@ -323,7 +327,7 @@ fn main() {
     wasm_bindgen_futures::spawn_local(async {
         if let Err(e) = web::start().await {
             tracing::error!(error = %e, "showcase failed to start");
-            web::report(&e);
+            web::report(&format!("Failed to start: {e}"));
         }
     });
 }
@@ -352,7 +356,14 @@ mod web {
             .ok_or_else(|| format!("no #{CANVAS_ID} element"))?
             .dyn_into::<HtmlCanvasElement>()
             .map_err(|_| format!("#{CANVAS_ID} is not a canvas"))?;
-        WebRunner::new()
+        let runner = WebRunner::new();
+        // Chains eframe's hook, which logs and stops the runner.
+        let eframe_hook = std::panic::take_hook();
+        std::panic::set_hook(Box::new(move |info| {
+            eframe_hook(info);
+            report(&format!("Crashed: {info}"));
+        }));
+        runner
             .start(
                 canvas,
                 WebOptions::default(),
@@ -361,14 +372,17 @@ mod web {
             .await
             .map_err(|e: JsValue| format!("{e:?}"))?;
         if let Some(status) = status() {
-            status.remove();
+            status.set_text_content(None);
         }
         Ok(())
     }
 
     pub(super) fn report(msg: &str) {
         if let Some(status) = status() {
-            status.set_text_content(Some(&format!("Failed to start: {msg}")));
+            status.set_text_content(Some(msg));
+            if let Err(e) = status.set_attribute("data-failed", "") {
+                tracing::warn!(error = ?e, "marking #{STATUS_ID} failed");
+            }
         } else {
             tracing::warn!("no #{STATUS_ID} element to report into");
         }
