@@ -6,7 +6,8 @@ use std::path::PathBuf;
 use parking_lot::{Mutex, MutexGuard};
 
 use super::{
-    FileFilter, FileReader, FileWriter, Notification, PickedFile, PlatformError, PlatformService, SaveOutcome,
+    FileFilter, FileReader, FileWriter, Notification, PickedFile, PlatformClipboard, PlatformError, PlatformNotifier,
+    PlatformPickers, SaveOutcome,
 };
 use crate::bus::BoxFuture;
 
@@ -20,7 +21,7 @@ struct Inner {
     notifications: Vec<Notification>,
 }
 
-/// In-memory [`PlatformService`] for tests; clones share state.
+/// In-memory [`PlatformPickers`], [`PlatformClipboard`] and [`PlatformNotifier`] for tests; clones share state.
 #[derive(Clone, Default)]
 pub struct MemoryPlatform(Arc<Mutex<Inner>>);
 
@@ -36,7 +37,7 @@ impl MemoryPlatform {
         self.inner().picks.push_back(files);
     }
 
-    /// Next result of [`PlatformService::pick_folder`] or [`PlatformService::pick_save_path`];
+    /// Next result of [`PlatformPickers::pick_folder`] or [`PlatformPickers::pick_save_path`];
     /// an empty queue answers as cancelled.
     #[cfg(not(target_arch = "wasm32"))]
     pub fn queue_path(&self, path: PathBuf) {
@@ -54,7 +55,7 @@ impl MemoryPlatform {
     }
 }
 
-impl PlatformService for MemoryPlatform {
+impl PlatformPickers for MemoryPlatform {
     fn pick_file(&self, _filter: FileFilter) -> BoxFuture<Result<Option<PickedFile>, PlatformError>> {
         let next = self.inner().picks.pop_front().and_then(|v| v.into_iter().next());
         Box::pin(async move { Ok(next) })
@@ -112,7 +113,9 @@ impl PlatformService for MemoryPlatform {
         });
         Box::pin(async move { Ok(Some(w)) })
     }
+}
 
+impl PlatformClipboard for MemoryPlatform {
     fn clipboard_text(&self) -> BoxFuture<Result<String, PlatformError>> {
         let text = self.inner().clipboard.clone();
         Box::pin(async move { Ok(text) })
@@ -122,7 +125,9 @@ impl PlatformService for MemoryPlatform {
         self.inner().clipboard = text;
         Box::pin(async { Ok(()) })
     }
+}
 
+impl PlatformNotifier for MemoryPlatform {
     fn notify(&self, notification: Notification) -> BoxFuture<Result<(), PlatformError>> {
         self.inner().notifications.push(notification);
         Box::pin(async { Ok(()) })

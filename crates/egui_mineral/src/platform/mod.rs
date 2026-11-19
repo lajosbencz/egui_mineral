@@ -33,9 +33,6 @@ pub enum PlatformError {
     /// User or OS refused access (clipboard read, notifications).
     #[error("permission denied")]
     PermissionDenied,
-    /// Holds the `platform-*` cargo feature that provides the call.
-    #[error("platform feature `{0}` is not enabled")]
-    Unsupported(&'static str),
     /// Backend failure; the cause is the [`source`](std::error::Error::source).
     #[error("platform backend failed: {0}")]
     Backend(#[source] Box<dyn std::error::Error + Send + Sync>),
@@ -45,7 +42,7 @@ fn backend(e: impl Into<Box<dyn std::error::Error + Send + Sync>>) -> PlatformEr
     PlatformError::Backend(e.into())
 }
 
-/// Outcome of [`PlatformService::save_file`].
+/// Outcome of [`PlatformPickers::save_file`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum SaveOutcome {
@@ -149,8 +146,8 @@ impl FileFilter {
     }
 }
 
-/// OS services behind async calls: file pickers, clipboard, notifications.
-pub trait PlatformService {
+/// Async file pickers.
+pub trait PlatformPickers {
     /// `Ok(None)` when the user cancelled.
     fn pick_file(&self, filter: FileFilter) -> BoxFuture<Result<Option<PickedFile>, PlatformError>>;
     /// Empty when the user cancelled.
@@ -183,10 +180,23 @@ pub trait PlatformService {
         suggested_name: String,
         filter: FileFilter,
     ) -> BoxFuture<Result<Option<PathBuf>, PlatformError>>;
+}
+
+/// Async plain-text clipboard.
+pub trait PlatformClipboard {
     /// Plain-text clipboard contents.
     fn clipboard_text(&self) -> BoxFuture<Result<String, PlatformError>>;
     /// Replaces the clipboard with plain text.
     fn set_clipboard_text(&self, text: String) -> BoxFuture<Result<(), PlatformError>>;
+}
+
+/// Async OS notifications.
+pub trait PlatformNotifier {
     /// OS notification; [`PlatformError::PermissionDenied`] when the user refuses.
     fn notify(&self, notification: Notification) -> BoxFuture<Result<(), PlatformError>>;
 }
+
+/// All three capabilities, for `&dyn PlatformService`; implemented for every type that has them.
+pub trait PlatformService: PlatformPickers + PlatformClipboard + PlatformNotifier {}
+
+impl<T: PlatformPickers + PlatformClipboard + PlatformNotifier + ?Sized> PlatformService for T {}

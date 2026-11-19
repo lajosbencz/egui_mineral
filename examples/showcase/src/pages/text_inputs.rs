@@ -644,7 +644,7 @@ fn files(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
             s.rejected.push(f.path().display().to_string());
         }
         if r.output().browse_clicked {
-            shared.toast("Browse requested; a real app opens PlatformService::pick_files");
+            shared.toast("Browse requested; a real app opens PlatformPickers::pick_files");
         }
         for f in &s.files {
             ui.label(format!("Accepted: {f}"));

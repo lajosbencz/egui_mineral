@@ -15,7 +15,7 @@ enum Source {
 }
 
 /// Picked file read in chunks on demand, for files too large to hold in memory
-/// ([`PlatformService::pick_file_reader`](super::PlatformService::pick_file_reader)).
+/// ([`PlatformPickers::pick_file_reader`](super::PlatformPickers::pick_file_reader)).
 ///
 /// Native reads block their thread on the file system while polled.
 #[derive(Clone)]

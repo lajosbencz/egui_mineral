@@ -316,7 +316,7 @@ fn with_registry<R>(ctx: &Context, f: impl FnOnce(&mut Registry) -> R) -> R {
 /// Command+X/C/V also match `Event::Cut/Copy/Paste` (what egui-winit emits instead of key events)
 /// unless a text edit has focus. The paste text is kept for [`take_paste`]; a key press carries
 /// none, so actions fall back to
-/// [`PlatformService::clipboard_text`](crate::platform::PlatformService::clipboard_text).
+/// [`PlatformClipboard::clipboard_text`](crate::platform::PlatformClipboard::clipboard_text).
 pub fn bind(ctx: &Context, scope: Scope, shortcut: KeyboardShortcut, action: impl Into<ActionId>) {
     let action = action.into();
     with_registry(ctx, |r| {

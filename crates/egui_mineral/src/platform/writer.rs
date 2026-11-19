@@ -19,7 +19,7 @@ enum Sink {
 }
 
 /// Save target written in chunks, for files too large to build in memory
-/// ([`PlatformService::save_file_writer`](super::PlatformService::save_file_writer)).
+/// ([`PlatformPickers::save_file_writer`](super::PlatformPickers::save_file_writer)).
 ///
 /// Native writes block their thread on the file system while polled. Browsers without a writable
 /// file stream (all but Chromium with `web-save-stream`) buffer and download on [`close`](Self::close).
