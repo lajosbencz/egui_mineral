@@ -27,7 +27,7 @@ use std::path::Path;
 /// [`PlatformClipboard`] (`platform-clipboard`) and [`PlatformNotifier`] (`platform-notify`)
 /// only with their feature.
 ///
-/// Clipboard futures block their thread on the OS clipboard while polled; spawn them where that is fine.
+/// Native clipboard, file read and writer-creation work runs on a short-lived worker thread per call.
 #[derive(Clone)]
 pub struct NativePlatform {
     #[cfg(all(feature = "platform-clipboard", not(target_arch = "wasm32")))]
@@ -35,6 +35,31 @@ pub struct NativePlatform {
 }
 
 crate::kit::opaque_debug!(NativePlatform);
+
+// Runs blocking `f` on its own short-lived thread so the polling thread never waits on I/O; the future owns the
+// result channel and the thread ends with `f`.
+#[cfg(all(
+    any(feature = "platform-pickers", feature = "platform-clipboard"),
+    not(target_arch = "wasm32")
+))]
+async fn offload<T: Send + 'static>(
+    f: impl FnOnce() -> Result<T, PlatformError> + Send + 'static,
+) -> Result<T, PlatformError> {
+    let (tx, rx) = futures_channel::oneshot::channel();
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "one-shot worker for blocking OS I/O, owned by the awaiting future"
+    )]
+    std::thread::Builder::new()
+        .name("egui_mineral-platform".into())
+        .spawn(move || {
+            // The receiver is gone when the future was dropped; the result has no consumer.
+            drop(tx.send(f()));
+        })
+        .map_err(backend)?;
+    rx.await
+        .map_err(|_| backend("platform worker ended without a result"))?
+}
 
 impl NativePlatform {
     /// Platform service over the OS clipboard (`platform-clipboard`).
@@ -55,14 +80,18 @@ mod pickers {
     use super::backend;
     use super::{FileFilter, PickedFile, PlatformError};
 
-    #[expect(clippy::unused_async, reason = "same signature as the wasm variant")]
     #[cfg(not(target_arch = "wasm32"))]
     pub(super) async fn read(h: rfd::FileHandle) -> Result<PickedFile, PlatformError> {
-        let bytes = std::fs::read(h.path()).map_err(backend)?;
+        let path = h.path().to_owned();
+        let bytes = super::offload({
+            let path = path.clone();
+            move || std::fs::read(path).map_err(backend)
+        })
+        .await?;
         Ok(PickedFile {
             name: h.file_name(),
             bytes,
-            path: Some(h.path().to_owned()),
+            path: Some(path),
         })
     }
 
@@ -197,7 +226,10 @@ impl PlatformPickers for NativePlatform {
         let fut = pickers::dialog(&filter).set_file_name(suggested_name).save_file();
         Box::pin(async move {
             match fut.await {
-                Some(h) => FileWriter::create(h.path()).map(Some),
+                Some(h) => {
+                    let path = h.path().to_owned();
+                    offload(move || FileWriter::create(path)).await.map(Some)
+                }
                 None => Ok(None),
             }
         })
@@ -227,13 +259,13 @@ impl PlatformClipboard for NativePlatform {
     #[cfg(not(target_arch = "wasm32"))]
     fn clipboard_text(&self) -> BoxFuture<Result<String, PlatformError>> {
         let clipboard = Arc::clone(&self.clipboard);
-        Box::pin(async move { clipboard.lock().get_text().map_err(backend) })
+        Box::pin(offload(move || clipboard.lock().get_text().map_err(backend)))
     }
 
     #[cfg(not(target_arch = "wasm32"))]
     fn set_clipboard_text(&self, text: String) -> BoxFuture<Result<(), PlatformError>> {
         let clipboard = Arc::clone(&self.clipboard);
-        Box::pin(async move { clipboard.lock().set_text(text).map_err(backend) })
+        Box::pin(offload(move || clipboard.lock().set_text(text).map_err(backend)))
     }
 
     #[cfg(target_arch = "wasm32")]
