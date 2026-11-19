@@ -163,11 +163,12 @@ fn field_wrappers_forward_the_text_chrome() {
     use egui_mineral_material::{
         MaterialUiExt as _,
         adaptive::Density,
-        extras::{Combobox, NumberField},
+        extras::{ColorPicker, Combobox, NumberField},
         spec::TypeScale,
     };
     let content = TypeScale::BodyLarge.line_height() + 8.0;
     let (mut x, mut text) = (1.5_f64, String::new());
+    let mut color = egui::Color32::RED;
     let p = crate::support::render_zones(|ui| {
         ui.with_density(Density::MIN, |ui| {
             let n = NumberField::new("x", "X", RangeModel::new(0.0, 9.0), &mut x)
@@ -181,6 +182,7 @@ fn field_wrappers_forward_the_text_chrome() {
                     .prefix("#")
                     .placeholder("pick"),
             );
+            ui.mineral(ColorPicker::new("cp", "Color", &mut color).label_visible(false));
             zones
         })
     });
@@ -190,6 +192,7 @@ fn field_wrappers_forward_the_text_chrome() {
     assert!(field.contains_rect(p.text("mm")) && p.text("mm").left() > field.center().x);
     p.text("#");
     p.text("pick");
+    assert_eq!(p.node("cp-hex-field").rect.height(), content, "color picker hex field");
 }
 
 #[test]
@@ -248,4 +251,24 @@ fn otp_label_sits_above_the_cells_unless_hidden() {
     assert!(with.text("Code").bottom() <= visual.top() + label_h);
     assert_eq!(without.node("o-otp").name, "Code");
     assert_eq!(with.node("o-otp").name, "Code");
+}
+
+#[test]
+fn otp_cells_follow_density() {
+    use egui_mineral_material::{MaterialUiExt as _, adaptive::Density, extras::OtpField};
+    let mut code = String::new();
+    let mut height = |step: i8| {
+        crate::support::render_zones(|ui| {
+            ui.with_density(Density::new(step), |ui| {
+                ui.mineral(OtpField::new("o", "Code", 4, &mut code).label_visible(false))
+                    .zones()
+            })
+        })
+        .zones
+        .expect("zones reported")
+        .visual
+        .height()
+    };
+    let (full, dense) = (height(0), height(-6));
+    assert!(dense < full, "{dense} vs {full}");
 }
