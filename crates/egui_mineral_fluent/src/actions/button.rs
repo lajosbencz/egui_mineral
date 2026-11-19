@@ -620,12 +620,28 @@ impl<'a> PushButton<'a> {
     }
 
     fn text_format(ctx: &egui::Context, m: &Metrics, color: Color32) -> egui::TextFormat {
-        crate::typography::format(ctx, m.font_size, m.line_height, m.weight, color)
+        crate::typography::format(
+            ctx,
+            crate::typography::TypeSpec {
+                size: m.font_size,
+                line_height: m.line_height,
+                weight: m.weight,
+            },
+            color,
+        )
     }
 
     fn secondary_format(&self, ctx: &egui::Context, color: Color32) -> egui::TextFormat {
         let size = Metrics::secondary_size(self.size);
-        crate::typography::format(ctx, size, size, ty::FONT_WEIGHT_REGULAR, color)
+        crate::typography::format(
+            ctx,
+            crate::typography::TypeSpec {
+                size,
+                line_height: size,
+                weight: ty::FONT_WEIGHT_REGULAR,
+            },
+            color,
+        )
     }
 
     // Content box: icon, text column (label over secondary), menu chevron.

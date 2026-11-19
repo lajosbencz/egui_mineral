@@ -45,9 +45,14 @@ pub enum BrandStep {
 
 /// Brand color ramp (`BrandVariants`); alias color tokens resolve their brand steps against it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct BrandRamp(pub [Color32; 16]);
+pub struct BrandRamp([Color32; 16]);
 
 impl BrandRamp {
+    /// Ramp of `steps`, from 10 (darkest) to 160 (lightest).
+    pub const fn new(steps: [Color32; 16]) -> Self {
+        Self(steps)
+    }
+
     /// Color at `step`.
     pub const fn step(&self, step: BrandStep) -> Color32 {
         self.0[step as usize]
@@ -55,7 +60,7 @@ impl BrandRamp {
 }
 
 /// `brandWeb`, the Fluent web brand.
-pub const BRAND_WEB: BrandRamp = BrandRamp([
+pub const BRAND_WEB: BrandRamp = BrandRamp::new([
     Color32::from_rgb(6, 23, 36),
     Color32::from_rgb(8, 35, 56),
     Color32::from_rgb(10, 46, 74),

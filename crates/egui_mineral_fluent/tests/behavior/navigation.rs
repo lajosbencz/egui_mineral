@@ -1,9 +1,8 @@
-use std::collections::BTreeSet;
-
 use egui::Key;
 use egui_mineral::{
     expand::Expansion,
-    select::Check,
+    layout::Axis,
+    select::{Check, Selection, SelectionMode},
     semantic::{Action, Role},
 };
 use egui_mineral_fluent::actions::PushButton;
@@ -11,7 +10,7 @@ use egui_mineral_fluent::icons::{ICON_MORE_HORIZONTAL, ICON_PIN, ICON_SHARE};
 use egui_mineral_fluent::navigation::{
     Breadcrumb, BreadcrumbButton, BreadcrumbFocus, BreadcrumbItem, Carousel, MenuGrid, MenuGridAction, MenuGridItem,
     MenuGridRow, Nav, NavCategory, NavDivider, NavItem, NavSubItem, Overflow, OverflowDirection, Tab, TabList, Toolbar,
-    ToolbarButton, ToolbarRadioGroup, ToolbarToggleButton, Tree, TreeItem, TreeSelection,
+    ToolbarButton, ToolbarRadioGroup, ToolbarToggleButton, Tree, TreeItem,
 };
 
 use crate::support::{FluentHarness, Harness, harness};
@@ -22,7 +21,7 @@ fn tabs(vertical: bool, select_on_focus: bool) -> Harness<'static, usize> {
             .tab("One")
             .tab(Tab::new("Two").disabled(true))
             .tab("Three")
-            .vertical(vertical)
+            .axis(if vertical { Axis::Vertical } else { Axis::Horizontal })
             .select_on_focus(select_on_focus)
             .show(ui);
     })
@@ -93,7 +92,7 @@ struct Bar {
 fn toolbar(vertical: bool) -> Harness<'static, Bar> {
     harness(Bar::default(), move |ui, s| {
         Toolbar::new("tb", "Tools")
-            .vertical(vertical)
+            .axis(if vertical { Axis::Vertical } else { Axis::Horizontal })
             .action("Cut")
             .action(ToolbarButton::new("Copy").disabled(true))
             .divider()
@@ -328,9 +327,10 @@ fn trail_width(direction: OverflowDirection) -> f32 {
     let mut wide = narrow_trail(None, direction);
     wide.run();
     let width = |i: usize| wide.rect(&format!("bc-{i}-button")).width();
-    let items = match direction {
-        OverflowDirection::Start => width(3) + width(4) + 2.0 * 16.0,
-        OverflowDirection::End => width(0) + width(1) + 16.0,
+    let items = if direction == OverflowDirection::Start {
+        width(3) + width(4) + 2.0 * 16.0
+    } else {
+        width(0) + width(1) + 16.0
     };
     items + 32.0 + 6.0
 }
@@ -457,7 +457,7 @@ fn nav_rows_are_tab_stops_and_enter_activates() {
 
 struct Files {
     open: Expansion<String>,
-    checked: BTreeSet<String>,
+    checked: Selection<String>,
     activated: Vec<String>,
 }
 
@@ -471,20 +471,25 @@ fn files() -> Vec<TreeItem> {
     ]
 }
 
-fn tree(mode: TreeSelection) -> Harness<'static, Files> {
+fn tree(mode: Option<SelectionMode>) -> Harness<'static, Files> {
     let roots = files();
     let mut open = Expansion::default();
     open.expand("a".to_owned());
     harness(
         Files {
             open,
-            checked: BTreeSet::new(),
+            checked: match mode {
+                Some(SelectionMode::Multiple) => Selection::multiple(),
+                _ => Selection::single(),
+            },
             activated: Vec::new(),
         },
         move |ui, s| {
-            let r = Tree::items("t", "Files", &roots, &mut s.open)
-                .selection(mode, &mut s.checked)
-                .show(ui);
+            let mut tree = Tree::items("t", "Files", &roots, &mut s.open);
+            if mode.is_some() {
+                tree = tree.selection(&mut s.checked);
+            }
+            let r = tree.show(ui);
             s.activated.extend(r.activated);
         },
     )
@@ -498,7 +503,7 @@ fn focused(h: &Harness<'_, Files>) -> Option<&'static str> {
 
 #[test]
 fn tree_exposes_roles_levels_and_expansion() {
-    let mut h = tree(TreeSelection::None);
+    let mut h = tree(None);
     h.run();
     assert_eq!(h.node("t-tree").role, Role::Tree);
     let a = h.node("t-a-treeitem");
@@ -516,7 +521,7 @@ fn tree_exposes_roles_levels_and_expansion() {
 
 #[test]
 fn clicking_a_branch_toggles_it_and_a_leaf_activates() {
-    let mut h = tree(TreeSelection::None);
+    let mut h = tree(None);
     h.run();
     h.click("t-a2-treeitem");
     assert!(h.state().value.open.is_expanded(&"a2".to_owned()));
@@ -527,7 +532,7 @@ fn clicking_a_branch_toggles_it_and_a_leaf_activates() {
 
 #[test]
 fn arrows_follow_the_tree_navigation_rules() {
-    let mut h = tree(TreeSelection::None);
+    let mut h = tree(None);
     h.run();
     h.click("t-a1-treeitem");
     h.press(Key::ArrowLeft);
@@ -554,7 +559,7 @@ fn arrows_follow_the_tree_navigation_rules() {
 
 #[test]
 fn enter_activates_and_toggles_a_branch() {
-    let mut h = tree(TreeSelection::None);
+    let mut h = tree(None);
     h.run();
     h.click("t-a1-treeitem");
     h.press(Key::ArrowDown);
@@ -565,7 +570,7 @@ fn enter_activates_and_toggles_a_branch() {
 
 #[test]
 fn typing_jumps_to_a_matching_label() {
-    let mut h = tree(TreeSelection::None);
+    let mut h = tree(None);
     h.run();
     h.click("t-a1-treeitem");
     h.event(egui::Event::Text("b".into()));
@@ -581,32 +586,34 @@ fn selector(h: &Harness<'_, Files>, key: &str) -> egui::Pos2 {
 
 #[test]
 fn multiselect_checks_cascade_and_show_the_mixed_state() {
-    let mut h = tree(TreeSelection::Multiple);
+    let mut h = tree(Some(SelectionMode::Multiple));
     h.run();
     let at = selector(&h, "t-a1-treeitem");
     h.click_at(at);
-    assert_eq!(h.state().value.checked.iter().collect::<Vec<_>>(), ["a1"]);
+    assert_eq!(h.state().value.checked.selected().collect::<Vec<_>>(), ["a1"]);
     assert_eq!(h.node("t-a-treeitem").state.checked, Some(Check::Mixed));
     assert!(h.state().value.activated.is_empty(), "the selector does not activate");
     let at = selector(&h, "t-a-treeitem");
     h.click_at(at);
-    assert!(h.state().value.checked.contains("a2x") && h.state().value.checked.contains("a"));
+    assert!(
+        h.state().value.checked.is_selected(&"a2x".to_owned()) && h.state().value.checked.is_selected(&"a".to_owned())
+    );
     assert_eq!(h.node("t-a-treeitem").state.checked, Some(Check::Checked));
 }
 
 #[test]
 fn single_selection_keeps_one_checked_item_and_space_toggles_it() {
-    let mut h = tree(TreeSelection::Single);
+    let mut h = tree(Some(SelectionMode::Single));
     h.run();
     let at = selector(&h, "t-a1-treeitem");
     h.click_at(at);
     let at = selector(&h, "t-b-treeitem");
     h.click_at(at);
-    assert_eq!(h.state().value.checked.iter().collect::<Vec<_>>(), ["b"]);
+    assert_eq!(h.state().value.checked.selected().collect::<Vec<_>>(), ["b"]);
     assert_eq!(h.node("t-b-treeitem").state.checked, Some(Check::Checked));
     h.click("t-a1-treeitem");
     h.press(Key::Space);
-    assert_eq!(h.state().value.checked.iter().collect::<Vec<_>>(), ["a1"]);
+    assert_eq!(h.state().value.checked.selected().collect::<Vec<_>>(), ["a1"]);
 }
 
 #[test]
@@ -643,7 +650,7 @@ fn grid() -> Harness<'static, Grid> {
         let r = MenuGrid::new("g", "Actions").show(ui.rt(), &trigger, &mut s.open, |g| {
             g.row(
                 MenuGridRow::new()
-                    .cell(MenuGridItem::new("Cut").sub_text("Ctrl+X"))
+                    .cell(MenuGridItem::new("Cut").secondary_text("Ctrl+X"))
                     .cell(MenuGridAction::new("More cut", ICON_MORE_HORIZONTAL)),
             );
             g.row(

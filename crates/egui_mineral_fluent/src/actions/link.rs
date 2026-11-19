@@ -24,6 +24,7 @@ use crate::{
 
 /// Link `appearance`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum LinkAppearance {
     /// Brand colored.
     #[default]

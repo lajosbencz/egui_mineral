@@ -37,7 +37,7 @@ pub(crate) fn icon(p: &Painter, center: Pos2, icon: Icon, filled: bool, size: f3
 }
 
 pub(crate) fn shadow(p: &Painter, rect: Rect, r: CornerRadius, level: Elevation, t: &Tokens) {
-    for layer in t.shadow(level, ShadowTint::Neutral) {
+    for layer in t.shadow(level, ShadowTint::Neutral).layers() {
         p.add(layer.as_shape(rect, r));
     }
 }

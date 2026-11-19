@@ -39,6 +39,7 @@ use crate::{
 
 /// Tab list `appearance`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum TabAppearance {
     /// `transparent`: no fill until hovered, with a selection indicator.
     #[default]
@@ -53,7 +54,7 @@ pub enum TabAppearance {
 
 impl TabAppearance {
     /// Every variant.
-    pub const ALL: [Self; 4] = [
+    pub const ALL: &'static [Self] = &[
         Self::Transparent,
         Self::Subtle,
         Self::SubtleCircular,
@@ -655,9 +656,9 @@ impl<'a> TabList<'a> {
         self
     }
 
-    /// Stacks the tabs in a column.
-    pub fn vertical(mut self, vertical: bool) -> Self {
-        self.vertical = vertical;
+    /// Default [`Axis::Horizontal`]; [`Axis::Vertical`] stacks the tabs in a column.
+    pub fn axis(mut self, axis: Axis) -> Self {
+        self.vertical = axis == Axis::Vertical;
         self
     }
 

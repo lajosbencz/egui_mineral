@@ -19,6 +19,7 @@ use super::{Avatar, AvatarSize};
 
 /// Persona `size`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[non_exhaustive]
 pub enum PersonaSize {
     /// `extra-small`: a 20 avatar.
     ExtraSmall,
@@ -37,7 +38,7 @@ pub enum PersonaSize {
 
 impl PersonaSize {
     /// Every variant, smallest first.
-    pub const ALL: [Self; 6] = [
+    pub const ALL: &'static [Self] = &[
         Self::ExtraSmall,
         Self::Small,
         Self::Medium,
@@ -81,6 +82,7 @@ impl PersonaSize {
 
 /// Persona `textPosition`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum PersonaTextPosition {
     /// `after`: the text follows the media.
     #[default]
@@ -93,11 +95,12 @@ pub enum PersonaTextPosition {
 
 impl PersonaTextPosition {
     /// Every variant.
-    pub const ALL: [Self; 3] = [Self::After, Self::Before, Self::Below];
+    pub const ALL: &'static [Self] = &[Self::After, Self::Before, Self::Below];
 }
 
 /// Persona `textAlignment`: how the media sits against the text lines.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum PersonaTextAlignment {
     /// `start`: media and text start at the top.
     #[default]
@@ -108,7 +111,7 @@ pub enum PersonaTextAlignment {
 
 impl PersonaTextAlignment {
     /// Every variant.
-    pub const ALL: [Self; 2] = [Self::Start, Self::Center];
+    pub const ALL: &'static [Self] = &[Self::Start, Self::Center];
 }
 
 struct Line {

@@ -1,5 +1,6 @@
 /// Fluent size family (`size` prop) of buttons, links, labels and most controls.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[non_exhaustive]
 pub enum Size {
     /// `small`.
     Small,
@@ -12,11 +13,12 @@ pub enum Size {
 
 impl Size {
     /// Every variant, smallest first.
-    pub const ALL: [Self; 3] = [Self::Small, Self::Medium, Self::Large];
+    pub const ALL: &'static [Self] = &[Self::Small, Self::Medium, Self::Large];
 }
 
 /// Side of the label an icon sits on (`iconPosition`); mirrored in right-to-left locales.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum IconPosition {
     /// `before`: leading.
     #[default]
@@ -27,6 +29,7 @@ pub enum IconPosition {
 
 /// Button `appearance` of every button kind.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum ButtonAppearance {
     /// `secondary`: neutral fill with a stroke.
     #[default]
@@ -43,7 +46,7 @@ pub enum ButtonAppearance {
 
 impl ButtonAppearance {
     /// Every variant.
-    pub const ALL: [Self; 5] = [
+    pub const ALL: &'static [Self] = &[
         Self::Secondary,
         Self::Primary,
         Self::Outline,
@@ -54,6 +57,7 @@ impl ButtonAppearance {
 
 /// Button `shape` of every button kind.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum ButtonShape {
     /// `rounded`: `borderRadiusMedium`.
     #[default]
@@ -66,5 +70,5 @@ pub enum ButtonShape {
 
 impl ButtonShape {
     /// Every variant.
-    pub const ALL: [Self; 3] = [Self::Rounded, Self::Circular, Self::Square];
+    pub const ALL: &'static [Self] = &[Self::Rounded, Self::Circular, Self::Square];
 }

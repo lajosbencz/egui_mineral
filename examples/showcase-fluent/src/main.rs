@@ -11,6 +11,7 @@ use egui_mineral_fluent::{
     prelude::*,
     scroll,
     spec::tokens::brand::BRAND_WEB,
+    theme::ContrastMode,
 };
 use mineral_inspector::Inspector;
 use pages::{LOCALES, Page};
@@ -25,7 +26,7 @@ pub(crate) type Fui<'a> = MineralUi<'a, Fluent>;
 // Ramps from the Fluent theme designer's 16 steps: the web brand, a teal and a berry one.
 fn brands() -> [(&'static str, BrandRamp); 3] {
     let ramp = |base: [u8; 3]| {
-        BrandRamp(std::array::from_fn(|i| {
+        BrandRamp::new(std::array::from_fn(|i| {
             #[expect(clippy::cast_precision_loss, reason = "i < 16")]
             let t = i as f32 / 15.0;
             let mix = |c: u8| {
@@ -75,30 +76,30 @@ fn kit(ctx: &egui::Context) -> Fluent {
 
 fn material_icons() -> IconSet {
     use egui_mineral_material::icons as m;
-    IconSet {
-        arrow_down: m::ICON_ARROW_DOWNWARD.into(),
-        arrow_up: m::ICON_ARROW_UPWARD.into(),
-        calendar_month: m::ICON_CALENDAR_MONTH.into(),
-        checkmark: m::ICON_CHECK.into(),
-        checkmark_circle: m::ICON_CHECK_CIRCLE.into(),
-        chevron_down: m::ICON_KEYBOARD_ARROW_DOWN.into(),
-        chevron_left: m::ICON_CHEVRON_LEFT.into(),
-        chevron_right: m::ICON_CHEVRON_RIGHT.into(),
-        chevron_up: m::ICON_KEYBOARD_ARROW_UP.into(),
-        dismiss: m::ICON_CLOSE.into(),
-        error_circle: m::ICON_ERROR.into(),
-        image_off: m::ICON_HIDE_IMAGE.into(),
-        info: m::ICON_INFO.into(),
-        more_horizontal: m::ICON_MORE_HORIZ.into(),
-        pause: m::ICON_PAUSE.into(),
-        person: m::ICON_PERSON.into(),
-        play: m::ICON_PLAY_ARROW.into(),
-        prohibited: m::ICON_BLOCK.into(),
-        search: m::ICON_SEARCH.into(),
-        square: m::ICON_CHECK_BOX_OUTLINE_BLANK.into(),
-        star: m::ICON_STAR.into(),
-        warning: m::ICON_WARNING.into(),
-    }
+    let mut set = IconSet::fluent();
+    set.arrow_down = m::ICON_ARROW_DOWNWARD.into();
+    set.arrow_up = m::ICON_ARROW_UPWARD.into();
+    set.calendar_month = m::ICON_CALENDAR_MONTH.into();
+    set.checkmark = m::ICON_CHECK.into();
+    set.checkmark_circle = m::ICON_CHECK_CIRCLE.into();
+    set.chevron_down = m::ICON_KEYBOARD_ARROW_DOWN.into();
+    set.chevron_left = m::ICON_CHEVRON_LEFT.into();
+    set.chevron_right = m::ICON_CHEVRON_RIGHT.into();
+    set.chevron_up = m::ICON_KEYBOARD_ARROW_UP.into();
+    set.dismiss = m::ICON_CLOSE.into();
+    set.error_circle = m::ICON_ERROR.into();
+    set.image_off = m::ICON_HIDE_IMAGE.into();
+    set.info = m::ICON_INFO.into();
+    set.more_horizontal = m::ICON_MORE_HORIZ.into();
+    set.pause = m::ICON_PAUSE.into();
+    set.person = m::ICON_PERSON.into();
+    set.play = m::ICON_PLAY_ARROW.into();
+    set.prohibited = m::ICON_BLOCK.into();
+    set.search = m::ICON_SEARCH.into();
+    set.square = m::ICON_CHECK_BOX_OUTLINE_BLANK.into();
+    set.star = m::ICON_STAR.into();
+    set.warning = m::ICON_WARNING.into();
+    set
 }
 
 struct App {
@@ -138,7 +139,14 @@ impl App {
         rt.core().set_preference(THEMES[s.theme].0);
         rt.core()
             .set_global_style(egui_mineral_fluent::egui_mineral::runtime::GlobalStyle::Kit);
-        kit.set_high_contrast(ctx, s.high_contrast);
+        kit.set_contrast_mode(
+            ctx,
+            if s.high_contrast {
+                ContrastMode::High
+            } else {
+                ContrastMode::Standard
+            },
+        );
         let brands = brands();
         if let Some((_, brand)) = brands.get(s.brand) {
             kit.set_brand(ctx, *brand);

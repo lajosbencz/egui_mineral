@@ -27,6 +27,7 @@ use crate::{
 
 /// `shape` of the color area and sliders.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum ColorShape {
     /// `rounded`: `borderRadiusMedium`.
     #[default]
@@ -37,7 +38,7 @@ pub enum ColorShape {
 
 impl ColorShape {
     /// Every variant.
-    pub const ALL: [Self; 2] = [Self::Rounded, Self::Square];
+    pub const ALL: &'static [Self] = &[Self::Rounded, Self::Square];
 
     fn radius(self) -> CornerRadius {
         CornerRadius::from(match self {

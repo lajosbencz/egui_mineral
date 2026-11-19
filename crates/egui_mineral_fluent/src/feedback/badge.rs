@@ -35,6 +35,7 @@ use crate::{
 
 /// Badge `size`, shared by [`Badge`], [`CounterBadge`] and [`PresenceBadge`](super::PresenceBadge).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum BadgeSize {
     /// `tiny`: a 6 px dot, no content.
     Tiny,
@@ -53,7 +54,7 @@ pub enum BadgeSize {
 
 impl BadgeSize {
     /// Every variant, smallest first.
-    pub const ALL: [Self; 6] = [
+    pub const ALL: &'static [Self] = &[
         Self::Tiny,
         Self::ExtraSmall,
         Self::Small,
@@ -120,6 +121,7 @@ impl BadgeSize {
 
 /// Badge `shape`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum BadgeShape {
     /// `circular`: pill.
     #[default]
@@ -132,11 +134,12 @@ pub enum BadgeShape {
 
 impl BadgeShape {
     /// Every variant.
-    pub const ALL: [Self; 3] = [Self::Circular, Self::Rounded, Self::Square];
+    pub const ALL: &'static [Self] = &[Self::Circular, Self::Rounded, Self::Square];
 }
 
 /// Badge `appearance`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum BadgeAppearance {
     /// `filled`: solid fill.
     #[default]
@@ -151,11 +154,12 @@ pub enum BadgeAppearance {
 
 impl BadgeAppearance {
     /// Every variant.
-    pub const ALL: [Self; 4] = [Self::Filled, Self::Ghost, Self::Outline, Self::Tint];
+    pub const ALL: &'static [Self] = &[Self::Filled, Self::Ghost, Self::Outline, Self::Tint];
 }
 
 /// Badge `color`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum BadgeColor {
     /// `brand`.
     #[default]
@@ -178,7 +182,7 @@ pub enum BadgeColor {
 
 impl BadgeColor {
     /// Every variant.
-    pub const ALL: [Self; 8] = [
+    pub const ALL: &'static [Self] = &[
         Self::Brand,
         Self::Danger,
         Self::Important,
@@ -479,6 +483,7 @@ impl MineralWidget for Badge {
 
 /// `appearance` of a [`CounterBadge`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum CounterBadgeAppearance {
     /// `filled`.
     #[default]
@@ -489,11 +494,12 @@ pub enum CounterBadgeAppearance {
 
 impl CounterBadgeAppearance {
     /// Every variant.
-    pub const ALL: [Self; 2] = [Self::Filled, Self::Ghost];
+    pub const ALL: &'static [Self] = &[Self::Filled, Self::Ghost];
 }
 
 /// `color` of a [`CounterBadge`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum CounterBadgeColor {
     /// `brand`.
     #[default]
@@ -508,7 +514,7 @@ pub enum CounterBadgeColor {
 
 impl CounterBadgeColor {
     /// Every variant.
-    pub const ALL: [Self; 4] = [Self::Brand, Self::Danger, Self::Important, Self::Informative];
+    pub const ALL: &'static [Self] = &[Self::Brand, Self::Danger, Self::Important, Self::Informative];
 }
 
 /// Fluent `CounterBadge`: a count, capped at an overflow value, hidden at 0 unless it shows zero.

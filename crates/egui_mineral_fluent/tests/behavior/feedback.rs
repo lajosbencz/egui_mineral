@@ -10,7 +10,7 @@ use crate::support::{FluentHarness, harness};
 fn message_bar_reports_its_dismiss_button() {
     let mut h = harness(false, |ui, dismissed| {
         let r = MessageBar::new("m", "Body").title("Title").dismissible(true).show(ui);
-        *dismissed |= r.dismissed;
+        *dismissed |= r.dismiss_clicked;
     });
     let node = h.node("m-message-bar");
     assert_eq!((node.name.as_str(), node.value.as_deref()), ("Title", Some("Body")));

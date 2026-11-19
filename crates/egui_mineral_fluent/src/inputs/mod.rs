@@ -50,7 +50,7 @@ pub use swatch_picker::{
     Swatch, SwatchLayout, SwatchPicker, SwatchPickerResponse, SwatchShape, SwatchSize, SwatchSpacing,
 };
 pub use switch::{Switch, SwitchLabelPosition};
-pub use tag_picker::{TagPicker, TagPickerSize, TagPickerVariant};
+pub use tag_picker::{TagPicker, TagPickerControl, TagPickerSize};
 pub use textarea::Textarea;
 pub use textbox::{FieldOutput, InputAppearance};
 pub use time_picker::TimePicker;

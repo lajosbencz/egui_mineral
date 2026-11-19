@@ -7,7 +7,7 @@ use egui_mineral_fluent::{
         CounterBadgeColor, MessageBar, MessageBarGroup, MessageBarIntent, MessageBarLayout, MessageBarShape,
         PresenceBadge, PresenceStatus, ProgressBar, ProgressShape, ProgressThickness, Skeleton, SkeletonAnimation,
         SkeletonAppearance, SkeletonItem, SkeletonShape, Spinner, SpinnerAppearance, SpinnerLabelPosition, SpinnerSize,
-        Toast, ToastPosition, Toaster, toast_queue,
+        Toast, ToastIntent, ToastPosition, Toaster, toast_queue,
     },
     icons::ICON_CHECKMARK_CIRCLE,
     inputs::Validation,
@@ -60,12 +60,12 @@ fn spinners(ui: &mut Fui<'_>) {
     heading(ui, "h-spinner", "Spinners");
     let rt = ui.rt();
     row(ui, |ui| {
-        for (i, size) in SpinnerSize::ALL.into_iter().enumerate() {
+        for (i, size) in SpinnerSize::ALL.iter().copied().enumerate() {
             ui.mineral(Spinner::new(("spinner-size", i)).size(size));
         }
     });
     row(ui, |ui| {
-        for (i, position) in SpinnerLabelPosition::ALL.into_iter().enumerate() {
+        for (i, position) in SpinnerLabelPosition::ALL.iter().copied().enumerate() {
             ui.mineral(
                 Spinner::new(("spinner-label", i))
                     .label(format!("{position:?}"))
@@ -113,7 +113,7 @@ fn skeletons(ui: &mut Fui<'_>) {
 
 fn message_bars(ui: &mut Fui<'_>, s: &mut State) {
     heading(ui, "h-message-bar", "Message bars");
-    for (i, intent) in MessageBarIntent::ALL.into_iter().enumerate() {
+    for (i, intent) in MessageBarIntent::ALL.iter().copied().enumerate() {
         let bar = MessageBar::new(("bar", i), "Something happened.")
             .title(format!("{intent:?}"))
             .intent(intent);
@@ -137,7 +137,7 @@ fn message_bars(ui: &mut Fui<'_>, s: &mut State) {
         .show_with(ui, |ui| {
             ui.mineral(PushButton::new(("bar-action", i), "Action"));
         });
-        s.dismissed[i] |= r.dismissed;
+        s.dismissed[i] |= r.dismiss_clicked;
     }
     let group = MessageBarGroup::new("group");
     group.show(ui, |ui| {
@@ -147,7 +147,7 @@ fn message_bars(ui: &mut Fui<'_>, s: &mut State) {
                     .intent(MessageBarIntent::Success)
                     .dismissible(true)
                     .show(ui);
-                *dismissed = r.dismissed;
+                *dismissed = r.dismiss_clicked;
             }
         }
     });
@@ -156,10 +156,10 @@ fn message_bars(ui: &mut Fui<'_>, s: &mut State) {
 fn badges(ui: &mut Fui<'_>) {
     heading(ui, "h-badge", "Badges");
     row(ui, |ui| {
-        for (i, size) in BadgeSize::ALL.into_iter().enumerate() {
+        for (i, size) in BadgeSize::ALL.iter().copied().enumerate() {
             ui.mineral(Badge::new(("badge-size", i), "1").size(size));
         }
-        for (i, shape) in BadgeShape::ALL.into_iter().enumerate() {
+        for (i, shape) in BadgeShape::ALL.iter().copied().enumerate() {
             ui.mineral(Badge::new(("badge-shape", i), "New").shape(shape));
         }
         ui.mineral(Badge::new("badge-icon", "Done").icon(ICON_CHECKMARK_CIRCLE));
@@ -169,9 +169,9 @@ fn badges(ui: &mut Fui<'_>) {
                 .icon_position(IconPosition::After),
         );
     });
-    for (a, appearance) in BadgeAppearance::ALL.into_iter().enumerate() {
+    for (a, appearance) in BadgeAppearance::ALL.iter().copied().enumerate() {
         row(ui, |ui| {
-            for (c, color) in BadgeColor::ALL.into_iter().enumerate() {
+            for (c, color) in BadgeColor::ALL.iter().copied().enumerate() {
                 ui.mineral(
                     Badge::new(("badge", a, c), format!("{color:?}"))
                         .appearance(appearance)
@@ -185,14 +185,14 @@ fn badges(ui: &mut Fui<'_>) {
         ui.mineral(CounterBadge::new("counter-overflow", 120));
         ui.mineral(CounterBadge::new("counter-zero", 0).show_zero(true));
         ui.mineral(CounterBadge::new("counter-dot", 1).dot(true));
-        for (i, color) in CounterBadgeColor::ALL.into_iter().enumerate() {
+        for (i, color) in CounterBadgeColor::ALL.iter().copied().enumerate() {
             ui.mineral(CounterBadge::new(("counter-color", i), 7).color(color));
         }
         ui.mineral(CounterBadge::new("counter-ghost", 7).appearance(CounterBadgeAppearance::Ghost));
     });
     for (o, out_of_office) in [false, true].into_iter().enumerate() {
         row(ui, |ui| {
-            for (i, status) in PresenceStatus::ALL.into_iter().enumerate() {
+            for (i, status) in PresenceStatus::ALL.iter().copied().enumerate() {
                 ui.mineral(
                     PresenceBadge::new(("presence", o, i), status)
                         .out_of_office(out_of_office)
@@ -202,7 +202,7 @@ fn badges(ui: &mut Fui<'_>) {
         });
     }
     row(ui, |ui| {
-        for (i, size) in BadgeSize::ALL.into_iter().enumerate() {
+        for (i, size) in BadgeSize::ALL.iter().copied().enumerate() {
             ui.mineral(PresenceBadge::new(("presence-size", i), PresenceStatus::Available).size(size));
         }
     });
@@ -212,7 +212,7 @@ fn toasts(ui: &mut Fui<'_>, s: &mut State) {
     heading(ui, "h-toast", "Toasts");
     let rt = ui.rt();
     row(ui, |ui| {
-        for (i, intent) in MessageBarIntent::ALL.into_iter().enumerate() {
+        for (i, intent) in ToastIntent::ALL.iter().copied().enumerate() {
             if ui
                 .mineral(PushButton::new(("toast-push", i), format!("{intent:?} toast")))
                 .response()

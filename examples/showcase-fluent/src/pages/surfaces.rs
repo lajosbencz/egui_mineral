@@ -1,12 +1,12 @@
 use egui_mineral_fluent::{
     actions::{ButtonAppearance, PushButton},
     data::Text,
-    egui_mineral::{anchor::Side, expand::Expansion},
+    egui_mineral::{anchor::Side, expand::Expansion, layout::Axis},
     icons::ICON_PERSON,
     surfaces::{
-        Accordion, AccordionItem, AccordionSize, Card, CardAppearance, CardHeader, CardOrientation, Dialog,
-        DialogAction, DialogActionsPosition, DialogKind, Drawer, DrawerPosition, DrawerSize, Popover,
-        PopoverAppearance, PopoverSize, TeachingPopover, TeachingStep, Tooltip, TooltipAppearance, TooltipRelationship,
+        Accordion, AccordionItem, AccordionSize, Card, CardAppearance, CardHeader, Dialog, DialogAction,
+        DialogActionsPosition, DialogKind, Drawer, DrawerPosition, DrawerSize, Popover, PopoverAppearance, PopoverSize,
+        TeachingPopover, TeachingStep, Tooltip, TooltipAppearance, TooltipRelationship,
     },
 };
 
@@ -124,7 +124,7 @@ fn dialogs(ui: &mut Fui<'_>, s: &mut State) {
                 .actions_position(DialogActionsPosition::End)
                 .action(DialogAction::new("Cancel"))
                 .action(DialogAction::new("Confirm").appearance(ButtonAppearance::Primary))
-                .show(rt, &mut s.dialogs[i], |ui| {
+                .show_modal(rt, &mut s.dialogs[i], |ui| {
                     ui.mineral(Text::new(("dialog-text", i), "Dialog content."));
                 });
             if let Some(c) = r.clicked {
@@ -138,7 +138,7 @@ fn drawers(ui: &mut Fui<'_>, s: &mut State) {
     heading(ui, "h-drawer", "Drawers");
     let rt = ui.rt();
     row(ui, |ui| {
-        for (i, p) in DrawerPosition::ALL.into_iter().enumerate() {
+        for (i, p) in DrawerPosition::ALL.iter().copied().enumerate() {
             if trigger(ui, ("drawer-trigger", i), &format!("Overlay {p:?}")).clicked() {
                 s.drawers[i] = true;
             }
@@ -147,14 +147,14 @@ fn drawers(ui: &mut Fui<'_>, s: &mut State) {
         if trigger(ui, ("drawer-inline", 0), label).clicked() {
             s.inline = !s.inline;
         }
-        for (i, p) in DrawerPosition::ALL.into_iter().enumerate() {
+        for (i, p) in DrawerPosition::ALL.iter().copied().enumerate() {
             Drawer::new(("drawer", i), format!("{p:?} drawer"))
                 .title(format!("{p:?}"))
                 .close_button(true)
                 .position(p)
                 .size(DrawerSize::Small)
                 .footer_action("Save")
-                .show_overlay(rt, &mut s.drawers[i], |ui| {
+                .show_modal(rt, &mut s.drawers[i], |ui| {
                     ui.mineral(Text::new(("drawer-text", i), "Drawer body."));
                 });
         }
@@ -168,7 +168,7 @@ fn drawers(ui: &mut Fui<'_>, s: &mut State) {
                 .title("Inline")
                 .close_button(true)
                 .size(DrawerSize::Small)
-                .show_inline(ui, &mut s.inline, |ui| {
+                .show(ui, &mut s.inline, |ui| {
                     ui.mineral(Text::new("inline-text", "Inline body."));
                 });
         });
@@ -177,7 +177,7 @@ fn drawers(ui: &mut Fui<'_>, s: &mut State) {
 
 fn cards(ui: &mut Fui<'_>, s: &mut State) {
     heading(ui, "h-card", "Cards");
-    for (i, appearance) in CardAppearance::ALL.into_iter().enumerate() {
+    for (i, appearance) in CardAppearance::ALL.iter().copied().enumerate() {
         let mut card = Card::new(("card", i)).appearance(appearance).interactive(true);
         if i < 2 {
             card = card.selectable(&mut s.cards[i]).checkbox(true);
@@ -185,7 +185,7 @@ fn cards(ui: &mut Fui<'_>, s: &mut State) {
         card.show(ui, |c| {
             c.header(
                 &CardHeader::new(format!("{appearance:?}"))
-                    .description("Card header")
+                    .secondary_text("Card header")
                     .image(ICON_PERSON),
                 |_| (),
             );
@@ -198,16 +198,14 @@ fn cards(ui: &mut Fui<'_>, s: &mut State) {
         });
         ui.add_space(8.0);
     }
-    Card::new("card-horizontal")
-        .orientation(CardOrientation::Horizontal)
-        .show(ui, |c| {
-            c.body(|ui| {
-                ui.label("Horizontal");
-            });
-            c.body(|ui| {
-                ui.label("Card");
-            });
+    Card::new("card-horizontal").axis(Axis::Horizontal).show(ui, |c| {
+        c.body(|ui| {
+            ui.label("Horizontal");
         });
+        c.body(|ui| {
+            ui.label("Card");
+        });
+    });
 }
 
 fn accordions(ui: &mut Fui<'_>, s: &mut State) {

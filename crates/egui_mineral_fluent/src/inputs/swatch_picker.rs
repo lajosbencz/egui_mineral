@@ -26,6 +26,7 @@ use crate::{
 
 /// `size` of a swatch.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum SwatchSize {
     /// `extra-small`: 20.
     ExtraSmall,
@@ -40,7 +41,7 @@ pub enum SwatchSize {
 
 impl SwatchSize {
     /// Every variant, smallest first.
-    pub const ALL: [Self; 4] = [Self::ExtraSmall, Self::Small, Self::Medium, Self::Large];
+    pub const ALL: &'static [Self] = &[Self::ExtraSmall, Self::Small, Self::Medium, Self::Large];
 
     const fn side(self) -> f32 {
         match self {
@@ -66,6 +67,7 @@ impl SwatchSize {
 
 /// `shape` of a swatch.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum SwatchShape {
     /// `rounded`: `borderRadiusMedium`.
     Rounded,
@@ -78,7 +80,7 @@ pub enum SwatchShape {
 
 impl SwatchShape {
     /// Every variant.
-    pub const ALL: [Self; 3] = [Self::Rounded, Self::Circular, Self::Square];
+    pub const ALL: &'static [Self] = &[Self::Rounded, Self::Circular, Self::Square];
 
     fn radius(self) -> CornerRadius {
         CornerRadius::from(match self {
@@ -91,6 +93,7 @@ impl SwatchShape {
 
 /// `spacing` between swatches.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum SwatchSpacing {
     /// `small`: 2.
     Small,
@@ -101,6 +104,7 @@ pub enum SwatchSpacing {
 
 /// `layout` of a [`SwatchPicker`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum SwatchLayout {
     /// `row`: one wrapping row.
     #[default]

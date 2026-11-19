@@ -46,6 +46,7 @@ pub(super) fn texture(ctx: &egui::Context, source: &ImageSource<'_>, hint: Vec2)
 
 /// Image `fit` (CSS `object-fit`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum ImageFit {
     /// `default`: stretched to the box.
     #[default]
@@ -62,11 +63,12 @@ pub enum ImageFit {
 
 impl ImageFit {
     /// Every variant.
-    pub const ALL: [Self; 5] = [Self::Default, Self::None, Self::Center, Self::Contain, Self::Cover];
+    pub const ALL: &'static [Self] = &[Self::Default, Self::None, Self::Center, Self::Contain, Self::Cover];
 }
 
 /// Image `shape`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum ImageShape {
     /// `square`: no corner radius.
     #[default]
@@ -79,7 +81,7 @@ pub enum ImageShape {
 
 impl ImageShape {
     /// Every variant.
-    pub const ALL: [Self; 3] = [Self::Square, Self::Rounded, Self::Circular];
+    pub const ALL: &'static [Self] = &[Self::Square, Self::Rounded, Self::Circular];
 }
 
 /// Fluent `Image`: a picture with fit modes, shapes, a border and a shadow.

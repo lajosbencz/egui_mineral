@@ -39,10 +39,8 @@ fn dropdown_chevron_defaults_to_the_fluent_font() {
 
 #[test]
 fn dropdown_chevron_comes_from_a_material_icon_set_without_the_fluent_font() {
-    let set = IconSet {
-        chevron_down: material::ICON_KEYBOARD_ARROW_DOWN.into(),
-        ..IconSet::fluent()
-    };
+    let mut set = IconSet::fluent();
+    set.chevron_down = material::ICON_KEYBOARD_ARROW_DOWN.into();
     let pass = dropdown(Fluent::with_icons(&set, &[]));
     let material_chevron = set.chevron_down.regular.ch.to_string();
     assert_eq!(

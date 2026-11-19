@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 use egui::{Key, Rangef, Rect, Sense, Stroke, StrokeKind, Ui, UiBuilder, pos2, text::LayoutJob, vec2};
 use egui_mineral::{
@@ -7,7 +7,7 @@ use egui_mineral::{
     i18n::I18n,
     kit::{self, state::TempState},
     layout::{Constraints, Measure},
-    select::Check,
+    select::{Check, Selection, SelectionMode},
     semantic::{self, Action, AgentKey, KeyedSalt, Role, SemanticNode},
     tree::{self, TreeData, TreeNav, TreeRow},
     widget::{Availability, Interaction, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
@@ -37,6 +37,7 @@ use crate::{
 
 /// Tree `appearance`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum TreeAppearance {
     /// `subtle`: subtle fill states.
     #[default]
@@ -49,19 +50,46 @@ pub enum TreeAppearance {
 
 impl TreeAppearance {
     /// Every variant.
-    pub const ALL: [Self; 3] = [Self::Subtle, Self::SubtleAlpha, Self::Transparent];
+    pub const ALL: &'static [Self] = &[Self::Subtle, Self::SubtleAlpha, Self::Transparent];
 }
 
-/// Tree `selectionMode`.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
-pub enum TreeSelection {
-    /// Rows carry no selector.
-    #[default]
+// Tree `selectionMode`
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum TreeSelection {
     None,
-    /// `single`: a radio selector; one checked item.
     Single,
-    /// `multiselect`: checkbox selectors; a branch checks and unchecks its descendants and shows the mixed state.
     Multiple,
+}
+
+// core tree::check_state over a Selection
+fn check_state<N: TreeData>(node: &N, checked: &Selection<N::Key>) -> Check {
+    let mut first = None;
+    let mut stack = vec![node];
+    while let Some(n) = stack.pop() {
+        if n.children().is_empty() {
+            let s = Check::from(checked.is_selected(n.key()));
+            if *first.get_or_insert(s) != s {
+                return Check::Mixed;
+            }
+        } else {
+            stack.extend(n.children());
+        }
+    }
+    first.unwrap_or(Check::Unchecked)
+}
+
+// core tree::toggle_check over a Selection
+fn toggle_check<N: TreeData>(node: &N, checked: &mut Selection<N::Key>) {
+    let on = check_state(node, checked) != Check::Checked;
+    let mut stack = vec![node];
+    while let Some(n) = stack.pop() {
+        if on {
+            checked.select(n.key().clone());
+        } else {
+            checked.deselect(n.key());
+        }
+        stack.extend(n.children());
+    }
 }
 
 /// Fluent `TreeItemLayout`: icons around the label and an aside text.
@@ -120,7 +148,7 @@ impl TreeItemPersonaLayout {
     }
 
     /// `description` slot below the label.
-    pub fn description(mut self, text: impl Into<String>) -> Self {
+    pub fn secondary_text(mut self, text: impl Into<String>) -> Self {
         self.description = Some(text.into());
         self
     }
@@ -134,6 +162,7 @@ impl TreeItemPersonaLayout {
 
 /// Layout of one [`Tree`] row.
 #[derive(Clone, Debug)]
+#[non_exhaustive]
 pub enum ItemLayout {
     /// [`TreeItemLayout`].
     Plain(TreeItemLayout),
@@ -709,7 +738,7 @@ pub struct Tree<'a, N: TreeData> {
     label: String,
     roots: &'a [N],
     expansion: &'a mut Expansion<N::Key>,
-    checked: Option<&'a mut BTreeSet<N::Key>>,
+    checked: Option<&'a mut Selection<N::Key>>,
     selection: TreeSelection,
     size: Size,
     appearance: TreeAppearance,
@@ -767,10 +796,15 @@ impl<'a, N: TreeData> Tree<'a, N> {
         self
     }
 
-    /// `selectionMode` with the checked keys it edits; [`TreeSelection::Single`] keeps at most one.
-    pub fn selection(mut self, mode: TreeSelection, checked: &'a mut BTreeSet<N::Key>) -> Self {
-        self.selection = mode;
-        self.checked = (mode != TreeSelection::None).then_some(checked);
+    /// `selectionMode` and the checked keys it edits: [`SelectionMode::Single`] shows radio selectors and keeps at
+    /// most one key, [`SelectionMode::Multiple`] checkbox selectors, where a branch checks and unchecks its
+    /// descendants and shows the mixed state. Without it rows carry no selector.
+    pub fn selection(mut self, selection: &'a mut Selection<N::Key>) -> Self {
+        self.selection = match selection.mode() {
+            SelectionMode::Single => TreeSelection::Single,
+            SelectionMode::Multiple => TreeSelection::Multiple,
+        };
+        self.checked = Some(selection);
         self
     }
 
@@ -796,8 +830,8 @@ impl<'a, N: TreeData> Tree<'a, N> {
             return Check::Unchecked;
         };
         match self.selection {
-            TreeSelection::Multiple => tree::check_state(node, set),
-            _ => set.contains(node.key()).into(),
+            TreeSelection::Multiple => check_state(node, set),
+            _ => set.is_selected(node.key()).into(),
         }
     }
 
@@ -806,11 +840,9 @@ impl<'a, N: TreeData> Tree<'a, N> {
             return;
         };
         if self.selection == TreeSelection::Single {
-            let key = node.key().clone();
-            set.clear();
-            set.insert(key);
+            set.select(node.key().clone());
         } else {
-            tree::toggle_check(node, set);
+            toggle_check(node, set);
         }
     }
 

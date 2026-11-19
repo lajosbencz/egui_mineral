@@ -33,6 +33,7 @@ use crate::{
 
 /// Side of the label a [`Checkbox`] puts it on (`labelPosition`); mirrored in right-to-left locales.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum CheckboxLabelPosition {
     /// `before`: leading the box.
     Before,
@@ -43,6 +44,7 @@ pub enum CheckboxLabelPosition {
 
 /// Checkbox `shape`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum CheckboxShape {
     /// `square`: `borderRadiusSmall`.
     #[default]
@@ -166,9 +168,11 @@ impl<'a> Checkbox<'a> {
         let label = self.label_visible.then(|| {
             let format = crate::typography::format(
                 ui.ctx(),
-                ty::FONT_SIZE_BASE_300,
-                ty::LINE_HEIGHT_BASE_300,
-                ty::FONT_WEIGHT_REGULAR,
+                crate::typography::TypeSpec {
+                    size: ty::FONT_SIZE_BASE_300,
+                    line_height: ty::LINE_HEIGHT_BASE_300,
+                    weight: ty::FONT_WEIGHT_REGULAR,
+                },
                 Color32::PLACEHOLDER,
             );
             spec.label(ui.core(), ui.painter(), &self.label, &format, self.mnemonic, max)

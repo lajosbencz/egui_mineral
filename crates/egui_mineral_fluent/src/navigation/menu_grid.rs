@@ -61,7 +61,7 @@ impl MenuGridItem {
     }
 
     /// `subText` slot below the label.
-    pub fn sub_text(mut self, text: impl Into<String>) -> Self {
+    pub fn secondary_text(mut self, text: impl Into<String>) -> Self {
         self.sub_text = Some(text.into());
         self
     }
@@ -105,6 +105,7 @@ impl MenuGridAction {
 
 /// Cell of a [`MenuGridRow`].
 #[derive(Clone, Debug)]
+#[non_exhaustive]
 pub enum MenuGridCell {
     /// [`MenuGridItem`].
     Item(MenuGridItem),

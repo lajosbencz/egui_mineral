@@ -11,6 +11,7 @@
 
 /// One shadow layer in points.
 #[derive(Clone, Copy, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct ShadowLayer {
     /// Horizontal offset.
     pub x: f32,
@@ -22,6 +23,7 @@ pub struct ShadowLayer {
 
 /// Ambient and key layer of one elevation level.
 #[derive(Clone, Copy, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct Shadow {
     /// Wide, faint layer.
     pub ambient: ShadowLayer,

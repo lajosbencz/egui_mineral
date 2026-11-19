@@ -1,10 +1,13 @@
-use std::collections::BTreeSet;
-
 use egui_mineral_fluent::{
     ColorToken, FluentExt, Size,
     actions::PushButton,
     data::{Avatar, AvatarColor},
-    egui_mineral::{expand::Expansion, focus::Cell},
+    egui_mineral::{
+        expand::Expansion,
+        focus::Cell,
+        layout::Axis,
+        select::{Selection, SelectionMode},
+    },
     icons::{
         ICON_COPY, ICON_CUT, ICON_DOCUMENT, ICON_FOLDER, ICON_HOME, ICON_MORE_HORIZONTAL, ICON_PERSON, ICON_PIN,
         ICON_SETTINGS, ICON_SHARE,
@@ -13,7 +16,7 @@ use egui_mineral_fluent::{
         Breadcrumb, BreadcrumbButton, BreadcrumbFocus, Carousel, CarouselAppearance, Menu, MenuGrid, MenuGridAction,
         MenuGridItem, MenuGridRow, MenuItem, Nav, NavCategory, NavDensity, NavDivider, NavItem, NavSubItem, Overflow,
         OverflowDirection, Tab, TabAppearance, TabList, Toolbar, ToolbarButton, ToolbarRadioButton, ToolbarRadioGroup,
-        ToolbarToggleButton, Tree, TreeAppearance, TreeItem, TreeItemLayout, TreeItemPersonaLayout, TreeSelection,
+        ToolbarToggleButton, Tree, TreeAppearance, TreeItem, TreeItemLayout, TreeItemPersonaLayout,
     },
 };
 
@@ -37,7 +40,7 @@ pub(crate) struct State {
     nav: Option<usize>,
     nav_small: Option<usize>,
     tree_open: [Expansion<String>; 3],
-    tree_checked: [BTreeSet<String>; 3],
+    tree_checked: [Selection<String>; 3],
     tree_activated: Option<String>,
     grid_last: Option<Cell>,
     carousel: [usize; 2],
@@ -65,14 +68,14 @@ fn items() -> [Tab; 3] {
 
 fn tabs(ui: &mut Fui<'_>, s: &mut State) {
     heading(ui, "h-tabs", "Tab list");
-    for ((i, appearance), selected) in TabAppearance::ALL.into_iter().enumerate().zip(&mut s.appearances) {
+    for ((i, appearance), selected) in TabAppearance::ALL.iter().copied().enumerate().zip(&mut s.appearances) {
         TabList::new(("tabs-appearance", i), format!("{appearance:?}"), selected)
             .tabs(items())
             .appearance(appearance)
             .show(ui);
         ui.add_space(4.0);
     }
-    for ((i, size), selected) in Size::ALL.into_iter().enumerate().zip(&mut s.sizes) {
+    for ((i, size), selected) in Size::ALL.iter().copied().enumerate().zip(&mut s.sizes) {
         TabList::new(("tabs-size", i), format!("{size:?}"), selected)
             .tabs(["One", "Two", "Three"])
             .size(size)
@@ -81,13 +84,13 @@ fn tabs(ui: &mut Fui<'_>, s: &mut State) {
     ui.add_space(4.0);
     TabList::new("tabs-vertical", "Vertical", &mut s.vertical)
         .tabs(items())
-        .vertical(true)
+        .axis(Axis::Vertical)
         .show(ui);
 }
 
 fn toolbars(ui: &mut Fui<'_>, s: &mut State) {
     heading(ui, "h-toolbar", "Toolbar");
-    for (i, size) in Size::ALL.into_iter().enumerate() {
+    for (i, size) in Size::ALL.iter().copied().enumerate() {
         Toolbar::new(("toolbar", i), format!("{size:?}"))
             .size(size)
             .action("Cut")
@@ -114,7 +117,7 @@ fn toolbars(ui: &mut Fui<'_>, s: &mut State) {
         )
         .show(ui);
     Toolbar::new("toolbar-vertical", "Vertical")
-        .vertical(true)
+        .axis(Axis::Vertical)
         .action(ToolbarButton::new("Home").icon(ICON_HOME))
         .divider()
         .action(ToolbarButton::new("People").icon(ICON_PERSON))
@@ -123,7 +126,7 @@ fn toolbars(ui: &mut Fui<'_>, s: &mut State) {
 
 fn breadcrumbs(ui: &mut Fui<'_>, s: &mut State) {
     heading(ui, "h-breadcrumb", "Breadcrumb");
-    for (i, size) in Size::ALL.into_iter().enumerate() {
+    for (i, size) in Size::ALL.iter().copied().enumerate() {
         let r = Breadcrumb::new(("breadcrumb", i), format!("{size:?}"))
             .size(size)
             .item(BreadcrumbButton::new("Home").icon(ICON_HOME))
@@ -206,7 +209,7 @@ fn menus(ui: &mut Fui<'_>, s: &mut State) {
         ..
     } = s;
     Menu::new("menu", "Edit").show(rt, &trigger, menu_open, |m| {
-        if m.item(MenuItem::new("Cut").icon(ICON_CUT).secondary_content("Ctrl+X"))
+        if m.item(MenuItem::new("Cut").icon(ICON_CUT).secondary_text("Ctrl+X"))
             .clicked
         {
             *last = "Cut";
@@ -242,7 +245,7 @@ fn tree_items(persona: bool) -> Vec<TreeItem> {
         let person = |description: &str| {
             TreeItemPersonaLayout::new()
                 .media(Avatar::new("persona", description).color(AvatarColor::Colorful))
-                .description(description)
+                .secondary_text(description)
         };
         return vec![
             TreeItem::new("team", "Design team").layout(person("4 people")).nested([
@@ -268,11 +271,16 @@ fn trees(ui: &mut Fui<'_>, s: &mut State) {
     heading(ui, "h-tree", "Tree");
     let rt = ui.rt();
     let cases = [
-        ("none", TreeSelection::None, TreeAppearance::Subtle, false),
-        ("single", TreeSelection::Single, TreeAppearance::SubtleAlpha, false),
+        ("none", None, TreeAppearance::Subtle, false),
+        (
+            "single",
+            Some(SelectionMode::Single),
+            TreeAppearance::SubtleAlpha,
+            false,
+        ),
         (
             "multiselect",
-            TreeSelection::Multiple,
+            Some(SelectionMode::Multiple),
             TreeAppearance::Transparent,
             true,
         ),
@@ -291,10 +299,14 @@ fn trees(ui: &mut Fui<'_>, s: &mut State) {
         let items = tree_items(persona);
         ui.scope(|ui| {
             ui.set_max_width(ui.available_width().min(360.0));
-            let r = Tree::items(("tree", i), name, &items, open)
-                .selection(mode, checked)
-                .appearance(appearance)
-                .show(&mut rt.ui(ui));
+            let mut tree = Tree::items(("tree", i), name, &items, open).appearance(appearance);
+            if let Some(mode) = mode {
+                if checked.mode() != mode {
+                    *checked = Selection::multiple();
+                }
+                tree = tree.selection(checked);
+            }
+            let r = tree.show(&mut rt.ui(ui));
             *tree_activated = r.activated.or(tree_activated.take());
         });
         ui.add_space(4.0);
@@ -310,7 +322,7 @@ fn menu_grids(ui: &mut Fui<'_>, s: &mut State) {
     let r = MenuGrid::new("menu-grid", "Actions").show(ui.rt(), &trigger, &mut s.menu_grid_open, |g| {
         g.row(
             MenuGridRow::new()
-                .cell(MenuGridItem::new("Cut").icon(ICON_CUT).sub_text("Ctrl+X"))
+                .cell(MenuGridItem::new("Cut").icon(ICON_CUT).secondary_text("Ctrl+X"))
                 .cell(MenuGridAction::new("More", ICON_MORE_HORIZONTAL)),
         );
         g.row(

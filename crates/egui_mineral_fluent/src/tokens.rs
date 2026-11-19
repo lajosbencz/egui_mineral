@@ -7,6 +7,7 @@ use crate::{
 
 /// One of the three Fluent UI React v9 themes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum Scheme {
     /// `webLightTheme`.
     WebLight,
@@ -18,7 +19,7 @@ pub enum Scheme {
 
 impl Scheme {
     /// Every variant.
-    pub const ALL: [Self; 3] = [Self::WebLight, Self::WebDark, Self::HighContrast];
+    pub const ALL: &'static [Self] = &[Self::WebLight, Self::WebDark, Self::HighContrast];
 
     /// Light for [`Self::WebLight`], dark otherwise.
     pub const fn theme(self) -> Theme {
@@ -38,8 +39,21 @@ impl From<Theme> for Scheme {
     }
 }
 
+/// Contrast axis of [`Fluent`](crate::Fluent), independent of the brightness
+/// ([`Fluent::set_contrast_mode`](crate::Fluent::set_contrast_mode)).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum ContrastMode {
+    /// [`Scheme::WebLight`] or [`Scheme::WebDark`], by brightness.
+    #[default]
+    Standard,
+    /// [`Scheme::HighContrast`] at either brightness.
+    High,
+}
+
 /// Elevation level of the `shadow*` tokens.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum Elevation {
     /// `shadow2`.
     E2,
@@ -57,7 +71,7 @@ pub enum Elevation {
 
 impl Elevation {
     /// Every variant, lowest first.
-    pub const ALL: [Self; 6] = [Self::E2, Self::E4, Self::E8, Self::E16, Self::E28, Self::E64];
+    pub const ALL: &'static [Self] = &[Self::E2, Self::E4, Self::E8, Self::E16, Self::E28, Self::E64];
 
     /// Layer geometry.
     pub const fn shadow(self) -> Shadow {
@@ -74,6 +88,7 @@ impl Elevation {
 
 /// Corner radius scale (`borderRadius*` tokens).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum Radius {
     /// `borderRadiusNone`.
     None,
@@ -101,7 +116,7 @@ pub enum Radius {
 
 impl Radius {
     /// Every variant, smallest first.
-    pub const ALL: [Self; 11] = [
+    pub const ALL: &'static [Self] = &[
         Self::None,
         Self::Small,
         Self::Medium,
@@ -175,19 +190,40 @@ impl Tokens {
         self.colors.get(token as usize).copied().unwrap_or(Color32::PLACEHOLDER)
     }
 
-    /// egui shadows of `level`: ambient then key layer, colored by `tint`.
-    pub fn shadow(&self, level: Elevation, tint: ShadowTint) -> [egui::Shadow; 2] {
+    /// egui shadows of `level`, colored by `tint`.
+    pub fn shadow(&self, level: Elevation, tint: ShadowTint) -> ElevationShadow {
         let (ambient, key) = match tint {
             ShadowTint::Brand => (ColorToken::ColorBrandShadowAmbient, ColorToken::ColorBrandShadowKey),
             ShadowTint::Neutral => (ColorToken::ColorNeutralShadowAmbient, ColorToken::ColorNeutralShadowKey),
         };
         let s = level.shadow();
-        [layer(s.ambient, self.color(ambient)), layer(s.key, self.color(key))]
+        ElevationShadow {
+            ambient: layer(s.ambient, self.color(ambient)),
+            key: layer(s.key, self.color(key)),
+        }
+    }
+}
+
+/// egui shadows of one [`Elevation`], colored ([`Tokens::shadow`]).
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[non_exhaustive]
+pub struct ElevationShadow {
+    /// Wide, faint layer, painted first.
+    pub ambient: egui::Shadow,
+    /// Offset layer.
+    pub key: egui::Shadow,
+}
+
+impl ElevationShadow {
+    /// Layers in paint order.
+    pub const fn layers(self) -> [egui::Shadow; 2] {
+        [self.ambient, self.key]
     }
 }
 
 /// Color family of a shadow.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum ShadowTint {
     /// Neutral shadow colors.
     #[default]

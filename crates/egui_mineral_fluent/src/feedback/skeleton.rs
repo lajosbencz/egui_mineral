@@ -12,6 +12,7 @@ use crate::{Fluent, FluentExt, spec::defaults::skeleton as d, widget::paint};
 
 /// Skeleton `animation`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum SkeletonAnimation {
     /// `wave`: a highlight sweeps across.
     #[default]
@@ -22,11 +23,12 @@ pub enum SkeletonAnimation {
 
 impl SkeletonAnimation {
     /// Every variant.
-    pub const ALL: [Self; 2] = [Self::Wave, Self::Pulse];
+    pub const ALL: &'static [Self] = &[Self::Wave, Self::Pulse];
 }
 
 /// Skeleton `appearance`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum SkeletonAppearance {
     /// `opaque`: `colorNeutralStencil1`.
     #[default]
@@ -37,11 +39,12 @@ pub enum SkeletonAppearance {
 
 impl SkeletonAppearance {
     /// Every variant.
-    pub const ALL: [Self; 2] = [Self::Opaque, Self::Translucent];
+    pub const ALL: &'static [Self] = &[Self::Opaque, Self::Translucent];
 }
 
 /// `shape` of a [`SkeletonItem`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum SkeletonShape {
     /// `rectangle`: full width, `size` high, 4 rounded.
     #[default]
@@ -54,7 +57,7 @@ pub enum SkeletonShape {
 
 impl SkeletonShape {
     /// Every variant.
-    pub const ALL: [Self; 3] = [Self::Rectangle, Self::Square, Self::Circle];
+    pub const ALL: &'static [Self] = &[Self::Rectangle, Self::Square, Self::Circle];
 }
 
 /// What a [`Skeleton`] hands its items: the shared animation and appearance.

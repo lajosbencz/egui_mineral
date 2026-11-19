@@ -31,6 +31,7 @@ const TEXT: TypeRamp = TypeRamp::Caption1;
 
 /// Progress indicator of a [`StatusItem`]: the fraction done, `None` for indeterminate.
 #[derive(Clone, Copy, Debug, PartialEq)]
+#[non_exhaustive]
 pub enum StatusProgress {
     /// Extra tiny [`Spinner`].
     Spinner,

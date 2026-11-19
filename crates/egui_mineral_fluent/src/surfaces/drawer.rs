@@ -28,6 +28,7 @@ use crate::{
 
 /// Edge a [`Drawer`] attaches to (`position`); start and end follow the text direction.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum DrawerPosition {
     /// `start`.
     #[default]
@@ -40,7 +41,7 @@ pub enum DrawerPosition {
 
 impl DrawerPosition {
     /// Every variant.
-    pub const ALL: [Self; 3] = [Self::Start, Self::End, Self::Bottom];
+    pub const ALL: &'static [Self] = &[Self::Start, Self::End, Self::Bottom];
 
     const fn vertical(self) -> bool {
         matches!(self, Self::Bottom)
@@ -49,6 +50,7 @@ impl DrawerPosition {
 
 /// `size` of a [`Drawer`]: width of a side drawer, height of a bottom one.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum DrawerSize {
     /// `small`: 320pt.
     Small,
@@ -63,7 +65,7 @@ pub enum DrawerSize {
 
 impl DrawerSize {
     /// Every variant, smallest first.
-    pub const ALL: [Self; 4] = [Self::Small, Self::Medium, Self::Large, Self::Full];
+    pub const ALL: &'static [Self] = &[Self::Small, Self::Medium, Self::Large, Self::Full];
 
     const fn motion(self) -> Duration {
         match self {
@@ -126,7 +128,7 @@ struct Body<R> {
 
 /// Fluent `OverlayDrawer` and `InlineDrawer`: header, scrolling body and footer on a screen edge.
 #[derive(Clone, Debug)]
-#[must_use = "call .show_overlay(..) or .show_inline(..)"]
+#[must_use = "call .show_modal(..) or .show(..)"]
 pub struct Drawer {
     salt: KeyedSalt,
     key: AgentKey,
@@ -200,7 +202,7 @@ impl Drawer {
     }
 
     /// Overlay drawer over a backdrop while `open`; Escape, a backdrop press and the close button clear it.
-    pub fn show_overlay<R>(
+    pub fn show_modal<R>(
         mut self,
         rt: &Rt,
         open: &mut bool,
@@ -251,7 +253,7 @@ impl Drawer {
 
     /// Inline drawer docked in the layout of `ui`, beside what is added after it; the close button clears `open`.
     /// Add it before the central content, like an `egui::Panel`.
-    pub fn show_inline<R>(
+    pub fn show<R>(
         mut self,
         ui: &mut MineralUi<'_, Fluent>,
         open: &mut bool,

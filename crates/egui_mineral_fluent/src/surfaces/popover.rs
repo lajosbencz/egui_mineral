@@ -19,6 +19,7 @@ use crate::{
 
 /// `PopoverSurface` `size`: padding and arrow height.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum PopoverSize {
     /// `small`: 12pt padding.
     Small,
@@ -31,7 +32,7 @@ pub enum PopoverSize {
 
 impl PopoverSize {
     /// Every variant, smallest first.
-    pub const ALL: [Self; 3] = [Self::Small, Self::Medium, Self::Large];
+    pub const ALL: &'static [Self] = &[Self::Small, Self::Medium, Self::Large];
 
     const fn padding(self) -> f32 {
         match self {
@@ -51,6 +52,7 @@ impl PopoverSize {
 
 /// `PopoverSurface` `appearance`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum PopoverAppearance {
     /// Neutral surface.
     #[default]
@@ -63,7 +65,7 @@ pub enum PopoverAppearance {
 
 impl PopoverAppearance {
     /// Every variant.
-    pub const ALL: [Self; 3] = [Self::Default, Self::Brand, Self::Inverted];
+    pub const ALL: &'static [Self] = &[Self::Default, Self::Brand, Self::Inverted];
 
     pub(super) const fn colors(self) -> (crate::ColorToken, crate::ColorToken) {
         match self {

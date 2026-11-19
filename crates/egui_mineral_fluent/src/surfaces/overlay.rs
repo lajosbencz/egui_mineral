@@ -95,6 +95,7 @@ pub(crate) fn framed<R>(
     let radius = corner(look.radius);
     let mut shapes: Vec<Shape> = t
         .shadow(look.elevation, ShadowTint::Neutral)
+        .layers()
         .into_iter()
         .map(|layer| Shape::from(layer.as_shape(rect, radius)))
         .collect();
@@ -140,7 +141,15 @@ pub(super) fn arrow(ui: &Ui, p: &Placement, rect: Rect, radius: f32, height: f32
 }
 
 pub(super) fn text(ui: &mut Ui, rt: &Rt, s: &str, (size, line, weight): (f32, f32, u16), color: Color32) -> Response {
-    let format = crate::typography::format(rt.ctx(), size, line, weight, color);
+    let format = crate::typography::format(
+        rt.ctx(),
+        crate::typography::TypeSpec {
+            size,
+            line_height: line,
+            weight,
+        },
+        color,
+    );
     let mut job = egui::text::LayoutJob::single_section(s.to_owned(), format);
     job.wrap.max_width = ui.available_width();
     let galley = ui.painter().layout_job(job);

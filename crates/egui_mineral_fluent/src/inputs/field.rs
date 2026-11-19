@@ -23,6 +23,7 @@ use crate::{
 
 /// `validationState` of a [`Field`] with a message.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum Validation {
     /// `error`: red message, marks the control invalid.
     Error,
@@ -45,9 +46,11 @@ impl Validation {
 
 /// What a [`Field`] passes to its control, to set on it (`aria-invalid`, `disabled`, `size`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct FieldContext {
-    /// `aria-invalid` of the control: the state is [`Validation::Error`].
-    pub invalid: bool,
+    /// `validationState` of the field, for the control's `validation(..)`; [`Validation::Error`] is its
+    /// `aria-invalid`.
+    pub validation: Option<Validation>,
     /// `disabled` of the control.
     pub disabled: bool,
     /// `required` of the control; the label carries the mark.
@@ -128,8 +131,8 @@ impl Field {
     }
 
     /// `orientation`: [`Axis::Vertical`] (default) puts the label above, [`Axis::Horizontal`] in a 33% column.
-    pub fn orientation(mut self, orientation: Axis) -> Self {
-        self.orientation = orientation;
+    pub fn axis(mut self, axis: Axis) -> Self {
+        self.orientation = axis;
         self
     }
 
@@ -153,7 +156,7 @@ impl Field {
 
     fn context(&self) -> FieldContext {
         FieldContext {
-            invalid: matches!(self.validation, Some((Validation::Error, _))),
+            validation: self.validation.as_ref().map(|(state, _)| *state),
             disabled: self.disabled,
             required: self.required,
             size: self.size,
@@ -202,9 +205,11 @@ impl Field {
         let indent = icon.map_or(0.0, |_| fd::VALIDATION_ICON + g::SPACING_HORIZONTAL_XS);
         let format = crate::typography::format(
             ui.ctx(),
-            ty::FONT_SIZE_BASE_200,
-            ty::LINE_HEIGHT_BASE_200,
-            ty::FONT_WEIGHT_REGULAR,
+            crate::typography::TypeSpec {
+                size: ty::FONT_SIZE_BASE_200,
+                line_height: ty::LINE_HEIGHT_BASE_200,
+                weight: ty::FONT_WEIGHT_REGULAR,
+            },
             Color32::PLACEHOLDER,
         );
         let mut job = LayoutJob::single_section(text.to_owned(), format);

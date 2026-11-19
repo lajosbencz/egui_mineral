@@ -31,7 +31,7 @@ pub(crate) struct State {
 pub(crate) fn actions(ui: &mut Fui<'_>, s: &mut State) {
     heading(ui, "h-appearance", "Button appearances");
     row(ui, |ui| {
-        for (i, a) in ButtonAppearance::ALL.into_iter().enumerate() {
+        for (i, a) in ButtonAppearance::ALL.iter().copied().enumerate() {
             let label = format!("{a:?}");
             if ui
                 .mineral(PushButton::new(("appearance", i), label).appearance(a))
@@ -44,14 +44,14 @@ pub(crate) fn actions(ui: &mut Fui<'_>, s: &mut State) {
     });
     heading(ui, "h-size", "Sizes, shapes and icons");
     row(ui, |ui| {
-        for (i, size) in Size::ALL.into_iter().enumerate() {
+        for (i, size) in Size::ALL.iter().copied().enumerate() {
             ui.mineral(
                 PushButton::new(("size", i), format!("{size:?}"))
                     .size(size)
                     .icon(ICON_CALENDAR),
             );
         }
-        for (i, shape) in ButtonShape::ALL.into_iter().enumerate() {
+        for (i, shape) in ButtonShape::ALL.iter().copied().enumerate() {
             ui.mineral(PushButton::new(("shape", i), format!("{shape:?}")).shape(shape));
         }
         ui.mineral(
@@ -63,7 +63,7 @@ pub(crate) fn actions(ui: &mut Fui<'_>, s: &mut State) {
     });
     heading(ui, "h-toggle", "Toggle buttons");
     row(ui, |ui| {
-        for (i, (a, on)) in ButtonAppearance::ALL.into_iter().zip(&mut s.toggles).enumerate() {
+        for (i, (a, on)) in ButtonAppearance::ALL.iter().copied().zip(&mut s.toggles).enumerate() {
             ui.mineral(
                 ToggleButton::new(("toggle", i), format!("{a:?}"), on)
                     .appearance(a)
@@ -100,7 +100,7 @@ pub(crate) fn actions(ui: &mut Fui<'_>, s: &mut State) {
 
 pub(crate) fn inputs(ui: &mut Fui<'_>, s: &mut State) {
     heading(ui, "h-label", "Labels");
-    for (i, size) in Size::ALL.into_iter().enumerate() {
+    for (i, size) in Size::ALL.iter().copied().enumerate() {
         ui.mineral(FieldLabel::new(("label", i), format!("{size:?} label")).size(size));
     }
     ui.mineral(FieldLabel::new("label-required", "Required").required(true));
@@ -151,7 +151,7 @@ pub(crate) fn surfaces(ui: &mut Fui<'_>, s: &mut State) {
 pub(crate) fn data(ui: &mut Fui<'_>, s: &mut State) {
     super::data::show(ui, &mut s.data);
     heading(ui, "h-text", "Text");
-    for (i, size) in TextSize::ALL.into_iter().take(6).enumerate() {
+    for (i, size) in TextSize::ALL.iter().copied().take(6).enumerate() {
         ui.mineral(Text::new(("size", i), format!("{size:?}")).size(size));
     }
     ui.mineral(Text::new("bold", "Bold").weight(TextWeight::Bold));

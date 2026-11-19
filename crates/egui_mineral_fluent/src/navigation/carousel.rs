@@ -27,6 +27,7 @@ use crate::{
 
 /// Carousel `appearance`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum CarouselAppearance {
     /// `default`: slides fill the viewport.
     #[default]

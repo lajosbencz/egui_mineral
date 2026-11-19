@@ -30,6 +30,7 @@ use super::{Text, avatar::Place};
 
 /// `AvatarGroup` `layout`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum AvatarGroupLayout {
     /// `spread`: spaced apart.
     #[default]
@@ -42,7 +43,7 @@ pub enum AvatarGroupLayout {
 
 impl AvatarGroupLayout {
     /// Every variant.
-    pub const ALL: [Self; 3] = [Self::Spread, Self::Stack, Self::Pie];
+    pub const ALL: &'static [Self] = &[Self::Spread, Self::Stack, Self::Pie];
 }
 
 // utils/partitionAvatarGroupItems.ts: inline and overflow items; `pie` keeps every item in the overflow

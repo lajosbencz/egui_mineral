@@ -16,6 +16,7 @@ pub struct TypeSpec {
 
 /// Fluent type ramp (`typographyStyles`), smallest first.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum TypeRamp {
     /// `caption2`.
     Caption2,
@@ -55,7 +56,7 @@ pub enum TypeRamp {
 
 impl TypeRamp {
     /// Every style, smallest first.
-    pub const ALL: [Self; 17] = [
+    pub const ALL: &'static [Self] = &[
         Self::Caption2,
         Self::Caption2Strong,
         Self::Caption1,
@@ -178,11 +179,7 @@ impl TypeRamp {
 
     /// Font and line height; glyphs center in the line box.
     pub fn format(self, ctx: &egui::Context, color: Color32) -> TextFormat {
-        let spec = self.spec();
-        TextFormat {
-            line_height: Some(spec.line_height),
-            ..TextFormat::simple(self.font(ctx), color)
-        }
+        format(ctx, self.spec(), color)
     }
 }
 
@@ -197,10 +194,10 @@ pub fn font(ctx: &egui::Context, size: f32, weight: u16) -> FontId {
     FontId::new(size, family)
 }
 
-/// [`TextFormat`] of `size` and `weight` with a `line_height` line box.
-pub fn format(ctx: &egui::Context, size: f32, line_height: f32, weight: u16, color: Color32) -> TextFormat {
+/// [`TextFormat`] of `spec`: its font with a `line_height` line box.
+pub fn format(ctx: &egui::Context, spec: TypeSpec, color: Color32) -> TextFormat {
     TextFormat {
-        line_height: Some(line_height),
-        ..TextFormat::simple(font(ctx, size, weight), color)
+        line_height: Some(spec.line_height),
+        ..TextFormat::simple(font(ctx, spec.size, spec.weight), color)
     }
 }

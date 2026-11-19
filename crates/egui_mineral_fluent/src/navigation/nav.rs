@@ -25,6 +25,7 @@ use crate::{
 
 /// `density` of a [`Nav`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum NavDensity {
     /// `medium`: 40pt rows.
     #[default]
@@ -623,7 +624,7 @@ impl<'a> Nav<'a> {
 
 /// Fluent `NavDrawer`: a [`Nav`] in an inline panel on the start edge, on `colorNeutralBackground4`.
 #[derive(Debug)]
-#[must_use = "call .show_inline(..)"]
+#[must_use = "call .show(..)"]
 pub struct NavDrawer<'a> {
     nav: Nav<'a>,
     width: f32,
@@ -665,11 +666,7 @@ impl<'a> NavDrawer<'a> {
     }
 
     /// Docked in the layout of `ui` on the start edge, beside what is added after it.
-    pub fn show_inline<R>(
-        self,
-        ui: &mut MineralUi<'_, Fluent>,
-        add: impl FnOnce(&mut NavUi<'_, '_>) -> R,
-    ) -> NavResponse<R> {
+    pub fn show<R>(self, ui: &mut MineralUi<'_, Fluent>, add: impl FnOnce(&mut NavUi<'_, '_>) -> R) -> NavResponse<R> {
         let rt = ui.rt();
         let t = rt.tokens();
         let dir = rt.i18n().direction();

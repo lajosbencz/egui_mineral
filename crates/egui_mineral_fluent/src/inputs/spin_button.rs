@@ -11,6 +11,7 @@ use egui_mineral::{
 };
 use std::sync::Arc;
 
+use super::field::Validation;
 use super::{
     bar::digits,
     textbox::{self, Chrome, Edit, InputAppearance, Live},
@@ -86,13 +87,13 @@ impl<'a> SpinButton<'a> {
     }
 
     /// `contentBefore`: icon leading the text.
-    pub fn content_before(mut self, icon: impl Into<egui_mineral::icon::Icon>) -> Self {
+    pub fn icon_before(mut self, icon: impl Into<egui_mineral::icon::Icon>) -> Self {
         self.before = Some(icon.into());
         self
     }
 
     /// `contentAfter`: icon trailing the text, before the step buttons.
-    pub fn content_after(mut self, icon: impl Into<egui_mineral::icon::Icon>) -> Self {
+    pub fn icon_after(mut self, icon: impl Into<egui_mineral::icon::Icon>) -> Self {
         self.after = Some(icon.into());
         self
     }
@@ -115,9 +116,10 @@ impl<'a> SpinButton<'a> {
         self
     }
 
-    /// `aria-invalid`: red border until focused.
-    pub fn invalid(mut self, invalid: bool) -> Self {
-        self.invalid = invalid;
+    /// Validation state, as [`FieldContext::validation`](super::FieldContext::validation) hands it over;
+    /// [`Validation::Error`] is `aria-invalid`: red border until focused.
+    pub fn validation(mut self, validation: Option<Validation>) -> Self {
+        self.invalid = validation == Some(Validation::Error);
         self
     }
 

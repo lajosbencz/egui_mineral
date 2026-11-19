@@ -37,6 +37,7 @@ use super::{Avatar, AvatarShape, AvatarSize};
 
 /// Tag `appearance`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum TagAppearance {
     /// `filled`.
     #[default]
@@ -49,11 +50,12 @@ pub enum TagAppearance {
 
 impl TagAppearance {
     /// Every variant.
-    pub const ALL: [Self; 3] = [Self::Filled, Self::Outline, Self::Brand];
+    pub const ALL: &'static [Self] = &[Self::Filled, Self::Outline, Self::Brand];
 }
 
 /// Tag `shape`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum TagShape {
     /// `rounded`: `borderRadiusMedium`.
     #[default]
@@ -64,11 +66,12 @@ pub enum TagShape {
 
 impl TagShape {
     /// Every variant.
-    pub const ALL: [Self; 2] = [Self::Rounded, Self::Circular];
+    pub const ALL: &'static [Self] = &[Self::Rounded, Self::Circular];
 }
 
 /// Tag `size`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum TagSize {
     /// `medium`: 32 high.
     #[default]
@@ -81,7 +84,7 @@ pub enum TagSize {
 
 impl TagSize {
     /// Every variant, largest first.
-    pub const ALL: [Self; 3] = [Self::Medium, Self::Small, Self::ExtraSmall];
+    pub const ALL: &'static [Self] = &[Self::Medium, Self::Small, Self::ExtraSmall];
 
     const fn metrics(self) -> d::Metrics {
         match self {
@@ -696,7 +699,7 @@ pub struct InteractionTagResponse {
     /// Primary button activated this frame.
     pub clicked: bool,
     /// Secondary button clicked, or Delete or Backspace pressed on it.
-    pub dismissed: bool,
+    pub dismiss_clicked: bool,
 }
 
 impl<'a> InteractionTag<'a> {
@@ -807,7 +810,7 @@ impl<'a> InteractionTag<'a> {
             });
             InteractionTagResponse {
                 clicked: *p.output(),
-                dismissed: s.as_ref().is_some_and(|s| *s.output()),
+                dismiss_clicked: s.as_ref().is_some_and(|s| *s.output()),
                 secondary: s.map(WidgetResponse::into_response),
                 response: p.into_response(),
             }
@@ -915,8 +918,8 @@ impl Entry<'_> {
 pub struct TagGroupResponse {
     /// Spans every tag; `mark_changed` when the selection changed.
     pub response: egui::Response,
-    /// `value` of the tag dismissed this frame: remove it from the data.
-    pub dismissed: Option<String>,
+    /// `value` of the tag whose dismiss button was pressed this frame: remove it from the data.
+    pub removed: Option<String>,
     /// Agrees with `response.changed()`: a primary click toggled the bound selection.
     pub changed: bool,
 }
@@ -1048,7 +1051,7 @@ impl<'a> TagGroup<'a> {
                                 {
                                     toggled |= s.toggle(t.value.clone());
                                 }
-                                if r.dismissed {
+                                if r.dismiss_clicked {
                                     dismissed = Some(t.value.clone());
                                 }
                             }
@@ -1079,7 +1082,7 @@ impl<'a> TagGroup<'a> {
         }
         TagGroupResponse {
             response,
-            dismissed,
+            removed: dismissed,
             changed: toggled,
         }
     }

@@ -20,6 +20,7 @@ use crate::{
 
 /// `ProgressBar` `thickness`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum ProgressThickness {
     /// `medium`: 2.
     #[default]
@@ -30,7 +31,7 @@ pub enum ProgressThickness {
 
 impl ProgressThickness {
     /// Every variant.
-    pub const ALL: [Self; 2] = [Self::Medium, Self::Large];
+    pub const ALL: &'static [Self] = &[Self::Medium, Self::Large];
 
     const fn height(self) -> f32 {
         match self {
@@ -42,6 +43,7 @@ impl ProgressThickness {
 
 /// `ProgressBar` `shape`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum ProgressShape {
     /// `rounded`: `borderRadiusMedium`.
     #[default]
@@ -52,7 +54,7 @@ pub enum ProgressShape {
 
 impl ProgressShape {
     /// Every variant.
-    pub const ALL: [Self; 2] = [Self::Rounded, Self::Square];
+    pub const ALL: &'static [Self] = &[Self::Rounded, Self::Square];
 }
 
 /// Fluent `ProgressBar`: a full-width track with a fill, or a sweeping bar without a value.

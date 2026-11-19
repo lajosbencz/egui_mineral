@@ -26,6 +26,7 @@ const ARC_STEPS: u8 = 24;
 
 /// Spinner `size`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum SpinnerSize {
     /// `extra-tiny`: 16.
     ExtraTiny,
@@ -48,7 +49,7 @@ pub enum SpinnerSize {
 
 impl SpinnerSize {
     /// Every variant, smallest first.
-    pub const ALL: [Self; 8] = [
+    pub const ALL: &'static [Self] = &[
         Self::ExtraTiny,
         Self::Tiny,
         Self::ExtraSmall,
@@ -91,6 +92,7 @@ impl SpinnerSize {
 
 /// Side of the ring the label sits on (`labelPosition`); before and after follow the text direction.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum SpinnerLabelPosition {
     /// `before`: leading.
     Before,
@@ -105,11 +107,12 @@ pub enum SpinnerLabelPosition {
 
 impl SpinnerLabelPosition {
     /// Every variant.
-    pub const ALL: [Self; 4] = [Self::Before, Self::After, Self::Above, Self::Below];
+    pub const ALL: &'static [Self] = &[Self::Before, Self::After, Self::Above, Self::Below];
 }
 
 /// Spinner `appearance`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum SpinnerAppearance {
     /// `primary`: brand arc on a contrast ring.
     #[default]
@@ -120,7 +123,7 @@ pub enum SpinnerAppearance {
 
 impl SpinnerAppearance {
     /// Every variant.
-    pub const ALL: [Self; 2] = [Self::Primary, Self::Inverted];
+    pub const ALL: &'static [Self] = &[Self::Primary, Self::Inverted];
 }
 
 /// Fluent `Spinner`: a spinning arc on a ring with an optional label; static while motion is reduced.

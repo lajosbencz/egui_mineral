@@ -22,6 +22,7 @@ use crate::{
 
 /// How the tooltip text relates to its trigger (`relationship`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum TooltipRelationship {
     /// `label`: the text is the trigger's accessible name.
     Label,
@@ -34,6 +35,7 @@ pub enum TooltipRelationship {
 
 /// Tooltip `appearance`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum TooltipAppearance {
     /// Neutral surface.
     #[default]
@@ -44,7 +46,7 @@ pub enum TooltipAppearance {
 
 impl TooltipAppearance {
     /// Every variant.
-    pub const ALL: [Self; 2] = [Self::Normal, Self::Inverted];
+    pub const ALL: &'static [Self] = &[Self::Normal, Self::Inverted];
 }
 
 /// Result of [`Tooltip::show`].

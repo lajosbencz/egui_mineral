@@ -1,6 +1,8 @@
-use std::collections::BTreeSet;
-
-use egui_mineral::expand::Expansion;
+use egui_mineral::{
+    expand::Expansion,
+    layout::Axis,
+    select::{Selection, SelectionMode},
+};
 use egui_mineral_fluent::{
     ColorToken, FluentExt, Size,
     actions::PushButton,
@@ -9,7 +11,7 @@ use egui_mineral_fluent::{
     navigation::{
         Breadcrumb, BreadcrumbButton, Carousel, Menu, MenuGrid, MenuGridAction, MenuGridItem, MenuGridRow, Nav,
         NavCategory, NavDensity, NavDrawer, NavItem, NavSubItem, Tab, TabAppearance, TabList, Toolbar,
-        ToolbarToggleButton, Tree, TreeItem, TreeItemLayout, TreeItemPersonaLayout, TreeSelection,
+        ToolbarToggleButton, Tree, TreeItem, TreeItemLayout, TreeItemPersonaLayout,
     },
     spec::defaults::{carousel as cdef, menu, menu_grid as mgdef, nav as ndef, tab, toolbar, tree as tdef},
     typography::TypeRamp,
@@ -24,7 +26,7 @@ fn list(size: Size, appearance: TabAppearance, vertical: bool) -> impl FnMut(&mu
             .tabs(["One", "Two"])
             .size(size)
             .appearance(appearance)
-            .vertical(vertical)
+            .axis(if vertical { Axis::Vertical } else { Axis::Horizontal })
             .show(ui);
     }
 }
@@ -289,7 +291,7 @@ fn nav_rows_fill_with_the_nav_background() {
 fn nav_drawer_is_260_wide_with_body_padding() {
     let p = render(|ui| {
         let mut selected = None;
-        NavDrawer::new("n", "Main", &mut selected).show_inline(ui, |nav| {
+        NavDrawer::new("n", "Main", &mut selected).show(ui, |nav| {
             nav.item(NavItem::new(1, "Home"));
         });
     });
@@ -309,29 +311,34 @@ fn tree_items() -> Vec<TreeItem> {
         TreeItem::new("c", "Gamma").layout(
             TreeItemPersonaLayout::new()
                 .media(Avatar::new("p", "Pat Lee"))
-                .description("Desc"),
+                .secondary_text("Desc"),
         ),
         TreeItem::new("d", "Delta").layout(TreeItemPersonaLayout::new()),
     ]
 }
 
-fn tree_pass(size: Size, mode: TreeSelection) -> Pass {
+fn tree_pass(size: Size, mode: Option<SelectionMode>) -> Pass {
     let items = tree_items();
     let mut open = Expansion::default();
     open.expand("a".to_owned());
-    let mut checked = BTreeSet::from(["b".to_owned()]);
+    let mut checked = match mode {
+        Some(SelectionMode::Multiple) => Selection::multiple(),
+        _ => Selection::single(),
+    }
+    .with(["b".to_owned()]);
     render(move |ui| {
-        Tree::items("t", "Files", &items, &mut open)
-            .size(size)
-            .selection(mode, &mut checked)
-            .show(ui);
+        let mut tree = Tree::items("t", "Files", &items, &mut open).size(size);
+        if mode.is_some() {
+            tree = tree.selection(&mut checked);
+        }
+        tree.show(ui);
     })
 }
 
 #[test]
 fn tree_rows_are_the_size_height_with_the_row_gap() {
     for (size, height) in [(Size::Small, tdef::MIN_HEIGHT_SMALL), (Size::Medium, tdef::MIN_HEIGHT)] {
-        let p = tree_pass(size, TreeSelection::None);
+        let p = tree_pass(size, None);
         let (a, a1) = (tab_rect(&p, "t-a-treeitem"), tab_rect(&p, "t-a1-treeitem"));
         assert!((a.height() - height).abs() < 0.5, "{size:?}: {a:?}");
         assert!(
@@ -343,7 +350,7 @@ fn tree_rows_are_the_size_height_with_the_row_gap() {
 
 #[test]
 fn tree_persona_rows_grow_with_the_description() {
-    let p = tree_pass(Size::Medium, TreeSelection::None);
+    let p = tree_pass(Size::Medium, None);
     let described = tab_rect(&p, "t-c-treeitem").height();
     let plain = tab_rect(&p, "t-d-treeitem").height();
     let (block, ..) = tdef::PERSONA_MAIN_PADDING;
@@ -357,7 +364,7 @@ fn tree_persona_rows_grow_with_the_description() {
 
 #[test]
 fn tree_labels_indent_one_level_per_depth_and_leaves_skip_the_chevron_slot() {
-    let p = tree_pass(Size::Medium, TreeSelection::None);
+    let p = tree_pass(Size::Medium, None);
     let branch = p.text("Alpha").left() - tab_rect(&p, "t-a-treeitem").left();
     let child = p.text("Apple").left() - tab_rect(&p, "t-a1-treeitem").left();
     let leaf = p.text("Beta").left() - tab_rect(&p, "t-b-treeitem").left();
@@ -374,8 +381,8 @@ fn tree_labels_indent_one_level_per_depth_and_leaves_skip_the_chevron_slot() {
 
 #[test]
 fn tree_selectors_take_the_checkbox_slot_and_fill_when_checked() {
-    let off = tree_pass(Size::Medium, TreeSelection::None);
-    let on = tree_pass(Size::Medium, TreeSelection::Multiple);
+    let off = tree_pass(Size::Medium, None);
+    let on = tree_pass(Size::Medium, Some(SelectionMode::Multiple));
     let slot = tdef::SELECTOR_INDICATOR + 2.0 * tdef::SELECTOR_MARGIN;
     let shift = on.text("Alpha").left() - off.text("Alpha").left();
     assert!((shift - slot).abs() < 0.5, "{shift}");
@@ -386,7 +393,7 @@ fn tree_selectors_take_the_checkbox_slot_and_fill_when_checked() {
 
 #[test]
 fn tree_aside_sits_at_the_end_of_the_row() {
-    let p = tree_pass(Size::Medium, TreeSelection::None);
+    let p = tree_pass(Size::Medium, None);
     let row = tab_rect(&p, "t-b-treeitem");
     let aside = p.text("3");
     assert!(
@@ -401,7 +408,7 @@ fn grid_pass() -> Pass {
         MenuGrid::new("g", "Actions").show(ui.rt(), &trigger, &mut true, |g| {
             g.row(
                 MenuGridRow::new()
-                    .cell(MenuGridItem::new("Cut").icon(ICON_CUT).sub_text("Ctrl+X"))
+                    .cell(MenuGridItem::new("Cut").icon(ICON_CUT).secondary_text("Ctrl+X"))
                     .cell(MenuGridAction::new("More", ICON_MORE_HORIZONTAL)),
             );
             g.row(

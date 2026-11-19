@@ -30,6 +30,7 @@ use crate::{
 
 /// Side of the label a [`Radio`] puts it on (`labelPosition`); mirrored in right-to-left locales.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum RadioLabelPosition {
     /// `after`: trailing the circle.
     #[default]
@@ -126,9 +127,11 @@ impl Radio {
         let label = self.label_visible.then(|| {
             let format = crate::typography::format(
                 ui.ctx(),
-                ty::FONT_SIZE_BASE_300,
-                ty::LINE_HEIGHT_BASE_300,
-                ty::FONT_WEIGHT_REGULAR,
+                crate::typography::TypeSpec {
+                    size: ty::FONT_SIZE_BASE_300,
+                    line_height: ty::LINE_HEIGHT_BASE_300,
+                    weight: ty::FONT_WEIGHT_REGULAR,
+                },
                 Color32::PLACEHOLDER,
             );
             spec.label(ui.core(), ui.painter(), &self.label, &format, self.mnemonic, max)
@@ -285,6 +288,7 @@ impl<T> RadioOption<T> {
 
 /// `layout` of a [`RadioGroup`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum RadioLayout {
     /// `vertical`: a column.
     #[default]

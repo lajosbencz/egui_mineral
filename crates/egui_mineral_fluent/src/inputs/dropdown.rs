@@ -9,6 +9,7 @@ use egui_mineral::{
     widget::{Availability, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
 };
 
+use super::field::Validation;
 use super::listbox::{self, Flat, ListEntry, View};
 use super::textbox::{self, Chrome, InputAppearance, Live};
 use super::value::{self, ListState, Value};
@@ -102,14 +103,15 @@ impl<'a> Dropdown<'a> {
     }
 
     /// `contentBefore`: icon leading the text.
-    pub fn content_before(mut self, icon: impl Into<egui_mineral::icon::Icon>) -> Self {
+    pub fn icon_before(mut self, icon: impl Into<egui_mineral::icon::Icon>) -> Self {
         self.before = Some(icon.into());
         self
     }
 
-    /// `aria-invalid`: red border until focused.
-    pub fn invalid(mut self, invalid: bool) -> Self {
-        self.invalid = invalid;
+    /// Validation state, as [`FieldContext::validation`](super::FieldContext::validation) hands it over;
+    /// [`Validation::Error`] is `aria-invalid`: red border until focused.
+    pub fn validation(mut self, validation: Option<Validation>) -> Self {
+        self.invalid = validation == Some(Validation::Error);
         self
     }
 

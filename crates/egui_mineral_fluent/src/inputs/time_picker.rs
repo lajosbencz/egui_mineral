@@ -9,6 +9,7 @@ use egui_mineral::{
 };
 
 use super::combobox::Combobox;
+use super::field::Validation;
 use super::listbox::{ListEntry, ListOption};
 use super::textbox::{FieldOutput, InputAppearance};
 use crate::{Fluent, Size, spec::defaults::time_picker as tp};
@@ -38,7 +39,7 @@ pub struct TimePicker<'a> {
     size: Size,
     placeholder: Option<String>,
     before: Option<egui_mineral::icon::Icon>,
-    invalid: bool,
+    validation: Option<Validation>,
     disabled: bool,
 }
 
@@ -59,7 +60,7 @@ impl<'a> TimePicker<'a> {
             size: Size::Medium,
             placeholder: None,
             before: None,
-            invalid: false,
+            validation: None,
             disabled: false,
         }
     }
@@ -113,14 +114,15 @@ impl<'a> TimePicker<'a> {
     }
 
     /// `contentBefore`: icon leading the text.
-    pub fn content_before(mut self, icon: impl Into<egui_mineral::icon::Icon>) -> Self {
+    pub fn icon_before(mut self, icon: impl Into<egui_mineral::icon::Icon>) -> Self {
         self.before = Some(icon.into());
         self
     }
 
-    /// `aria-invalid`: red border until focused.
-    pub fn invalid(mut self, invalid: bool) -> Self {
-        self.invalid = invalid;
+    /// Validation state, as [`FieldContext::validation`](super::FieldContext::validation) hands it over;
+    /// [`Validation::Error`] is `aria-invalid`: red border until focused.
+    pub fn validation(mut self, validation: Option<Validation>) -> Self {
+        self.validation = validation;
         self
     }
 
@@ -208,7 +210,7 @@ impl Composite for TimePicker<'_> {
         .appearance(self.appearance)
         .size(self.size)
         .freeform(self.freeform)
-        .invalid(self.invalid)
+        .validation(self.validation)
         .disabled(self.disabled)
         .list_max(tp::LISTBOX_MAX_HEIGHT)
         .agent_key(self.key.id(&self.salt));
@@ -216,7 +218,7 @@ impl Composite for TimePicker<'_> {
             combo = combo.placeholder(p.clone());
         }
         if let Some(i) = self.before {
-            combo = combo.content_before(i);
+            combo = combo.icon_before(i);
         }
         let out = ui.mineral(combo.constrain(constraints));
         let output = *out.output();

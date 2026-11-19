@@ -22,11 +22,6 @@ impl FluentIcon {
     pub const fn filled(self) -> char {
         self.filled
     }
-
-    /// [`Self::filled`] when `filled`, else [`Self::regular`].
-    pub const fn glyph(self, filled: bool) -> char {
-        if filled { self.filled } else { self.regular }
-    }
 }
 
 impl From<FluentIcon> for Icon {

@@ -323,7 +323,7 @@ fn field_label_width_sets_the_horizontal_label_column() {
     let h = harness(String::new(), |ui, text| {
         Field::new("f")
             .label("Name")
-            .orientation(Axis::Horizontal)
+            .axis(Axis::Horizontal)
             .label_width(100.0)
             .show(ui, |ui, _| ui.mineral(Input::new("f-in", "Name", text)));
     });

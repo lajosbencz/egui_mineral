@@ -91,6 +91,7 @@ impl OptionGroup {
 
 /// Child of a list: one [`ListOption`] or an [`OptionGroup`].
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum ListEntry {
     /// Ungrouped option.
     Option(ListOption),
@@ -269,7 +270,7 @@ pub(crate) fn show(
                 .stroke(Stroke::new(g::STROKE_WIDTH_THIN, t.color(ColorTransparentStroke)))
                 .corner_radius(radius)
                 .inner_margin(Margin::same(LIST_PAD as i8))
-                .shadow(t.shadow(Elevation::E16, ShadowTint::Neutral)[0])
+                .shadow(t.shadow(Elevation::E16, ShadowTint::Neutral).ambient)
                 .show(ui, |ui| {
                     ui.set_width(width - frame_pad);
                     ui.spacing_mut().item_spacing = Vec2::new(0.0, ROW_GAP);
@@ -397,9 +398,11 @@ fn group_heading(
     let (rect, _) = ui.allocate_exact_size(vec2(width, GROUP_H), Sense::hover());
     let format = crate::typography::format(
         ui.ctx(),
-        ty::FONT_SIZE_BASE_200,
-        ty::LINE_HEIGHT_BASE_200,
-        ty::FONT_WEIGHT_SEMIBOLD,
+        crate::typography::TypeSpec {
+            size: ty::FONT_SIZE_BASE_200,
+            line_height: ty::LINE_HEIGHT_BASE_200,
+            weight: ty::FONT_WEIGHT_SEMIBOLD,
+        },
         t.color(ColorNeutralForeground3),
     );
     let galley = ui.painter().layout(
@@ -466,9 +469,11 @@ fn option_row(
     let text_off = check_x + check_box + g::SPACING_HORIZONTAL_XXS + g::SPACING_HORIZONTAL_XS;
     let format = crate::typography::format(
         ui.ctx(),
-        ty::FONT_SIZE_BASE_300,
-        OPTION_LINE,
-        ty::FONT_WEIGHT_REGULAR,
+        crate::typography::TypeSpec {
+            size: ty::FONT_SIZE_BASE_300,
+            line_height: OPTION_LINE,
+            weight: ty::FONT_WEIGHT_REGULAR,
+        },
         t.color(fore),
     );
     let max_w = (width - text_off - OPTION_PAD_H).max(1.0);

@@ -10,7 +10,7 @@ use crate::support::{FluentHarness, harness, render};
 
 #[test]
 fn text_is_one_line_box_of_its_size() {
-    for size in TextSize::ALL {
+    for &size in TextSize::ALL {
         let h = harness((), move |ui, ()| {
             ui.mineral(Text::new("t", "Hello").size(size));
         });
@@ -76,7 +76,7 @@ mod avatar {
 
     #[test]
     fn side_is_the_size() {
-        for size in AvatarSize::ALL {
+        for &size in AvatarSize::ALL {
             let h = harness((), move |ui, ()| {
                 ui.mineral(Avatar::new("a", "Kat Larrson").size(size));
             });
@@ -182,7 +182,11 @@ mod persona {
     #[test]
     fn media_size_follows_the_persona_size() {
         // avatarSizes
-        for (size, side) in PersonaSize::ALL.into_iter().zip([20.0, 28.0, 32.0, 36.0, 40.0, 56.0]) {
+        for (size, side) in PersonaSize::ALL
+            .iter()
+            .copied()
+            .zip([20.0, 28.0, 32.0, 36.0, 40.0, 56.0])
+        {
             let r = rect(move || Persona::new("p", "Kat Larrson").size(size));
             assert!(r.height() >= side, "{size:?}");
         }
@@ -265,7 +269,7 @@ mod tag {
 
     #[test]
     fn height_follows_the_size() {
-        for (size, height) in TagSize::ALL.into_iter().zip([32.0, 24.0, 20.0]) {
+        for (size, height) in TagSize::ALL.iter().copied().zip([32.0, 24.0, 20.0]) {
             let h = harness((), move |ui, ()| {
                 ui.mineral(Tag::new("t", "Tag").size(size));
             });
@@ -350,7 +354,8 @@ mod table {
             ui.set_max_width(120.0);
             Table::new("t", "T", ["A"]).show(ui, 1, |ui, _, _| {
                 ui.mineral(
-                    TableCellLayout::new("c", "A very long person name that overruns").description("Also a long role"),
+                    TableCellLayout::new("c", "A very long person name that overruns")
+                        .secondary_text("Also a long role"),
                 );
             });
         });
@@ -382,7 +387,7 @@ mod table {
 
     #[test]
     fn rows_are_the_size_height() {
-        for (size, height) in TableSize::ALL.into_iter().zip(d::ROW_HEIGHTS) {
+        for (size, height) in TableSize::ALL.iter().copied().zip(d::ROW_HEIGHTS) {
             let (table, _) = rects(size, false);
             assert_eq!(table.height(), 3.0 * height, "{size:?}: a header and two rows");
         }
