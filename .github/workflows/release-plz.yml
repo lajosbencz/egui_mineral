@@ -8,14 +8,31 @@ on:
 permissions: {}
 
 jobs:
+  gate:
+    name: Release merge
+    if: ${{ github.repository_owner == 'lajosbencz' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: read
+    outputs:
+      release: ${{ steps.check.outputs.release }}
+    steps:
+      # The pushed commit is the merge of a PR labelled `release` (release-plz `pr_labels`).
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+        run: |
+          release=$(gh api "repos/$GITHUB_REPOSITORY/commits/$SHA/pulls" --jq \
+            'any(.[]; .merged_at != null and .merge_commit_sha == env.SHA and any(.labels[]; .name == "release"))')
+          echo "release=$release" >> "$GITHUB_OUTPUT"
+
   release:
     name: Publish
-    # Only a merged release PR (merge commit from a release-plz-* branch, or its squashed `chore: release` title)
-    # enters the crates-io environment.
-    if: >-
-      github.repository_owner == 'lajosbencz' &&
-      (contains(github.event.head_commit.message, '/release-plz-') ||
-      startsWith(github.event.head_commit.message, 'chore: release'))
+    needs: gate
+    # Only a merged release PR enters the crates-io environment.
+    if: ${{ needs.gate.outputs.release == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: crates-io

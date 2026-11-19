@@ -1,5 +1,5 @@
 //! Generates `egui_mineral_material`'s `icons` module from the Material Symbols codepoints file of the
-//! `egui_material_icons` version in `Cargo.lock`. `generate` is offline and deterministic.
+//! `egui_material_icons` version in `Cargo.lock`. `generate` is deterministic; it resolves with `--locked`.
 
 use std::{
     collections::{HashMap, HashSet},
@@ -49,7 +49,7 @@ fn generate() -> Res<()> {
 
 fn metadata() -> Res<Value> {
     let out = Command::new(env::var("CARGO").unwrap_or_else(|_| "cargo".into()))
-        .args(["metadata", "--format-version", "1", "--offline"])
+        .args(["metadata", "--format-version", "1", "--locked"])
         .output()?;
     if !out.status.success() {
         return Err(format!("cargo metadata: {}", String::from_utf8_lossy(&out.stderr)).into());
