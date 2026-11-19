@@ -34,7 +34,8 @@ impl Stylekit for Kit {
         Policies::baseline()
     }
     fn catalogs(&self) -> &'static [Catalog] {
-        &[("en", "hello = Hello")]
+        static CATALOGS: [Catalog; 1] = [Catalog::new("en", "hello = Hello")];
+        &CATALOGS
     }
     fn setup(&self, _: &egui::Context) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         Ok(())
@@ -42,7 +43,6 @@ impl Stylekit for Kit {
     fn style(&self, ctx: &egui::Context, theme: egui::Theme) -> std::sync::Arc<egui::Style> {
         ctx.style_of(theme)
     }
-    fn paint_window_close(&self, _: &egui::Ui, _: egui::Rect, _: &egui::Response) {}
 }
 
 let ctx = egui::Context::default();

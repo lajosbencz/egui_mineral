@@ -2,10 +2,11 @@
 
 use egui::{Id, Key, Memory, Modifiers};
 
-use crate::{kit::state::TempState, runtime::Core, shortcut};
+use crate::{kit::state::TempState, runtime::Core, shortcut, widget::Availability};
 
 /// Menu bar state in temp memory, keyed by the bar id.
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct BarState {
     /// Open menu.
     pub open: Option<usize>,
@@ -29,9 +30,10 @@ impl BarState {
     }
 
     /// Windows and Linux menu bar toggle: F10 or a lone Alt focuses the trigger `stop` of `ids`, again returns focus.
-    pub fn toggle_activation(&mut self, core: &Core, disabled: bool, ids: &[Id], stop: usize) {
+    /// A disabled bar ignores both.
+    pub fn toggle_activation(&mut self, core: &Core, availability: Availability, ids: &[Id], stop: usize) {
         let ctx = core.ctx();
-        if !core.policies().mnemonics || disabled {
+        if !core.policies().mnemonics || !availability.is_enabled() {
             return;
         }
         let f10 = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::F10));

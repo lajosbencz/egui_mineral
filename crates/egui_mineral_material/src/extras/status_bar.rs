@@ -1,9 +1,9 @@
 use crate::Material;
 use crate::MaterialExt;
-use egui::{Color32, Pos2, Rangef, Rect, Response, Sense, Stroke, Vec2, pos2, vec2};
-use egui_mineral::icon::Icon;
+use egui::{Pos2, Rangef, Rect, Response, Sense, Stroke, Vec2, pos2, vec2};
 use egui_mineral::kit::strip;
 use egui_mineral::semantic::KeyedSalt;
+use egui_mineral::status::StatusLead;
 use egui_mineral::widget::{Availability, MineralUi};
 use egui_mineral::{
     i18n::Direction,
@@ -28,119 +28,13 @@ const CONTAINER: ColorRole = ColorRole::SurfaceContainer;
 const CONTENT: ColorRole = ColorRole::OnSurfaceVariant;
 const TEXT: TypeScale = TypeScale::BodySmall;
 
-/// Progress indicator of a [`StatusItem`]: the fraction done, `None` for indeterminate.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum StatusProgress {
-    /// Circular indicator.
-    Circular(Option<f32>),
-    /// Linear indicator, fixed at 48dp wide.
-    Linear(Option<f32>),
-}
+pub use egui_mineral::status::{StatusItem, StatusProgress, StatusTone};
 
-#[derive(Clone, Copy, Debug)]
-enum Lead {
-    Icon(Icon),
-    Progress(StatusProgress),
-}
-
-impl Lead {
-    fn width(self) -> f32 {
-        match self {
-            Self::Icon(_) | Self::Progress(StatusProgress::Circular(_)) => ICON,
-            Self::Progress(StatusProgress::Linear(_)) => LINEAR,
-        }
-    }
-}
-
-/// Color treatment of a [`StatusItem`]; MD3 has no warning role, so there is none.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[non_exhaustive]
-pub enum StatusTone {
-    /// Bar container and content colors.
-    #[default]
-    Default,
-    /// Error container and on-error-container content.
-    Error,
-}
-
-/// Text, with an optional icon or progress indicator, in a [`StatusBar`].
-#[derive(Clone, Debug)]
-#[must_use]
-pub struct StatusItem {
-    text: String,
-    lead: Option<Lead>,
-    tooltip: Option<String>,
-    clickable: bool,
-    tone: StatusTone,
-    colors: Option<(Color32, Color32)>,
-    elide: bool,
-}
-
-impl StatusItem {
-    /// `text` is shown and is the accessible name.
-    pub fn new(text: impl Into<String>) -> Self {
-        Self {
-            text: text.into(),
-            lead: None,
-            tooltip: None,
-            clickable: false,
-            tone: StatusTone::Default,
-            colors: None,
-            elide: false,
-        }
-    }
-
-    /// Icon before the text; replaces a [`progress`](Self::progress) indicator.
-    pub fn icon(mut self, icon: impl Into<Icon>) -> Self {
-        self.lead = Some(Lead::Icon(icon.into()));
-        self
-    }
-
-    /// Progress indicator before the text; replaces an [`icon`](Self::icon). The indicator is named by the item
-    /// text, agent key `<id_salt>-<index>-progress`.
-    pub fn progress(mut self, progress: StatusProgress) -> Self {
-        self.lead = Some(Lead::Progress(progress));
-        self
-    }
-
-    /// [`PlainTooltip`] on hover; also the item's accessible description.
-    pub fn tooltip(mut self, tooltip: impl Into<String>) -> Self {
-        self.tooltip = Some(tooltip.into());
-        self
-    }
-
-    /// Focusable button, reported in [`StatusBarResponse::clicked`]; default `false`.
-    pub fn clickable(mut self, clickable: bool) -> Self {
-        self.clickable = clickable;
-        self
-    }
-}
-
-impl StatusItem {
-    /// [`StatusTone`] of the item's strip; default [`StatusTone::Default`].
-    pub fn tone(mut self, tone: StatusTone) -> Self {
-        self.tone = tone;
-        self
-    }
-
-    /// App-chosen strip and text colors, overriding the [`tone`](Self::tone) (e.g. a warning tone,
-    /// which MD3 lacks).
-    pub fn colors(mut self, container: Color32, content: Color32) -> Self {
-        self.colors = Some((container, content));
-        self
-    }
-
-    /// Start items only: the one that overflows ends in an ellipsis at the room left rather than
-    /// vanishing with the following items; default `false`.
-    pub fn elide(mut self, elide: bool) -> Self {
-        self.elide = elide;
-        self
-    }
-}
-
-impl<S: Into<String>> From<S> for StatusItem {
-    fn from(text: S) -> Self {
-        Self::new(text)
+// Linear indicators are fixed at 48dp wide.
+fn lead_width(lead: StatusLead) -> f32 {
+    match lead {
+        StatusLead::Progress(StatusProgress::Linear(_)) => LINEAR,
+        _ => ICON,
     }
 }
 
@@ -209,24 +103,24 @@ impl StatusBar {
             Stroke::new(divider::THICKNESS, t.role(divider::COLOR)),
         );
 
-        let content_of = |it: &StatusItem| match (it.colors, it.tone) {
-            (Some((_, content)), _) => content,
-            (None, StatusTone::Default) => t.role(CONTENT),
+        let content_of = |it: &StatusItem| match (it.custom_colors(), it.tone_kind()) {
+            (Some(colors), _) => colors.content,
             (None, StatusTone::Error) => t.role(ColorRole::OnErrorContainer),
+            (None, _) => t.role(CONTENT),
         };
         let mut galleys: Vec<_> = self
             .items
             .iter()
-            .map(|(it, _)| parts::type_galley(rt.core(), ui.painter(), &it.text, TEXT, content_of(it), None))
+            .map(|(it, _)| parts::type_galley(rt.core(), ui.painter(), it.text(), TEXT, content_of(it), None))
             .collect();
-        let chrome = |i: usize| 2.0 * PAD_X + self.items[i].0.lead.map_or(0.0, |l| l.width() + ICON_GAP);
+        let chrome = |i: usize| 2.0 * PAD_X + self.items[i].0.lead().map_or(0.0, |l| lead_width(l) + ICON_GAP);
         let width = |i: usize, galleys: &[std::sync::Arc<egui::Galley>]| chrome(i) + galleys[i].size().x;
         let measured: Vec<strip::Item> = (0..self.items.len())
-            .map(|i| strip::Item {
-                width: width(i, &galleys),
-                chrome: chrome(i),
-                at_end: self.items[i].1,
-                elide: self.items[i].0.elide,
+            .map(|i| {
+                strip::Item::new(width(i, &galleys))
+                    .chrome(chrome(i))
+                    .at_end(self.items[i].1)
+                    .elide(self.items[i].0.is_elided())
             })
             .collect();
         let slots: Vec<Option<Rect>> = strip::place(rect.width(), &measured)
@@ -236,7 +130,7 @@ impl StatusBar {
             .map(|(i, (placed, (item, at_end)))| {
                 let p = placed?;
                 if let Some(room) = p.elided_room {
-                    galleys[i] = parts::type_wrapped(ui.painter(), &item.text, TEXT, content_of(item), room, 1);
+                    galleys[i] = parts::type_wrapped(ui.painter(), item.text(), TEXT, content_of(item), room, 1);
                 }
                 Some(slot(rect, dir, *at_end, p.offset, p.width))
             })
@@ -246,18 +140,19 @@ impl StatusBar {
         for (i, ((item, _), galley)) in self.items.iter().zip(galleys).enumerate() {
             let Some(r) = slots[i] else { continue };
             let content = content_of(item);
-            match (item.colors, item.tone) {
-                (Some((container, _)), _) => {
-                    ui.painter().rect_filled(r, 0, container);
+            match (item.custom_colors(), item.tone_kind()) {
+                (Some(colors), _) => {
+                    ui.painter().rect_filled(r, 0, colors.container);
                 }
                 (None, StatusTone::Error) => {
                     ui.painter().rect_filled(r, 0, t.role(ColorRole::ErrorContainer));
                 }
-                (None, StatusTone::Default) => {}
+                (None, _) => {}
             }
-            let sense = if item.clickable { Sense::click() } else { Sense::hover() };
+            let clickable = item.is_clickable();
+            let sense = if clickable { Sense::click() } else { Sense::hover() };
             let resp = ui.interact(r, id.with(i), sense);
-            if item.clickable {
+            if clickable {
                 if resp.clicked() {
                     clicked = Some(i);
                 }
@@ -266,24 +161,26 @@ impl StatusBar {
             }
             let inner = Rect::from_x_y_ranges(r.left() + PAD_X..=r.right() - PAD_X, r.y_range());
             let mut x = dir.start_x(inner, Rangef::point(0.0));
-            if let Some(lead) = item.lead {
-                let c = pos2(dir.start_x(inner, Rangef::point(lead.width() / 2.0)), r.center().y);
+            if let Some(lead) = item.lead() {
+                let c = pos2(dir.start_x(inner, Rangef::point(lead_width(lead) / 2.0)), r.center().y);
+                let text = item.text();
                 match lead {
-                    Lead::Icon(icon) => common::icon(ui.painter(), c, icon, ICON, content),
-                    Lead::Progress(StatusProgress::Circular(value)) => self.progress(ui, i, &item.text, value, c),
-                    Lead::Progress(StatusProgress::Linear(value)) => self.linear(ui, i, &item.text, value, c),
+                    StatusLead::Icon(icon) => common::icon(ui.painter(), c, icon, ICON, content),
+                    StatusLead::Progress(StatusProgress::Circular(value)) => self.progress(ui, i, text, value, c),
+                    StatusLead::Progress(StatusProgress::Linear(value)) => self.linear(ui, i, text, value, c),
+                    _ => {}
                 }
-                x = dir.start_x(inner, Rangef::point(lead.width() + ICON_GAP));
+                x = dir.start_x(inner, Rangef::point(lead_width(lead) + ICON_GAP));
             }
             let gx = if dir == Direction::Rtl { x - galley.size().x } else { x };
             ui.painter()
                 .galley(pos2(gx, r.center().y - galley.size().y / 2.0), galley, content);
-            if let Some(tip) = &item.tooltip {
+            if let Some(tip) = item.tooltip_text() {
                 PlainTooltip::new(tip).show(rt, &resp);
             }
-            let role = if item.clickable { Role::Button } else { Role::Label };
+            let role = if item.is_clickable() { Role::Button } else { Role::Label };
             semantic::emit(ui.ctx(), Some(resp.id), r, || {
-                SemanticNode::new(StableId::of(&self.salt, (i, "status-item")), role, &item.text)
+                SemanticNode::new(StableId::of(&self.salt, (i, "status-item")), role, item.text())
             });
         }
         semantic::emit(ui.ctx(), Some(response.id), rect, || {

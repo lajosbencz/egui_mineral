@@ -197,6 +197,7 @@ impl<O> Deref for WidgetResponse<O> {
 
 /// Pointer and focus state of an element, read by stylekit state layers.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct Interaction {
     /// Pointer over the response.
     pub hovered: bool,
@@ -260,6 +261,36 @@ impl Interaction {
             dragged: response.dragged(),
             disabled: !availability.is_enabled(),
         }
+    }
+
+    /// Pointer over the response.
+    #[must_use]
+    pub const fn with_hovered(self, hovered: bool) -> Self {
+        Self { hovered, ..self }
+    }
+
+    /// Primary button held down on the response.
+    #[must_use]
+    pub const fn with_pressed(self, pressed: bool) -> Self {
+        Self { pressed, ..self }
+    }
+
+    /// Focus that should be indicated.
+    #[must_use]
+    pub const fn with_focused(self, focused: bool) -> Self {
+        Self { focused, ..self }
+    }
+
+    /// Drag in progress.
+    #[must_use]
+    pub const fn with_dragged(self, dragged: bool) -> Self {
+        Self { dragged, ..self }
+    }
+
+    /// [`Self::dominant`] reports `None` while set.
+    #[must_use]
+    pub const fn with_disabled(self, disabled: bool) -> Self {
+        Self { disabled, ..self }
     }
 
     /// Highest-priority active state in [`InteractionKind`] order; `None` while disabled or idle.

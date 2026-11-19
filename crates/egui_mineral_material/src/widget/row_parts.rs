@@ -329,10 +329,7 @@ impl OptionRow<'_> {
                 (col.label, col.leading) = (t.role(label), t.role(leading));
             }
         }
-        let i = Interaction {
-            focused: self.active,
-            ..Interaction::of(&response, availability)
-        };
+        let i = Interaction::of(&response, availability).with_focused(self.active);
         indication::paint(ui, &response, rect, state.shape(t, dir), col.label, i, t);
         kit::input::hover_cursor(rt.core(), &response, availability);
         let mut cur = dir.cursor(rect);

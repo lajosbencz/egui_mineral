@@ -4,6 +4,7 @@ use egui_mineral::{
     i18n::I18n,
     kit,
     layout::{Axis, Constraints, Measure, MinTarget},
+    select::SelectionResponse,
     semantic::{self, AgentKey, KeyedSalt, Role, SemanticNode, StableId},
     shortcut::Mnemonic,
     widget::{Availability, Interaction, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
@@ -295,18 +296,6 @@ pub enum RadioLayout {
     HorizontalStacked,
 }
 
-/// Outcome of [`RadioGroup::show`].
-#[derive(Clone, Debug)]
-#[non_exhaustive]
-pub struct RadioGroupResponse {
-    /// Group response; `mark_changed` when `changed`.
-    pub response: egui::Response,
-    /// Agrees with `response.changed()`; `selected` is `Some`.
-    pub changed: bool,
-    /// Index picked this frame.
-    pub selected: Option<usize>,
-}
-
 /// Fluent `RadioGroup`: single selection with one Tab stop and arrow-key navigation.
 #[derive(Debug)]
 #[must_use = "show with RadioGroup::show"]
@@ -356,7 +345,7 @@ impl<'a, T: PartialEq + Clone> RadioGroup<'a, T> {
     }
 
     /// Lays out the radios; a pick writes `value` and reports `changed`.
-    pub fn show(self, ui: &mut MineralUi<'_, Fluent>) -> RadioGroupResponse {
+    pub fn show(self, ui: &mut MineralUi<'_, Fluent>) -> SelectionResponse {
         let rt = ui.rt();
         let Self {
             salt,
@@ -417,14 +406,7 @@ impl<'a, T: PartialEq + Clone> RadioGroup<'a, T> {
             n.state.disabled = disabled;
             n
         });
-        let mut response = group;
-        if changed {
-            response.mark_changed();
-        }
-        RadioGroupResponse {
-            response,
-            changed,
-            selected: picked,
-        }
+        let response = group;
+        SelectionResponse::new(response, picked, changed)
     }
 }

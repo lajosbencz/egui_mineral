@@ -39,6 +39,7 @@ pub struct Policies {
 /// Cursor over a hovered interactive element (see [`crate::kit::input::hover_cursor`]); `None` keeps
 /// egui's choice.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct Cursors {
     /// Over enabled interactive elements.
     pub enabled: Option<CursorIcon>,
@@ -46,14 +47,31 @@ pub struct Cursors {
     pub disabled: Option<CursorIcon>,
 }
 
+impl Cursors {
+    /// Cursor over enabled interactive elements.
+    #[must_use]
+    pub const fn enabled(self, cursor: CursorIcon) -> Self {
+        Self {
+            enabled: Some(cursor),
+            ..self
+        }
+    }
+
+    /// Cursor over disabled interactive elements.
+    #[must_use]
+    pub const fn disabled(self, cursor: CursorIcon) -> Self {
+        Self {
+            disabled: Some(cursor),
+            ..self
+        }
+    }
+}
+
 impl Policies {
     /// Neutral desktop values; override fields for a design system.
     pub fn baseline() -> Self {
         Self {
-            target: TargetPolicy {
-                mouse: 24.0,
-                touch: 48.0,
-            },
+            target: TargetPolicy::baseline(),
             breakpoints: [600.0, 840.0].into(),
             fling: Fling {
                 deceleration: 0.998,
@@ -64,11 +82,7 @@ impl Policies {
                 delay: Duration::from_millis(500),
                 interval: Duration::from_millis(100),
             },
-            gestures: GestureConfig {
-                slop: 8.0,
-                long_press: Duration::from_millis(500),
-                swipe_min_velocity: 600.0,
-            },
+            gestures: GestureConfig::baseline(),
             typeahead: Duration::from_secs(1),
             readline: true,
             mnemonics: false,

@@ -126,7 +126,14 @@ impl<'a> Rating<'a> {
     }
 
     fn value_at(&self, rect: Rect, p: Pos2, dir: Direction) -> f64 {
-        egui_mineral::kit::rating::value_at(rect, p, dir, self.cell().0.x, self.max.get(), self.half)
+        egui_mineral::kit::rating::value_at(
+            rect,
+            p,
+            dir,
+            self.cell().0.x,
+            self.max.get(),
+            egui_mineral::kit::rating::Step::half_if(self.half),
+        )
     }
 
     fn text(&self, i18n: &egui_mineral::i18n::I18n, v: f64) -> String {
@@ -229,7 +236,7 @@ impl MineralWidget for Rating<'_> {
             let star = Rect::from_center_size(star(i).center(), Vec2::splat(size));
             let part = (shown - f32::from(i)).clamp(0.0, 1.0);
             if part < 1.0 {
-                common::icon(p, star.center(), Icon::single(icon.regular), size, empty);
+                common::icon(p, star.center(), Icon::single(icon.regular()), size, empty);
             }
             if part > 0.0 {
                 let w = star.width() * part;
@@ -240,7 +247,7 @@ impl MineralWidget for Rating<'_> {
                 common::icon(
                     &p.with_clip_rect(clip),
                     star.center(),
-                    Icon::single(icon.filled),
+                    Icon::single(icon.filled()),
                     size,
                     full,
                 );

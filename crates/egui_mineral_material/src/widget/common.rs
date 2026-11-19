@@ -1,6 +1,7 @@
 use egui::{Color32, CornerRadius, Painter, Pos2, Rect, Shape, Stroke, StrokeKind, epaint::TextShape};
 
 use egui_mineral::anchor::{Align, Anchor, Side};
+use egui_mineral::icon::IconStyle;
 use egui_mineral::widget::InteractionKind;
 
 use crate::{Icon, spec::ElevationLevel, tokens::Tokens};
@@ -154,7 +155,7 @@ pub(crate) fn elevation(p: &Painter, rect: Rect, r: impl Into<CornerRadius>, lev
 }
 
 pub(crate) fn selection_icon(icon: Icon, selected: bool) -> Icon {
-    Icon::single(icon.glyph(selected))
+    Icon::single(icon.glyph(IconStyle::filled_if(selected)))
 }
 
 // Filled form: the Material default.
@@ -163,7 +164,7 @@ pub(crate) fn icon(p: &Painter, center: Pos2, icon: Icon, size: f32, color: Colo
 }
 
 pub(crate) fn icon_shape(p: &Painter, center: Pos2, icon: Icon, size: f32, color: Color32, angle: f32) -> TextShape {
-    egui_mineral::kit::icon::shape(p.ctx(), center, icon.filled, size, color, angle)
+    egui_mineral::kit::icon::shape(p.ctx(), center, icon.filled(), size, color, angle)
 }
 
 const FOCUS_RING_OFFSET: f32 = 2.0;

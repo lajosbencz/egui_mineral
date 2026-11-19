@@ -5,6 +5,7 @@ use egui_mineral::{
     i18n::Direction,
     kit::strip,
     semantic::{self, KeyedSalt, Role, SemanticNode, StableId},
+    status::StatusLead,
     widget::{Availability, Interaction, MineralUi, SizeExt as _},
 };
 
@@ -13,7 +14,7 @@ use crate::ColorToken::{
     ColorPaletteRedForeground1, ColorSubtleBackgroundHover, ColorSubtleBackgroundPressed,
 };
 use crate::{
-    Fluent, FluentExt, Icon,
+    Fluent, FluentExt,
     feedback::{ProgressBar, Spinner, SpinnerSize},
     spec::tokens::geometry as g,
     surfaces::Tooltip,
@@ -29,116 +30,13 @@ const BAR: f32 = 48.0;
 const ICON_GAP: f32 = g::SPACING_HORIZONTAL_XS;
 const TEXT: TypeRamp = TypeRamp::Caption1;
 
-/// Progress indicator of a [`StatusItem`]: the fraction done, `None` for indeterminate.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum StatusProgress {
-    /// Extra tiny [`Spinner`].
-    Spinner,
-    /// [`ProgressBar`] fixed at 48 wide.
-    Bar(Option<f32>),
-}
+pub use egui_mineral::status::{StatusItem, StatusProgress, StatusTone};
 
-#[derive(Clone, Copy, Debug)]
-enum Lead {
-    Icon(Icon),
-    Progress(StatusProgress),
-}
-
-impl Lead {
-    fn width(self) -> f32 {
-        match self {
-            Self::Icon(_) | Self::Progress(StatusProgress::Spinner) => ICON,
-            Self::Progress(StatusProgress::Bar(_)) => BAR,
-        }
-    }
-}
-
-/// Color treatment of a [`StatusItem`].
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[non_exhaustive]
-pub enum StatusTone {
-    /// Bar container and content colors.
-    #[default]
-    Default,
-    /// Red palette background and foreground.
-    Error,
-}
-
-/// Text, with an optional icon or progress indicator, in a [`StatusBar`].
-#[derive(Clone, Debug)]
-#[must_use]
-pub struct StatusItem {
-    text: String,
-    lead: Option<Lead>,
-    tooltip: Option<String>,
-    clickable: bool,
-    tone: StatusTone,
-    colors: Option<(Color32, Color32)>,
-    elide: bool,
-}
-
-impl StatusItem {
-    /// `text` is shown and is the accessible name.
-    pub fn new(text: impl Into<String>) -> Self {
-        Self {
-            text: text.into(),
-            lead: None,
-            tooltip: None,
-            clickable: false,
-            tone: StatusTone::Default,
-            colors: None,
-            elide: false,
-        }
-    }
-
-    /// Icon before the text; replaces a [`progress`](Self::progress) indicator.
-    pub fn icon(mut self, icon: impl Into<Icon>) -> Self {
-        self.lead = Some(Lead::Icon(icon.into()));
-        self
-    }
-
-    /// Progress indicator before the text; replaces an [`icon`](Self::icon). The indicator is named by the item
-    /// text, agent key `<id_salt>-<index>-progress`.
-    pub fn progress(mut self, progress: StatusProgress) -> Self {
-        self.lead = Some(Lead::Progress(progress));
-        self
-    }
-
-    /// [`Tooltip`] on hover; also the item's accessible description.
-    pub fn tooltip(mut self, tooltip: impl Into<String>) -> Self {
-        self.tooltip = Some(tooltip.into());
-        self
-    }
-
-    /// Focusable button, reported in [`StatusBarResponse::clicked`]; default `false`.
-    pub fn clickable(mut self, clickable: bool) -> Self {
-        self.clickable = clickable;
-        self
-    }
-
-    /// [`StatusTone`] of the item's strip; default [`StatusTone::Default`].
-    pub fn tone(mut self, tone: StatusTone) -> Self {
-        self.tone = tone;
-        self
-    }
-
-    /// App-chosen strip and text colors, overriding the [`tone`](Self::tone).
-    pub fn colors(mut self, container: Color32, content: Color32) -> Self {
-        self.colors = Some((container, content));
-        self
-    }
-
-    /// Start items only: the one that overflows ends in an ellipsis at the room left rather than
-    /// vanishing with the following items; default `false`.
-    pub fn elide(mut self, elide: bool) -> Self {
-        self.elide = elide;
-        self
-    }
-}
-
-impl<S: Into<String>> From<S> for StatusItem {
-    fn from(text: S) -> Self {
-        Self::new(text)
+// Linear indicators are fixed at 48 wide.
+fn lead_width(lead: StatusLead) -> f32 {
+    match lead {
+        StatusLead::Progress(StatusProgress::Linear(_)) => BAR,
+        _ => ICON,
     }
 }
 
@@ -220,19 +118,19 @@ impl StatusBar {
         let mut galleys: Vec<Arc<Galley>> = self
             .items
             .iter()
-            .map(|(it, _)| galley(&it.text, content_of(it), None))
+            .map(|(it, _)| galley(it.text(), content_of(it), None))
             .collect();
-        let chrome = |i: usize| 2.0 * PAD_X + self.items[i].0.lead.map_or(0.0, |l| l.width() + ICON_GAP);
+        let chrome = |i: usize| 2.0 * PAD_X + self.items[i].0.lead().map_or(0.0, |l| lead_width(l) + ICON_GAP);
         let measured: Vec<strip::Item> = self
             .items
             .iter()
             .zip(&galleys)
             .enumerate()
-            .map(|(i, ((it, at_end), g))| strip::Item {
-                width: chrome(i) + g.size().x,
-                chrome: chrome(i),
-                at_end: *at_end,
-                elide: it.elide,
+            .map(|(i, ((it, at_end), g))| {
+                strip::Item::new(chrome(i) + g.size().x)
+                    .chrome(chrome(i))
+                    .at_end(*at_end)
+                    .elide(it.is_elided())
             })
             .collect();
         let slots: Vec<Option<Rect>> = strip::place(rect.width(), &measured)
@@ -242,7 +140,7 @@ impl StatusBar {
             .map(|(i, (placed, (item, at_end)))| {
                 let placed = placed?;
                 if let Some(room) = placed.elided_room {
-                    galleys[i] = galley(&item.text, content_of(item), Some(room));
+                    galleys[i] = galley(item.text(), content_of(item), Some(room));
                 }
                 Some(slot(rect, dir, *at_end, placed.offset, placed.width))
             })
@@ -268,18 +166,22 @@ impl StatusBar {
         let dir = rt.i18n().direction();
         let item = &self.items[i].0;
         let content = content_color(item, &t);
-        match (item.colors, item.tone) {
-            (Some((container, _)), _) => {
-                ui.painter().rect_filled(r, 0, container);
+        match (item.custom_colors(), item.tone_kind()) {
+            (Some(colors), _) => {
+                ui.painter().rect_filled(r, 0, colors.container);
             }
             (None, StatusTone::Error) => {
                 ui.painter().rect_filled(r, 0, t.color(ColorPaletteRedBackground1));
             }
-            (None, StatusTone::Default) => {}
+            (None, _) => {}
         }
-        let sense = if item.clickable { Sense::click() } else { Sense::hover() };
+        let sense = if item.is_clickable() {
+            Sense::click()
+        } else {
+            Sense::hover()
+        };
         let resp = ui.interact(r, id.with(i), sense);
-        if item.clickable {
+        if item.is_clickable() {
             let state = Interaction::of(&resp, Availability::Enabled);
             if state.pressed {
                 ui.painter().rect_filled(r, 0, t.color(ColorSubtleBackgroundPressed));
@@ -292,25 +194,26 @@ impl StatusBar {
         }
         let inner = Rect::from_x_y_ranges(r.left() + PAD_X..=r.right() - PAD_X, r.y_range());
         let mut x = dir.start_x(inner, Rangef::point(0.0));
-        if let Some(lead) = item.lead {
-            let c = pos2(dir.start_x(inner, Rangef::point(lead.width() / 2.0)), r.center().y);
+        if let Some(lead) = item.lead() {
+            let c = pos2(dir.start_x(inner, Rangef::point(lead_width(lead) / 2.0)), r.center().y);
             match lead {
-                Lead::Icon(icon) => paint::icon(ui.painter(), c, icon, false, ICON, content),
-                Lead::Progress(progress) => self.progress(ui, i, &item.text, progress, c),
+                StatusLead::Icon(icon) => paint::icon(ui.painter(), c, icon, false, ICON, content),
+                StatusLead::Progress(progress) => self.progress(ui, i, item.text(), progress, c),
+                _ => {}
             }
-            x = dir.start_x(inner, Rangef::point(lead.width() + ICON_GAP));
+            x = dir.start_x(inner, Rangef::point(lead_width(lead) + ICON_GAP));
         }
         let gx = if dir == Direction::Rtl { x - text.size().x } else { x };
         ui.painter()
             .galley(pos2(gx, r.center().y - text.size().y / 2.0), text, content);
-        if let Some(tip) = &item.tooltip {
+        if let Some(tip) = item.tooltip_text() {
             Tooltip::new(self.salt.child((i, "tooltip")), tip).show(rt, &resp);
         }
-        let role = if item.clickable { Role::Button } else { Role::Label };
+        let role = if item.is_clickable() { Role::Button } else { Role::Label };
         semantic::emit(ui.ctx(), Some(resp.id), r, || {
-            SemanticNode::new(StableId::of(&self.salt, (i, "status-item")), role, &item.text)
+            SemanticNode::new(StableId::of(&self.salt, (i, "status-item")), role, item.text())
         });
-        item.clickable && resp.clicked()
+        item.is_clickable() && resp.clicked()
     }
 
     fn progress(
@@ -325,7 +228,8 @@ impl StatusBar {
         let salt = self.salt.child((i, "progress"));
         let key = StableId::of(&self.salt, (i, "progress"));
         match progress {
-            StatusProgress::Spinner => {
+            // Fluent's Spinner has no determinate form.
+            StatusProgress::Circular(_) => {
                 let rect = Rect::from_center_size(center, vec2(ICON, ICON));
                 let mut child = ui.new_child(UiBuilder::new().max_rect(rect));
                 rt.ui(&mut child).mineral(
@@ -336,7 +240,7 @@ impl StatusBar {
                         .agent_key(key),
                 );
             }
-            StatusProgress::Bar(value) => {
+            StatusProgress::Linear(value) => {
                 let rect = Rect::from_center_size(center, vec2(BAR, ICON));
                 let bar = match value {
                     Some(v) => ProgressBar::determinate(salt, v),
@@ -347,6 +251,7 @@ impl StatusBar {
                 rt.ui(&mut child)
                     .mineral(bar.label(text).agent_key(key).preferred_width(BAR));
             }
+            _ => {}
         }
     }
 }
@@ -359,9 +264,9 @@ fn slot(bar: Rect, dir: Direction, at_end: bool, from: f32, w: f32) -> Rect {
 }
 
 fn content_color(item: &StatusItem, t: &crate::theme::Tokens) -> Color32 {
-    match (item.colors, item.tone) {
-        (Some((_, content)), _) => content,
-        (None, StatusTone::Default) => t.color(ColorNeutralForeground2),
+    match (item.custom_colors(), item.tone_kind()) {
+        (Some(colors), _) => colors.content,
         (None, StatusTone::Error) => t.color(ColorPaletteRedForeground1),
+        (None, _) => t.color(ColorNeutralForeground2),
     }
 }

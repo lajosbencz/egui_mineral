@@ -22,10 +22,10 @@ fn dropdown(kit: Fluent) -> crate::support::Pass {
 #[test]
 fn fluent_icon_converts_to_both_forms_of_its_family() {
     let icon = Icon::from(ICON_STAR);
-    assert_eq!(icon.regular.family, ICON_FAMILY);
-    assert_eq!(icon.filled.family, ICON_FAMILY);
+    assert_eq!(icon.regular().family(), ICON_FAMILY);
+    assert_eq!(icon.filled().family(), ICON_FAMILY);
     assert_eq!(
-        (icon.regular.ch, icon.filled.ch),
+        (icon.regular().ch(), icon.filled().ch()),
         (ICON_STAR.regular(), ICON_STAR.filled())
     );
 }
@@ -44,7 +44,7 @@ fn dropdown_chevron_comes_from_a_material_icon_set_without_the_fluent_font() {
         ..IconSet::fluent()
     };
     let pass = dropdown(Fluent::with_icons(&set, &[]));
-    let material_chevron = set.chevron_down.regular.ch.to_string();
+    let material_chevron = set.chevron_down.regular().ch().to_string();
     assert_eq!(
         pass.text_family(&material_chevron),
         Some(FontFamily::Name(MATERIAL_OUTLINED.into()))

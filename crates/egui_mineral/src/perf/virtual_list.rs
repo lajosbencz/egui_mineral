@@ -12,12 +12,23 @@ enum Mode {
 
 const MIN_HEIGHT: f32 = 1.0;
 
+/// Result of [`VirtualList::show`].
+#[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
+pub struct VirtualListResponse {
+    /// Rows shown this pass.
+    pub visible: Range<usize>,
+    /// Vertical scroll offset of the content, in points.
+    pub offset: f32,
+}
+
 /// Virtualized scrolling list; paints only visible rows.
 #[must_use = "call .show(..)"]
 pub struct VirtualList {
     id_salt: IdSalt,
     mode: Mode,
-    scroll_to: Option<(usize, Option<Align>)>,
+    scroll_to: Option<usize>,
+    scroll_align: Option<Align>,
 }
 
 crate::kit::opaque_debug!(VirtualList);
@@ -31,6 +42,7 @@ impl VirtualList {
             id_salt: id_salt.into().id_salt(),
             mode: Mode::Uniform { row_height },
             scroll_to: None,
+            scroll_align: None,
         }
     }
 
@@ -42,21 +54,28 @@ impl VirtualList {
             id_salt: id_salt.into().id_salt(),
             mode: Mode::Variable { estimate },
             scroll_to: None,
+            scroll_align: None,
         }
     }
 
-    /// Scrolls `row` to the `align` edge of the viewport this pass, or just into view with `None`
-    /// (as [`egui::Response::scroll_to_me`]). Unmeasured rows above it in a variable list use the
-    /// estimate, so the target settles once they are measured.
-    pub fn scroll_to(mut self, row: usize, align: Option<Align>) -> Self {
-        self.scroll_to = Some((row, align));
+    /// Scrolls `row` into view this pass (as [`egui::Response::scroll_to_me`]), or to an edge of the viewport
+    /// with [`Self::scroll_align`]. Unmeasured rows above it in a variable list use the estimate, so the target
+    /// settles once they are measured.
+    pub fn scroll_to(mut self, row: usize) -> Self {
+        self.scroll_to = Some(row);
+        self
+    }
+
+    /// Viewport edge the [`Self::scroll_to`] row lands on.
+    pub fn scroll_align(mut self, align: Align) -> Self {
+        self.scroll_align = Some(align);
         self
     }
 
     /// `row` paints row index `i` of `total_rows`; only visible rows are called.
     #[tracing::instrument(level = "trace", skip_all)]
-    pub fn show(self, ui: &mut Ui, total_rows: usize, row: impl FnMut(&mut Ui, usize)) {
-        self.show_culled(ui, total_rows, row, |_, _, _| {});
+    pub fn show(self, ui: &mut Ui, total_rows: usize, row: impl FnMut(&mut Ui, usize)) -> VirtualListResponse {
+        self.show_culled(ui, total_rows, row, |_, _, _| {})
     }
 
     /// [`Self::show`], and `culled` runs for each row outside the visible range with its rect, only when a
@@ -68,7 +87,7 @@ impl VirtualList {
         total_rows: usize,
         mut row: impl FnMut(&mut Ui, usize),
         mut culled: impl FnMut(&mut Ui, usize, Rect),
-    ) {
+    ) -> VirtualListResponse {
         let scroll = ScrollArea::vertical().id_salt(self.id_salt).auto_shrink([false; 2]);
         let viewport_h = ui.available_height();
         let current = egui::scroll_area::State::load(ui.ctx(), ui.make_persistent_id(self.id_salt))
@@ -79,14 +98,15 @@ impl VirtualList {
             Some(Align::Max) => top - (viewport_h - h),
             None => current.clamp(top + h - viewport_h, top.max(top + h - viewport_h)),
         };
+        let align = self.scroll_align;
         match self.mode {
             Mode::Uniform { row_height } => {
                 let pitch = row_height + ui.spacing().item_spacing.y;
                 let scroll = match self.scroll_to {
-                    Some((r, a)) => scroll.vertical_scroll_offset(target(r as f32 * pitch, row_height, a).max(0.0)),
+                    Some(r) => scroll.vertical_scroll_offset(target(r as f32 * pitch, row_height, align).max(0.0)),
                     None => scroll,
                 };
-                scroll.show_rows(ui, row_height, total_rows, |ui, range| {
+                let out = scroll.show_rows(ui, row_height, total_rows, |ui, range| {
                     range.clone().for_each(|i| row(ui, i));
                     if crate::kit::semantic::wanted(ui.ctx(), None) {
                         let (origin, width) = (ui.max_rect().min, ui.max_rect().width());
@@ -95,7 +115,12 @@ impl VirtualList {
                             culled(ui, i, Rect::from_min_size(pos2(origin.x, top), vec2(width, row_height)));
                         }
                     }
+                    range
                 });
+                VirtualListResponse {
+                    visible: out.inner,
+                    offset: out.state.clamped_offset().y,
+                }
             }
             Mode::Variable { estimate } => {
                 let mem_id = ui.make_persistent_id(self.id_salt);
@@ -105,12 +130,12 @@ impl VirtualList {
                 if index.len() != total_rows {
                     index.resize(total_rows);
                 }
-                let scroll = match self.scroll_to.and_then(|(r, a)| Some((r, index.height(r)?, a))) {
-                    Some((r, h, a)) => scroll.vertical_scroll_offset(target(index.offset(r), h, a).max(0.0)),
+                let scroll = match self.scroll_to.and_then(|r| Some((r, index.height(r)?))) {
+                    Some((r, h)) => scroll.vertical_scroll_offset(target(index.offset(r), h, align).max(0.0)),
                     None => scroll,
                 };
                 let mut changed = false;
-                scroll.show_viewport(ui, |ui, viewport| {
+                let out = scroll.show_viewport(ui, |ui, viewport| {
                     ui.set_height(index.total());
                     let origin = ui.max_rect().min;
                     let width = ui.max_rect().width();
@@ -125,7 +150,7 @@ impl VirtualList {
                             );
                         }
                     }
-                    for i in visible {
+                    for i in visible.clone() {
                         let rect =
                             Rect::from_min_size(pos2(origin.x, origin.y + index.offset(i)), vec2(width, estimate));
                         let height = ui
@@ -138,6 +163,7 @@ impl VirtualList {
                             changed = true;
                         }
                     }
+                    visible
                 });
                 ui.data_mut(|d| d.insert_temp(mem_id, index));
                 if changed {
@@ -146,6 +172,10 @@ impl VirtualList {
                         reason = "one pass when measured row heights differ from the index; stops once they settle"
                     )]
                     ui.ctx().request_repaint();
+                }
+                VirtualListResponse {
+                    visible: out.inner,
+                    offset: out.state.clamped_offset().y,
                 }
             }
         }
@@ -184,7 +214,8 @@ mod tests {
                 shown.clear();
                 *viewport = ui.available_rect_before_wrap();
                 VirtualList::variable("rows", ESTIMATE)
-                    .scroll_to(TARGET, Some(Align::Min))
+                    .scroll_to(TARGET)
+                    .scroll_align(Align::Min)
                     .show(ui, ROWS, |ui, i| {
                         let (rect, _) = ui.allocate_exact_size(vec2(10.0, height(i)), Sense::hover());
                         shown.insert(i, rect);

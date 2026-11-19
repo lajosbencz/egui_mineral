@@ -114,7 +114,7 @@ impl FileDropZone {
     }
 
     fn accepts(&self, file: &DroppedFileHandle) -> bool {
-        if self.filter.filters.is_empty() {
+        if self.filter.filters().is_empty() {
             return true;
         }
         let ext = file
@@ -122,7 +122,7 @@ impl FileDropZone {
             .extension()
             .map_or_else(String::new, |e| e.to_string_lossy().to_lowercase());
         self.filter
-            .filters
+            .filters()
             .iter()
             .flat_map(|t| &t.extensions)
             .any(|e| e.trim_start_matches('.').eq_ignore_ascii_case(&ext))

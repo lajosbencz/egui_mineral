@@ -2,10 +2,10 @@
 //! [`AsciiFormat`].
 //!
 //! ```
-//! use egui_mineral::i18n::{AsciiFormat, DateFields, DateLength, I18n, LocaleFormat};
+//! use egui_mineral::i18n::{AsciiFormat, Catalog, DateFields, DateLength, I18n, LocaleFormat};
 //!
 //! let ctx = egui::Context::default();
-//! let i18n = I18n::with_format(&ctx, "und".into(), AsciiFormat::default(), &[("en", "greet = Hello { $name }")])?;
+//! let i18n = I18n::with_format(&ctx, "und".into(), AsciiFormat::default(), &[Catalog::new("en", "greet = Hello { $name }")])?;
 //! assert_eq!(i18n.tr("greet", &[("name", "Ann".into())]), "Hello Ann");
 //!
 //! let date = egui_mineral::jiff::civil::date(2026, 11, 17);
@@ -401,18 +401,18 @@ pub struct FluentLocalizer {
 crate::kit::opaque_debug!(FluentLocalizer);
 
 impl FluentLocalizer {
-    /// `chain` is `(locale, ftl source)` in fallback order; the first is the primary locale.
+    /// `chain` is in fallback order; the first is the primary locale.
     ///
     /// # Errors
     /// [`I18nError::Locale`] when a locale does not parse or `chain` is empty, [`I18nError::Resource`] when FTL does not parse or register.
-    pub fn new<'a>(chain: impl IntoIterator<Item = (&'a str, &'a str)>) -> Result<Self, I18nError> {
+    pub fn new<'a>(chain: impl IntoIterator<Item = &'a Catalog>) -> Result<Self, I18nError> {
         let mut bundles = Vec::new();
-        for (locale, ftl) in chain {
+        for Catalog { locale, ftl } in chain {
             let lang: LanguageIdentifier = locale.parse().map_err(|e| I18nError::Locale {
-                tag: locale.into(),
+                tag: locale.to_string(),
                 source: Some(Box::new(e)),
             })?;
-            let res = FluentResource::try_new(ftl.to_owned())
+            let res = FluentResource::try_new(ftl.to_string())
                 .map_err(|(_, errs)| I18nError::Resource(Messages::boxed(errs)))?;
             let mut bundle = FluentBundle::new_concurrent(vec![lang]);
             // egui renders the default FSI/PDI isolation marks as glyph boxes.
@@ -464,8 +464,41 @@ impl Localizer for FluentLocalizer {
 
 const ROOT: &str = "und";
 
-/// Library catalog: `(locale, ftl source)`; a library's first catalog is its source language.
-pub type Catalog = (&'static str, &'static str);
+/// Library catalog: FTL source for one locale; a library's first catalog is its source language.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub struct Catalog {
+    locale: Cow<'static, str>,
+    ftl: Cow<'static, str>,
+}
+
+impl Catalog {
+    /// Catalog of BCP 47 `locale` from the embedded source `ftl`.
+    pub const fn new(locale: &'static str, ftl: &'static str) -> Self {
+        Self {
+            locale: Cow::Borrowed(locale),
+            ftl: Cow::Borrowed(ftl),
+        }
+    }
+
+    /// Catalog of BCP 47 `locale` from the runtime-loaded source `ftl`.
+    pub fn owned(locale: impl Into<String>, ftl: impl Into<String>) -> Self {
+        Self {
+            locale: Cow::Owned(locale.into()),
+            ftl: Cow::Owned(ftl.into()),
+        }
+    }
+
+    /// BCP 47 tag.
+    pub fn locale(&self) -> &str {
+        &self.locale
+    }
+
+    /// FTL source.
+    pub fn ftl(&self) -> &str {
+        &self.ftl
+    }
+}
 
 struct State {
     locale: String,
@@ -488,13 +521,15 @@ impl State {
 }
 
 fn negotiate(sources: &[Catalog], locale: &str) -> Result<Option<Arc<FluentLocalizer>>, I18nError> {
-    let parsed: Vec<(LanguageIdentifier, Catalog)> = sources
+    let parsed: Vec<(LanguageIdentifier, &Catalog)> = sources
         .iter()
-        .map(|&(tag, ftl)| {
-            tag.parse()
-                .map(|lang| (lang, (tag, ftl)))
+        .map(|catalog| {
+            catalog
+                .locale
+                .parse()
+                .map(|lang| (lang, catalog))
                 .map_err(|e| I18nError::Locale {
-                    tag: tag.into(),
+                    tag: catalog.locale.to_string(),
                     source: Some(Box::new(e)),
                 })
         })
@@ -569,8 +604,8 @@ impl I18n {
             tag: locale.clone(),
             source: Some(Box::new(e)),
         })?;
-        for &(tag, ftl) in catalogs {
-            FluentLocalizer::new([(tag, ftl)])?;
+        for catalog in catalogs {
+            FluentLocalizer::new([catalog])?;
         }
         let defaults = negotiate(catalogs, &locale)?;
         let state = State {
@@ -660,20 +695,17 @@ impl I18n {
     ///
     /// # Errors
     /// As [`FluentLocalizer::new`] for the catalog.
-    pub fn add_resource(&self, catalog: Catalog) -> Result<(), I18nError> {
+    pub fn add_resource(&self, catalog: &Catalog) -> Result<(), I18nError> {
         FluentLocalizer::new([catalog])?;
         let added = loop {
             let snapshot = self.with(|s| {
-                let known = s
-                    .sources
-                    .iter()
-                    .any(|&(l, f)| l == catalog.0 && std::ptr::eq(f, catalog.1));
+                let known = s.sources.contains(catalog);
                 (!known).then(|| (s.sources.clone(), s.locale.clone(), s.generation))
             });
             let Some((mut sources, locale, generation)) = snapshot else {
                 break false;
             };
-            sources.push(catalog);
+            sources.push(catalog.clone());
             let defaults = negotiate(&sources, &locale)?;
             let applied = self.with(|s| {
                 if s.generation != generation {
@@ -799,24 +831,24 @@ mod tests {
     fn errors_carry_their_cause() {
         use std::error::Error;
 
-        let bad_tag = FluentLocalizer::new([("not a tag!", "a = b")]).unwrap_err();
+        let bad_tag = FluentLocalizer::new([&Catalog::new("not a tag!", "a = b")]).unwrap_err();
         assert!(matches!(&bad_tag, I18nError::Locale { tag, .. } if tag == "not a tag!"));
         assert!(bad_tag.source().is_some(), "the parser error is the source");
 
-        let bad_ftl = FluentLocalizer::new([("en", "= no id")]).unwrap_err();
+        let bad_ftl = FluentLocalizer::new([&Catalog::new("en", "= no id")]).unwrap_err();
         assert!(matches!(bad_ftl, I18nError::Resource(_)));
         assert!(bad_ftl.source().is_some());
 
-        let empty = FluentLocalizer::new(std::iter::empty::<(&str, &str)>()).unwrap_err();
+        let empty = FluentLocalizer::new(std::iter::empty::<&Catalog>()).unwrap_err();
         assert!(matches!(&empty, I18nError::Locale { tag, .. } if tag.is_empty()));
         assert!(empty.source().is_none(), "an empty chain has no cause");
     }
 
     #[test]
     fn fallback_and_args() {
-        let l = FluentLocalizer::new([
-            ("de", "hello = Hallo { $name }!"),
-            ("en", "hello = Hello { $name }!\nbye = Bye"),
+        let l = FluentLocalizer::new(&[
+            Catalog::new("de", "hello = Hallo { $name }!"),
+            Catalog::new("en", "hello = Hello { $name }!\nbye = Bye"),
         ])
         .unwrap();
         assert_eq!(
@@ -832,13 +864,14 @@ mod tests {
         let ctx = egui::Context::default();
         let i18n = I18n::new(&ctx, &[]).unwrap();
         assert_eq!(i18n.tr("mineral-submit", &[]), "mineral-submit", "no catalog: the id");
-        i18n.add_resource((
+        i18n.add_resource(&Catalog::new(
             "en-US",
             "mineral-submit = Submit\nmineral-number = Enter a number\nmineral-percent = { NUMBER($value, maximumFractionDigits: 0) }%",
         ))
         .unwrap();
-        i18n.add_resource(("de", "mineral-submit = Absenden")).unwrap();
-        assert!(i18n.add_resource(("fr", "broken = {")).is_err());
+        i18n.add_resource(&Catalog::new("de", "mineral-submit = Absenden"))
+            .unwrap();
+        assert!(i18n.add_resource(&Catalog::owned("fr", "broken = {")).is_err());
         assert!(i18n.set_locale("not a tag!").is_err());
         i18n.set_locale("de-AT").unwrap();
         assert_eq!(i18n.tr("mineral-submit", &[]), "Absenden");
@@ -891,7 +924,7 @@ mod tests {
     #[test]
     fn added_catalog_repaints() {
         let ctx = egui::Context::default();
-        let i18n = I18n::new(&ctx, &[("en-US", "greeting = One")]).unwrap();
+        let i18n = I18n::new(&ctx, &[Catalog::new("en-US", "greeting = One")]).unwrap();
         for _ in 0..8 {
             if !ctx.has_requested_repaint() {
                 break;
@@ -899,7 +932,7 @@ mod tests {
             ctx.run_ui(egui::RawInput::default(), |_| {}).textures_delta.clear();
         }
         assert!(!ctx.has_requested_repaint(), "settled");
-        i18n.add_resource(("en-US", "farewell = Two")).unwrap();
+        i18n.add_resource(&Catalog::new("en-US", "farewell = Two")).unwrap();
         assert!(ctx.has_requested_repaint(), "a new catalog repaints");
         assert_eq!(i18n.tr("farewell", &[]), "Two");
     }
@@ -907,7 +940,7 @@ mod tests {
     #[test]
     fn invalid_catalog_fails_construction() {
         let ctx = egui::Context::default();
-        assert!(I18n::new(&ctx, &[("en", "broken = {")]).is_err());
+        assert!(I18n::new(&ctx, &[Catalog::new("en", "broken = {")]).is_err());
         assert!(I18n::with_format(&ctx, "not a tag!".into(), AsciiFormat::default(), &[]).is_err());
     }
 }

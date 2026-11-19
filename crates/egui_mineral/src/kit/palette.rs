@@ -8,6 +8,7 @@ use crate::{
     combobox::{ComboAction, ComboKind, ComboList, ComboState},
     filter::Query,
     kit::state::{Memo, TempState},
+    overlay::Dismiss,
     semantic::{KeyedSalt, StableId},
     shortcut::{self, ActionId, Scope},
 };
@@ -27,11 +28,13 @@ pub trait Entry {
 }
 
 /// Row of the filtered list.
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum Row {
     /// Group header.
     Header(String),
     /// Matching entry with the matched character indices of its label.
+    #[non_exhaustive]
     Item {
         /// Index into the entries.
         index: usize,
@@ -85,6 +88,16 @@ pub fn selectable<E: Entry>(rows: &[Row], entries: &[E]) -> Vec<usize> {
 /// Hashes what [`rows`] reads.
 pub struct Labels<'a, E>(pub &'a [E]);
 
+crate::kit::opaque_debug!(Labels<'_, E>);
+
+impl<E> Clone for Labels<'_, E> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<E> Copy for Labels<'_, E> {}
+
 impl<E: Entry> Hash for Labels<'_, E> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         for c in self.0 {
@@ -95,7 +108,8 @@ impl<E: Entry> Hash for Labels<'_, E> {
 }
 
 /// Palette state in temp memory, keyed by the palette id.
-#[derive(Clone, Default)]
+#[derive(Clone, Debug, Default)]
+#[non_exhaustive]
 pub struct State {
     /// Position in [`selectable`] of the active item.
     pub active: usize,
@@ -173,14 +187,20 @@ pub fn bind_shortcuts<E: Entry>(
 }
 
 /// Runs entry `run` after the surface was shown: a command entry fires its command (and is consumed from `run`),
-/// and a run or `dismissed` closes the palette.
-pub fn finish<E: Entry>(ctx: &Context, entries: &[E], run: &mut Option<usize>, dismissed: bool, open: &mut bool) {
-    if let Some(command) = run.and_then(|i| entries[i].action()) {
+/// and a run or a dismissal closes the palette.
+pub fn finish<E: Entry>(
+    ctx: &Context,
+    entries: &[E],
+    run: &mut Option<usize>,
+    dismissed: Option<Dismiss>,
+    open: &mut bool,
+) {
+    if let Some(command) = run.and_then(|i| entries.get(i)?.action()) {
         shortcut::fire(ctx, command);
         *run = None;
         *open = false;
     }
-    if dismissed || run.is_some() {
+    if dismissed.is_some() || run.is_some() {
         *open = false;
     }
 }

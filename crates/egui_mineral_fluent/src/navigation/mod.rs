@@ -24,7 +24,7 @@ pub use nav::{
     NavSubItem, NavUi,
 };
 pub use overflow::{Overflow, OverflowDirection, OverflowItem};
-pub use tab_list::{Tab, TabAppearance, TabList, TabListResponse};
+pub use tab_list::{Tab, TabAppearance, TabList};
 pub use toolbar::{
     Toolbar, ToolbarButton, ToolbarGroup, ToolbarRadioButton, ToolbarRadioGroup, ToolbarResponse, ToolbarToggleButton,
 };

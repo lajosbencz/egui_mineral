@@ -9,7 +9,7 @@ use parking_lot::{Mutex, MutexGuard};
 use super::PlatformPathPickers;
 use super::{
     FileFilter, FileReader, FileWriter, Notification, PickedFile, PlatformClipboard, PlatformError, PlatformNotifier,
-    PlatformPickers, SaveOutcome,
+    PlatformPickers, SaveOutcome, SaveRequest,
 };
 use crate::bus::BoxFuture;
 
@@ -102,38 +102,20 @@ impl PlatformPickers for MemoryPlatform {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    fn pick_save_path(
-        &self,
-        _suggested_name: String,
-        _filter: FileFilter,
-    ) -> BoxFuture<Result<Option<PathBuf>, PlatformError>> {
+    fn pick_save_path(&self, _request: SaveRequest) -> BoxFuture<Result<Option<PathBuf>, PlatformError>> {
         let next = self.inner().paths.pop_front();
         Box::pin(async move { Ok(next) })
     }
 
-    fn save_file(
-        &self,
-        suggested_name: String,
-        _filter: FileFilter,
-        bytes: Vec<u8>,
-    ) -> BoxFuture<Result<SaveOutcome, PlatformError>> {
-        self.inner().saved.push(PickedFile {
-            name: suggested_name,
-            bytes,
-            #[cfg(not(target_arch = "wasm32"))]
-            path: None,
-        });
+    fn save_file(&self, request: SaveRequest, bytes: Vec<u8>) -> BoxFuture<Result<SaveOutcome, PlatformError>> {
+        self.inner().saved.push(PickedFile::new(request.suggested_name, bytes));
         Box::pin(async { Ok(SaveOutcome::Saved) })
     }
 
-    fn save_file_writer(
-        &self,
-        suggested_name: String,
-        _filter: FileFilter,
-    ) -> BoxFuture<Result<Option<FileWriter>, PlatformError>> {
+    fn save_file_writer(&self, request: SaveRequest) -> BoxFuture<Result<Option<FileWriter>, PlatformError>> {
         let this = self.clone();
-        let w = FileWriter::buffered(suggested_name, move |name, bytes| {
-            Box::pin(async move { this.save_file(name, FileFilter::default(), bytes).await.map(drop) })
+        let w = FileWriter::buffered(request.suggested_name, move |name, bytes| {
+            Box::pin(async move { this.save_file(SaveRequest::new(name), bytes).await.map(drop) })
         });
         Box::pin(async move { Ok(Some(w)) })
     }
@@ -172,15 +154,12 @@ mod tests {
     fn save_and_notify_report_typed_results() {
         let p = MemoryPlatform::default();
         let outcome = p
-            .save_file("a.txt".into(), FileFilter::default(), vec![1])
+            .save_file(SaveRequest::new("a.txt"), vec![1])
             .now_or_never()
             .unwrap()
             .unwrap();
         assert_eq!(outcome, SaveOutcome::Saved);
-        let note = Notification {
-            title: "t".into(),
-            body: "b".into(),
-        };
+        let note = Notification::new("t", "b");
         p.notify(note.clone()).now_or_never().unwrap().unwrap();
         assert_eq!(p.notifications(), [note]);
         assert_eq!(p.saved().len(), 1);

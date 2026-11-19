@@ -7,7 +7,7 @@ use crate::icon::Glyph;
 /// Shape of `glyph` centered on `center` by its ink, not its line box, rotated by `angle` radians around the center.
 /// The stylekit adds it to its painter.
 pub fn shape(ctx: &Context, center: Pos2, glyph: Glyph, size: f32, color: Color32, angle: f32) -> TextShape {
-    let galley = ctx.fonts_mut(|f| f.layout(glyph.ch.to_string(), glyph.font_id(size), color, f32::INFINITY));
+    let galley = ctx.fonts_mut(|f| f.layout(glyph.ch().to_string(), glyph.font_id(size), color, f32::INFINITY));
     let mid_y = galley
         .rows
         .iter()

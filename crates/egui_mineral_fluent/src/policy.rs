@@ -12,18 +12,14 @@ const TOUCH_TARGET: f32 = 48.0;
 // No Fluent web breakpoint tokens; the core baseline breakpoints.
 pub(crate) fn policies(os: egui::os::OperatingSystem) -> Policies {
     let mut p = Policies::baseline();
-    p.target = TargetPolicy {
-        mouse: MOUSE_TARGET,
-        touch: TOUCH_TARGET,
-    };
+    p.target = TargetPolicy::baseline().mouse(MOUSE_TARGET).touch(TOUCH_TARGET);
     p.readline = os.is_mac();
     // No mnemonic convention on Apple platforms.
     p.mnemonics = !os.is_mac();
     // react-button useButtonStyles.styles.ts `cursor: pointer` / `not-allowed`
-    p.cursors = Cursors {
-        enabled: Some(CursorIcon::PointingHand),
-        disabled: Some(CursorIcon::NotAllowed),
-    };
+    p.cursors = Cursors::default()
+        .enabled(CursorIcon::PointingHand)
+        .disabled(CursorIcon::NotAllowed);
     p
 }
 

@@ -9,9 +9,9 @@ use egui_mineral::{
         palette::{self, Entry, Labels, Row, State},
         state::TempState,
     },
-    overlay::{self, Dismiss},
+    overlay,
     semantic::{self, KeyedSalt, Role, SemanticNode, StableId},
-    shortcut::{self, ActionId},
+    shortcut,
     widget::{Availability, MineralUi},
 };
 
@@ -20,7 +20,7 @@ use crate::ColorToken::{
     ColorNeutralForeground1, ColorNeutralForeground3, ColorNeutralForegroundDisabled, ColorStrokeFocus2,
 };
 use crate::{
-    Fluent, FluentExt, Icon, Rt,
+    Fluent, FluentExt, Rt,
     inputs::SearchBox,
     spec::{
         defaults::{combobox as cb, dialog},
@@ -41,86 +41,7 @@ const GROUP_H: f32 = ty::LINE_HEIGHT_BASE_200 + 2.0 * g::SPACING_HORIZONTAL_S;
 const ICON: f32 = 20.0;
 const GAP: f32 = g::SPACING_HORIZONTAL_S;
 
-/// Entry of a [`CommandPalette`].
-#[derive(Clone, Debug)]
-#[must_use]
-pub struct PaletteCommand {
-    label: String,
-    group: Option<String>,
-    id: Option<ActionId>,
-    shortcut: Option<KeyboardShortcut>,
-    icon: Option<Icon>,
-    disabled: bool,
-    salt: Option<KeyedSalt>,
-}
-
-impl PaletteCommand {
-    crate::widget::setters! {
-        /// Default the index.
-        item_salt
-    }
-
-    /// `label` is the visible text and accessible name; also matched by the query.
-    pub fn new(label: impl Into<String>) -> Self {
-        Self {
-            label: label.into(),
-            group: None,
-            id: None,
-            shortcut: None,
-            icon: None,
-            disabled: false,
-            salt: None,
-        }
-    }
-
-    /// Group header the entry is listed under.
-    pub fn group(mut self, group: impl Into<String>) -> Self {
-        self.group = Some(group.into());
-        self
-    }
-
-    /// Makes the entry a view of the app command `id`: running it fires the command
-    /// ([`shortcut::fire`]) instead of reporting the entry as clicked. `shortcut` is bound to `id`
-    /// while the palette is shown, open or not; other views of `id` may bind the same shortcut.
-    pub fn command(mut self, id: impl Into<ActionId>, shortcut: impl Into<Option<KeyboardShortcut>>) -> Self {
-        self.id = Some(id.into());
-        self.shortcut = shortcut.into();
-        self
-    }
-
-    /// Leading icon.
-    pub fn icon(mut self, icon: impl Into<Icon>) -> Self {
-        self.icon = Some(icon.into());
-        self
-    }
-
-    crate::widget::setters! {
-        /// Greys out the entry; it cannot run.
-        disabled
-    }
-}
-
-impl Entry for PaletteCommand {
-    fn label(&self) -> &str {
-        &self.label
-    }
-
-    fn heading(&self) -> Option<&str> {
-        self.group.as_deref()
-    }
-
-    fn is_disabled(&self) -> bool {
-        self.disabled
-    }
-
-    fn action(&self) -> Option<&ActionId> {
-        self.id.as_ref()
-    }
-
-    fn accelerator(&self) -> Option<KeyboardShortcut> {
-        self.shortcut
-    }
-}
+pub use egui_mineral::palette::{CommandPaletteResponse, PaletteCommand};
 
 /// Modal fuzzy-filtered command list; not in Fluent UI React v9 (shadcn `Command` pattern).
 #[derive(Debug)]
@@ -131,18 +52,6 @@ pub struct CommandPalette<'a> {
     commands: Vec<PaletteCommand>,
     placeholder: Option<String>,
     shortcut: Option<KeyboardShortcut>,
-}
-
-/// Result of [`CommandPalette::show_modal`].
-#[derive(Clone, Debug, Default)]
-#[non_exhaustive]
-pub struct CommandPaletteResponse {
-    /// Palette surface; `None` while closed.
-    pub response: Option<egui::Response>,
-    /// Run entry without a [`PaletteCommand::command`]; command entries fire their command instead.
-    pub clicked: Option<usize>,
-    /// Why it closed without running an entry.
-    pub dismissed: Option<Dismiss>,
 }
 
 impl<'a> CommandPalette<'a> {
@@ -225,6 +134,7 @@ impl<'a> CommandPalette<'a> {
             .map(|r| match r {
                 Row::Header(_) => GROUP_H,
                 Row::Item { .. } => ROW_H,
+                _ => 0.0,
             })
             .sum::<f32>()
             .clamp(ROW_H, (max_h - 2.0 * PAD - ROW_H).max(ROW_H));
@@ -274,14 +184,10 @@ impl<'a> CommandPalette<'a> {
             ctx.memory_mut(|m| m.request_focus(search));
         }
         let dismissed = overlay::modal(&modal);
-        palette::finish(ctx, &self.commands, &mut run, dismissed.is_some(), open);
+        palette::finish(ctx, &self.commands, &mut run, dismissed, open);
         st.was_open = *open;
         st.store(ctx, id);
-        CommandPaletteResponse {
-            response: Some(modal.response),
-            clicked: run,
-            dismissed,
-        }
+        CommandPaletteResponse::new(modal.response, run, dismissed)
     }
 
     fn search(
@@ -347,14 +253,14 @@ impl<'a> CommandPalette<'a> {
                 for (r, row) in f.rows.iter().enumerate() {
                     match row {
                         Row::Header(name) => group_header(ui, name, f.width, dir, t),
-                        Row::Item { index, hits } => {
+                        Row::Item { index, hits, .. } => {
                             let cmd = &f.commands[*index];
                             let active = active_row == Some(r);
                             let resp = Self::command_row(ui, f, *index, hits, active);
                             if active && st.reveal {
                                 resp.scroll_to_me(None);
                             }
-                            if !cmd.disabled {
+                            if !cmd.is_disabled() {
                                 if resp.hovered()
                                     && ui.input(|i| i.pointer.delta() != Vec2::ZERO)
                                     && let Some(a) = f.items.iter().position(|x| *x == r)
@@ -366,6 +272,7 @@ impl<'a> CommandPalette<'a> {
                                 }
                             }
                         }
+                        _ => {}
                     }
                 }
             });
@@ -376,16 +283,16 @@ impl<'a> CommandPalette<'a> {
         let cmd = &f.commands[index];
         let t = f.t;
         let dir = f.dir;
-        let own = cmd.salt.clone().unwrap_or_else(|| f.salt.child(index));
+        let own = cmd.item_salt().cloned().unwrap_or_else(|| f.salt.child(index));
         let (rect, _) = ui.allocate_exact_size(vec2(f.width, ROW_H), Sense::hover());
-        let sense = if cmd.disabled {
+        let sense = if cmd.is_disabled() {
             Sense::hover()
         } else {
             Sense::click() - Sense::FOCUSABLE
         };
         let resp = ui.interact(rect, f.id.with(own.id_salt()), sense);
         let radius = CornerRadius::from(g::BORDER_RADIUS_MEDIUM);
-        let (fill, fore) = if cmd.disabled {
+        let (fill, fore) = if cmd.is_disabled() {
             (None, ColorNeutralForegroundDisabled)
         } else if resp.is_pointer_button_down_on() {
             (Some(ColorNeutralBackground1Pressed), ColorNeutralForeground1)
@@ -398,12 +305,12 @@ impl<'a> CommandPalette<'a> {
             ui.painter().rect_filled(rect, radius, t.color(fill));
         }
         let mut at = ROW_PAD_H;
-        if let Some(icon) = cmd.icon {
+        if let Some(icon) = cmd.leading_icon() {
             let x = dir.start_x(rect, Rangef::point(at + ICON / 2.0));
             paint::icon(ui.painter(), pos2(x, rect.center().y), icon, false, ICON, t.color(fore));
             at += ICON + GAP;
         }
-        let hint = cmd.shortcut.map(|s| shortcut::label(ui.ctx(), &s));
+        let hint = cmd.accelerator().map(|s| shortcut::label(ui.ctx(), &s));
         let hint_galley = hint.map(|h| {
             let format = crate::typography::format(
                 ui.ctx(),
@@ -416,7 +323,7 @@ impl<'a> CommandPalette<'a> {
         });
         let hint_w = hint_galley.as_ref().map_or(0.0, |g| g.size().x + GAP);
         let mut job = LayoutJob::default();
-        for (i, c) in cmd.label.chars().enumerate() {
+        for (i, c) in cmd.label().chars().enumerate() {
             let weight = if hits.contains(&i) {
                 ty::FONT_WEIGHT_SEMIBOLD
             } else {
@@ -455,10 +362,10 @@ impl<'a> CommandPalette<'a> {
                 StrokeKind::Outside,
             );
         }
-        let shortcut_label = cmd.shortcut.map(|s| shortcut::label(ui.ctx(), &s));
+        let shortcut_label = cmd.accelerator().map(|s| shortcut::label(ui.ctx(), &s));
         semantic::emit(ui.ctx(), Some(resp.id), rect, || {
-            SemanticNode::new(StableId::of(&own, "command"), Role::ListBoxOption, &cmd.label)
-                .pressable(Availability::disabled_if(cmd.disabled))
+            SemanticNode::new(StableId::of(&own, "command"), Role::ListBoxOption, cmd.label())
+                .pressable(Availability::disabled_if(cmd.is_disabled()))
                 .shortcut(shortcut_label.clone())
         });
         resp

@@ -282,7 +282,7 @@ impl<'a> TagPicker<'a> {
             .into_iter()
             .filter_map(|item| match item {
                 ComboItem::Option { index, .. } => all.options.get(index).map(|o| o.value.clone()),
-                ComboItem::Create => None,
+                _ => None,
             })
             .collect()
     }

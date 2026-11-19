@@ -286,7 +286,7 @@ fn option_row<'a>(
     i: usize,
 ) -> OptionRow<'a> {
     match items.get(i) {
-        Some(ComboItem::Option { index, hits }) => OptionRow {
+        Some(ComboItem::Option { index, hits, .. }) => OptionRow {
             label: options.get(*index).map_or("", String::as_str),
             hits,
             ..OptionRow::default()
@@ -296,6 +296,7 @@ fn option_row<'a>(
             leading: Some(Leading::Icon(add)),
             ..OptionRow::default()
         },
+        Some(_) => OptionRow::default(),
         None => status.map_or_default(|(s, icon)| OptionRow {
             label: s,
             disabled: true,
@@ -325,7 +326,7 @@ fn commit(
             (None, Some(text.trim().to_owned()))
         }
         None if enter_free && !text.trim().is_empty() => (None, Some(text.trim().to_owned())),
-        None => (None, None),
+        _ => (None, None),
     }
 }
 
