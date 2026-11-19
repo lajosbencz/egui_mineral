@@ -264,6 +264,8 @@ pub struct AccordionUi<'u, 'e> {
     headers: Vec<Id>,
     toggled: Option<usize>,
     disabled: bool,
+    heights: Vec<f32>,
+    heights_dirty: bool,
 }
 
 egui_mineral::kit::opaque_debug!(AccordionUi<'_, '_>);
@@ -338,8 +340,7 @@ impl AccordionUi<'_, '_> {
         }
         let w = self.ui.available_width();
         let top = self.ui.cursor().min;
-        let h_id = self.id.with(("height", i));
-        let known: Option<f32> = ctx.data(|d| d.get_temp(h_id));
+        let known = self.heights.get(i).copied().filter(|h| *h > 0.0);
         let clip_h = match known {
             Some(h) => h * k,
             None if k >= 1.0 => f32::INFINITY,
@@ -364,7 +365,11 @@ impl AccordionUi<'_, '_> {
         let inner = add(&mut rt.ui(&mut child));
         let measured = child.min_rect().height() + pad;
         if known.is_none_or(|h| (h - measured).abs() > 0.5) {
-            ctx.data_mut(|d| d.insert_temp(h_id, measured));
+            if self.heights.len() <= i {
+                self.heights.resize(i + 1, 0.0);
+            }
+            self.heights[i] = measured;
+            self.heights_dirty = true;
         }
         self.ui.allocate_exact_size(vec2(w, measured * k), Sense::hover());
         AccordionPanelResponse {
@@ -406,6 +411,7 @@ impl<'a> Accordion<'a> {
         let t = rt.tokens();
         let id = ui.make_persistent_id(self.salt.id_salt());
         let count_id = id.with("count");
+        let heights_id = id.with("heights");
         let radius = expanded_list::CONTAINER_SHAPE.corner_radius(&t.shape, rt.i18n().direction());
         let bg = ui.painter().add(Shape::Noop);
         let r = ui.scope(|ui| {
@@ -423,11 +429,20 @@ impl<'a> Accordion<'a> {
                 headers: Vec::new(),
                 toggled: None,
                 disabled: self.disabled,
+                heights: ctx.data(|d| d.get_temp(heights_id)).unwrap_or_default(),
+                heights_dirty: false,
             };
             let inner = add(&mut aui);
             RovingFocus::new(Axis::Vertical).update(rt.core(), &aui.headers, |_| true);
             if aui.index != aui.count {
                 ctx.data_mut(|d| d.insert_temp(count_id, aui.index));
+            }
+            if aui.heights.len() > aui.index {
+                aui.heights.truncate(aui.index);
+                aui.heights_dirty = true;
+            }
+            if aui.heights_dirty {
+                ctx.data_mut(|d| d.insert_temp(heights_id, std::mem::take(&mut aui.heights)));
             }
             (inner, aui.toggled)
         });

@@ -300,3 +300,28 @@ fn sibling_accordions_scope_their_panels_apart() {
     assert_eq!(ids.len(), 2);
     assert_ne!(ids[0], ids[1]);
 }
+
+#[test]
+fn accordion_drops_measured_heights_of_removed_panels() {
+    let mut h = still(SCREEN, (3_usize, usize::MAX), |ui, (panels, stored)| {
+        let mut ex = Expansion::default();
+        for i in 0..*panels {
+            ex.expand(i);
+        }
+        Accordion::new("acc", &mut ex).show(ui, |a| {
+            for i in 0..*panels {
+                a.panel(format!("P{i}"), |ui| ui.label("body"));
+            }
+        });
+        let id = ui.make_persistent_id(egui_mineral::semantic::KeyedSalt::from("acc").id_salt());
+        *stored = ui
+            .ctx()
+            .data(|d| d.get_temp::<Vec<f32>>(id.with("heights")))
+            .map_or(0, |v| v.len());
+    });
+    h.run();
+    assert_eq!(h.state().value.1, 3);
+    h.state_mut().value.0 = 1;
+    h.run();
+    assert_eq!(h.state().value.1, 1);
+}
