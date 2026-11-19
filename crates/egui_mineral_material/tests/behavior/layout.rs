@@ -6,12 +6,14 @@ use egui_mineral_material::{
     actions::{IconButton, PushButton},
     adaptive,
     communication::{CircularProgressIndicator, LinearProgressIndicator},
+    extras::{DescriptionItem, DescriptionLayout, DescriptionList, Timeline, TimelineItem},
     icons::ICON_MAIL,
+    scroll,
     spec::{defaults::text_field, tokens::linear_progress_indicator},
     text_inputs::{TextField, TextFieldVariant},
 };
 
-use crate::support::{MineralHarness, SCREEN, build, builder, harness, min_interactive};
+use crate::support::{MineralHarness, Mui, SCREEN, build, builder, harness, min_interactive, still};
 
 const KEYS: [&str; 4] = ["f-field", "o-field", "ib-button", "b-button"];
 
@@ -137,4 +139,65 @@ fn text_style_sets_the_line_spacing_of_extra_rows() {
     let gap = TypeScale::BodyLarge.line_height() - TypeScale::BodyMedium.line_height();
     let (body, small) = (h.rect("body-field").height(), h.rect("small-field").height());
     assert_eq!(body - small, 3.0 * gap);
+}
+
+const DL_ITEMS: [(&str, &str); 6] = [
+    ("Name", "egui_mineral"),
+    ("License", "GPL-3.0-or-later"),
+    ("Toolkit", "egui 0.37"),
+    ("Layout", "Taffy"),
+    ("Locale data", "ICU4X / CLDR"),
+    ("Targets", "Linux, macOS, Windows, wasm32"),
+];
+
+fn description_list(layout: DescriptionLayout, columns: usize) -> DescriptionList {
+    DescriptionList::new("dl")
+        .layout(layout)
+        .columns(columns)
+        .dividers(true)
+        .items(DL_ITEMS.map(|(term, detail)| DescriptionItem::term(term).detail(detail)))
+}
+
+#[test]
+fn full_width_composites_never_widen_their_page() {
+    type Add = fn(&mut Mui<'_>);
+    let cases: [(&str, Add); 4] = [
+        ("timeline", |ui| {
+            ui.mineral(
+                Timeline::new("tl")
+                    .item(
+                        TimelineItem::new("Release")
+                            .time("Nov 14")
+                            .supporting("Tagged.")
+                            .active(true),
+                    )
+                    .item(TimelineItem::new("Kickoff").time("Nov 1")),
+            );
+        }),
+        ("description list, horizontal", |ui| {
+            ui.mineral(description_list(DescriptionLayout::Horizontal, 2));
+        }),
+        ("description list, vertical", |ui| {
+            ui.mineral(description_list(DescriptionLayout::Vertical, 3));
+        }),
+        ("description list, one column", |ui| {
+            ui.mineral(description_list(DescriptionLayout::Horizontal, 1));
+        }),
+    ];
+    for width in [360.0, 673.0, 1024.0] {
+        for (name, add) in cases {
+            // Settled overflow: a page scroll widens to its content, so excess compounds across passes.
+            let mut h = still(vec2(width, 600.0), 0.0_f32, move |ui, over| {
+                // Taller than the window: the page bar appears after the first pass and narrows the content.
+                let out = scroll::page(ui, "page", |ui| {
+                    add(ui);
+                    ui.add_space(2000.0);
+                });
+                *over = out.content_size.x - out.inner_rect.width();
+            });
+            h.run_steps(8);
+            let over = h.state().value;
+            assert!(over <= 0.5, "{name} at {width}: {over:.1} px wider than its page");
+        }
+    }
 }
