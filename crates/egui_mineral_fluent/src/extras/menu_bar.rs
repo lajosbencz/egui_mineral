@@ -183,7 +183,7 @@ impl<'a> MenuBar<'a> {
                     Menu::new(self.salt.child(("popup", o)), &menu.title).show(rt, &trigger, &mut open, menu.rows);
                 popup = out.response;
                 if out.dismissed == Some(Dismiss::Escape) {
-                    ctx.memory_mut(|m| m.request_focus(trigger.id));
+                    menubar::refocus_title(&ctx, id, o, trigger.id);
                 }
                 if !open {
                     bar.open = None;

@@ -158,7 +158,7 @@ impl MenuStrip {
             } else if !still_open {
                 bar.open = None;
                 if out.closed {
-                    ctx.memory_mut(|m| m.request_focus(ids[i]));
+                    menubar::refocus_title(&ctx, id, i, ids[i]);
                 }
             }
         }

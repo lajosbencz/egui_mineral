@@ -212,6 +212,12 @@ fn menu_bar_keys_open_move_between_menus_and_escape_returns_focus() {
         h.tree().find_key("bar-popup-0-menu").is_some(),
         "Left moves to the previous menu"
     );
+    h.press(Key::Escape);
+    assert!(
+        h.tree().find_key("bar-popup-0-menu").is_none(),
+        "Escape closes the menu"
+    );
+    assert!(h.focused("bar-0-menubar-item"), "Escape returns focus to its title");
 }
 
 #[test]

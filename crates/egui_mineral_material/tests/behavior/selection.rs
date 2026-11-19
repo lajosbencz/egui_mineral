@@ -348,6 +348,29 @@ fn f10_and_a_lone_alt_toggle_focus_to_the_menu_strip() {
 }
 
 #[test]
+fn escape_after_switching_menus_returns_focus_to_the_open_title() {
+    let mut h = still(WIDE, (), |ui, ()| {
+        MenuStrip::new("strip")
+            .menu(Menu::new("file", "File").item(MenuItem::new("Open")))
+            .menu(Menu::new("edit", "Edit").item(MenuItem::new("Copy")))
+            .show(ui);
+        ui.mineral(PushButton::new("other", "Other"));
+    });
+    h.click("other-button");
+    h.press(Key::F10);
+    h.press(Key::ArrowRight);
+    assert!(h.focused("edit-menubar-item"), "Right roves to the next title");
+    h.press(Key::ArrowDown);
+    h.press(Key::ArrowLeft);
+    h.press(Key::Escape);
+    h.run();
+    assert!(
+        h.focused("file-menubar-item"),
+        "Escape returns focus to the open menu's title"
+    );
+}
+
+#[test]
 fn menu_item_tooltip_describes_the_item() {
     use egui_kittest::kittest::{NodeT as _, Queryable as _};
     let mut h = still(WIDE, (), |ui, ()| {

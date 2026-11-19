@@ -67,6 +67,13 @@ impl BarState {
     }
 }
 
+/// Focuses title `index` (`title`) of the bar `group` after its menu closed and makes it the bar's Tab stop.
+pub fn refocus_title(ctx: &egui::Context, group: Id, index: usize, title: Id) {
+    ctx.memory_mut(|m| m.request_focus(title));
+    // Left/Right switch menus without moving the roving stop; a non-stop title drops focus.
+    crate::kit::focus::remember(ctx, group, [(index, title)]);
+}
+
 /// `nav` is -1 or 1; wraps: -1 from the first menu is the last, 1 from the last is the first.
 pub fn adjacent(open: usize, nav: i8, count: usize) -> usize {
     open.checked_add_signed(isize::from(nav))
