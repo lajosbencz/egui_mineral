@@ -721,6 +721,7 @@ mod extras {
 
     other!(SplitPane, "Desktop splitter: resizable panes");
     other!(StatusBar, "Desktop status bar");
+    other!(Pagination<'a>, "Page selector with siblings, boundaries and gaps");
 }
 
 /// Every public component with its category and origin.
@@ -834,6 +835,8 @@ pub const CATALOG: &[ComponentMeta] = &[
     SplitPane::META,
     #[cfg(feature = "extras")]
     StatusBar::META,
+    #[cfg(feature = "extras")]
+    <Pagination<'static>>::META,
 ];
 
 #[cfg(test)]

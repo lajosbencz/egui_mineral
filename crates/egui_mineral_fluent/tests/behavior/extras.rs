@@ -1,5 +1,5 @@
 use egui::Key;
-use egui_mineral_fluent::extras::{SplitPane, StatusBar, StatusItem, StatusProgress};
+use egui_mineral_fluent::extras::{Pagination, SplitPane, StatusBar, StatusItem, StatusProgress};
 
 use crate::support::{FluentHarness, Fui, harness};
 
@@ -95,4 +95,37 @@ fn status_item_bar_progress_exposes_its_value() {
     let progress = h.node("status-0-progress");
     assert_eq!(progress.state.range.map(|r| r.value), Some(0.5));
     assert!(h.rect("status-0-status-item").contains_rect(progress.rect));
+}
+
+fn pagination(total: usize, page: usize) -> crate::support::Harness<'static, usize> {
+    harness(page, move |ui, page| {
+        let changed = ui
+            .mineral(Pagination::new("pg", total, page).first_last(true))
+            .changed();
+        let _ = changed;
+    })
+}
+
+#[test]
+fn pagination_pages_move_the_bound_index_and_mark_the_current_one() {
+    let mut h = pagination(10, 4);
+    h.run();
+    assert_eq!(h.node("pg-5-page-button").state.checked, Some(true.into()));
+    h.click("pg-6-page-button");
+    assert_eq!(h.state().value, 5);
+    h.click("pg-next-button");
+    assert_eq!(h.state().value, 6);
+    h.click("pg-first-button");
+    assert_eq!(h.state().value, 0);
+    h.click("pg-last-button");
+    assert_eq!(h.state().value, 9);
+    assert!(h.node("pg-next-button").state.disabled, "no page after the last");
+}
+
+#[test]
+fn pagination_moves_a_stale_page_onto_the_last() {
+    let mut h = pagination(3, 7);
+    h.run();
+    assert_eq!(h.state().value, 2);
+    assert_eq!(h.node("pg-pagination").role, egui_mineral::semantic::Role::Navigation);
 }

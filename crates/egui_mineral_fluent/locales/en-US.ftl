@@ -82,3 +82,14 @@ mineral-table-select-all = Select all rows
 mineral-table-select-row = Select row
 mineral-table-sorted-ascending = { $label }, sorted ascending
 mineral-table-sorted-descending = { $label }, sorted descending
+
+# Extras
+mineral-pagination = Pagination
+mineral-pagination-first = First page
+mineral-pagination-prev = Previous page
+mineral-pagination-next = Next page
+mineral-pagination-last = Last page
+mineral-menu-strip = Menu bar
+mineral-command-placeholder = Search commands
+mineral-command-empty = No results found.
+mineral-command-results = Commands
