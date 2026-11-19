@@ -11,7 +11,7 @@ egui_mineral = { workspace = true, features = ["platform-native", "web-save-stre
 egui_mineral_material = { workspace = true, features = ["icu", "persist-fs", "unstable-catalog", "unstable-spec"] }
 mineral_inspector.workspace = true
 # glow: a smaller web bundle than eframe's default wgpu.
-eframe = { workspace = true, default-features = false, features = ["accesskit", "clipboard", "default_fonts", "glow", "links", "system_fonts", "wayland", "web_screen_reader", "x11"] }
+eframe = { workspace = true, features = ["accesskit", "clipboard", "default_fonts", "glow", "links", "system_fonts", "wayland", "web_screen_reader", "x11"] }
 egui.workspace = true
 tracing.workspace = true
 futures-util.workspace = true
