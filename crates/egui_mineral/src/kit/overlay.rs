@@ -15,9 +15,12 @@ pub fn floating(core: &Core, id: Id, pos: Pos2) -> Area {
     area(core, id).order(Order::Foreground).fixed_pos(pos).constrain(false)
 }
 
-/// [`egui::Modal::default_area`] set up as [`area`]; use for every library modal.
+/// [`egui::Modal::default_area`] set up as [`area`]; use for every library modal. Its layer counts as modal for
+/// [`crate::shortcut::scope_of`] from this pass on.
 pub fn modal_area(core: &Core, id: Id) -> Area {
-    setup(core, egui::Modal::default_area(id))
+    let area = setup(core, egui::Modal::default_area(id));
+    crate::overlay::declare_modal(core.ctx(), area.layer());
+    area
 }
 
 fn setup(core: &Core, area: Area) -> Area {

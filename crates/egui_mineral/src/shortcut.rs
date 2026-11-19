@@ -411,12 +411,14 @@ pub fn take_item(ctx: &Context, item: Id) -> bool {
     })
 }
 
-/// Scope for a widget on `layer`: [`Scope::Modal`] when `layer` is [`crate::overlay::top_modal`], else
-/// [`Scope::Global`].
+/// Scope for a widget on `layer`: its own [`Scope::Modal`] when `layer` is a modal
+/// ([`crate::overlay::is_modal`], from the pass it opens in), else [`Scope::Global`]. A covered modal keeps its
+/// scope, which is inactive until it is on top again.
 pub fn scope_of(ctx: &Context, layer: LayerId) -> Scope {
-    match crate::overlay::top_modal(ctx) {
-        Some(modal) if modal == layer => Scope::Modal(modal.id),
-        _ => Scope::Global,
+    if crate::overlay::is_modal(ctx, layer) {
+        Scope::Modal(layer.id)
+    } else {
+        Scope::Global
     }
 }
 
@@ -1091,6 +1093,28 @@ mod tests {
             step(&rt, vec![key_down(Key::S, Modifiers::CTRL)], only_global).0,
             Vec::<ActionId>::new()
         );
+    }
+
+    #[test]
+    fn library_modal_binds_in_its_own_scope_from_its_opening_pass() {
+        let ctx = Context::default();
+        let rt = crate::test_support::runtime(&ctx);
+        let modal = Id::unique("dialog");
+        let scopes = std::cell::RefCell::new(Vec::new());
+        let register = |ui: &mut egui::Ui| {
+            let area = crate::kit::overlay::modal_area(rt.core(), modal);
+            Modal {
+                area,
+                backdrop_color: egui::Color32::TRANSPARENT,
+                frame: None,
+            }
+            .show(ui.ctx(), |ui| {
+                scopes.borrow_mut().push(scope_of(ui.ctx(), ui.layer_id()));
+            });
+        };
+        step(&rt, vec![], register);
+        step(&rt, vec![], register);
+        assert_eq!(*scopes.borrow(), [Scope::Modal(modal), Scope::Modal(modal)]);
     }
 
     #[test]

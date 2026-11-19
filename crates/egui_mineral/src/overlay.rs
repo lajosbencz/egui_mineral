@@ -55,6 +55,43 @@ pub fn outside_press(core: &crate::runtime::Core, inside: &[Rect]) -> bool {
     press.or(tap).is_some_and(|p| !inside.iter().any(|r| r.contains(p)))
 }
 
+#[derive(Clone, Default)]
+struct DeclaredModals {
+    pass: u64,
+    layers: Vec<LayerId>,
+}
+
+fn declared_modals_id(ctx: &Context) -> Id {
+    Id::unique(("mineral::declared_modals", ctx.viewport_id()))
+}
+
+/// Marks `layer` as a modal shown this pass; egui reports it as [`top_modal`] only from the next pass.
+pub fn declare_modal(ctx: &Context, layer: LayerId) {
+    let (pass, id) = (ctx.cumulative_pass_nr(), declared_modals_id(ctx));
+    ctx.data_mut(|d| {
+        let m = d.get_temp_mut_or_default::<DeclaredModals>(id);
+        if m.pass != pass {
+            *m = DeclaredModals {
+                pass,
+                layers: Vec::new(),
+            };
+        }
+        if !m.layers.contains(&layer) {
+            m.layers.push(layer);
+        }
+    });
+}
+
+/// `layer` is [`top_modal`] or was passed to [`declare_modal`] this pass.
+pub fn is_modal(ctx: &Context, layer: LayerId) -> bool {
+    let (pass, id) = (ctx.cumulative_pass_nr(), declared_modals_id(ctx));
+    top_modal(ctx) == Some(layer)
+        || ctx.data(|d| {
+            d.get_temp::<DeclaredModals>(id)
+                .is_some_and(|m| m.pass == pass && m.layers.contains(&layer))
+        })
+}
+
 /// Topmost `egui::Modal` layer as of the previous pass, the one egui routes input to; the single source for
 /// [`crate::shortcut::scope_of`] and [`crate::window::ModalStack::top`].
 pub fn top_modal(ctx: &Context) -> Option<LayerId> {
