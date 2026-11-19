@@ -130,8 +130,6 @@ impl<R> OverlayResponse<R> {
 #[derive(Clone, Copy, Default)]
 struct PopupState {
     shown: Option<u64>,
-    // Frame of the opening pass: its presses are not outside presses.
-    opened_frame: Option<u64>,
     // Pass whose content is the first settled one: the opening pass sizes the area with disabled widgets.
     settle: Option<u64>,
 }
@@ -287,11 +285,9 @@ impl Popup {
         };
         if *open {
             let pass = ctx.cumulative_pass_nr();
-            let frame = ctx.cumulative_frame_nr();
             let mut st = PopupState::load(ctx, state_id);
             let opened = st.shown.is_none_or(|p| p + 1 < pass);
             if opened {
-                st.opened_frame = Some(frame);
                 st.settle = self.focus_first.then_some(pass + 1);
             }
             let area = self.place(rt, id, anchor_rect, parent, add);
@@ -306,12 +302,11 @@ impl Popup {
             if let Some(f) = request {
                 ctx.memory_mut(|m| m.request_focus(f));
             }
-            out.dismissed = dismissal_of(
+            out.dismissed = dismissal(
                 rt.core(),
                 area.response.layer_id,
                 &[area.response.rect, anchor_rect],
                 return_focus,
-                st.opened_frame == Some(frame),
             );
             *open = out.dismissed.is_none();
             PopupState {
@@ -357,31 +352,13 @@ impl Popup {
 }
 
 /// Why a non-modal overlay on `layer` closes this pass: Escape (consumed) or a press outside every rect of `inside`.
+/// A press in the frame the overlay opened (code may open it in the same pass as a press) is not an outside press.
 /// Escape is left to a modal above `layer`.
 /// On Escape, focus held outside `layer` last pass stays there; otherwise it goes to `return_focus`.
+/// Call once per pass while the overlay is open: the opening pass is the first after a gap in calls.
 pub fn dismissal(core: &Core, layer: LayerId, inside: &[Rect], return_focus: Option<Id>) -> Option<Dismiss> {
-    dismissal_of(core, layer, inside, return_focus, false)
-}
-
-// First enabled focusable widget of `layer` this pass, other than `skip`.
-fn first_focusable(ctx: &Context, layer: LayerId, skip: Option<Id>) -> Option<Id> {
-    ctx.viewport(|v| {
-        v.this_pass
-            .widgets
-            .get_layer(layer)
-            .find(|w| w.enabled && w.sense.is_focusable() && Some(w.id) != skip)
-            .map(|w| w.id)
-    })
-}
-
-fn dismissal_of(
-    core: &Core,
-    layer: LayerId,
-    inside: &[Rect],
-    return_focus: Option<Id>,
-    ignore_press: bool,
-) -> Option<Dismiss> {
     let ctx = core.ctx();
+    let opening = opening_frame(ctx, layer.id);
     let last_key = layer.id.with("dismissal-focus");
     // egui clears focus on Escape before any widget runs.
     let last = Option::<Id>::load(ctx, last_key);
@@ -394,7 +371,7 @@ fn dismissal_of(
             ctx.memory_mut(|m| m.request_focus(id));
         }
         Some(Dismiss::Escape)
-    } else if !ignore_press && outside_press(core, inside) {
+    } else if !opening && outside_press(core, inside) {
         Some(Dismiss::Outside)
     } else {
         None
@@ -406,6 +383,45 @@ fn dismissal_of(
         focused.store(ctx, last_key);
     }
     dismiss
+}
+
+/// [`outside_press`] that ignores the frame in which the overlay `id` opened. Same call contract as [`dismissal`].
+pub fn outside_press_after_open(core: &Core, id: Id, inside: &[Rect]) -> bool {
+    !opening_frame(core.ctx(), id) && outside_press(core, inside)
+}
+
+#[derive(Clone, Copy, Default)]
+struct OpenedAt {
+    pass: Option<u64>,
+    frame: Option<u64>,
+}
+
+impl TempState for OpenedAt {}
+
+// True in the frame of the first pass after a gap in calls for `id`.
+fn opening_frame(ctx: &Context, id: Id) -> bool {
+    let key = id.with("mineral::opened-at");
+    let (pass, frame) = (ctx.cumulative_pass_nr(), ctx.cumulative_frame_nr());
+    let mut st = OpenedAt::load(ctx, key);
+    if st.pass != Some(pass) {
+        if st.pass.is_none_or(|p| p + 1 < pass) {
+            st.frame = Some(frame);
+        }
+        st.pass = Some(pass);
+        st.store(ctx, key);
+    }
+    st.frame == Some(frame)
+}
+
+// First enabled focusable widget of `layer` this pass, other than `skip`.
+fn first_focusable(ctx: &Context, layer: LayerId, skip: Option<Id>) -> Option<Id> {
+    ctx.viewport(|v| {
+        v.this_pass
+            .widgets
+            .get_layer(layer)
+            .find(|w| w.enabled && w.sense.is_focusable() && Some(w.id) != skip)
+            .map(|w| w.id)
+    })
 }
 
 fn has_popup(role: Role) -> Option<HasPopup> {
