@@ -55,7 +55,7 @@ impl PanClaim {
         None
     }
 
-    /// A pan that started on this widget is being relayed to the enclosing scroll area.
+    /// Between the first frame past the slop and the release of a pan relayed to the scroll area.
     pub fn relaying(&self) -> bool {
         matches!(self.pan, Some((_, false)))
     }
