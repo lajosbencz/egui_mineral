@@ -182,6 +182,7 @@ impl FieldColors {
 }
 
 // Editors that own arrow keys (list or stepper navigation) keep them from egui's focus navigation.
+#[cfg(feature = "extras")]
 pub(crate) const fn editor_keys(escape: bool) -> EventFilter {
     EventFilter {
         tab: false,
@@ -439,6 +440,7 @@ pub(crate) struct DecorOut {
     /// Top of the first input line box.
     pub text_top: f32,
     /// Label progress (0 expanded, 1 minimized).
+    #[cfg(feature = "extras")]
     pub k: f32,
     pub colors: FieldColors,
 }
@@ -531,6 +533,7 @@ impl Decor<'_> {
         DecorOut {
             span: egui::Rangef::new(start, end),
             text_top,
+            #[cfg(feature = "extras")]
             k,
             colors,
         }
@@ -794,6 +797,7 @@ macro_rules! field_chrome_setters {
 }
 pub(crate) use field_chrome_setters;
 
+#[cfg(feature = "extras")]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Combo {
     Collapsed,
@@ -819,6 +823,7 @@ pub struct TextField<'a> {
     event_filter: Option<EventFilter>,
     elide: Option<Elide>,
     pub(crate) spin: Option<NumericRange>,
+    #[cfg(feature = "extras")]
     pub(crate) combo: Option<Combo>,
     pub(crate) active_descendant: Option<egui::Id>,
     chrome: FieldChrome,
@@ -864,6 +869,7 @@ impl<'a> TextField<'a> {
             event_filter: None,
             elide: None,
             spin: None,
+            #[cfg(feature = "extras")]
             combo: None,
             active_descendant: None,
         }
@@ -938,6 +944,7 @@ impl<'a> TextField<'a> {
         agent_key(key)
     }
 
+    #[cfg(feature = "extras")]
     pub(crate) fn with_agent_key(mut self, key: AgentKey) -> Self {
         self.key = key;
         self
@@ -1061,6 +1068,7 @@ impl<'a> BareEdit<'a> {
         }
     }
 
+    #[cfg(feature = "extras")]
     pub(crate) fn v_align(mut self, v_align: egui::Align) -> Self {
         self.v_align = v_align;
         self
@@ -1286,6 +1294,7 @@ pub(crate) struct AffixCx<'a> {
 
 impl DecorOut {
     // The content span narrowed to `rect`.
+    #[cfg(feature = "extras")]
     pub(crate) fn within(self, rect: Rect) -> Self {
         Self {
             span: Rangef::new(rect.left(), rect.right()),
@@ -1479,9 +1488,10 @@ impl MineralWidget for TextField<'_> {
         buffer: &EditBuffer<String>,
     ) -> Option<SemanticNode> {
         let revealed = self.revealed;
-        let role = match (self.spin, self.combo) {
-            (Some(_), _) => Role::SpinButton,
-            (None, Some(_)) => Role::ComboBox,
+        let role = match self.spin {
+            Some(_) => Role::SpinButton,
+            #[cfg(feature = "extras")]
+            None if self.combo.is_some() => Role::ComboBox,
             _ if self.password => Role::PasswordInput,
             _ if self.multiline() => Role::MultilineTextInput,
             _ => Role::TextInput,
@@ -1497,13 +1507,17 @@ impl MineralWidget for TextField<'_> {
             .editable(Availability::disabled_if(self.disabled));
         node.state.invalid = self.chrome.error.is_some();
         node.state.range = self.spin;
-        node.state.expanded = self.combo.map(|c| c == Combo::Expanded);
+        #[cfg(feature = "extras")]
+        {
+            node.state.expanded = self.combo.map(|c| c == Combo::Expanded);
+        }
         node.active_descendant = self.active_descendant;
         if !self.disabled {
             node.actions.push(Action::ReplaceSelectedText);
             if self.spin.is_some() {
                 node.actions.extend([Action::Increment, Action::Decrement]);
             }
+            #[cfg(feature = "extras")]
             if self.combo.is_some() {
                 node.actions.push(Action::Expand);
             }

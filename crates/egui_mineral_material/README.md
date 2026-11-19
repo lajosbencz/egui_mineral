@@ -10,7 +10,7 @@ built on the core behavior models. See every component in the
 [live showcase](https://lajosbencz.github.io/egui_mineral/material/).
 
 Components by MD3 category: `actions`, `communication`, `containment`, `navigation`, `selection`,
-`text_inputs`, plus `extras`.
+`text_inputs`, plus `extras` (feature `extras`).
 
 Targets egui 0.37 on native and wasm. Pre-1.0: any minor release may break the API.
 
@@ -68,6 +68,7 @@ Each native window can run its own runtime, with its own theme, tokens, locale a
 
 | Feature | Default | Adds |
 |---|---|---|
+| `extras` | yes | The `extras` module (components without an MD3 counterpart), `prelude` re-exports of them and `ValueSlider::value_field` |
 | `icu` | yes | ICU4X locale formatting (`egui_mineral/icu`); without it `AsciiFormat` |
 | `persist-json` | | JSON persistence codec (`egui_mineral/persist-json`) |
 | `persist-toml` | yes | TOML persistence codec (`egui_mineral/persist-toml`) |

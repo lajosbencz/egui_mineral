@@ -4,6 +4,7 @@ pub(crate) mod card;
 pub(crate) mod carousel;
 pub(crate) mod dialog;
 pub(crate) mod divider;
+pub(crate) mod drag_handle;
 pub(crate) mod list;
 pub(crate) mod list_slot;
 pub(crate) mod sheet;

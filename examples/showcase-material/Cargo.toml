@@ -8,7 +8,7 @@ publish = false
 
 [dependencies]
 egui_mineral = { workspace = true, features = ["platform-native", "web-save-stream"] }
-egui_mineral_material = { workspace = true, features = ["icu", "persist-fs", "persist-json", "persist-toml", "unstable-catalog", "unstable-spec"] }
+egui_mineral_material = { workspace = true, features = ["extras", "icu", "persist-fs", "persist-json", "persist-toml", "unstable-catalog", "unstable-spec"] }
 mineral_inspector.workspace = true
 # glow: a smaller web bundle than eframe's default wgpu.
 eframe = { workspace = true, features = ["accesskit", "clipboard", "default_fonts", "glow", "links", "system_fonts", "wayland", "web_screen_reader", "x11"] }

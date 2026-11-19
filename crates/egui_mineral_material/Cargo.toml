@@ -14,12 +14,12 @@ categories.workspace = true
 exclude = ["clippy.toml"]
 
 [package.metadata.docs.rs]
-features = ["icu", "persist-fs", "persist-json", "persist-toml", "bundled-icons", "theme-file", "unstable-catalog", "unstable-spec"]
+features = ["icu", "persist-fs", "persist-json", "persist-toml", "bundled-icons", "theme-file", "extras", "unstable-catalog", "unstable-spec"]
 rustdoc-args = ["--cfg", "docsrs"]
 targets = ["x86_64-unknown-linux-gnu", "wasm32-unknown-unknown"]
 
 [features]
-default = ["icu", "persist-fs", "persist-toml", "bundled-icons"]
+default = ["icu", "persist-fs", "persist-toml", "bundled-icons", "extras"]
 # Material Symbols Rounded fonts (filled and outlined, 3 MB); without it use `Material::with_icon_fonts`.
 bundled-icons = ["dep:egui_material_icons"]
 # `egui_mineral/icu`: ICU4X locale formatting.
@@ -30,6 +30,8 @@ persist-json = ["egui_mineral/persist-json"]
 persist-toml = ["egui_mineral/persist-toml"]
 # `egui_mineral/persist-fs`: file-backed persistence.
 persist-fs = ["egui_mineral/persist-fs"]
+# Components beyond MD3 (`extras` module); `ValueSlider::value_field` needs it.
+extras = []
 # Component provenance: `catalog` module. Unstable: outside semver.
 unstable-catalog = []
 # Public generated MD3 values: `spec::tokens` and `spec::defaults`. Unstable: outside semver.
@@ -64,6 +66,15 @@ required-features = ["unstable-spec", "icu", "bundled-icons"]
 [[test]]
 name = "behavior"
 required-features = ["icu", "bundled-icons"]
+
+# Asserts ICU4X locale output.
+[[test]]
+name = "behavior_extras"
+required-features = ["extras", "icu", "bundled-icons"]
+
+[[test]]
+name = "spec_extras"
+required-features = ["extras", "unstable-spec", "icu", "bundled-icons"]
 
 [lints]
 workspace = true

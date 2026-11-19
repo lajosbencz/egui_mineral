@@ -463,7 +463,7 @@ impl Menu {
         agent_key(salt)
     }
 
-    /// Alt+letter opens the menu from a [`MenuStrip`](crate::extras::MenuStrip).
+    /// Alt+letter opens the menu from a `MenuStrip`.
     pub fn mnemonic(mut self, mnemonic: char) -> Self {
         self.mnemonic = Some(Mnemonic::new(mnemonic));
         self
@@ -762,7 +762,7 @@ impl Menu {
 
     /// Menu at `anchor` while `open`, which the app owns: e.g. a rect from
     /// [`ToolbarResponse::actions`](crate::navigation::ToolbarResponse::actions) or
-    /// [`TreeAction::rect`](crate::extras::TreeAction::rect). Closing (an item, Escape, an outside press other than
+    /// `TreeAction::rect`. Closing (an item, Escape, an outside press other than
     /// on `anchor`) clears `open`.
     pub fn show_at(self, ui: &MineralUi<'_, Material>, anchor: Rect, open: &mut bool) -> MenuResponse {
         let this = self.resolved();

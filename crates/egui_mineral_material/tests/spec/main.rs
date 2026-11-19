@@ -8,7 +8,6 @@ mod support;
 mod actions;
 mod communication;
 mod containment;
-mod extras;
 mod layout;
 mod navigation;
 mod selection;

@@ -4,7 +4,7 @@
 //! [live showcase](https://lajosbencz.github.io/egui_mineral/material/).
 //!
 //! Components by MD3 category: [`actions`], [`communication`], [`containment`], [`navigation`], [`selection`],
-//! [`text_inputs`], plus [`extras`].
+//! [`text_inputs`], plus [`extras`] (feature `extras`).
 //!
 //! Targets egui 0.37 on native and wasm. Pre-1.0: any minor release may break the API.
 //!
@@ -67,6 +67,7 @@
 //!
 //! | Feature | Default | Adds |
 //! |---|---|---|
+//! | `extras` | yes | The [`extras`] module (components without an MD3 counterpart), [`prelude`] re-exports of them and `ValueSlider::value_field` |
 //! | `icu` | yes | ICU4X locale formatting (`egui_mineral/icu`); without it [`AsciiFormat`](egui_mineral::i18n::AsciiFormat) |
 //! | `persist-json` | | JSON persistence codec (`egui_mineral/persist-json`) |
 //! | `persist-toml` | yes | TOML persistence codec (`egui_mineral/persist-toml`) |
@@ -78,6 +79,11 @@
 //!
 //! `unstable-*` features are outside the semver guarantee: any release may change them.
 // Feature-gated items: docs.rs (all features) links when the feature is off.
+#![cfg_attr(
+    not(feature = "extras"),
+    doc = "",
+    doc = "[`extras`]: https://docs.rs/egui_mineral_material/latest/egui_mineral_material/extras/index.html"
+)]
 #![cfg_attr(
     not(feature = "unstable-catalog"),
     doc = "",
@@ -113,6 +119,7 @@ pub mod catalog;
 pub mod color;
 pub mod communication;
 pub mod containment;
+#[cfg(feature = "extras")]
 pub mod extras;
 /// Font and icon installation.
 pub mod fonts;

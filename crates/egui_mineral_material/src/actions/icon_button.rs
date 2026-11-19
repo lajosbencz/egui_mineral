@@ -261,6 +261,7 @@ impl<'a> IconButton<'a> {
     }
 
     // Dense composites size the slot to the container instead of the 48dp target.
+    #[cfg(feature = "extras")]
     pub(crate) fn hit_target(mut self, target: MinTarget) -> Self {
         self.target = target;
         self

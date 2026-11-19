@@ -1,3 +1,4 @@
+#[cfg(feature = "extras")]
 use crate::IconSet;
 use crate::Material;
 use crate::MaterialExt;
@@ -236,11 +237,13 @@ impl ListItem {
     }
 
     // Drag indicator visual of a reorderable row; keeps an app trailing control.
+    #[cfg(feature = "extras")]
     pub(crate) fn drag_indicator(mut self, icons: &IconSet) -> Self {
         self.trailing = self.trailing.icon(icons.drag_indicator);
         self
     }
 
+    #[cfg(feature = "extras")]
     pub(crate) fn dragged(mut self, dragged: bool) -> Self {
         self.dragged = dragged;
         self

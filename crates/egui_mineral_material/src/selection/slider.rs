@@ -14,9 +14,13 @@ use egui_mineral::{
     widget::{Availability, MineralWidget, PanGate, WidgetFrame, WidgetResponse},
 };
 
+#[cfg(feature = "extras")]
 use crate::MaterialUiExt as _;
+#[cfg(feature = "extras")]
 use crate::extras::NumberField;
+#[cfg(feature = "extras")]
 use crate::text_inputs::TextFieldVariant;
+#[cfg(feature = "extras")]
 use crate::text_inputs::text_field::field_h;
 use crate::widget::parts;
 use crate::{
@@ -31,11 +35,14 @@ use crate::{
     Size,
     widget::common::{self, with_alpha},
 };
+#[cfg(feature = "extras")]
 use egui_mineral::i18n::Direction;
+#[cfg(feature = "extras")]
 use egui_mineral::widget::SizeExt as _;
 
 const MAX_TICKS: usize = 64;
 // No MD3 value; five bodyLarge digits with the field paddings
+#[cfg(feature = "extras")]
 const VALUE_FIELD_WIDTH: f32 = 88.0;
 const OUTER_ICON: f32 = 24.0;
 const OUTER_ICON_GAP: f32 = 8.0;
@@ -135,6 +142,7 @@ pub struct ValueSlider<'a> {
     centered: bool,
     axis: Axis,
     icons: EndIcons,
+    #[cfg(feature = "extras")]
     value_field: bool,
 }
 
@@ -209,6 +217,7 @@ impl<'a> ValueSlider<'a> {
             centered: false,
             axis: Axis::Horizontal,
             icons: EndIcons::default(),
+            #[cfg(feature = "extras")]
             value_field: false,
         }
     }
@@ -233,6 +242,7 @@ impl<'a> ValueSlider<'a> {
 
     /// Number field after the track bound to the same value, labeled and named like the slider.
     /// Single thumb, horizontal only. Default `false`.
+    #[cfg(feature = "extras")]
     pub fn value_field(mut self, value_field: bool) -> Self {
         self.value_field = value_field;
         self
@@ -304,6 +314,7 @@ impl<'a> ValueSlider<'a> {
         m.handle.max(m.track)
     }
 
+    #[cfg(feature = "extras")]
     fn has_value_field(&self) -> bool {
         self.value_field && self.values.len() == 1 && self.axis == Axis::Horizontal
     }
@@ -618,12 +629,15 @@ impl MineralWidget for ValueSlider<'_> {
         } else {
             self.axis.main(ui.available_size())
         };
+        #[cfg(feature = "extras")]
         let cross = if self.has_value_field() {
             self.cross()
                 .max(field_h(ui.density(), TextFieldVariant::Outlined, false))
         } else {
             self.cross()
         };
+        #[cfg(not(feature = "extras"))]
+        let cross = self.cross();
         c.constrain(self.axis.vec2(main, cross)).into()
     }
 
@@ -635,7 +649,10 @@ impl MineralWidget for ValueSlider<'_> {
     ) -> WidgetResponse {
         let rt = ui.rt();
         let t = ui.tokens();
+        #[cfg(feature = "extras")]
         let (track, field) = self.split_value_field(rt, frame.zones.visual);
+        #[cfg(not(feature = "extras"))]
+        let track = frame.zones.visual;
         let lay = self.slider_layout(rt, track);
         let r = &frame.response;
         let before: Vec<f64> = self.values.to_vec();
@@ -659,6 +676,7 @@ impl MineralWidget for ValueSlider<'_> {
         self.paint_track(ui.painter(), &pc);
         self.paint_thumbs(ui, &pc);
         self.emit_thumb_nodes(rt, &pc);
+        #[cfg(feature = "extras")]
         if let Some(field) = field {
             self.show_value_field(ui, field);
         }
@@ -692,6 +710,7 @@ impl MineralWidget for ValueSlider<'_> {
     }
 }
 
+#[cfg(feature = "extras")]
 impl ValueSlider<'_> {
     // The track rect and, with `value_field`, the rect of the field at the end.
     fn split_value_field(&self, rt: &Rt, visual: Rect) -> (Rect, Option<Rect>) {
@@ -728,7 +747,9 @@ impl ValueSlider<'_> {
             rt.ui(ui).mineral(field);
         });
     }
+}
 
+impl ValueSlider<'_> {
     fn node(&self, i18n: &I18n, id: StableId, name: String, v: f64) -> SemanticNode {
         SemanticNode::new(id, Role::Slider, name)
             .value(self.text(i18n, v))

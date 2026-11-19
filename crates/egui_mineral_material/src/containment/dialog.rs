@@ -624,7 +624,7 @@ impl Dialog {
         let i = common::Interaction::of(&handle, egui_mineral::widget::Availability::Enabled);
         if i.hovered || i.focused || i.dragged {
             let center = pos2(edge, frame.center().y);
-            crate::extras::split_pane::paint_drag_handle(ui, &handle, center, Axis::Horizontal, false);
+            crate::containment::drag_handle::paint(ui, &handle, center, Axis::Horizontal, false);
         }
         let label = crate::tr(rt.i18n(), "mineral-dialog-resize");
         semantic::emit(ui.ctx(), Some(handle.id), rect, || {

@@ -176,6 +176,7 @@ impl LinearProgressIndicator {
     indicator_setters!("Animated", "LinearWavyProgressIndicator");
 
     // Fills `rect`, e.g. a slot of a painted row, in a child `Ui`.
+    #[cfg(feature = "extras")]
     pub(crate) fn show_in(self, ui: &mut MineralUi<'_, Material>, rect: Rect) {
         use egui_mineral::widget::SizeExt as _;
         let layout = egui::Layout::centered_and_justified(egui::Direction::TopDown);
@@ -420,6 +421,7 @@ impl CircularProgressIndicator {
     indicator_setters!("Spinning", "CircularWavyProgressIndicator");
 
     // Fills `rect`, e.g. an icon slot of a painted row, in a child `Ui`.
+    #[cfg(feature = "extras")]
     pub(crate) fn show_in(self, ui: &mut MineralUi<'_, Material>, rect: Rect) {
         use egui_mineral::widget::SizeExt as _;
         let layout = egui::Layout::centered_and_justified(egui::Direction::TopDown);

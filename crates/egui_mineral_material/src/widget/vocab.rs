@@ -19,7 +19,7 @@ pub enum Size {
 }
 
 /// Icon action item of a [`TopAppBar`](crate::navigation::TopAppBar), toolbar
-/// ([`Toolbar`](crate::navigation::Toolbar)) or [`TreeView`](crate::extras::TreeView) row.
+/// ([`Toolbar`](crate::navigation::Toolbar)) or `TreeView` row.
 #[derive(Clone, Debug)]
 #[must_use]
 pub struct IconAction {
@@ -177,16 +177,20 @@ macro_rules! from_label {
 }
 
 from_label!(
-    crate::extras::TableColumn,
     crate::containment::DialogAction,
     crate::actions::ButtonGroupItem,
     crate::actions::Segment,
     crate::selection::MenuItem,
     crate::navigation::Tab,
+    crate::communication::SnackbarAction
+);
+
+#[cfg(feature = "extras")]
+from_label!(
+    crate::extras::TableColumn,
     crate::extras::PaletteCommand,
     crate::extras::StepLabel,
-    crate::extras::TimelineItem,
-    crate::communication::SnackbarAction
+    crate::extras::TimelineItem
 );
 
 /// Builder setters shared by widgets; doc comments pass through, `|s| place` names the target on an owned `s`.

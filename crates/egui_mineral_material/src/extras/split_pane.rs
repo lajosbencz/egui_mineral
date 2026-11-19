@@ -1,23 +1,15 @@
 use crate::Material;
 use crate::MaterialExt;
-use egui::{Pos2, Rect, Response, Stroke, vec2};
+use egui::Stroke;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::semantic::StableId;
-use egui_mineral::widget::Availability;
 use egui_mineral::widget::MineralUi;
 use egui_mineral::{
     layout::Axis,
     splitter::{Splitter, SplitterResponse},
 };
 
-use crate::spec::{
-    ColorRole,
-    tokens::{divider, drag_handle as m},
-};
-use crate::widget::{
-    common::{self, Interaction},
-    indication,
-};
+use crate::spec::tokens::{divider, drag_handle as m};
 
 // No MD3 counterpart; Compose VerticalDragHandle is not focusable, so keyboard focus shows the pressed state
 
@@ -107,41 +99,7 @@ impl SplitPane {
         } else {
             p.hline(line.x_range(), line.center().y, stroke);
         }
-        paint_drag_handle(ui, &r.response, line.center(), self.axis, self.disabled);
+        crate::containment::drag_handle::paint(ui, &r.response, line.center(), self.axis, self.disabled);
         r
     }
-}
-
-// Compose VerticalDragHandle; `axis` is the resize direction.
-pub(crate) fn paint_drag_handle(
-    ui: &MineralUi<'_, Material>,
-    response: &Response,
-    center: Pos2,
-    axis: Axis,
-    disabled: bool,
-) {
-    let t = ui.rt().tokens();
-    let i = Interaction::of(response, Availability::disabled_if(disabled));
-    let pressed = !i.disabled && (i.pressed || i.focused);
-    let (w, h, shape, color) = if i.dragged {
-        (m::DRAGGED_WIDTH, m::DRAGGED_HEIGHT, m::DRAGGED_SHAPE, m::DRAGGED_COLOR)
-    } else if pressed {
-        (m::PRESSED_WIDTH, m::PRESSED_HEIGHT, m::PRESSED_SHAPE, m::PRESSED_COLOR)
-    } else {
-        (m::WIDTH, m::HEIGHT, m::SHAPE, m::COLOR)
-    };
-    let size = if axis == Axis::Horizontal {
-        vec2(w, h)
-    } else {
-        vec2(h, w)
-    };
-    let handle = Rect::from_center_size(center, size);
-    let radius = common::radius(handle, shape.scale().radius(&t.shape));
-    let fill = if i.disabled {
-        common::dim(t.role(color), &t)
-    } else {
-        t.role(color)
-    };
-    ui.painter().rect_filled(handle, radius, fill);
-    indication::paint(ui, response, handle, radius, t.role(ColorRole::OnSurface), i, &t);
 }

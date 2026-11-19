@@ -77,7 +77,7 @@ hotpatch-guard:
 
 # Mirrors `[package.metadata.docs.rs] features` of each crate
 docsrs_core := "icu,persist-fs,persist-json,persist-toml,platform-native,web-save-stream"
-docsrs_material := "icu,persist-fs,persist-json,persist-toml,bundled-icons,theme-file,unstable-catalog,unstable-spec"
+docsrs_material := "icu,persist-fs,persist-json,persist-toml,bundled-icons,theme-file,extras,unstable-catalog,unstable-spec"
 docsrs_fluent := "icu,persist-fs,persist-json,persist-toml,bundled-icons,unstable-catalog,unstable-spec"
 
 # Doctests, rustdoc and the docs.rs build

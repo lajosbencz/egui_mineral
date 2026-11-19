@@ -147,6 +147,7 @@ pub(crate) fn icon_rotated(p: &Painter, center: Pos2, icon: Icon, size: f32, col
     p.add(crate::widget::common::icon_shape(p, center, icon, size, color, angle));
 }
 
+#[cfg(feature = "extras")]
 pub(crate) fn row<R>(
     ui: &mut MineralUi<'_, Material>,
     dir: egui_mineral::i18n::Direction,

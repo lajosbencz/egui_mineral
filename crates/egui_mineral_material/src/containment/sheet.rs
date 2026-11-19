@@ -641,13 +641,7 @@ impl SideSheet {
             f64::from(width),
             1.0,
         );
-        crate::extras::split_pane::paint_drag_handle(
-            ui,
-            &handle,
-            pos2(edge, sheet.center().y),
-            Axis::Horizontal,
-            false,
-        );
+        crate::containment::drag_handle::paint(ui, &handle, pos2(edge, sheet.center().y), Axis::Horizontal, false);
         let label = crate::tr(rt.i18n(), "mineral-sheet-resize");
         semantic::emit(ui.ctx(), Some(handle.id), rect, || {
             SemanticNode::new(StableId::of(&self.salt, "resize"), Role::Splitter, label)

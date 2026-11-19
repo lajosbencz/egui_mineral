@@ -16,6 +16,7 @@ pub use crate::containment::{
     BottomSheet, Card, CardVariant, Carousel, CarouselLayout, CarouselPadding, Dialog, DialogAction, Divider,
     FullScreenDialog, ListControl, ListItem, ListLines, ListSlot, ListVisual, SideSheet, SwipeAction,
 };
+#[cfg(feature = "extras")]
 pub use crate::extras::{
     Accordion, AccordionPanel, AccordionUi, AccordionVariant, Alert, AlertVariant, Avatar, AvatarGroup, AvatarSize,
     Breadcrumbs, ColorPicker, ColorSpace, Combobox, CommandPalette, DataTable, DateField, DescriptionItem,

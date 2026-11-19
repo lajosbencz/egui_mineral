@@ -108,7 +108,7 @@ fn text(rt: &Rt, p: &Painter, s: &str, color: Color32) -> Arc<Galley> {
 }
 
 /// Leading or trailing content of a [`ListItem`](super::ListItem) or a
-/// [`TreeView`](crate::extras::TreeView) row: an optional control at the outer edge and an
+/// `TreeView` row: an optional control at the outer edge and an
 /// optional visual next to it.
 #[derive(Clone, Debug, Default)]
 #[must_use]

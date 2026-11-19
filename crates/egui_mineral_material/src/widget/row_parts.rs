@@ -3,7 +3,9 @@
 use crate::Material;
 use crate::Rt;
 use crate::adaptive::Density;
-use egui::{Color32, CornerRadius, Id, Painter, Pos2, Rangef, Rect, Response, Sense, Stroke, pos2, vec2};
+use egui::{Color32, CornerRadius, Id, Painter, Rangef, Rect, Response, Sense, pos2, vec2};
+#[cfg(feature = "extras")]
+use egui::{Pos2, Stroke};
 use egui_mineral::semantic::{Role, SemanticNode, StableId};
 use egui_mineral::widget::Availability;
 use egui_mineral::widget::MineralUi;
@@ -15,10 +17,11 @@ use egui_mineral::{
 };
 
 use crate::containment::ListLines;
-use crate::selection::{
-    controls::{self, Control},
-    select,
-};
+#[cfg(feature = "extras")]
+use crate::selection::controls::Control;
+use crate::selection::{controls, select};
+#[cfg(feature = "extras")]
+use crate::spec::tokens::{divider, x_small_icon_button};
 use crate::widget::{
     common::{self, Interaction},
     indication, parts,
@@ -27,7 +30,7 @@ use crate::{
     Leading,
     spec::{
         ColorRole, TypeScale, defaults,
-        tokens::{divider, list, menu, reorder_list, x_small_icon_button},
+        tokens::{list, menu, reorder_list},
     },
     tokens::Tokens,
 };
@@ -68,6 +71,7 @@ pub(crate) fn control_target(
     )
 }
 
+#[cfg(feature = "extras")]
 pub(crate) fn bottom_divider(p: &Painter, rect: Rect, t: &Tokens) {
     let w = divider::THICKNESS;
     p.hline(
@@ -172,6 +176,7 @@ pub(crate) fn paint_container(p: &Painter, rect: Rect, s: RowState, shape: Corne
     }
 }
 
+#[cfg(feature = "extras")]
 pub(crate) fn paint_checkbox(
     ui: &MineralUi<'_, Material>,
     target: &Response,
@@ -379,14 +384,17 @@ impl OptionRow<'_> {
 }
 
 // Insertion line of a reorder or tree drop.
+#[cfg(feature = "extras")]
 pub(crate) fn drop_indicator(t: &crate::tokens::Tokens) -> Stroke {
     const WIDTH: f32 = 2.0;
     Stroke::new(WIDTH, t.color.primary)
 }
 
 // No MD3 counterpart: step and timeline markers use the x-small icon button
+#[cfg(feature = "extras")]
 pub(crate) const MARKER: f32 = x_small_icon_button::CONTAINER_HEIGHT;
 
+#[cfg(feature = "extras")]
 pub(crate) fn marker(p: &Painter, center: Pos2, diameter: f32, fill: Color32, glyph: Option<(crate::Icon, Color32)>) {
     p.circle_filled(center, diameter / 2.0, fill);
     if let Some((icon, color)) = glyph {
