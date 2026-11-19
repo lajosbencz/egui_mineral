@@ -73,7 +73,13 @@ icu-trimmed:
 
 # `unstable-hotpatch` must stay a command-line feature: no published crate or default set may enable it
 hotpatch-guard:
-    ! cargo tree --workspace -e features -i subsecond 2>/dev/null | grep -q .
+    #!/usr/bin/env bash
+    set -euo pipefail
+    tree=$(cargo tree --workspace -e features --prefix none)
+    if grep -q '^subsecond ' <<<"$tree"; then
+        echo "subsecond is in the default dependency graph: unstable-hotpatch leaked"
+        exit 1
+    fi
 
 # Mirrors `[package.metadata.docs.rs] features` of each crate
 docsrs_core := "icu,persist-fs,persist-json,persist-toml,platform-native,web-save-stream"
