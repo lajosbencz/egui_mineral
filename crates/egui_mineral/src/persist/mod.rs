@@ -13,12 +13,7 @@ pub enum PersistError {
     /// Key the backend cannot store under (e.g. empty, `.`, `..`).
     #[error("invalid key `{0}`")]
     InvalidKey(String),
-    /// No config directory on this platform ([`FsStorage::for_app`]).
-    #[cfg_attr(
-        not(feature = "persist-fs"),
-        doc = "",
-        doc = "[`FsStorage::for_app`]: https://docs.rs/egui_mineral/latest/egui_mineral/persist/struct.FsStorage.html#method.for_app"
-    )]
+    /// No config directory on this platform (`FsStorage::for_app`).
     #[error("no config directory")]
     NoConfigDir,
     /// Backend failure (e.g. browser storage unavailable).
@@ -95,44 +90,48 @@ impl Storage for MemoryStorage {
     }
 }
 
-#[cfg(feature = "persist-fs")]
-pub use fs::{FsStorage, Json, Toml};
+/// JSON [`Codec`].
+#[cfg(feature = "persist-json")]
+#[derive(Clone, Debug)]
+pub struct Json;
 
-#[cfg(feature = "persist-fs")]
+#[cfg(feature = "persist-json")]
+impl Codec for Json {
+    fn encode<T: serde::Serialize>(value: &T) -> Result<String, PersistError> {
+        serde_json::to_string_pretty(value).map_err(|e| PersistError::Codec(e.into()))
+    }
+
+    fn decode<T: serde::de::DeserializeOwned>(raw: &str) -> Result<T, PersistError> {
+        serde_json::from_str(raw).map_err(|e| PersistError::Codec(e.into()))
+    }
+}
+
+/// TOML [`Codec`].
+#[cfg(feature = "persist-toml")]
+#[derive(Clone, Debug)]
+pub struct Toml;
+
+#[cfg(feature = "persist-toml")]
+impl Codec for Toml {
+    fn encode<T: serde::Serialize>(value: &T) -> Result<String, PersistError> {
+        toml::to_string_pretty(value).map_err(|e| PersistError::Codec(e.into()))
+    }
+
+    fn decode<T: serde::de::DeserializeOwned>(raw: &str) -> Result<T, PersistError> {
+        toml::from_str(raw).map_err(|e| PersistError::Codec(e.into()))
+    }
+}
+
+#[cfg(all(feature = "persist-fs", not(target_arch = "wasm32")))]
+pub use fs::FsStorage;
+
+#[cfg(all(feature = "persist-fs", not(target_arch = "wasm32")))]
 mod fs {
     use std::path::PathBuf;
 
     use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, utf8_percent_encode};
 
-    use super::{Codec, PersistError, Storage};
-
-    /// JSON [`Codec`].
-    #[derive(Clone, Debug)]
-    pub struct Json;
-
-    impl Codec for Json {
-        fn encode<T: serde::Serialize>(value: &T) -> Result<String, PersistError> {
-            serde_json::to_string_pretty(value).map_err(|e| PersistError::Codec(e.into()))
-        }
-
-        fn decode<T: serde::de::DeserializeOwned>(raw: &str) -> Result<T, PersistError> {
-            serde_json::from_str(raw).map_err(|e| PersistError::Codec(e.into()))
-        }
-    }
-
-    /// TOML [`Codec`].
-    #[derive(Clone, Debug)]
-    pub struct Toml;
-
-    impl Codec for Toml {
-        fn encode<T: serde::Serialize>(value: &T) -> Result<String, PersistError> {
-            toml::to_string_pretty(value).map_err(|e| PersistError::Codec(e.into()))
-        }
-
-        fn decode<T: serde::de::DeserializeOwned>(raw: &str) -> Result<T, PersistError> {
-            toml::from_str(raw).map_err(|e| PersistError::Codec(e.into()))
-        }
-    }
+    use super::{PersistError, Storage};
 
     /// One file per key under `root`; writes are atomic (temp file + rename).
     #[derive(Clone, Debug)]
@@ -213,7 +212,7 @@ mod fs {
     #[cfg(test)]
     mod tests {
         use super::*;
-        use crate::persist::{load, save};
+        use crate::persist::{Json, load, save};
 
         #[test]
         fn dotted_keys_do_not_share_temp_path() {
@@ -275,7 +274,7 @@ mod tests {
         s.remove("k").unwrap();
     }
 
-    #[cfg(feature = "persist-fs")]
+    #[cfg(feature = "persist-toml")]
     #[test]
     fn toml_roundtrip_and_corrupt_text_is_a_codec_error() {
         #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]

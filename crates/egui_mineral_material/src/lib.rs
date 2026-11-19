@@ -68,7 +68,9 @@
 //! | Feature | Default | Adds |
 //! |---|---|---|
 //! | `icu` | yes | ICU4X locale formatting (`egui_mineral/icu`); without it [`AsciiFormat`](egui_mineral::i18n::AsciiFormat) |
-//! | `persist-fs` | yes | File-backed persistence (`egui_mineral/persist-fs`) |
+//! | `persist-json` | | JSON persistence codec (`egui_mineral/persist-json`) |
+//! | `persist-toml` | | TOML persistence codec (`egui_mineral/persist-toml`) |
+//! | `persist-fs` | yes | Both codecs and native file-backed storage (`egui_mineral/persist-fs`) |
 //! | `bundled-icons` | yes | Material Symbols Rounded fonts, filled and outlined ([3 MB](https://github.com/lajosbencz/egui_mineral#release-size)); without it [`Material::icon_fonts`] is required |
 //! | `theme-file` | | TOML theme files and live reload ([`theme::load_toml`], [`theme::watch`]); native only |
 //! | `unstable-catalog` | | [`catalog`]: each component's category and spec origin ([`catalog::CATALOG`]) |

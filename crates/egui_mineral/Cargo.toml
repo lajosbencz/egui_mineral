@@ -33,7 +33,12 @@ icu = [
     "dep:writeable",
     "dep:fixed_decimal",
 ]
-persist-fs = ["dep:toml", "dep:serde_json", "dep:dirs"]
+# `Json` codec.
+persist-json = ["dep:serde_json"]
+# `Toml` codec.
+persist-toml = ["dep:toml"]
+# `FsStorage` (native only) and both codecs.
+persist-fs = ["persist-json", "persist-toml", "dep:dirs"]
 # File dialogs (`rfd`).
 platform-pickers = ["dep:rfd", "dep:wasm-bindgen-futures"]
 # OS clipboard (`arboard`, browser Clipboard API).
@@ -82,9 +87,9 @@ rfd = { workspace = true, optional = true, features = ["file-handle-inner"] }
 sys-locale.workspace = true
 # 0.13 speaks unic-langid like fluent-bundle 0.16; 0.14 moved to icu_locid 1.x.
 fluent-langneg.workspace = true
-dirs = { workspace = true, optional = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+dirs = { workspace = true, optional = true }
 arboard = { workspace = true, optional = true }
 notify-rust = { workspace = true, optional = true }
 subsecond = { version = "0.7.10", optional = true }
