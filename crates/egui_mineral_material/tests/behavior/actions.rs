@@ -2,6 +2,7 @@ use egui::{Event, Key, KeyboardShortcut, Modifiers, PointerButton, TouchPhase, v
 use egui_mineral::{
     agent::{AgentAction, AgentError},
     input::synth,
+    layout::{Measure, MinTarget, Zones},
     select::Selection,
     semantic::Role,
 };
@@ -332,4 +333,44 @@ fn optional_single_segments_start_empty_and_content_width_hugs_labels() {
     assert!(opt < eq, "content width {opt} under the widest {eq}");
     h.click("opt-1-segment");
     assert_eq!(h.state().value, Some(1));
+}
+
+#[test]
+fn auto_targets_keep_their_height_through_ewebs_touchless_pointerdown_pass() {
+    let pos = egui::pos2(20.0, 20.0);
+    let mut h = harness(SCREEN, Vec::<f32>::new(), |ui, heights| {
+        let rt = ui.rt();
+        let hit = MinTarget::Auto.points(rt.core());
+        heights.push(Zones::new(Measure::new(vec2(20.0, 20.0)), hit).outer.height());
+    });
+    let touch = |phase| synth::touch(pos, phase);
+    let end = |h: &mut Harness<'_, Vec<f32>>| {
+        h.input_mut().events.extend([
+            synth::pointer_up(pos, PointerButton::Primary),
+            Event::PointerGone,
+            touch(TouchPhase::End),
+        ]);
+        h.step();
+    };
+    h.input_mut().events.push(touch(TouchPhase::Start));
+    h.step();
+    end(&mut h);
+    h.state_mut().value.clear();
+    // pass 1: pointerdown alone, pass 2: touchstart
+    h.input_mut()
+        .events
+        .push(synth::pointer_down(pos, PointerButton::Primary));
+    h.step();
+    h.input_mut()
+        .events
+        .extend([touch(TouchPhase::Start), Event::PointerMoved(pos)]);
+    h.step();
+    end(&mut h);
+    let touch_target = h.rt().core().policies().target.touch;
+    let heights = &h.state().value;
+    assert_eq!(heights.len(), 3);
+    assert!(
+        heights.iter().all(|&v| (v - touch_target).abs() < f32::EPSILON),
+        "{heights:?}"
+    );
 }

@@ -31,6 +31,7 @@ pub(crate) struct InputAdapter {
     kind: Option<PointerKind>,
     force: Option<f32>,
     touch_ended: bool,
+    button_down: bool,
     last_kind: Option<PointerKind>,
     synthetic: bool,
     pan_delta: Vec2,
@@ -59,6 +60,7 @@ impl InputAdapter {
             _ => None,
         }) {
             (self.kind, self.force) = (Some(PointerKind::Touch), force);
+            self.last_kind = self.kind;
         }
         self.touch_ended = false;
         for event in &raw {
@@ -100,10 +102,22 @@ impl InputAdapter {
     }
 
     fn translate(&mut self, config: &GestureConfig, event: &Event, time: f64) {
+        // eframe web delivers `pointerdown` a pass before its `touchstart`: a pointer event without
+        // evidence keeps the last kind, only a hover or a wheel is mouse evidence.
+        let mouse_evidence = self.kind.is_none()
+            && !self.synthetic
+            && match event {
+                Event::PointerMoved(_) => !self.button_down,
+                Event::MouseWheel { .. } => true,
+                _ => false,
+            };
+        if mouse_evidence {
+            self.last_kind = Some(PointerKind::Mouse);
+        }
         let kind = if self.synthetic {
             PointerKind::Synthetic
         } else {
-            self.kind.unwrap_or(PointerKind::Mouse)
+            self.kind.or(self.last_kind).unwrap_or(PointerKind::Mouse)
         };
         let pressure = self.force.filter(|_| kind == PointerKind::Touch);
         let state = |pos: Pos2| PointerState {
@@ -117,6 +131,7 @@ impl InputAdapter {
             Event::Touch { phase, force, .. } => match phase {
                 TouchPhase::Start | TouchPhase::Move => {
                     (self.kind, self.force, self.touch_ended) = (Some(PointerKind::Touch), *force, false);
+                    self.last_kind = self.kind;
                 }
                 TouchPhase::End | TouchPhase::Cancel => self.touch_ended = true,
             },
@@ -127,6 +142,7 @@ impl InputAdapter {
                 pressed,
                 ..
             } => {
+                self.button_down = *pressed;
                 let s = state(*pos);
                 self.feed(
                     config,
@@ -137,7 +153,10 @@ impl InputAdapter {
                     },
                 );
             }
-            Event::PointerGone => self.cancel(time),
+            Event::PointerGone => {
+                self.button_down = false;
+                self.cancel(time);
+            }
             Event::Key {
                 key,
                 pressed,
@@ -209,7 +228,7 @@ pub struct InputContext {
     pub events: Arc<[UnifiedInputEvent]>,
     /// Seconds on the egui input clock.
     pub time: f64,
-    /// Kind of the last non-synthetic pointer; `Mouse` before any.
+    /// Kind of the last non-synthetic pointer, switched to `Mouse` only by a hover or wheel; `Mouse` before any.
     pub modality: PointerKind,
     /// Pan in progress or ended this pass.
     pub pan: Option<PanFrame>,
@@ -325,7 +344,58 @@ mod tests {
             kinds(&ctx, &mut a, vec![up(), Event::PointerGone, touch(TouchPhase::End)]),
             [PointerKind::Touch]
         );
-        assert_eq!(kinds(&ctx, &mut a, vec![down()]), [PointerKind::Mouse]);
+        // no evidence: the kind stays
+        assert_eq!(kinds(&ctx, &mut a, vec![down()]), [PointerKind::Touch]);
+    }
+
+    fn modality_after(ctx: &Context, a: &mut InputAdapter, events: Vec<Event>) -> PointerKind {
+        let mut got = PointerKind::Mouse;
+        run(ctx, input(events), |ui| got = process(a, ui.ctx()).modality);
+        got
+    }
+
+    #[test]
+    fn touch_modality_survives_a_touchless_pointerdown_pass() {
+        let ctx = crate::test_support::ctx();
+        let pos = pos2(10.0, 10.0);
+        let touch = |phase| synth::touch(pos, phase);
+        let down = || synth::pointer_down(pos, egui::PointerButton::Primary);
+        let up = || synth::pointer_up(pos, egui::PointerButton::Primary);
+        let wheel = Event::MouseWheel {
+            unit: egui::MouseWheelUnit::Point,
+            source: egui::MouseWheelSource::Wheel,
+            delta: Vec2::Y,
+            phase: TouchPhase::Move,
+            modifiers: egui::Modifiers::NONE,
+        };
+        let mut a = InputAdapter::default();
+        assert_eq!(modality_after(&ctx, &mut a, vec![]), PointerKind::Mouse);
+        assert_eq!(
+            modality_after(&ctx, &mut a, vec![touch(TouchPhase::Start)]),
+            PointerKind::Touch
+        );
+        let end = vec![up(), Event::PointerGone, touch(TouchPhase::End)];
+        assert_eq!(modality_after(&ctx, &mut a, end), PointerKind::Touch);
+        // eframe web: pointerdown pass, then the touchstart pass
+        assert_eq!(modality_after(&ctx, &mut a, vec![down()]), PointerKind::Touch);
+        let start = vec![touch(TouchPhase::Start), Event::PointerMoved(pos)];
+        assert_eq!(modality_after(&ctx, &mut a, start), PointerKind::Touch);
+        let end = vec![up(), Event::PointerGone, touch(TouchPhase::End)];
+        assert_eq!(modality_after(&ctx, &mut a, end), PointerKind::Touch);
+        // hybrid: hover switches to mouse
+        assert_eq!(
+            modality_after(&ctx, &mut a, vec![Event::PointerMoved(pos)]),
+            PointerKind::Mouse
+        );
+        assert_eq!(
+            modality_after(&ctx, &mut a, vec![touch(TouchPhase::Start)]),
+            PointerKind::Touch
+        );
+        assert_eq!(
+            modality_after(&ctx, &mut a, vec![touch(TouchPhase::End)]),
+            PointerKind::Touch
+        );
+        assert_eq!(modality_after(&ctx, &mut a, vec![wheel]), PointerKind::Mouse);
     }
 
     #[test]
