@@ -682,10 +682,14 @@ pub fn nearest_thumb(values: &[f64], v: f64) -> Option<usize> {
         .map(|(i, _)| i)
 }
 
+// Beyond 15 digits the scaled integer is no longer exact in f64 and rounding stops being idempotent.
 fn round_places(v: f64, places: i32) -> f64 {
     let scale = 10f64.powi(places);
-    let rounded = (v * scale).round() / scale;
-    if rounded.is_finite() { rounded } else { v }
+    let scaled = v * scale;
+    if scaled.is_nan() || scaled.abs() >= 1e15 {
+        return v;
+    }
+    scaled.round() / scale
 }
 
 const MAX_STALLED_STEPS: u32 = 1000;
@@ -985,6 +989,13 @@ mod tests {
         assert_eq!(RangeModel::new(0.0, 1.0).step(0.1).ticks(20)[3], 0.3);
         let thirds = RangeModel::new(0.0, 1.0).step(1.0 / 3.0);
         assert_eq!(thirds.snap(0.3), 1.0 / 3.0);
+    }
+
+    #[test]
+    fn fraction_digits_beyond_f64_precision_leave_the_value() {
+        let r = RangeModel::new(0.0, f64::MAX).fraction_digits(12);
+        let once = r.snap(4_144.642_518_158_023);
+        assert_eq!(r.snap(once).to_bits(), once.to_bits());
     }
 
     #[test]
