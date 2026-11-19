@@ -11,7 +11,7 @@ pub struct BarState {
     pub open: Option<usize>,
     /// Mnemonic underlines are shown.
     pub revealed: bool,
-    /// Set by F10 or a lone Alt until focus leaves the bar.
+    /// F10 or a lone Alt focused the bar; stays until focus leaves it.
     pub active: bool,
     /// Focus before the bar was activated.
     pub return_to: Option<Id>,
@@ -67,7 +67,7 @@ impl BarState {
     }
 }
 
-/// The menu after `open` for an arrow `nav` of -1 or 1, wrapping at both ends of `count` menus.
+/// `nav` is -1 or 1; wraps: -1 from the first menu is the last, 1 from the last is the first.
 pub fn adjacent(open: usize, nav: i8, count: usize) -> usize {
     open.checked_add_signed(isize::from(nav))
         .map_or(count - 1, |j| j % count)

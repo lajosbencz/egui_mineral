@@ -42,22 +42,18 @@ fn narrow<R>(ui: &mut Fui<'_>, width: f32, add: impl FnOnce(&mut Fui<'_>) -> R) 
     ui.allocate_ui(egui::vec2(width, 100.0), |ui| add(&mut rt.ui(ui))).inner
 }
 
-// Headless text has no advance, so the lead indicators and padding carry the widths.
+// Text advances differ with the fonts installed; one-letter labels and the lead indicators keep the widths close.
 fn status_bar(ui: &mut Fui<'_>, width: f32) -> Option<usize> {
     narrow(ui, width, |ui| {
         StatusBar::new("status", "Status")
-            .item(StatusItem::new("Indexing").progress(StatusProgress::Spinner))
-            .trailing(
-                StatusItem::new("Ln 4, Col 2")
-                    .progress(StatusProgress::Bar(None))
-                    .clickable(true),
-            )
+            .item(StatusItem::new("x").progress(StatusProgress::Spinner))
+            .trailing(StatusItem::new("x").progress(StatusProgress::Bar(None)).clickable(true))
             .item(
-                StatusItem::new("Encoding")
+                StatusItem::new("x")
                     .progress(StatusProgress::Bar(Some(0.2)))
                     .clickable(true),
             )
-            .item(StatusItem::new("Dropped").clickable(true))
+            .item(StatusItem::new("x").clickable(true))
             .show(ui)
             .clicked
     })
@@ -66,7 +62,7 @@ fn status_bar(ui: &mut Fui<'_>, width: f32) -> Option<usize> {
 #[test]
 fn status_bar_reports_clicks_and_drops_what_does_not_fit() {
     let mut h = harness(None, |ui, clicked| {
-        *clicked = clicked.or(status_bar(ui, 150.0));
+        *clicked = clicked.or(status_bar(ui, 185.0));
     });
     h.run();
     let bar = h.rect("status-status-bar");
@@ -76,7 +72,7 @@ fn status_bar_reports_clicks_and_drops_what_does_not_fit() {
         start.contains_rect(h.rect("status-0-progress")),
         "progress inside its item"
     );
-    assert_eq!(h.node("status-0-progress").name, "Indexing", "named by the item text");
+    assert_eq!(h.node("status-0-progress").name, "x", "named by the item text");
     assert!(
         h.tree().find_key("status-3-status-item").is_none(),
         "overflow is dropped"
@@ -161,8 +157,6 @@ fn command_palette_keys_skip_disabled_entries() {
 
 fn menu_bar() -> crate::support::Harness<'static, Vec<&'static str>> {
     harness(Vec::new(), |ui, log| {
-        let (file, edit) = (&mut *log, Vec::<&str>::new());
-        let _ = edit;
         let mut clicked = Vec::new();
         MenuBar::new("bar")
             .menu(BarMenu::new("File", |m| {
@@ -180,7 +174,7 @@ fn menu_bar() -> crate::support::Harness<'static, Vec<&'static str>> {
                 .disabled(true),
             )
             .show(ui);
-        file.extend(clicked);
+        log.extend(clicked);
         ui.mineral(PushButton::new("other", "Other"));
     })
 }

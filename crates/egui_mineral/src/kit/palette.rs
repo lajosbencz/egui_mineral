@@ -101,7 +101,7 @@ pub struct State {
     pub active: usize,
     /// Open on the previous pass.
     pub was_open: bool,
-    /// The active item is scrolled into view this pass.
+    /// One-shot: set by keyboard moves, cleared after the pass that scrolled.
     pub reveal: bool,
     /// Rows for the last query.
     pub rows: Memo<Vec<Row>>,
