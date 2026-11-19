@@ -1,6 +1,7 @@
 use egui::{Key, Modifiers, Rect, vec2};
 use egui_mineral::{
     edit::{self, EditEvent},
+    number::NumberSource,
     range::{RangeModel, Scale},
 };
 use egui_mineral_material::{extras::NumberField, text_inputs::TextField};
@@ -106,6 +107,46 @@ fn number_field_buffers_typing_until_enter_or_flush() {
     h.run();
     assert_eq!(take(&mut h), [EditEvent::Committed]);
     assert_eq!(h.state().value.value, 8.0);
+}
+
+#[test]
+fn number_field_reports_what_wrote_each_commit() {
+    let mut h = harness(
+        SCREEN,
+        (5.0, Vec::new()),
+        |ui, (v, seen): &mut (f64, Vec<(Option<EditEvent>, NumberSource)>)| {
+            let range = RangeModel::new(0.0, 10.0).step(1.0);
+            let r = ui.mineral(NumberField::new("n", "Gain", range, v).commit_on_submit(true));
+            seen.extend(r.output().source.map(|s| (r.output().edit, s)));
+        },
+    );
+    let at = h.rect("n-field").center();
+    h.click_at(at);
+    h.key_press_modifiers(Modifiers::COMMAND, Key::A);
+    h.type_text("7");
+    assert!(h.state().value.1.is_empty(), "buffered typing reports nothing");
+    h.press(Key::Enter);
+    h.click_at(at);
+    h.press(Key::ArrowUp);
+    h.hover_at(at);
+    h.event(egui::Event::MouseWheel {
+        unit: egui::MouseWheelUnit::Line,
+        delta: vec2(0.0, 1.0),
+        phase: egui::TouchPhase::Move,
+        source: egui::MouseWheelSource::Unknown,
+        modifiers: Modifiers::NONE,
+    });
+    h.run();
+    let committed = Some(EditEvent::Committed);
+    assert_eq!(
+        h.state().value.1,
+        [
+            (committed, NumberSource::Typed),
+            (committed, NumberSource::Step),
+            (committed, NumberSource::Wheel)
+        ]
+    );
+    assert_eq!(h.state().value.0, 9.0);
 }
 
 #[test]

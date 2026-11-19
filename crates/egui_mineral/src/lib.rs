@@ -311,6 +311,7 @@ pub mod prelude {
         layout::{Axis, Edge},
         mask::Charset,
         nav::{Route, Router},
+        number::NumberSource,
         overlay::Dismiss,
         platform::{FileFilter, FileType},
         range::{RangeModel, Scale},

@@ -50,6 +50,7 @@ pub(crate) struct State {
     buffered_name: String,
     buffered_gain: f64,
     buffered_event: Option<EditEvent>,
+    buffered_source: Option<NumberSource>,
     saved: Option<(String, f64)>,
     otp: String,
     otp_pin: String,
@@ -110,6 +111,7 @@ impl Default for State {
             buffered_name: "Track 1".to_owned(),
             buffered_gain: 0.0,
             buffered_event: None,
+            buffered_source: None,
             saved: None,
             tags: ["rust", "egui"].map(str::to_owned).to_vec(),
             tags_last: "none".to_owned(),
@@ -282,6 +284,7 @@ fn buffered(ui: &mut Mui<'_>, s: &mut State) {
             )
         });
         s.buffered_event = r.output().edit.or(s.buffered_event);
+        s.buffered_source = r.output().source.or(s.buffered_source);
         let label = format!("Save ({})", shortcut::label(&ctx, &SAVE_KEY));
         if row
             .mineral(PushButton::new("ti-save", label).variant(ButtonVariant::Tonal))
@@ -294,8 +297,8 @@ fn buffered(ui: &mut Mui<'_>, s: &mut State) {
         s.saved = Some((s.buffered_name.clone(), s.buffered_gain));
     }
     ui.label(format!(
-        "Model: {} / {} dB, last edit: {:?}, saved: {:?}",
-        s.buffered_name, s.buffered_gain, s.buffered_event, s.saved
+        "Model: {} / {} dB, last edit: {:?}, gain set by: {:?}, saved: {:?}",
+        s.buffered_name, s.buffered_gain, s.buffered_event, s.buffered_source, s.saved
     ));
 }
 

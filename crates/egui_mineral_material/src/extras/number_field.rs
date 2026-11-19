@@ -13,7 +13,7 @@ use egui_mineral::{
     edit::{EditEvent, FieldFocus},
     input::button_steps,
     layout::Constraints,
-    number::{self, NumberEdit},
+    number::{self, NumberEdit, NumberSource},
     range::{RangeModel, Track},
     semantic::NumericRange,
     widget::{SizeExt, WidgetResponse},
@@ -60,6 +60,10 @@ pub struct NumberFieldOutput {
     /// End or flush of an edit: Enter, focus loss, a step while buffered, a scrub release,
     /// [`edit::commit_pending`](egui_mineral::edit::commit_pending), or Escape.
     pub edit: Option<EditEvent>,
+    /// Last input that wrote the value, set when the bound value changed or `edit` is
+    /// [`EditEvent::Committed`]: typed text apart from steps, the wheel, scrubs and AccessKit.
+    /// Within one pass the order is keys, text, buttons, wheel, AccessKit, scrub.
+    pub source: Option<NumberSource>,
     /// Scrub drag started this pass, e.g. to open an undo group; its release reports `edit`.
     pub scrub_started: bool,
     /// Text field id, e.g. for `Memory::request_focus`; `None` when not shown.
@@ -307,11 +311,7 @@ impl<N: Numeric> Composite for NumberField<'_, N> {
                 b.map_or(0, |b| i64::from(button_steps(rt.core(), b.response(), b.response().id)))
             };
             let wheel = wheel_steps(ctx, base.with("wheel"), focused && out.response().contains_pointer());
-            let steps = presses(inc.as_ref()) - presses(dec.as_ref()) + wheel;
-            if steps != 0 {
-                pass.step(steps);
-                stepped = true;
-            }
+            stepped |= apply_steps(&mut pass, presses(inc.as_ref()) - presses(dec.as_ref()), wheel);
             stepped |= pass.accesskit(rt.core(), out.response().id);
             let extent = scrub.as_ref().map_or(1.0, |h| h.rect.width());
             scrubbed = pass.scrub(scrub.as_ref(), extent, Track::horizontal(dir));
@@ -325,6 +325,7 @@ impl<N: Numeric> Composite for NumberField<'_, N> {
             }
         }
         let v = pass.value();
+        let source = pass.source();
         edit.store(ctx, state_id);
         EditId(out.response().id).store(ctx, edit_key);
         if !self.commit_on_submit || stepped || scrubbed || event.is_some() {
@@ -335,6 +336,9 @@ impl<N: Numeric> Composite for NumberField<'_, N> {
         let changed = before.is_nan() != after.is_nan() || (before - after).abs() > f64::EPSILON;
         let output = NumberFieldOutput {
             edit: event,
+            source: (changed || event == Some(EditEvent::Committed))
+                .then_some(source)
+                .flatten(),
             scrub_started: !disabled && scrub.as_ref().is_some_and(egui::Response::drag_started),
             field: Some(out.response().id),
         };
@@ -352,6 +356,17 @@ fn cancel_edit(ctx: &Context, pass: &mut number::NumberPass<'_>, edit_id: Option
         ctx.memory_mut(|m| m.surrender_focus(id));
     }
     pass.cancel()
+}
+
+fn apply_steps(pass: &mut number::NumberPass<'_>, buttons: i64, wheel: i64) -> bool {
+    let mut stepped = false;
+    for (steps, source) in [(buttons, NumberSource::Step), (wheel, NumberSource::Wheel)] {
+        if steps != 0 {
+            pass.step(steps, source);
+            stepped = true;
+        }
+    }
+    stepped
 }
 
 fn consume_step_keys(ctx: &Context, pass: &mut number::NumberPass<'_>) -> bool {

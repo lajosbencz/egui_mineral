@@ -31,6 +31,23 @@ pub struct NumberEdit {
     text: String,
     scrub: Option<f64>,
     snap: bool,
+    source: Option<NumberSource>,
+}
+
+/// Input that wrote a [`NumberEdit`]'s draft.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum NumberSource {
+    /// Parsed text.
+    Typed,
+    /// Step buttons, arrow and page keys.
+    Step,
+    /// Mouse wheel or trackpad scroll.
+    Wheel,
+    /// Drag-to-scrub.
+    Scrub,
+    /// AccessKit `SetValue`, `Increment` or `Decrement`.
+    Accessibility,
 }
 
 impl crate::kit::state::TempState for NumberEdit {}
@@ -48,6 +65,7 @@ impl NumberEdit {
             text: fmt(value),
             scrub: None,
             snap: true,
+            source: None,
         }
     }
 
@@ -72,6 +90,9 @@ impl NumberEdit {
     ) -> NumberPass<'a> {
         let bound = self.settle(&range, value);
         self.range = range;
+        if !self.value.editing() {
+            self.source = None;
+        }
         self.value.sync(&bound, focus);
         if !self.value.editing() {
             self.text = fmt(*self.value.draft());
@@ -87,6 +108,11 @@ impl NumberEdit {
     /// Edit pending (see [`EditBuffer::editing`]).
     pub fn editing(&self) -> bool {
         self.value.editing()
+    }
+
+    /// Last input that wrote the draft of the open or just committed edit; `None` while idle.
+    pub fn source(&self) -> Option<NumberSource> {
+        self.source
     }
 }
 
@@ -110,6 +136,11 @@ impl NumberPass<'_> {
         self.edit.editing()
     }
 
+    /// See [`NumberEdit::source`].
+    pub fn source(&self) -> Option<NumberSource> {
+        self.edit.source
+    }
+
     /// Drag-to-scrub in progress.
     pub fn scrubbing(&self) -> bool {
         self.edit.scrub.is_some()
@@ -126,6 +157,7 @@ impl NumberPass<'_> {
         if let Some(v) = parsed {
             self.edit.value.start(&self.bound);
             *self.edit.value.draft_mut() = v;
+            self.edit.source = Some(NumberSource::Typed);
         }
         parsed.is_some()
     }
@@ -139,13 +171,14 @@ impl NumberPass<'_> {
         else {
             return false;
         };
-        self.set(v);
+        self.set(v, NumberSource::Step);
         true
     }
 
-    /// Moves `n` steps via [`RangeModel::step_by`] and reformats the text.
-    pub fn step(&mut self, n: i64) {
-        self.set(self.edit.range.step_by(self.value(), n));
+    /// Moves `n` steps via [`RangeModel::step_by`] and reformats the text; `source` is
+    /// [`NumberSource::Step`] or [`NumberSource::Wheel`].
+    pub fn step(&mut self, n: i64, source: NumberSource) {
+        self.set(self.edit.range.step_by(self.value(), n), source);
     }
 
     /// Applies AccessKit `SetValue`/`Increment`/`Decrement` targeted at `id`.
@@ -153,7 +186,7 @@ impl NumberPass<'_> {
         let Some(v) = self.edit.range.accesskit(core, id, self.value()) else {
             return false;
         };
-        self.set(v);
+        self.set(v, NumberSource::Accessibility);
         true
     }
 
@@ -196,8 +229,7 @@ impl NumberPass<'_> {
         if (v - self.value()).abs() < f64::EPSILON {
             return false;
         }
-        self.edit.value.start(&self.bound);
-        self.set(v);
+        self.set(v, NumberSource::Scrub);
         true
     }
 
@@ -222,10 +254,11 @@ impl NumberPass<'_> {
         event
     }
 
-    fn set(&mut self, v: f64) {
+    fn set(&mut self, v: f64, source: NumberSource) {
         self.edit.value.start(&self.bound);
         *self.edit.value.draft_mut() = v;
         self.edit.text = (self.fmt)(v);
+        self.edit.source = Some(source);
     }
 }
 
@@ -257,6 +290,24 @@ mod tests {
         p.apply_text(&en);
         assert!(p.step_key(Key::ArrowUp));
         assert_eq!(p.value(), 0.47);
+    }
+
+    #[test]
+    fn source_is_the_last_writer_until_the_edit_closes() {
+        let en = crate::test_support::en_us();
+        let range = RangeModel::new(0.0, 10.0).step(1.0);
+        let mut e = NumberEdit::new(range, 2.0, fmt);
+        let mut p = e.begin(range, 2.0, FieldFocus::Focused, &fmt);
+        assert_eq!(p.source(), None);
+        *p.text_mut() = "5".into();
+        p.apply_text(&en);
+        assert_eq!(p.source(), Some(NumberSource::Typed));
+        p.step(1, NumberSource::Wheel);
+        assert_eq!(p.source(), Some(NumberSource::Wheel), "the last writer wins");
+        assert!(p.commit().is_some());
+        assert_eq!(p.source(), Some(NumberSource::Wheel), "the committed edit keeps it");
+        let p = e.begin(range, 6.0, FieldFocus::Focused, &fmt);
+        assert_eq!(p.source(), None, "an idle field has none");
     }
 
     #[test]
