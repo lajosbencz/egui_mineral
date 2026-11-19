@@ -76,7 +76,8 @@ pub(crate) fn run(ctx: &egui::Context, raw: RawInput, add: impl FnMut(&mut egui:
 pub(crate) fn runtime(ctx: &egui::Context, theme: egui::Theme) -> Arc<Rt> {
     let format = IcuFormat::new("en-US").expect("en-US ICU data");
     let i18n = I18n::with_format(ctx, "en-US".into(), format, &[]).expect("i18n");
-    let rt = Runtime::with_i18n(ctx, Material::new(theme), i18n).expect("material runtime");
+    let rt = Runtime::with_i18n(ctx, Material::default(), i18n).expect("material runtime");
+    rt.core().set_preference(theme.into());
     rt.set_collect_semantics(true);
     rt
 }

@@ -15,7 +15,7 @@ use std::{
     },
 };
 
-use egui::{Context, Id, RawInput, Style, Ui, ViewportId, ViewportIdMap};
+use egui::{Context, Id, RawInput, Style, Theme, ThemePreference, Ui, ViewportId, ViewportIdMap};
 use parking_lot::{Mutex, MutexGuard};
 
 use crate::{
@@ -41,8 +41,9 @@ pub trait Stylekit: Send + Sync + 'static {
     /// # Errors
     /// Kit-specific setup failure.
     fn setup(&self, ctx: &Context) -> Result<(), Box<dyn std::error::Error + Send + Sync>>;
-    /// Style of the runtime's root `Ui`s (window roots, areas); called per root, so keep it cheap.
-    fn style(&self, ctx: &Context) -> Arc<Style>;
+    /// Style of the runtime's root `Ui`s (window roots, areas) at `theme` ([`Core::theme`]); called per root,
+    /// so keep it cheap.
+    fn style(&self, ctx: &Context, theme: Theme) -> Arc<Style>;
 }
 
 /// Failure building a [`Runtime`].
@@ -183,6 +184,7 @@ pub struct Core {
     passes: Arc<Passes>,
     collect_semantics: AtomicBool,
     input_history: AtomicUsize,
+    preference: Mutex<ThemePreference>,
 }
 
 crate::kit::opaque_debug!(Core);
@@ -212,6 +214,30 @@ impl Core {
         &self.motion
     }
 
+    /// Light, dark or `System` (the default); this runtime's own, independent of egui's app-wide preference.
+    pub fn preference(&self) -> ThemePreference {
+        *self.preference.lock()
+    }
+
+    /// Switches the brightness of this runtime's windows.
+    #[expect(clippy::disallowed_methods, reason = "one pass after the theme changed")]
+    pub fn set_preference(&self, preference: ThemePreference) {
+        *self.preference.lock() = preference;
+        self.ctx.request_repaint();
+    }
+
+    /// Brightness shown: the preference, `System` resolved through the platform (egui's fallback when unknown).
+    pub fn theme(&self) -> Theme {
+        match self.preference() {
+            ThemePreference::Light => Theme::Light,
+            ThemePreference::Dark => Theme::Dark,
+            ThemePreference::System => {
+                let ctx = &self.ctx;
+                ctx.system_theme().unwrap_or_else(|| ctx.options(|o| o.fallback_theme))
+            }
+        }
+    }
+
     /// Input of the current viewport's pass; empty before its first [`Runtime::pass`].
     pub fn input(&self) -> InputContext {
         let viewport = self.ctx.viewport_id();
@@ -223,7 +249,7 @@ impl Core {
 pub struct Runtime<K> {
     core: Core,
     kit: K,
-    style: fn(&K, &Context) -> Arc<Style>,
+    style: fn(&K, &Context, Theme) -> Arc<Style>,
 }
 
 crate::kit::opaque_debug!(Runtime<K>);
@@ -269,6 +295,7 @@ impl<K: Stylekit> Runtime<K> {
             passes,
             collect_semantics: AtomicBool::new(false),
             input_history: AtomicUsize::new(0),
+            preference: Mutex::new(ThemePreference::System),
         };
         Ok(Arc::new(Self {
             core,
@@ -336,7 +363,7 @@ impl<K> Runtime<K> {
 
     /// Kit style for root `Ui`s and frames built outside one; egui's global style stays the app's.
     pub fn style(&self) -> Arc<Style> {
-        (self.style)(&self.kit, &self.core.ctx)
+        (self.style)(&self.kit, &self.core.ctx, self.core.theme())
     }
 
     /// Kit-independent part.
@@ -357,6 +384,11 @@ impl<K> Runtime<K> {
     /// Shortcut for `core().i18n()`.
     pub fn i18n(&self) -> &I18n {
         &self.core.i18n
+    }
+
+    /// Shortcut for `core().theme()`.
+    pub fn theme(&self) -> Theme {
+        self.core.theme()
     }
 
     /// Collects a semantic tree every pass of every viewport (inspector); agents get one on demand regardless.
@@ -455,6 +487,17 @@ mod tests {
 
     use super::*;
     use crate::test_support::{ctx, input, run, runtime};
+
+    #[test]
+    fn theme_follows_the_preference() {
+        let ctx = ctx();
+        let rt = runtime(&ctx);
+        assert_eq!(rt.core().preference(), ThemePreference::System);
+        let fallback = ctx.options(|o| o.fallback_theme);
+        assert_eq!(rt.theme(), ctx.system_theme().unwrap_or(fallback));
+        rt.core().set_preference(ThemePreference::Dark);
+        assert_eq!(rt.theme(), Theme::Dark);
+    }
 
     #[test]
     fn unwinding_add_leaves_the_pass() {

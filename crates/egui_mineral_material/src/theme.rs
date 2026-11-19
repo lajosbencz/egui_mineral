@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use egui::{CornerRadius, FontId, Stroke, Style, TextStyle, Theme, ThemePreference};
+use egui::{CornerRadius, FontId, Stroke, Style, TextStyle, Theme};
 
 #[cfg(all(feature = "theme-file", not(target_arch = "wasm32")))]
 mod file;
@@ -8,46 +8,7 @@ mod file;
 pub use file::{ThemeError, ThemeWatcher, load_toml, watch};
 
 pub use crate::tokens::{Durations, Shape, StateLayers, Tokens};
-use crate::{
-    color::{Contrast, SchemeSpec},
-    spec::TypeScale,
-};
-
-/// Brightness preference and contrast of the baseline scheme [`Material::new`](crate::Material::new) applies.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct ThemeMode {
-    preference: ThemePreference,
-    contrast: Contrast,
-}
-
-impl ThemeMode {
-    /// `System` follows the platform brightness; `From<ThemePreference>` takes [`Contrast::STANDARD`].
-    pub const fn new(preference: ThemePreference, contrast: Contrast) -> Self {
-        Self { preference, contrast }
-    }
-
-    /// Light, dark or `System`.
-    pub const fn preference(self) -> ThemePreference {
-        self.preference
-    }
-
-    /// Contrast of the baseline scheme.
-    pub const fn contrast(self) -> Contrast {
-        self.contrast
-    }
-}
-
-impl From<ThemePreference> for ThemeMode {
-    fn from(preference: ThemePreference) -> Self {
-        Self::new(preference, Contrast::STANDARD)
-    }
-}
-
-impl From<Theme> for ThemeMode {
-    fn from(theme: Theme) -> Self {
-        ThemePreference::from(theme).into()
-    }
-}
+use crate::{color::SchemeSpec, spec::TypeScale};
 
 #[derive(Debug)]
 struct Themed {
@@ -187,7 +148,9 @@ fn apply_style(style: &mut Style, t: &Tokens) {
 
 #[cfg(test)]
 mod tests {
-    use egui::Context;
+    use egui::{Context, ThemePreference};
+
+    use crate::color::Contrast;
 
     use super::*;
     use crate::Material;
@@ -234,7 +197,7 @@ mod tests {
     fn pass_styles_its_window_and_leaves_egui_alone() {
         let ctx = Context::default();
         let rt = crate::test_support::runtime(&ctx);
-        rt.kit().set_preference(&ctx, ThemePreference::Dark);
+        rt.core().set_preference(ThemePreference::Dark);
         let global = ctx.global_style();
         let mut seen = None;
         crate::test_support::run(&ctx, egui::RawInput::default(), |ui| {
@@ -252,7 +215,7 @@ mod tests {
 
     #[test]
     fn apply_seeds_both_brightnesses() {
-        let (ctx, m) = (Context::default(), Material::new(Theme::Light));
+        let (ctx, m) = (Context::default(), Material::default());
         let spec = SchemeSpec::new(SEED);
         m.apply(&ctx, spec);
         for theme in [Theme::Light, Theme::Dark] {
@@ -261,16 +224,8 @@ mod tests {
     }
 
     #[test]
-    fn apply_and_set_leave_the_preference() {
-        let (ctx, m) = (Context::default(), Material::new(ThemePreference::System));
-        m.apply(&ctx, SchemeSpec::new(SEED));
-        m.set_tokens(&ctx, Tokens::baseline(Theme::Dark, Contrast::HIGH));
-        assert_eq!(m.preference(), ThemePreference::System);
-    }
-
-    #[test]
     fn set_replaces_one_brightness() {
-        let (ctx, m) = (Context::default(), Material::new(Theme::Light));
+        let (ctx, m) = (Context::default(), Material::default());
         let spec = SchemeSpec::new(SEED);
         m.apply(&ctx, spec);
         let custom = Tokens::baseline(Theme::Dark, Contrast::HIGH);
@@ -281,7 +236,7 @@ mod tests {
 
     #[test]
     fn set_contrast_keeps_the_seed() {
-        let (ctx, m) = (Context::default(), Material::new(Theme::Light));
+        let (ctx, m) = (Context::default(), Material::default());
         let spec = SchemeSpec::new(SEED).variant(crate::color::SchemeVariant::Vibrant);
         m.apply(&ctx, spec);
         m.set_contrast(&ctx, Contrast::HIGH);
@@ -295,7 +250,7 @@ mod tests {
     #[test]
     fn new_material_holds_the_baseline_at_its_contrast() {
         let ctx = Context::default();
-        let m = Material::new(ThemeMode::new(ThemePreference::Dark, Contrast::MEDIUM));
+        let m = Material::new(Contrast::MEDIUM);
         assert_eq!(
             current(&m, Theme::Light),
             Tokens::baseline(Theme::Light, Contrast::MEDIUM)
@@ -303,15 +258,5 @@ mod tests {
         assert_eq!(m.contrast(), Contrast::MEDIUM);
         m.set_contrast(&ctx, Contrast::HIGH);
         assert_eq!(current(&m, Theme::Dark), Tokens::baseline(Theme::Dark, Contrast::HIGH));
-    }
-
-    #[test]
-    fn theme_follows_the_runtime_preference() {
-        let ctx = Context::default();
-        let m = Material::new(ThemeMode::new(ThemePreference::Dark, Contrast::STANDARD));
-        assert_eq!(m.theme(&ctx), Theme::Dark);
-        m.set_preference(&ctx, ThemePreference::System);
-        let fallback = ctx.options(|o| o.fallback_theme);
-        assert_eq!(m.theme(&ctx), ctx.system_theme().unwrap_or(fallback));
     }
 }

@@ -39,8 +39,8 @@ impl Stylekit for Kit {
     fn setup(&self, _: &egui::Context) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         Ok(())
     }
-    fn style(&self, ctx: &egui::Context) -> std::sync::Arc<egui::Style> {
-        ctx.global_style()
+    fn style(&self, ctx: &egui::Context, theme: egui::Theme) -> std::sync::Arc<egui::Style> {
+        ctx.style_of(theme)
     }
 }
 

@@ -125,12 +125,18 @@ pub(crate) const VARIANTS: [(SchemeVariant, &str); 9] = [
     (SchemeVariant::Monochrome, "Monochrome"),
 ];
 
+pub(crate) const THEMES: [(egui::ThemePreference, &str); 3] = [
+    (egui::ThemePreference::System, "System"),
+    (egui::ThemePreference::Light, "Light"),
+    (egui::ThemePreference::Dark, "Dark"),
+];
+
 pub(crate) const LOCALES: [&str; 5] = ["en-US", "de-DE", "hu-HU", "ja-JP", "ar-EG"];
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(try_from = "RawSettings")]
 pub(crate) struct Settings {
-    pub(crate) dark: bool,
+    pub(crate) theme: usize,
     pub(crate) high_contrast: bool,
     pub(crate) seed: [u8; 3],
     pub(crate) variant: usize,
@@ -140,7 +146,7 @@ pub(crate) struct Settings {
 
 #[derive(Deserialize)]
 struct RawSettings {
-    dark: bool,
+    theme: usize,
     high_contrast: bool,
     seed: [u8; 3],
     variant: usize,
@@ -152,6 +158,9 @@ impl TryFrom<RawSettings> for Settings {
     type Error = String;
 
     fn try_from(r: RawSettings) -> Result<Self, String> {
+        if r.theme >= THEMES.len() {
+            return Err(format!("theme must be < {}", THEMES.len()));
+        }
         if r.variant >= VARIANTS.len() {
             return Err(format!("variant must be < {}", VARIANTS.len()));
         }
@@ -162,7 +171,7 @@ impl TryFrom<RawSettings> for Settings {
             return Err(format!("density must be in {}..=0", Density::MIN.step()));
         }
         Ok(Self {
-            dark: r.dark,
+            theme: r.theme,
             high_contrast: r.high_contrast,
             seed: r.seed,
             variant: r.variant,
@@ -176,7 +185,7 @@ impl Default for Settings {
     fn default() -> Self {
         let s = egui_mineral_material::color::BASELINE_SEED;
         Self {
-            dark: false,
+            theme: 0,
             high_contrast: false,
             seed: [s.r(), s.g(), s.b()],
             variant: 0,

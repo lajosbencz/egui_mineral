@@ -56,7 +56,7 @@ struct App {
 impl App {
     /// Fails when a catalog does not parse.
     fn new(ctx: &egui::Context) -> Result<Self, egui_mineral_material::egui_mineral::runtime::InitError> {
-        let rt = Runtime::new(ctx, Material::new(egui::Theme::Light))?;
+        let rt = Runtime::new(ctx, Material::default())?;
         Ok(Self { rt, clicks: 0 })
     }
 }

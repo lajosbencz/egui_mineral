@@ -13,7 +13,7 @@ use egui_mineral_material::{
     typography::TypeSpec,
 };
 
-use super::{LOCALES, Shared, VARIANTS, caption, section};
+use super::{LOCALES, Shared, THEMES, VARIANTS, caption, section};
 
 pub(crate) const TOPICS: &[&str] = &[
     "Theme",
@@ -135,9 +135,13 @@ fn contrast(bg: Color32) -> Color32 {
 fn theme(ui: &mut Mui<'_>, shared: &mut Shared) {
     let rt = ui.rt();
     let s = &mut shared.settings;
-    SettingRow::new("set-dark-row", "Dark").show(ui, |ui, label| {
-        ui.mineral(Switch::new("set-dark", label, &mut s.dark).label_visible(false))
-    });
+    let mut theme = Some(s.theme);
+    rt.ui(ui)
+        .mineral(Select::new("set-theme", "Theme", THEMES.map(|(_, n)| n), &mut theme).preferred_width(240.0));
+    if let Some(t) = theme {
+        s.theme = t;
+    }
+    ui.add_space(8.0);
     SettingRow::new("set-contrast-row", "High contrast")
         .supporting("Maximum contrast between roles")
         .show(ui, |ui, label| {

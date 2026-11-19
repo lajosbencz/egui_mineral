@@ -6,8 +6,9 @@ use std::{
 
 use egui_mineral::runtime::Runtime;
 
-use super::{Contrast, Tokens};
+use super::Tokens;
 use crate::Material;
+use crate::color::Contrast;
 
 type Source = Box<dyn std::error::Error + Send + Sync>;
 
@@ -163,7 +164,7 @@ mod tests {
 
         use egui::Theme;
 
-        use crate::theme::Contrast;
+        use crate::color::Contrast;
 
         let rt = crate::test_support::runtime(&egui::Context::default());
         let dir = std::env::temp_dir().join(format!("mineral-theme-{}-watch", std::process::id()));

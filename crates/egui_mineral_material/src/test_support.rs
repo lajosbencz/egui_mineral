@@ -11,7 +11,9 @@ pub(crate) fn runtime(ctx: &Context) -> Arc<Rt> {
     #[cfg(not(feature = "icu"))]
     let format = egui_mineral::i18n::AsciiFormat::new("en-US").expect("en-US tag");
     let i18n = I18n::with_format(ctx, "en-US".into(), format, &[]).expect("i18n");
-    Runtime::with_i18n(ctx, Material::new(egui::Theme::Light), i18n).expect("material runtime")
+    let rt = Runtime::with_i18n(ctx, Material::default(), i18n).expect("material runtime");
+    rt.core().set_preference(egui::ThemePreference::Light);
+    rt
 }
 
 pub(crate) fn run(ctx: &Context, raw: RawInput, add: impl FnMut(&mut Ui)) -> FullOutput {

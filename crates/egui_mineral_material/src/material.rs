@@ -3,7 +3,7 @@ use std::sync::{
     atomic::{AtomicI8, Ordering},
 };
 
-use egui::{Context, Style, Theme, ThemePreference};
+use egui::{Context, Style, Theme};
 use egui_mineral::{
     i18n::Catalog,
     policy::Policies,
@@ -16,26 +16,24 @@ use crate::{
     adaptive::{self, Density},
     color::{Contrast, SchemeSpec},
     fonts::{self, IconFonts},
-    theme::{ThemeMode, TokenStore, Tokens},
+    theme::{TokenStore, Tokens},
 };
 
-/// Material Design 3 [`Stylekit`]: theme preference, tokens and styles per brightness, density. Pass it to
-/// [`Runtime::new`](egui_mineral::runtime::Runtime::new).
+/// Material Design 3 [`Stylekit`]: tokens and styles per brightness, density. Pass it to
+/// [`Runtime::new`](egui_mineral::runtime::Runtime::new); the brightness shown is the runtime's
+/// ([`Core::theme`](egui_mineral::runtime::Core::theme)).
 #[derive(Debug)]
 pub struct Material {
-    preference: Mutex<ThemePreference>,
     tokens: Mutex<TokenStore>,
     density: AtomicI8,
     icon_fonts: Option<IconFonts>,
 }
 
 impl Material {
-    /// Baseline tokens of both brightnesses at the contrast of `mode`, shown at its preference.
-    pub fn new(mode: impl Into<ThemeMode>) -> Self {
-        let mode = mode.into();
+    /// Baseline tokens of both brightnesses at `contrast`.
+    pub fn new(contrast: Contrast) -> Self {
         Self {
-            preference: Mutex::new(mode.preference()),
-            tokens: Mutex::new(TokenStore::new(SchemeSpec::default().contrast(mode.contrast()))),
+            tokens: Mutex::new(TokenStore::new(SchemeSpec::default().contrast(contrast))),
             density: AtomicI8::new(Density::DEFAULT.step()),
             icon_fonts: None,
         }
@@ -47,26 +45,6 @@ impl Material {
     pub fn icon_fonts(mut self, icon_fonts: IconFonts) -> Self {
         self.icon_fonts = Some(icon_fonts);
         self
-    }
-
-    /// Light, dark or `System`; this runtime's own, independent of egui's app-wide preference.
-    pub fn preference(&self) -> ThemePreference {
-        *self.preference.lock()
-    }
-
-    /// Switches the brightness of this runtime's windows.
-    pub fn set_preference(&self, ctx: &Context, preference: ThemePreference) {
-        *self.preference.lock() = preference;
-        repaint(ctx);
-    }
-
-    /// Brightness shown: the preference, `System` resolved through the platform (egui's fallback when unknown).
-    pub fn theme(&self, ctx: &Context) -> Theme {
-        match self.preference() {
-            ThemePreference::Light => Theme::Light,
-            ThemePreference::Dark => Theme::Dark,
-            ThemePreference::System => ctx.system_theme().unwrap_or_else(|| ctx.options(|o| o.fallback_theme)),
-        }
     }
 
     /// Tokens of `theme`; widgets read `ui.tokens()` ([`MaterialExt`]).
@@ -116,6 +94,13 @@ fn repaint(ctx: &Context) {
     ctx.request_repaint();
 }
 
+impl Default for Material {
+    /// [`Contrast::STANDARD`].
+    fn default() -> Self {
+        Self::new(Contrast::STANDARD)
+    }
+}
+
 impl Stylekit for Material {
     fn policies(&self, ctx: &Context) -> Policies {
         adaptive::policies(ctx.os())
@@ -137,8 +122,7 @@ impl Stylekit for Material {
         Ok(())
     }
 
-    fn style(&self, ctx: &Context) -> Arc<Style> {
-        let theme = self.theme(ctx);
+    fn style(&self, _: &Context, theme: Theme) -> Arc<Style> {
         self.tokens.lock().style(theme)
     }
 }
@@ -154,7 +138,7 @@ pub trait MaterialExt {
 
 impl MaterialExt for Rt {
     fn tokens(&self) -> Arc<Tokens> {
-        self.kit().tokens(self.kit().theme(self.ctx()))
+        self.kit().tokens(self.theme())
     }
 }
 

@@ -17,7 +17,7 @@ pub(crate) use egui_mineral_material::{Material, Rt};
 use egui_mineral_material::{adaptive::WindowClass, color::SchemeSpec, fonts::IconFonts, prelude::*, scroll};
 use futures_util::StreamExt;
 use mineral_inspector::{Inspector, Serde};
-use pages::{Cmd, Evt, LOCALES, Page, Settings, Shared, States, VARIANTS, snack};
+use pages::{Cmd, Evt, LOCALES, Page, Settings, Shared, States, THEMES, VARIANTS, snack};
 use spawn::AppSpawner;
 
 const CONTENT_MAX_W: f32 = 1040.0;
@@ -49,7 +49,7 @@ struct App {
 
 impl App {
     fn new(ctx: &egui::Context) -> Result<Self, InitError> {
-        let rt = Runtime::new(ctx, Material::new(egui::Theme::Light).icon_fonts(ICON_FONTS))?;
+        let rt = Runtime::new(ctx, Material::default().icon_fonts(ICON_FONTS))?;
         // The navigation page binds Cmd+Q and Cmd+/- as menu commands.
         ctx.options_mut(|o| {
             o.zoom_with_keyboard = false;
@@ -124,14 +124,7 @@ impl App {
             })
             .variant(VARIANTS[s.variant].0);
         rt.kit().apply(ctx, spec);
-        rt.kit().set_preference(
-            ctx,
-            if s.dark {
-                egui::ThemePreference::Dark
-            } else {
-                egui::ThemePreference::Light
-            },
-        );
+        rt.core().set_preference(THEMES[s.theme].0);
         rt.kit().set_density(Density::new(s.density));
         if self.applied.as_ref().is_none_or(|a| a.locale != s.locale) {
             rt.i18n().set_locale(LOCALES[s.locale]).expect("LOCALES are valid tags");
@@ -152,23 +145,22 @@ impl App {
             bar = bar.navigation(icons::ICON_MENU, "Open navigation");
         }
         let search = format!("Search ({})", shortcut::label(ui.ctx(), &PALETTE));
+        let (preference, theme_name) = THEMES[self.shared.settings.theme];
+        let theme_icon = match preference {
+            egui::ThemePreference::System => icons::ICON_BRIGHTNESS_AUTO,
+            egui::ThemePreference::Light => icons::ICON_LIGHT_MODE,
+            egui::ThemePreference::Dark => icons::ICON_DARK_MODE,
+        };
         let bar = bar
             .action(IconAction::new(icons::ICON_SEARCH, search))
-            .action(IconAction::new(
-                if self.shared.settings.dark {
-                    icons::ICON_LIGHT_MODE
-                } else {
-                    icons::ICON_DARK_MODE
-                },
-                "Toggle theme",
-            ));
+            .action(IconAction::new(theme_icon, format!("Theme: {theme_name}")));
         let r = bar.show(ui);
         if r.leading_clicked {
             self.drawer_open = true;
         }
         match r.clicked {
             Some(0) => self.palette_open = true,
-            Some(1) => self.shared.settings.dark = !self.shared.settings.dark,
+            Some(1) => self.shared.settings.theme = (self.shared.settings.theme + 1) % THEMES.len(),
             _ => {}
         }
     }

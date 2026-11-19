@@ -42,8 +42,8 @@ impl Stylekit for TestKit {
         Ok(())
     }
 
-    fn style(&self, ctx: &Context) -> Arc<egui::Style> {
-        ctx.global_style()
+    fn style(&self, ctx: &Context, theme: egui::Theme) -> Arc<egui::Style> {
+        ctx.style_of(theme)
     }
 }
 
