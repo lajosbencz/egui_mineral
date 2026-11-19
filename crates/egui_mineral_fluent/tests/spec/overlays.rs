@@ -1,10 +1,10 @@
 use std::time::Duration;
 
-use egui::{Rect, Sense, ViewportId, vec2};
-use egui_mineral::anchor::Side;
+use egui::{Align, Rect, Sense, ViewportId, vec2};
+use egui_mineral::{anchor::Side, layout::Flow};
 use egui_mineral_fluent::{
     actions::PushButton,
-    spec::defaults::{dialog, drawer, popover, teaching_popover, tooltip},
+    spec::defaults::{button, dialog, drawer, popover, teaching_popover, tooltip},
     surfaces::{
         Dialog, Drawer, DrawerPosition, DrawerSize, Popover, PopoverSize, TeachingPopover, TeachingStep, Tooltip,
     },
@@ -113,6 +113,28 @@ fn dialog_is_the_max_width_with_the_surface_padding_around_the_title() {
     assert_eq!(surface.width(), dialog::MAX_WIDTH.min(SCREEN.x));
     let title = p.text("Title");
     assert_eq!(title.left() - surface.left(), dialog::PADDING + 1.0);
+}
+
+#[test]
+fn dialog_actions_keep_their_width_and_end_align_inside_a_flow() {
+    let mut h = harness(true, |ui, open| {
+        let rt = ui.rt();
+        Flow::new(vec2(8.0, 8.0), Align::Center).show(ui, |row| {
+            row.add(|_| {});
+            Dialog::new("dlg", "Delete file")
+                .action("Cancel")
+                .action("Delete")
+                .show(rt, open, |_| {});
+        });
+    });
+    h.run();
+    let (a, b) = (h.rect("dlg-action-0-button"), h.rect("dlg-action-1-button"));
+    assert!(
+        a.width() >= button::MIN_WIDTH && b.width() >= button::MIN_WIDTH,
+        "{a:?} {b:?}"
+    );
+    assert!(a.right() <= b.left(), "{a:?} {b:?}");
+    assert_eq!(b.right(), h.rect("dlg-dialog").right() - dialog::PADDING - 1.0);
 }
 
 #[test]

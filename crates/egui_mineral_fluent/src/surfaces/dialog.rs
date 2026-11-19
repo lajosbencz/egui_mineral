@@ -386,6 +386,10 @@ impl Dialog {
         let used = ui
             .allocate_ui_with_layout(vec2(width, 0.0), layout, |ui| {
                 ui.spacing_mut().item_spacing = Vec2::splat(d::GAP);
+                if !(stacked || fluid) {
+                    // Buttons take their natural width; the lead space only positions them.
+                    ui.set_max_width(f32::INFINITY);
+                }
                 if !self.close_button
                     && let Some((first, action)) = self.actions.iter().enumerate().find(|(_, a)| !a.disabled)
                 {
@@ -416,6 +420,9 @@ impl Dialog {
                 ui.min_rect().width() - lead
             })
             .inner;
+        if (used - known).abs() > 0.5 {
+            rt.ctx().request_repaint_after(std::time::Duration::ZERO);
+        }
         ActionsWidth(used.max(0.0)).store(rt.ctx(), width_id);
         clicked
     }
