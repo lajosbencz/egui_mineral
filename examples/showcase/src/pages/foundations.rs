@@ -441,12 +441,14 @@ fn motion_demo(ui: &mut Mui<'_>, s: &mut State) {
         });
     });
     let time = rt.core().motion().duration(duration).as_secs_f32();
-    let track_w = (ui.available_width() - 200.0).max(120.0);
+    // Easing name column, then the track; both shrink on narrow windows.
+    let label_w = (ui.available_width() / 2.0).min(180.0);
+    let track_w = (ui.available_width() - label_w - 20.0).max(0.0);
     let font = TypeScale::LabelMedium.font(&ctx);
     for (i, (name, ease)) in EASINGS.iter().enumerate() {
         let id = ui.make_persistent_id(("motion-ease", i));
         let v = ease.ease(ctx.animate_bool_with_time(id, s.forward, time));
-        let (rect, _) = ui.allocate_exact_size(vec2(track_w + 190.0, 24.0), Sense::hover());
+        let (rect, _) = ui.allocate_exact_size(vec2(label_w + track_w + 10.0, 24.0), Sense::hover());
         let p = ui.painter();
         p.text(
             rect.left_center(),
@@ -455,17 +457,17 @@ fn motion_demo(ui: &mut Mui<'_>, s: &mut State) {
             font.clone(),
             t.color.on_surface,
         );
-        let track = egui::Rect::from_min_size(rect.min + vec2(180.0, 0.0), vec2(track_w, 24.0));
+        let track = egui::Rect::from_min_size(rect.min + vec2(label_w, 0.0), vec2(track_w, 24.0));
         p.line_segment(
             [track.left_center(), track.right_center()],
             Stroke::new(2.0, t.color.outline_variant),
         );
         p.circle_filled(track.left_center() + vec2(v * track_w, 0.0), 9.0, t.color.primary);
     }
-    spring_demo(ui, s, track_w);
+    spring_demo(ui, s, label_w, track_w);
 }
 
-fn spring_demo(ui: &mut Mui<'_>, s: &mut State, track_w: f32) {
+fn spring_demo(ui: &mut Mui<'_>, s: &mut State, label_w: f32, track_w: f32) {
     let rt = ui.rt();
     let ctx = ui.ctx().clone();
     let t = rt.tokens();
@@ -491,8 +493,8 @@ fn spring_demo(ui: &mut Mui<'_>, s: &mut State, track_w: f32) {
             .duration(std::time::Duration::from_secs(1))
             .as_secs_f32(),
     );
-    let (rect, _) = ui.allocate_exact_size(vec2(track_w + 190.0, 24.0), Sense::hover());
-    let track = egui::Rect::from_min_size(rect.min + vec2(180.0, 0.0), vec2(track_w, 24.0));
+    let (rect, _) = ui.allocate_exact_size(vec2(label_w + track_w + 10.0, 24.0), Sense::hover());
+    let track = egui::Rect::from_min_size(rect.min + vec2(label_w, 0.0), vec2(track_w, 24.0));
     // Spring time runs forward in both directions: mirror the reverse leg.
     let x = if s.spring_forward {
         SPRING.at(p)
