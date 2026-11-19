@@ -171,18 +171,23 @@ impl App {
         let rt = ui.rt();
         Panel::top("top-bar").show(ui, |ui| self.top_bar(&mut rt.ui(ui)));
         let page = self.page;
-        let page_out = CentralPanel::default().show(ui, |ui| {
+        // The page bar reaches the window edge; the panel margin pads the content inside the scroll area.
+        let panel = egui::Frame::central_panel(ui.style());
+        let margin = panel.inner_margin;
+        let page_out = CentralPanel::default().frame(panel.inner_margin(0)).show(ui, |ui| {
             scroll::page(&mut rt.ui(ui), ("page", page.key()), |ui| {
-                let w = ui.available_width().min(CONTENT_MAX_W);
-                let pad = (ui.available_width() - w) / 2.0;
-                let spacing = ui.spacing().item_spacing;
-                ui.horizontal(|ui| {
-                    ui.spacing_mut().item_spacing.x = 0.0;
-                    ui.add_space(pad);
-                    ui.vertical(|ui| {
-                        ui.spacing_mut().item_spacing = spacing;
-                        ui.set_width(w);
-                        pages::show(page, &mut rt.ui(ui), &mut self.state);
+                egui::Frame::NONE.inner_margin(margin).show(ui, |ui| {
+                    let w = ui.available_width().min(CONTENT_MAX_W);
+                    let pad = (ui.available_width() - w) / 2.0;
+                    let spacing = ui.spacing().item_spacing;
+                    ui.horizontal(|ui| {
+                        ui.spacing_mut().item_spacing.x = 0.0;
+                        ui.add_space(pad);
+                        ui.vertical(|ui| {
+                            ui.spacing_mut().item_spacing = spacing;
+                            ui.set_width(w);
+                            pages::show(page, &mut rt.ui(ui), &mut self.state);
+                        });
                     });
                 });
             })

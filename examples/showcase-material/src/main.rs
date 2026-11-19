@@ -251,15 +251,20 @@ impl App {
             .show_separator_line(false)
             .show(ui, |ui| self.top_bar(&mut rt.ui(ui), compact));
         let page = *self.router.current();
-        let page_out = CentralPanel::default().show(ui, |ui| {
+        // The page bar reaches the window edge; the panel margin pads the content inside the scroll area.
+        let panel = egui::Frame::central_panel(ui.style());
+        let margin = panel.inner_margin;
+        let page_out = CentralPanel::default().frame(panel.inner_margin(0)).show(ui, |ui| {
             scroll::page(&mut rt.ui(ui), ("page", page.index()), |ui| {
-                let w = ui.available_width().min(CONTENT_MAX_W);
-                let pad = (ui.available_width() - w) / 2.0;
-                ui.horizontal(|ui| {
-                    ui.add_space(pad);
-                    ui.vertical(|ui| {
-                        ui.set_width(w);
-                        pages::show(page, &mut rt.ui(ui), &mut self.pages, &mut self.shared);
+                egui::Frame::NONE.inner_margin(margin).show(ui, |ui| {
+                    let w = ui.available_width().min(CONTENT_MAX_W);
+                    let pad = (ui.available_width() - w) / 2.0;
+                    ui.horizontal(|ui| {
+                        ui.add_space(pad);
+                        ui.vertical(|ui| {
+                            ui.set_width(w);
+                            pages::show(page, &mut rt.ui(ui), &mut self.pages, &mut self.shared);
+                        });
                     });
                 });
             })

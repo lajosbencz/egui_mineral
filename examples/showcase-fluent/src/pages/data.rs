@@ -196,7 +196,7 @@ fn tags(ui: &mut Fui<'_>, s: &mut State) {
     }
     let values = s
         .tags
-        .get_or_insert_with(|| ["Plan", "Code", "Review", "Ship"].map(str::to_owned).to_vec());
+        .get_or_insert_with(|| ["Design", "Code", "Review", "Ship"].map(str::to_owned).to_vec());
     let selection = s.tag_selection.get_or_insert_with(Selection::multiple);
     let mut group = TagGroup::new("tag-group", "Workflow")
         .appearance(TagAppearance::Brand)
@@ -205,7 +205,13 @@ fn tags(ui: &mut Fui<'_>, s: &mut State) {
     for v in values.iter() {
         group = group.interaction_tag(InteractionTag::new(v.clone(), v.clone()));
     }
-    if let Some(gone) = group.show(ui).dismissed {
+    // Upstream TagGroup does not wrap; narrow windows scroll it.
+    let rt = ui.rt();
+    let shown = egui::ScrollArea::horizontal()
+        .id_salt("tag-group-scroll")
+        .show(ui, |ui| group.show(&mut rt.ui(ui)))
+        .inner;
+    if let Some(gone) = shown.dismissed {
         values.retain(|v| *v != gone);
     }
 }
