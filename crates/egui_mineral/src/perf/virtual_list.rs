@@ -1,3 +1,5 @@
+use std::ops::Range;
+
 use egui::{Align, IdSalt, Rect, ScrollArea, Ui, UiBuilder, pos2, vec2};
 
 use super::HeightIndex;
@@ -53,7 +55,20 @@ impl VirtualList {
 
     /// `row` paints row index `i` of `total_rows`; only visible rows are called.
     #[tracing::instrument(level = "trace", skip_all)]
-    pub fn show(self, ui: &mut Ui, total_rows: usize, mut row: impl FnMut(&mut Ui, usize)) {
+    pub fn show(self, ui: &mut Ui, total_rows: usize, row: impl FnMut(&mut Ui, usize)) {
+        self.show_culled(ui, total_rows, row, |_, _, _| {});
+    }
+
+    /// [`Self::show`], and `culled` runs for each row outside the visible range with its rect, only when a
+    /// semantic tree is wanted (`kit::semantic::wanted`), inside the scroll content so a scroll request reaches it.
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub fn show_culled(
+        self,
+        ui: &mut Ui,
+        total_rows: usize,
+        mut row: impl FnMut(&mut Ui, usize),
+        mut culled: impl FnMut(&mut Ui, usize, Rect),
+    ) {
         let scroll = ScrollArea::vertical().id_salt(self.id_salt).auto_shrink([false; 2]);
         let viewport_h = ui.available_height();
         let current = egui::scroll_area::State::load(ui.ctx(), ui.make_persistent_id(self.id_salt))
@@ -71,7 +86,16 @@ impl VirtualList {
                     Some((r, a)) => scroll.vertical_scroll_offset(target(r as f32 * pitch, row_height, a).max(0.0)),
                     None => scroll,
                 };
-                scroll.show_rows(ui, row_height, total_rows, |ui, range| range.for_each(|i| row(ui, i)));
+                scroll.show_rows(ui, row_height, total_rows, |ui, range| {
+                    range.clone().for_each(|i| row(ui, i));
+                    if crate::kit::semantic::wanted(ui.ctx(), None) {
+                        let (origin, width) = (ui.max_rect().min, ui.max_rect().width());
+                        for i in outside(&range, total_rows) {
+                            let top = origin.y + i as f32 * pitch;
+                            culled(ui, i, Rect::from_min_size(pos2(origin.x, top), vec2(width, row_height)));
+                        }
+                    }
+                });
             }
             Mode::Variable { estimate } => {
                 let mem_id = ui.make_persistent_id(self.id_salt);
@@ -90,7 +114,18 @@ impl VirtualList {
                     ui.set_height(index.total());
                     let origin = ui.max_rect().min;
                     let width = ui.max_rect().width();
-                    for i in index.range(viewport.y_range()) {
+                    let visible = index.range(viewport.y_range());
+                    if crate::kit::semantic::wanted(ui.ctx(), None) {
+                        for i in outside(&visible, total_rows) {
+                            let h = index.height(i).unwrap_or(estimate);
+                            culled(
+                                ui,
+                                i,
+                                Rect::from_min_size(pos2(origin.x, origin.y + index.offset(i)), vec2(width, h)),
+                            );
+                        }
+                    }
+                    for i in visible {
                         let rect =
                             Rect::from_min_size(pos2(origin.x, origin.y + index.offset(i)), vec2(width, estimate));
                         let height = ui
@@ -115,6 +150,10 @@ impl VirtualList {
             }
         }
     }
+}
+
+fn outside(visible: &Range<usize>, total: usize) -> impl Iterator<Item = usize> {
+    (0..visible.start.min(total)).chain(visible.end.min(total)..total)
 }
 
 #[cfg(test)]

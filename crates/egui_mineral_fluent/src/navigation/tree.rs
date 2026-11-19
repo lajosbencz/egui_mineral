@@ -932,20 +932,12 @@ impl<'a, N: TreeData> Tree<'a, N> {
         out
     }
 
-    // Tree-only node; same id as the drawn row's, whose child ui scope is `ROW_SCOPE` under `ui`.
+    // Same id as the drawn row's, whose child ui scope is `ROW_SCOPE` under `ui`.
     fn emit_culled(&self, ui: &Ui, rows: &[TreeRow<'a, N>], i: usize, stop: usize, rect: Rect) {
         let Some(row) = rows.get(i) else { return };
         let widget = self.row(i, row, (self.layout)(row.node), stop);
         let rid = ui.scope_id().with(ROW_SCOPE).with(widget.id_salt());
-        // A widget exists only for the pass that serves a scroll request.
-        if ui.input(|inp| inp.has_accesskit_action_request(rid, egui::accesskit::Action::ScrollIntoView)) {
-            ui.interact(rect, rid, Sense::hover());
-        }
-        semantic::emit(ui.ctx(), Some(rid), rect, || {
-            let mut n = widget.node(false);
-            n.actions.push(Action::ScrollIntoView);
-            n
-        });
+        kit::semantic::emit_culled(ui, rid, rect, || widget.node(false));
     }
 
     fn apply(&mut self, rows: &[TreeRow<'a, N>], drawn: &[Drawn], out: &mut TreeResponse<N::Key>) {
