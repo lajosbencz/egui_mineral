@@ -35,6 +35,7 @@ use crate::{actions::button::Elevation, spec::ElevationLevel};
 
 /// Compose `FloatingActionButton` sizes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
+#[non_exhaustive]
 pub enum FabSize {
     /// `SmallFloatingActionButton` (`FabSmallTokens`).
     Small,
@@ -88,6 +89,7 @@ impl FabSize {
 
 /// Compose `ExtendedFloatingActionButton` sizes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
+#[non_exhaustive]
 pub enum ExtendedFabSize {
     #[default]
     /// `SmallExtendedFloatingActionButton`.
@@ -151,6 +153,7 @@ impl ExtendedFabSize {
 
 /// FAB color set (Compose `FloatingActionButtonDefaults.containerColor` choices).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
+#[non_exhaustive]
 pub enum FabColors {
     /// `surfaceContainerHigh` with a `primary` icon.
     Surface,
@@ -197,6 +200,7 @@ pub(crate) fn fab_colors(color: FabColors, disabled: bool, t: &Tokens) -> (Color
 
 /// Compose `FloatingActionButtonDefaults` elevation presets.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum FabElevation {
     /// `elevation()`.
     #[default]

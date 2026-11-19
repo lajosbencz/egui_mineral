@@ -6,7 +6,7 @@ use egui_mineral_material::{
     Size,
     actions::{IconButton, PushButton},
     adaptive,
-    communication::{CircularProgressIndicator, LinearProgressIndicator},
+    communication::{CircularProgressIndicator, LinearProgressIndicator, ProgressVariant},
     extras::{DescriptionItem, DescriptionLayout, DescriptionList, StepLabel, Stepper, Timeline, TimelineItem},
     icons::ICON_MAIL,
     scroll,
@@ -97,15 +97,15 @@ fn size_overrides_win_over_token_defaults() {
 fn linear_progress_narrower_than_its_caps_paints() {
     for width in [0.0, 3.0] {
         harness(SCREEN, (), move |ui, ()| {
-            for (i, wavy) in [false, true].into_iter().enumerate() {
+            for (i, variant) in [ProgressVariant::Flat, ProgressVariant::Wavy].into_iter().enumerate() {
                 ui.mineral(
                     LinearProgressIndicator::determinate(("d", i), 0.5)
-                        .wavy(wavy)
+                        .variant(variant)
                         .preferred_width(width),
                 );
                 ui.mineral(
                     LinearProgressIndicator::indeterminate(("i", i))
-                        .wavy(wavy)
+                        .variant(variant)
                         .preferred_width(width),
                 );
             }

@@ -42,27 +42,10 @@ const CARD_VARIANTS: [(CardVariant, &str); 3] = [
 
 // Compose Carousel: 8dp spacing, 16dp start/end padding
 const CAROUSELS: [(CarouselLayout, &str); 5] = [
-    (
-        CarouselLayout::MultiBrowse {
-            preferred_item_width: 186.0,
-        },
-        "Multi-browse",
-    ),
-    (
-        CarouselLayout::Hero {
-            preferred_item_width: None,
-            centered: false,
-        },
-        "Hero",
-    ),
-    (
-        CarouselLayout::Hero {
-            preferred_item_width: None,
-            centered: true,
-        },
-        "Center-aligned hero",
-    ),
-    (CarouselLayout::Uncontained { item_width: 186.0 }, "Uncontained"),
+    (CarouselLayout::multi_browse(186.0), "Multi-browse"),
+    (CarouselLayout::hero(), "Hero"),
+    (CarouselLayout::centered_hero(), "Center-aligned hero"),
+    (CarouselLayout::uncontained(186.0), "Uncontained"),
     (CarouselLayout::FullScreen, "Full screen (vertical)"),
 ];
 
@@ -214,7 +197,9 @@ pub(crate) fn show(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
 const CARD_WIDTH: f32 = 220.0;
 
 fn card(id: impl Into<KeyedSalt>, label: &str) -> Card {
-    Card::new(id, label).width(CARD_WIDTH).padding(Card::CONTENT_PADDING)
+    Card::new(id, label)
+        .width(CARD_WIDTH..=CARD_WIDTH)
+        .content_padding(Card::CONTENT_PADDING)
 }
 
 fn cards(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
@@ -358,15 +343,15 @@ fn side_sheets(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
         SideSheet::new("ss-start")
             .edge(egui_mineral::layout::Edge::Start)
             .headline("Outline")
-            .width(200.0)
-            .scroll(false)
+            .width(200.0..=200.0)
+            .scrollable(false)
             .close_button(false)
             .show(ui, &mut true, |ui| {
                 ui.label("Start edge, no scroll area: the content owns the full height.");
             });
         SideSheet::new("ss-std")
             .headline("Details")
-            .width(280.0)
+            .width(256.0..=400.0)
             .resizable(true)
             .close_button(false)
             .show(ui, &mut s.side_standard, |ui| {
@@ -420,17 +405,11 @@ fn carousels(ui: &mut Mui<'_>, s: &mut State) {
     }
     sub(ui, "Texture items (show_images)");
     let textures = &s.textures;
-    Carousel::new(
-        "carousel-img",
-        textures.len(),
-        CarouselLayout::MultiBrowse {
-            preferred_item_width: 186.0,
-        },
-    )
-    .height(221.0)
-    .item_spacing(8.0)
-    .content_padding(CarouselPadding { start: 16.0, end: 16.0 })
-    .show_images(ui, |idx| SizedTexture::from_handle(&textures[idx]));
+    Carousel::new("carousel-img", textures.len(), CarouselLayout::multi_browse(186.0))
+        .height(221.0)
+        .item_spacing(8.0)
+        .content_padding(CarouselPadding { start: 16.0, end: 16.0 })
+        .show_images(ui, |idx| SizedTexture::from_handle(&textures[idx]));
 }
 
 fn list_items(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {

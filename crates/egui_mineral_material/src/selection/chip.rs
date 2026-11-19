@@ -35,6 +35,17 @@ use crate::{
     tokens::Tokens,
 };
 
+/// Container of an assist, filter or suggestion [`Chip`] (Compose `*Chip` and `Elevated*Chip`).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum ChipVariant {
+    /// Outlined container without a shadow.
+    #[default]
+    Flat,
+    /// Filled container with a shadow, no outline.
+    Elevated,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum ChipKind {
     Assist,
@@ -63,7 +74,7 @@ struct Core<'a> {
     icon: Option<Icon>,
     selected: Option<bool>,
     checked: Option<&'a mut bool>,
-    elevated: bool,
+    variant: ChipVariant,
     disabled: bool,
     min_target: MinTarget,
 }
@@ -169,9 +180,9 @@ impl<'a> Chip<'a> {
         InputChip::new(id_salt, label)
     }
 
-    /// Elevated style instead of the outlined one.
-    pub fn elevated(mut self, elevated: bool) -> Self {
-        self.0.elevated = elevated;
+    /// Default [`ChipVariant::Flat`].
+    pub fn variant(mut self, variant: ChipVariant) -> Self {
+        self.0.variant = variant;
         self
     }
 
@@ -219,7 +230,7 @@ impl Core<'_> {
             icon: None,
             selected: None,
             checked: None,
-            elevated: false,
+            variant: ChipVariant::Flat,
             disabled: false,
             min_target: crate::adaptive::MIN_INTERACTIVE,
         }
@@ -295,7 +306,7 @@ impl Core<'_> {
             on: self.is_selected(),
         };
         let (on, enabled) = (p.on, p.enabled);
-        let mut s = match (self.kind, self.elevated) {
+        let mut s = match (self.kind, self.variant == ChipVariant::Elevated) {
             (ChipKind::Assist, false) => assist_flat_style(&p),
             (ChipKind::Assist, true) => assist_elevated_style(&p),
             (ChipKind::Suggestion, elevated) => suggestion_style(&p, elevated),

@@ -77,6 +77,7 @@ pub struct ListItemState {
 
 /// Line count of a [`ListItem`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum ListLines {
     /// Headline only.
     One,

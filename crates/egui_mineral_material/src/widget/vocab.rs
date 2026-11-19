@@ -4,11 +4,13 @@ use crate::Icon;
 
 /// M3 Expressive size scale (Compose `*XSmall*`..`*XLarge*` tokens) of buttons, icon buttons,
 /// split buttons, button groups, sliders and ratings.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[non_exhaustive]
 pub enum Size {
     /// `*XSmall*` tokens.
     XSmall,
-    /// `*Small*` tokens.
+    /// `*Small*` tokens; the Compose default of buttons.
+    #[default]
     Small,
     /// `*Medium*` tokens.
     Medium,
@@ -64,6 +66,37 @@ impl IconAction {
     crate::widget::setters! {
         /// Greys the item out and ignores activation.
         disabled
+    }
+}
+
+/// Text button of a message surface: [`Snackbar`](crate::communication::Snackbar),
+/// [`RichTooltip`](crate::communication::RichTooltip), `Alert`, `EmptyPlaceholder`. A label converts.
+#[derive(Clone, Debug)]
+#[must_use]
+pub struct TextAction {
+    pub(crate) label: String,
+    pub(crate) command: Option<ActionId>,
+}
+
+impl TextAction {
+    /// `label` is the button text and accessible name.
+    pub fn new(label: impl Into<String>) -> Self {
+        Self {
+            label: label.into(),
+            command: None,
+        }
+    }
+
+    /// Pressing it also fires the app action `id` ([`shortcut::fire`](egui_mineral::shortcut::fire)).
+    pub fn command(mut self, id: impl Into<ActionId>) -> Self {
+        self.command = Some(id.into());
+        self
+    }
+
+    pub(crate) fn fire(&self, ctx: &egui::Context) {
+        if let Some(command) = &self.command {
+            egui_mineral::shortcut::fire(ctx, command);
+        }
     }
 }
 
@@ -150,7 +183,7 @@ from_label!(
     crate::actions::Segment,
     crate::selection::MenuItem,
     crate::navigation::Tab,
-    crate::communication::SnackbarAction
+    TextAction
 );
 
 #[cfg(feature = "extras")]

@@ -49,19 +49,23 @@ const SNAP_SPRING: Spring = Spring {
 
 /// Keyline strategy of a [`Carousel`].
 #[derive(Clone, Copy, Debug, PartialEq)]
+#[non_exhaustive]
 pub enum CarouselLayout {
     /// `HorizontalMultiBrowseCarousel`: large, medium and small items.
+    #[non_exhaustive]
     MultiBrowse {
         /// Large item width in dp; the keylines fit as many as the carousel holds.
         preferred_item_width: f32,
     },
     /// `HorizontalUncontainedCarousel`: same-size items, no snapping.
+    #[non_exhaustive]
     Uncontained {
         /// Width of every item in dp.
         item_width: f32,
     },
     /// `heroKeylineList`: one large item and a small one; `centered` is
     /// `HorizontalCenteredHeroCarousel`. The large item fills the carousel without a width.
+    #[non_exhaustive]
     Hero {
         /// Large item width in dp; `None` fills the carousel.
         preferred_item_width: Option<f32>,
@@ -73,6 +77,47 @@ pub enum CarouselLayout {
 }
 
 impl CarouselLayout {
+    /// [`Self::MultiBrowse`] with large items `preferred_item_width` dp wide.
+    pub const fn multi_browse(preferred_item_width: f32) -> Self {
+        Self::MultiBrowse { preferred_item_width }
+    }
+
+    /// [`Self::Uncontained`] with items `item_width` dp wide.
+    pub const fn uncontained(item_width: f32) -> Self {
+        Self::Uncontained { item_width }
+    }
+
+    /// [`Self::Hero`] with the large item at the start, filling the carousel.
+    pub const fn hero() -> Self {
+        Self::Hero {
+            preferred_item_width: None,
+            centered: false,
+        }
+    }
+
+    /// [`Self::Hero`] with the large item centered between two small ones, filling the carousel.
+    pub const fn centered_hero() -> Self {
+        Self::Hero {
+            preferred_item_width: None,
+            centered: true,
+        }
+    }
+
+    /// Large item width in dp of the keyed layouts ([`Self::MultiBrowse`], [`Self::Hero`]); others are unchanged.
+    #[must_use]
+    pub const fn preferred_item_width(self, width: f32) -> Self {
+        match self {
+            Self::MultiBrowse { .. } => Self::MultiBrowse {
+                preferred_item_width: width,
+            },
+            Self::Hero { centered, .. } => Self::Hero {
+                preferred_item_width: Some(width),
+                centered,
+            },
+            Self::Uncontained { .. } | Self::FullScreen => self,
+        }
+    }
+
     #[track_caller]
     fn sanitized(self) -> Self {
         let width = |w: f32| egui_mineral::kit::sanitize::at_least(w, cx::MIN_SMALL_ITEM_SIZE.., "carousel item width");

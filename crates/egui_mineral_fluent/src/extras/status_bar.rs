@@ -130,7 +130,7 @@ impl StatusBar {
                 strip::Item::new(chrome(i) + g.size().x)
                     .chrome(chrome(i))
                     .at_end(*at_end)
-                    .elide(it.is_elided())
+                    .elide(it.elision().is_some())
             })
             .collect();
         let slots: Vec<Option<Rect>> = strip::place(rect.width(), &measured)
@@ -166,14 +166,14 @@ impl StatusBar {
         let dir = rt.i18n().direction();
         let item = &self.items[i].0;
         let content = content_color(item, &t);
-        match (item.custom_colors(), item.tone_kind()) {
-            (Some(colors), _) => {
-                ui.painter().rect_filled(r, 0, colors.container);
+        match item.tone_kind() {
+            StatusTone::Custom { container, .. } => {
+                ui.painter().rect_filled(r, 0, container);
             }
-            (None, StatusTone::Error) => {
+            StatusTone::Error => {
                 ui.painter().rect_filled(r, 0, t.color(ColorPaletteRedBackground1));
             }
-            (None, _) => {}
+            _ => {}
         }
         let sense = if item.is_clickable() {
             Sense::click()
@@ -264,9 +264,9 @@ fn slot(bar: Rect, dir: Direction, at_end: bool, from: f32, w: f32) -> Rect {
 }
 
 fn content_color(item: &StatusItem, t: &crate::theme::Tokens) -> Color32 {
-    match (item.custom_colors(), item.tone_kind()) {
-        (Some(colors), _) => colors.content,
-        (None, StatusTone::Error) => t.color(ColorPaletteRedForeground1),
-        (None, _) => t.color(ColorNeutralForeground2),
+    match item.tone_kind() {
+        StatusTone::Custom { content, .. } => content,
+        StatusTone::Error => t.color(ColorPaletteRedForeground1),
+        _ => t.color(ColorNeutralForeground2),
     }
 }

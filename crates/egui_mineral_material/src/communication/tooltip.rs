@@ -1,5 +1,6 @@
 use crate::MaterialExt;
 use crate::Rt;
+use crate::TextAction;
 use egui::{Frame, Label, Response, Sense, Tooltip, vec2};
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::semantic::StableId;
@@ -35,10 +36,8 @@ pub struct PlainTooltipResponse {
 pub struct RichTooltipResponse {
     /// Tooltip surface while visible.
     pub response: Option<Response>,
-    /// [`RichTooltip::action`] clicked this frame.
-    pub action_clicked: bool,
-    /// [`RichTooltip::secondary_action`] clicked this frame.
-    pub secondary_action_clicked: bool,
+    /// Index of the [`RichTooltip::action`] clicked this frame.
+    pub clicked: Option<usize>,
 }
 
 /// MD3 plain tooltip (Compose `PlainTooltip`).
@@ -93,7 +92,7 @@ pub struct RichTooltip {
     salt: KeyedSalt,
     supporting: String,
     title: Option<String>,
-    actions: [Option<String>; 2],
+    actions: Vec<TextAction>,
 }
 
 impl RichTooltip {
@@ -104,7 +103,7 @@ impl RichTooltip {
             salt: id_salt,
             supporting: supporting.into(),
             title: None,
-            actions: [None, None],
+            actions: Vec::new(),
         }
     }
 
@@ -119,15 +118,15 @@ impl RichTooltip {
         self
     }
 
-    /// First text button below the supporting text.
-    pub fn action(mut self, label: impl Into<String>) -> Self {
-        self.actions[0] = Some(label.into());
+    /// Appends a text button below the supporting text; reported by index in [`RichTooltipResponse::clicked`].
+    pub fn action(mut self, action: impl Into<TextAction>) -> Self {
+        self.actions.push(action.into());
         self
     }
 
-    /// Second text button, after [`Self::action`].
-    pub fn secondary_action(mut self, secondary_action: impl Into<String>) -> Self {
-        self.actions[1] = Some(secondary_action.into());
+    /// Appends text buttons; see [`Self::action`].
+    pub fn actions(mut self, actions: impl IntoIterator<Item = impl Into<TextAction>>) -> Self {
+        self.actions.extend(actions.into_iter().map(Into::into));
         self
     }
 
@@ -138,7 +137,7 @@ impl RichTooltip {
         describe(response, &self.supporting);
         let t = rt.tokens();
         let radius = m::CONTAINER_SHAPE.corner_radius(&t.shape, rt.i18n().direction());
-        let has_actions = self.actions.iter().any(Option::is_some);
+        let has_actions = !self.actions.is_empty();
         let mut action = None;
         let mut tip = Tooltip::for_enabled(response);
         tip.popup = tip.popup.frame(Frame::NONE).gap(d::ANCHOR_SPACING);
@@ -178,10 +177,10 @@ impl RichTooltip {
                     if has_actions {
                         ui.horizontal(|ui| {
                             ui.set_min_height(d::ACTION_LABEL_MIN_HEIGHT);
-                            let buttons = self.actions.iter().enumerate().filter_map(|(i, a)| {
-                                let b = PushButton::new(self.salt.child(i), a.as_ref()?)
+                            let buttons = self.actions.iter().enumerate().map(|(i, a)| {
+                                let b = PushButton::new(self.salt.child(i), &a.label)
                                     .agent_key(StableId::of(&self.salt, (i, "button")));
-                                Some((i, b))
+                                (i, b)
                             });
                             action = crate::actions::text_actions(&mut rt.ui(ui), buttons);
                         });
@@ -190,10 +189,12 @@ impl RichTooltip {
                 },
             );
         });
+        if let Some(a) = action.and_then(|i| self.actions.get(i)) {
+            a.fire(rt.ctx());
+        }
         RichTooltipResponse {
             response: shown.map(|s| s.response),
-            action_clicked: action == Some(0),
-            secondary_action_clicked: action == Some(1),
+            clicked: action,
         }
     }
 }

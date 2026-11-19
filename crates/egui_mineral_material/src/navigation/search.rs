@@ -127,7 +127,7 @@ impl TempState for SearchBarState {}
 pub struct SearchBar<'a> {
     salt: KeyedSalt,
     value: &'a mut String,
-    label: Option<String>,
+    label: String,
     placeholder: Option<String>,
     back: bool,
     trailing: Option<(Icon, String)>,
@@ -148,13 +148,13 @@ pub struct SearchBarOutput {
 }
 
 impl<'a> SearchBar<'a> {
-    /// `value` is the bound query; agent key prefix `<id_salt>`.
-    pub fn new(id_salt: impl Into<KeyedSalt>, value: &'a mut String) -> Self {
+    /// `label` is the accessible name of the field, `value` the bound query; agent key prefix `<id_salt>`.
+    pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, value: &'a mut String) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
             salt: id_salt,
             value,
-            label: None,
+            label: label.into(),
             placeholder: None,
             back: false,
             trailing: None,
@@ -166,12 +166,6 @@ impl<'a> SearchBar<'a> {
     crate::widget::setters! {
         /// Replaces the `<id_salt>` key prefix.
         agent_key(salt)
-    }
-
-    /// Accessible name of the field; default the placeholder, else `mineral-search`.
-    pub fn label(mut self, label: impl Into<String>) -> Self {
-        self.label = Some(label.into());
-        self
     }
 
     /// Hint shown while the query is empty.
@@ -308,12 +302,8 @@ impl MineralWidget for SearchBar<'_> {
         WidgetResponse::new(te, out).with_changed(changed)
     }
 
-    fn semantics(&self, i18n: &I18n, _: &WidgetResponse<SearchBarOutput>, _s: &SearchBarState) -> Option<SemanticNode> {
-        let name = match self.label.as_ref().or(self.placeholder.as_ref()) {
-            Some(p) => p.clone(),
-            None => crate::tr(i18n, "mineral-search"),
-        };
-        let mut node = SemanticNode::new(StableId::of(&self.salt, "search"), Role::SearchInput, name)
+    fn semantics(&self, _: &I18n, _: &WidgetResponse<SearchBarOutput>, _s: &SearchBarState) -> Option<SemanticNode> {
+        let mut node = SemanticNode::new(StableId::of(&self.salt, "search"), Role::SearchInput, &self.label)
             .value(self.value.clone())
             .editable(Availability::disabled_if(self.disabled));
         node.state.expanded = Some(self.joined.is_some());
@@ -360,7 +350,7 @@ pub struct SearchSuggestions<'a> {
     salt: KeyedSalt,
     query: &'a mut String,
     suggestions: Vec<String>,
-    label: Option<String>,
+    label: String,
     placeholder: Option<String>,
     back: bool,
     trailing: Option<(Icon, String)>,
@@ -372,9 +362,11 @@ pub struct SearchSuggestions<'a> {
 egui_mineral::kit::opaque_debug!(SearchSuggestions<'_>);
 
 impl<'a> SearchSuggestions<'a> {
-    /// `suggestions` filter by `query`, the bound text; agent key prefix `<id_salt>`.
+    /// `label` is the accessible name of the field; `suggestions` filter by `query`, the bound text. Agent key
+    /// prefix `<id_salt>`.
     pub fn new(
         id_salt: impl Into<KeyedSalt>,
+        label: impl Into<String>,
         suggestions: impl IntoIterator<Item = impl Into<String>>,
         query: &'a mut String,
     ) -> Self {
@@ -383,7 +375,7 @@ impl<'a> SearchSuggestions<'a> {
             salt: id_salt,
             query,
             suggestions: suggestions.into_iter().map(Into::into).collect(),
-            label: None,
+            label: label.into(),
             placeholder: None,
             back: false,
             trailing: None,
@@ -396,12 +388,6 @@ impl<'a> SearchSuggestions<'a> {
     crate::widget::setters! {
         /// Replaces the `<id_salt>` key prefix.
         agent_key(salt)
-    }
-
-    /// Accessible name of the field; default the placeholder, else `mineral-search`.
-    pub fn label(mut self, label: impl Into<String>) -> Self {
-        self.label = Some(label.into());
-        self
     }
 
     crate::widget::setters! {
@@ -450,8 +436,7 @@ impl Composite for SearchSuggestions<'_> {
     fn compose(&mut self, ui: &mut MineralUi<'_, Material>, c: Constraints) -> WidgetResponse<SearchSuggestionsOutput> {
         let rt = ui.rt();
         let ctx = rt.ctx();
-        let mut bar = SearchBar::new(self.salt.clone(), &mut *self.query);
-        bar.label.clone_from(&self.label);
+        let mut bar = SearchBar::new(self.salt.clone(), self.label.clone(), &mut *self.query);
         bar.placeholder.clone_from(&self.placeholder);
         bar.back = self.back;
         bar.disabled = self.disabled;
@@ -661,6 +646,7 @@ fn suggestion_row(
 
 /// Presentation of a [`SearchView`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum SearchViewMode {
     #[default]
     /// Dropdown below the bar (`DockedSearchBar`).
@@ -705,26 +691,26 @@ pub struct SearchView<'a> {
     salt: KeyedSalt,
     query: &'a mut String,
     suggestions: Vec<String>,
-    label: Option<String>,
+    label: String,
     placeholder: Option<String>,
     mode: SearchViewMode,
-    width: Option<f32>,
+    width: Rangef,
     max_items: usize,
     disabled: bool,
 }
 
 impl<'a> SearchView<'a> {
-    /// `query` is the bound text; agent key prefix `<id_salt>`.
-    pub fn new(id_salt: impl Into<KeyedSalt>, query: &'a mut String) -> Self {
+    /// `label` is the accessible name of the field, `query` the bound text; agent key prefix `<id_salt>`.
+    pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, query: &'a mut String) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
             salt: id_salt,
             query,
             suggestions: Vec::new(),
-            label: None,
+            label: label.into(),
             placeholder: None,
             mode: SearchViewMode::default(),
-            width: None,
+            width: Rangef::point(sb::MIN_WIDTH),
             max_items: 8,
             disabled: false,
         }
@@ -738,12 +724,6 @@ impl<'a> SearchView<'a> {
     crate::widget::setters! {
         /// Replaces the `<id_salt>` key prefix.
         agent_key(salt)
-    }
-
-    /// Accessible name of the field; default the placeholder, else `mineral-search`.
-    pub fn label(mut self, label: impl Into<String>) -> Self {
-        self.label = Some(label.into());
-        self
     }
 
     /// Rows shown below the field, filtered by the query.
@@ -764,15 +744,15 @@ impl<'a> SearchView<'a> {
         self
     }
 
-    /// Docked width in dp, capped by the available width; default the minimum; limited to
-    /// `search_bar::MIN_WIDTH..=MAX_WIDTH` (`spec::defaults`).
+    /// Docked width bounds in dp: the view takes the available width within them; equal bounds fix the width.
+    /// Default the minimum; limited to `search_bar::MIN_WIDTH..=MAX_WIDTH` (`spec::defaults`). A reversed range is
+    /// swapped.
     #[track_caller]
-    pub fn width(mut self, width: f32) -> Self {
-        self.width = Some(egui_mineral::kit::sanitize::within(
-            width,
-            sb::MIN_WIDTH..=sb::MAX_WIDTH,
-            "width",
-        ));
+    pub fn width(mut self, width: impl Into<Rangef>) -> Self {
+        let w = width.into();
+        let limit = |v: f32| egui_mineral::kit::sanitize::within(v, sb::MIN_WIDTH..=sb::MAX_WIDTH, "width");
+        let (min, max) = (limit(w.min.min(w.max)), limit(w.max.max(w.min)));
+        self.width = Rangef::new(min, max.max(min));
         self
     }
 
@@ -800,19 +780,19 @@ impl<'a> SearchView<'a> {
         if self.disabled {
             *open = false;
         }
-        let width = self.width.unwrap_or(sb::MIN_WIDTH).min(ui.available_width());
+        let width = self.width.clamp(ui.available_width()).min(ui.available_width());
         let placeholder = crate::tr_or(rt.i18n(), self.placeholder.as_deref(), "mineral-search");
-        let name = self.label.take().unwrap_or_else(|| placeholder.clone());
+        let name = std::mem::take(&mut self.label);
 
         // Collapsed bar; activating it opens the view.
         let bar_pos = ui.next_widget_position();
-        let mut bar = SearchBar::new(
+        let bar = SearchBar::new(
             self.salt.child("bar").with_key(self.salt.key().to_owned()),
+            name.clone(),
             &mut *self.query,
         )
         .placeholder(placeholder.clone())
         .disabled(self.disabled);
-        bar.label = Some(name.clone());
         let bar_out = ui.mineral(bar.preferred_width(width));
         let bar_rect = Rect::from_min_size(bar_pos, vec2(width, bar_h(ui)));
         if !*open && (bar_out.has_focus() || bar_out.clicked()) {

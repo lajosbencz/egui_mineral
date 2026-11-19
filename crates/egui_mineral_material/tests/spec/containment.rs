@@ -19,6 +19,7 @@ fn card_variants_share_geometry_and_wrap_their_content() {
             CardVariant::Elevated => elevated_card::CONTAINER_COLOR,
             CardVariant::Filled => filled_card::CONTAINER_COLOR,
             CardVariant::Outlined => outlined_card::CONTAINER_COLOR,
+            _ => unreachable!("listed variants"),
         };
         let c = p.one(fill);
         if v == CardVariant::Outlined {
@@ -37,8 +38,8 @@ fn sized_card_pads_its_content() {
     let p = render(|ui| {
         Card::new("c", "Card")
             .variant(CardVariant::Filled)
-            .width(width)
-            .padding(Card::CONTENT_PADDING)
+            .width(width..=width)
+            .content_padding(Card::CONTENT_PADDING)
             .show(ui, |ui| {
                 ui.allocate_exact_size(content, Sense::hover());
             });

@@ -324,6 +324,7 @@ fn section_body(ui: &mut Mui<'_>, title: &'static str, meta: Option<ComponentMet
                 Origin::Md3 => "Material 3".to_owned(),
                 Origin::Md3Expressive => "Material 3 Expressive".to_owned(),
                 Origin::Other(kits) => format!("After {kits:?}"),
+                origin => format!("{origin:?}"),
             };
             row.add(|ui| {
                 ui.label(
@@ -336,7 +337,7 @@ fn section_body(ui: &mut Mui<'_>, title: &'static str, meta: Option<ComponentMet
                 TextLink::new((title, "spec"), "Spec")
                     .url(m.spec)
                     .new_tab(true)
-                    .scale(TypeScale::LabelMedium),
+                    .text_style(TypeScale::LabelMedium),
             );
         });
     }

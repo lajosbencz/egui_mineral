@@ -15,6 +15,7 @@ use crate::{Icon, Leading, LeadingPaint, Material, Rt, tokens::Tokens};
 /// Toggle control in a [`ListSlot`]; the row reports its toggles and Space on the focused row
 /// toggles the leading one first.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum ListControl {
     /// Checkbox in this state.
     Checkbox(Check),
@@ -81,6 +82,7 @@ impl ListControl {
 
 /// Non-interactive content of a [`ListSlot`].
 #[derive(Clone, Debug)]
+#[non_exhaustive]
 pub enum ListVisual {
     /// Icon or app paint in the 24dp slot.
     Leading(Leading),
@@ -146,8 +148,8 @@ impl ListSlot {
     }
 
     /// [`ListControl::Switch`].
-    pub fn switch(self, on: bool) -> Self {
-        self.control(ListControl::Switch(on))
+    pub fn switch(self, checked: bool) -> Self {
+        self.control(ListControl::Switch(checked))
     }
 
     /// [`ListVisual::Leading`] icon.

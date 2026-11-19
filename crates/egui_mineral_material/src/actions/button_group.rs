@@ -81,6 +81,7 @@ pub struct ButtonGroupResponse {
 
 /// MD3 button group types.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum ButtonGroupVariant {
     #[default]
     /// Separate buttons; the pressed one widens, its neighbours shrink. Wraps when narrow.

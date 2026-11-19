@@ -161,13 +161,12 @@ fn setting_row_stacks_below_first_breakpoint() {
 fn resizable_side_sheet_drags_and_steps_within_its_range() {
     let mut h = still(WIDE, true, |ui, open| {
         SideSheet::new("sheet")
-            .width_range(300.0..=380.0)
-            .width(320.0)
+            .width(300.0..=420.0)
             .resizable(true)
             .show(ui, open, |_| {});
     });
     h.step_until("the sheet slides in", |h| {
-        (h.rect("sheet-side-sheet").width() - 320.0).abs() < 0.5
+        (h.rect("sheet-side-sheet").width() - 360.0).abs() < 0.5
     });
     let edge = h.rect("sheet-resize");
     h.hover_at(edge.center());
@@ -178,7 +177,7 @@ fn resizable_side_sheet_drags_and_steps_within_its_range() {
     h.run();
     assert_eq!(
         h.rect("sheet-side-sheet").width(),
-        360.0,
+        400.0,
         "dragging toward the start grows it"
     );
     for _ in 0..4 {
@@ -188,22 +187,21 @@ fn resizable_side_sheet_drags_and_steps_within_its_range() {
     }
     assert!(h.focused("sheet-resize"), "the handle is a Tab stop");
     h.press(Key::End);
-    assert_eq!(h.rect("sheet-side-sheet").width(), 380.0, "End reaches the maximum");
+    assert_eq!(h.rect("sheet-side-sheet").width(), 420.0, "End reaches the maximum");
     h.press(Key::ArrowRight);
-    assert!(h.rect("sheet-side-sheet").width() < 380.0, "toward the end shrinks it");
+    assert!(h.rect("sheet-side-sheet").width() < 420.0, "toward the end shrinks it");
 }
 
 #[test]
 fn resizable_modal_side_sheet_drags_clamps_and_persists() {
     let mut h = still(WIDE, true, |ui, open| {
         SideSheet::new("sheet")
-            .width_range(300.0..=380.0)
-            .width(320.0)
+            .width(300.0..=380.0)
             .resizable(true)
             .show_modal(ui.rt(), open, |_| {});
     });
     h.step_until("the sheet slides in", |h| {
-        h.tree().find_key("sheet-resize").is_some() && (h.rect("sheet-side-sheet").width() - 320.0).abs() < 0.5
+        h.tree().find_key("sheet-resize").is_some() && (h.rect("sheet-side-sheet").width() - 360.0).abs() < 0.5
     });
     let edge = h.rect("sheet-resize");
     h.hover_at(edge.center());
@@ -233,7 +231,7 @@ fn side_sheet_edge_docks_and_slides_at_the_start_in_both_directions() {
             let mut open = true;
             SideSheet::new("sheet")
                 .edge(Edge::Start)
-                .width(200.0)
+                .width(200.0..=200.0)
                 .show(ui, &mut open, |_| {});
         });
         let sheet = pass.tree.find_key("sheet-side-sheet").expect("sheet").rect;
@@ -244,7 +242,7 @@ fn side_sheet_edge_docks_and_slides_at_the_start_in_both_directions() {
         let mut open = true;
         SideSheet::new("sheet")
             .edge(Edge::Start)
-            .width(200.0)
+            .width(200.0..=200.0)
             .show_modal(ui.rt(), &mut open, |_| {});
     });
     let sheet = pass.tree.find_key("sheet-side-sheet").expect("modal sheet").rect;
@@ -265,12 +263,12 @@ fn side_sheet_without_scroll_gives_content_the_full_height_and_padding() {
     use egui::Margin;
     let mut h = still(WIDE, (true, Vec2::ZERO, Vec2::ZERO), |ui, (open, bare, padded)| {
         SideSheet::new("a")
-            .scroll(false)
+            .scrollable(false)
             .content_padding(Margin::ZERO)
             .headline("H")
             .show(ui, open, |ui| *bare = ui.available_size());
         SideSheet::new("b")
-            .scroll(false)
+            .scrollable(false)
             .content_padding(Margin::same(10))
             .headline("H")
             .show(ui, open, |ui| *padded = ui.available_size());

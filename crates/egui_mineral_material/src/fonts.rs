@@ -28,8 +28,10 @@ pub fn install_bundled_icons(ctx: &Context) {
     egui_material_icons::initialize(ctx);
 }
 
-/// Material Symbols fonts the kit draws icons with ([`Material::with_icon_fonts`](crate::Material::with_icon_fonts)).
-#[derive(Clone, Copy, Debug)]
+/// Material Symbols fonts the kit draws icons with: `Material::from_fonts(IconFonts::new(..).fonts())`
+/// ([`Material::from_fonts`](crate::Material::from_fonts)).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub struct IconFonts {
     /// Font of filled icons, the default style.
     pub filled: &'static [u8],
@@ -38,6 +40,11 @@ pub struct IconFonts {
 }
 
 impl IconFonts {
+    /// Font files of the filled and the outlined style.
+    pub const fn new(filled: &'static [u8], outlined: &'static [u8]) -> Self {
+        Self { filled, outlined }
+    }
+
     /// Fonts under the families `MaterialIcon` draws with, with the baseline offset of `egui_material_icons`.
     pub const fn fonts(self) -> [IconFont; 2] {
         // egui_material_icons' baseline tweak

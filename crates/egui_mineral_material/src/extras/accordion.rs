@@ -39,6 +39,7 @@ const CONTENT_PADDING: f32 = defaults::list::START_PADDING;
 
 /// Look of an [`Accordion`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum AccordionVariant {
     /// Outlined rounded container, panels separated by dividers.
     #[default]

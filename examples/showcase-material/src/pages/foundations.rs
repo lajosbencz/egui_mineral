@@ -355,7 +355,7 @@ fn elevation(ui: &mut Mui<'_>) {
     let t = rt.tokens();
     ui.add_space(8.0);
     layout::Flow::new(vec2(28.0, adaptive::grid(2)), egui::Align::Center).show(ui, |row| {
-        for (i, level) in ElevationLevel::ALL.into_iter().enumerate() {
+        for (i, &level) in ElevationLevel::ALL.iter().enumerate() {
             row.add(|ui| {
                 ui.vertical(|ui| {
                     Frame::new()

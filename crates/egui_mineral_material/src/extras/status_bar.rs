@@ -12,6 +12,7 @@ use egui_mineral::{
 
 use crate::communication::{CircularProgressIndicator, LinearProgressIndicator, PlainTooltip};
 use crate::spec::{ColorRole, TypeScale, tokens::divider};
+use crate::text_inputs::text_field::elided_galley;
 use crate::widget::{
     common::{self, Interaction},
     parts,
@@ -103,10 +104,10 @@ impl StatusBar {
             Stroke::new(divider::THICKNESS, t.role(divider::COLOR)),
         );
 
-        let content_of = |it: &StatusItem| match (it.custom_colors(), it.tone_kind()) {
-            (Some(colors), _) => colors.content,
-            (None, StatusTone::Error) => t.role(ColorRole::OnErrorContainer),
-            (None, _) => t.role(CONTENT),
+        let content_of = |it: &StatusItem| match it.tone_kind() {
+            StatusTone::Custom { content, .. } => content,
+            StatusTone::Error => t.role(ColorRole::OnErrorContainer),
+            _ => t.role(CONTENT),
         };
         let mut galleys: Vec<_> = self
             .items
@@ -120,7 +121,7 @@ impl StatusBar {
                 strip::Item::new(width(i, &galleys))
                     .chrome(chrome(i))
                     .at_end(self.items[i].1)
-                    .elide(self.items[i].0.is_elided())
+                    .elide(self.items[i].0.elision().is_some())
             })
             .collect();
         let slots: Vec<Option<Rect>> = strip::place(rect.width(), &measured)
@@ -130,7 +131,8 @@ impl StatusBar {
             .map(|(i, (placed, (item, at_end)))| {
                 let p = placed?;
                 if let Some(room) = p.elided_room {
-                    galleys[i] = parts::type_wrapped(ui.painter(), item.text(), TEXT, content_of(item), room, 1);
+                    let elide = item.elision().unwrap_or_default();
+                    galleys[i] = elided_galley(ui.painter(), item.text(), TEXT, content_of(item), room, elide);
                 }
                 Some(slot(rect, dir, *at_end, p.offset, p.width))
             })
@@ -140,14 +142,14 @@ impl StatusBar {
         for (i, ((item, _), galley)) in self.items.iter().zip(galleys).enumerate() {
             let Some(r) = slots[i] else { continue };
             let content = content_of(item);
-            match (item.custom_colors(), item.tone_kind()) {
-                (Some(colors), _) => {
-                    ui.painter().rect_filled(r, 0, colors.container);
+            match item.tone_kind() {
+                StatusTone::Custom { container, .. } => {
+                    ui.painter().rect_filled(r, 0, container);
                 }
-                (None, StatusTone::Error) => {
+                StatusTone::Error => {
                     ui.painter().rect_filled(r, 0, t.role(ColorRole::ErrorContainer));
                 }
-                (None, _) => {}
+                _ => {}
             }
             let clickable = item.is_clickable();
             let sense = if clickable { Sense::click() } else { Sense::hover() };

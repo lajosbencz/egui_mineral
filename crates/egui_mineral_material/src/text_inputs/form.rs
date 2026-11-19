@@ -10,8 +10,13 @@ use crate::spec::tokens::filled_text_field as m;
 use crate::text_inputs::TextField;
 use crate::widget::parts;
 
-/// Shows a core [`Form`] with stylekit text fields.
-pub trait FormExt {
+mod sealed {
+    pub trait Sealed {}
+    impl Sealed for egui_mineral::form::Form<'_> {}
+}
+
+/// Shows a core [`Form`] with stylekit text fields; sealed.
+pub trait FormExt: sealed::Sealed {
     /// Paints the fields as [`TextField`]s and the submit as a filled [`PushButton`]; form errors use the field
     /// error style.
     fn show(self, ui: &mut MineralUi<'_, crate::Material>) -> FormResponse;

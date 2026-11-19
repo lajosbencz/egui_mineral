@@ -8,7 +8,7 @@ use egui_mineral::{
 };
 use egui_mineral_material::{
     actions::{ExtendedFab, Fab},
-    communication::{LoadingIndicator, PullToRefresh, Snackbar, SnackbarAction, SnackbarHost, snackbar_queue},
+    communication::{LoadingIndicator, PullToRefresh, Snackbar, SnackbarHost, snackbar_queue},
     containment::{BottomSheet, Card, Divider},
     extras::{Accordion, EmptyPlaceholder, ImageList, Rating},
     icons::{ICON_ADD, ICON_EDIT, ICON_SAVE},
@@ -142,7 +142,12 @@ fn floating_toolbar_reports_its_paired_fab() {
 #[test]
 fn search_suggestions_filter_by_query_and_report_the_pick() {
     let mut h = still(SCREEN, (String::new(), Vec::new()), |ui, (query, picked)| {
-        let r = ui.mineral(SearchSuggestions::new("fruit", ["apple", "banana", "cherry"], query));
+        let r = ui.mineral(SearchSuggestions::new(
+            "fruit",
+            "Search",
+            ["apple", "banana", "cherry"],
+            query,
+        ));
         picked.extend(r.output().selected);
     });
     h.click("fruit-search");
@@ -247,7 +252,7 @@ fn image_list_and_bottom_sheet_are_named() {
 fn snackbar_host_reports_action_and_close() {
     const UNDO: ActionId = ActionId::from_static("undo");
     let mut queue = snackbar_queue();
-    let first = queue.push(Snackbar::new("Saved").action(SnackbarAction::new("Undo").command(UNDO)));
+    let first = queue.push(Snackbar::new("Saved").action(TextAction::new("Undo").command(UNDO)));
     let mut h = still(
         SCREEN,
         (queue, Vec::new(), Vec::new(), 0),
@@ -272,7 +277,12 @@ fn snackbar_host_reports_action_and_close() {
 #[test]
 fn search_suggestions_pick_from_the_keyboard() {
     let mut h = still(SCREEN, (String::new(), Vec::new()), |ui, (query, picked)| {
-        let r = ui.mineral(SearchSuggestions::new("fruit", ["apple", "banana", "cherry"], query));
+        let r = ui.mineral(SearchSuggestions::new(
+            "fruit",
+            "Search",
+            ["apple", "banana", "cherry"],
+            query,
+        ));
         picked.extend(r.output().selected);
     });
     h.click("fruit-search");

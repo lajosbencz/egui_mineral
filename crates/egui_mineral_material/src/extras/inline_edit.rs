@@ -89,8 +89,8 @@ impl<'a> InlineEdit<'a> {
     crate::text_inputs::text_field::field_chrome_setters!(variant);
 
     /// Text role of the preview and the editor; default [`TypeScale::BodyLarge`].
-    pub fn scale(mut self, scale: TypeScale) -> Self {
-        self.style = scale;
+    pub fn text_style(mut self, text_style: TypeScale) -> Self {
+        self.style = text_style;
         self
     }
 

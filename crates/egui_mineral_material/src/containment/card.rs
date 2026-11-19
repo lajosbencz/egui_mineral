@@ -1,7 +1,7 @@
 use crate::Material;
 use crate::MaterialExt;
 use crate::widget::common::elevation_tokens;
-use egui::{Color32, Margin, Sense, Shape, Stroke, StrokeKind, UiBuilder};
+use egui::{Color32, Margin, Rangef, Sense, Shape, Stroke, StrokeKind, UiBuilder};
 use egui_mineral::semantic::AgentKey;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::Availability;
@@ -26,6 +26,7 @@ use crate::{
 
 /// Compose `ElevatedCard`, `Card` and `OutlinedCard` styles.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
+#[non_exhaustive]
 pub enum CardVariant {
     #[default]
     /// `ElevatedCard`: low surface container with a shadow.
@@ -94,7 +95,7 @@ fn card_style(variant: CardVariant, enabled: bool, t: &Tokens) -> CardStyle {
 
 /// MD3 card (Compose `Card`, `ElevatedCard`, `OutlinedCard`). Like Compose it wraps its content,
 /// adds no padding of its own and draws its outline inside its bounds, so every variant has the
-/// same geometry. Size it with [`Self::width`]; pad the content with [`Self::padding`], usually
+/// same geometry. Size it with [`Self::width`]; pad the content with [`Self::content_padding`], usually
 /// [`Self::CONTENT_PADDING`].
 #[derive(Clone, Debug)]
 #[must_use = "call .show(..)"]
@@ -105,7 +106,7 @@ pub struct Card {
     variant: CardVariant,
     clickable: bool,
     disabled: bool,
-    width: Option<f32>,
+    width: Option<Rangef>,
     padding: Margin,
 }
 
@@ -162,15 +163,19 @@ impl Card {
         disabled
     }
 
-    /// Outer width, padding included; content wraps at it. Not finite or below 1 becomes 1.
+    /// Outer width bounds in dp, padding included: the card follows its content within them and content wraps at
+    /// the upper one; equal bounds fix the width. Not finite or below 1 becomes 1; a reversed range is swapped.
     #[track_caller]
-    pub fn width(mut self, width: f32) -> Self {
-        self.width = Some(egui_mineral::kit::sanitize::at_least(width, 1.0.., "Card width"));
+    pub fn width(mut self, width: impl Into<Rangef>) -> Self {
+        let w = width.into();
+        let min = egui_mineral::kit::sanitize::at_least(w.min.min(w.max), 1.0.., "Card width");
+        let max = w.max.max(w.min);
+        self.width = Some(Rangef::new(min, if max.is_nan() { min } else { max.max(min) }));
         self
     }
 
     /// Space between the container edge and the content.
-    pub fn padding(mut self, padding: Margin) -> Self {
+    pub fn content_padding(mut self, padding: Margin) -> Self {
         self.padding = padding;
         self
     }
@@ -193,12 +198,12 @@ impl Card {
             Sense::hover()
         };
         let mut max = ui.available_rect_before_wrap();
-        if let Some(w) = self.width {
+        if let Some(w) = self.width.filter(|w| w.max.is_finite()) {
             // At the layout's next position: the right end in a right-to-left row.
             let x = ui
                 .layout()
                 .horizontal_placement()
-                .align_size_within_range(w, max.x_range());
+                .align_size_within_range(w.max, max.x_range());
             max = egui::Rect::from_x_y_ranges(x, max.y_range());
         }
         // Sensed before the content, so content widgets keep their own clicks.
@@ -217,7 +222,11 @@ impl Card {
                 .layout(rt.i18n().direction().column()),
         );
         if let Some(w) = self.width {
-            content.set_width((w - self.padding.sum().x).max(0.0));
+            let pad = self.padding.sum().x;
+            content.set_min_width((w.min - pad).max(0.0));
+            if w.max.is_finite() {
+                content.set_max_width((w.max - pad).max(0.0));
+            }
         }
         if self.disabled {
             content.multiply_opacity(t.state.disabled_content);

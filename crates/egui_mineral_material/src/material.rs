@@ -17,7 +17,6 @@ use parking_lot::Mutex;
 use crate::{
     adaptive::{self, Density},
     color::{Contrast, SchemeSpec},
-    fonts::IconFonts,
     icon_set::IconSet,
     theme::{TokenStore, Tokens},
 };
@@ -43,31 +42,52 @@ enum Fonts {
 }
 
 impl Material {
-    /// Baseline tokens of both brightnesses at `contrast`, with the bundled icon fonts (3 MB).
+    /// Baseline tokens of both brightnesses at [`Contrast::STANDARD`] and [`Density::DEFAULT`], with the bundled
+    /// icon fonts (3 MB).
     #[cfg(feature = "bundled-icons")]
-    pub fn new(contrast: Contrast) -> Self {
-        Self::build(contrast, Arc::new(IconSet::material()), Fonts::Bundled)
+    pub fn new() -> Self {
+        Self::build(Fonts::Bundled)
     }
 
-    /// `Self::new` with `icon_fonts` instead of the bundled ones.
-    pub fn with_icon_fonts(contrast: Contrast, icon_fonts: IconFonts) -> Self {
-        Self::with_icons(contrast, &IconSet::material(), &icon_fonts.fonts())
+    /// `Self::new` installing `fonts` instead of the bundled ones: Material Symbols fonts
+    /// ([`IconFonts::fonts`](crate::fonts::IconFonts::fonts)) or the icon font of another kit, whose glyphs
+    /// [`Self::with_icons`] names.
+    pub fn from_fonts(fonts: impl IntoIterator<Item = IconFont>) -> Self {
+        Self::build(Fonts::Custom(fonts.into_iter().collect()))
     }
 
-    /// `Self::new` drawing the kit's own icons from `icons`, installing `fonts` instead of the bundled ones: Material
-    /// Symbols fonts ([`IconFonts::fonts`]) or the icon font of another kit.
-    pub fn with_icons(contrast: Contrast, icons: &IconSet, fonts: &[IconFont]) -> Self {
-        Self::build(contrast, Arc::new(*icons), Fonts::Custom(fonts.to_vec()))
-    }
-
-    fn build(contrast: Contrast, icons: Arc<IconSet>, fonts: Fonts) -> Self {
+    fn build(fonts: Fonts) -> Self {
         Self {
-            tokens: Mutex::new(TokenStore::new(SchemeSpec::default().contrast(contrast))),
+            tokens: Mutex::new(TokenStore::new(SchemeSpec::default())),
             pass: PassCache::default(),
             density: AtomicI8::new(Density::DEFAULT.step()),
-            icons,
+            icons: Arc::new(IconSet::material()),
             fonts,
         }
+    }
+
+    /// Starts at `contrast`; [`Self::set_contrast`] changes it later.
+    #[must_use]
+    pub fn with_contrast(self, contrast: Contrast) -> Self {
+        let mut store = self.tokens.lock();
+        let spec = store.spec().contrast(contrast);
+        store.apply(spec);
+        drop(store);
+        self
+    }
+
+    /// Starts at `density`; [`Self::set_density`] changes it later.
+    #[must_use]
+    pub fn with_density(self, density: Density) -> Self {
+        self.set_density(density);
+        self
+    }
+
+    /// Draws the kit's own parts from `icons` instead of [`IconSet::material`].
+    #[must_use]
+    pub fn with_icons(mut self, icons: IconSet) -> Self {
+        self.icons = Arc::new(icons);
+        self
     }
 
     /// Tokens of `theme`; widgets read `ui.tokens()` ([`MaterialExt`]).
@@ -127,9 +147,8 @@ fn repaint(ctx: &Context) {
 
 #[cfg(feature = "bundled-icons")]
 impl Default for Material {
-    /// [`Contrast::STANDARD`].
     fn default() -> Self {
-        Self::new(Contrast::STANDARD)
+        Self::new()
     }
 }
 
@@ -160,8 +179,14 @@ impl Stylekit for Material {
 /// Runtime of a Material app.
 pub type Rt = Runtime<Material>;
 
-/// Material state on a [`Rt`] or Material [`MineralUi`].
-pub trait MaterialExt {
+mod sealed {
+    pub trait Sealed {}
+    impl Sealed for super::Rt {}
+    impl Sealed for egui_mineral::widget::MineralUi<'_, super::Material> {}
+}
+
+/// Material state on a [`Rt`] or Material [`MineralUi`]; sealed.
+pub trait MaterialExt: sealed::Sealed {
     /// Tokens of the current theme, frozen for the egui pass: [`Material`] setters apply from the next pass.
     fn tokens(&self) -> Arc<Tokens>;
     /// Glyphs of the kit's own parts.
@@ -192,8 +217,8 @@ impl MaterialExt for MineralUi<'_, Material> {
 
 const DENSITY_TAG: &str = "mineral::density";
 
-/// Density of a Material [`MineralUi`] subtree.
-pub trait MaterialUiExt {
+/// Density of a Material [`MineralUi`] subtree; sealed.
+pub trait MaterialUiExt: sealed::Sealed {
     /// Density here: the nearest [`Self::with_density`] scope, else [`Material::density`].
     fn density(&self) -> Density;
     /// `size` shrunk by [`Self::density`], clamped at `min`.

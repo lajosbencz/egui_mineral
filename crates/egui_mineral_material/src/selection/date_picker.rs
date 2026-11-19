@@ -187,6 +187,7 @@ struct ModalCx<'a> {
 
 /// Compose `DisplayMode` / `TimePickerDisplayMode`: calendar or dial, or text entry.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum DisplayMode {
     #[default]
     /// Calendar grid (`DisplayMode.Picker`).
@@ -263,39 +264,29 @@ pub struct DatePicker<'a> {
     cfg: Config,
     value: &'a mut Option<Date>,
     mode: DisplayMode,
-    label: Option<String>,
 }
 
 egui_mineral::kit::opaque_debug!(DatePicker<'_>);
 
 impl<'a> DatePicker<'a> {
-    /// `value` is the bound date; `None` selects nothing. Agent key prefix `<id_salt>`.
-    pub fn new(id_salt: impl Into<KeyedSalt>, value: &'a mut Option<Date>) -> Self {
+    /// `label` names the picker: the docked field label and the accessible name of the dialog. `value` is the
+    /// bound date; `None` selects nothing. Agent key prefix `<id_salt>`.
+    pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, value: &'a mut Option<Date>) -> Self {
         Self {
-            cfg: Config::new(id_salt.into()),
+            cfg: Config::new(id_salt.into(), label.into()),
             value,
             mode: DisplayMode::Picker,
-            label: None,
         }
     }
 
     config_builders!();
-
-    /// Docked field label; defaults to the headline.
-    pub fn label(mut self, label: impl Into<String>) -> Self {
-        self.label = Some(label.into());
-        self
-    }
 
     /// [`DisplayMode::Picker`]: Compose `DatePicker` without its header (month grid).
     /// [`DisplayMode::Input`]: MD3 docked picker, a date field with a calendar popup.
     pub fn show(self, ui: &mut MineralUi<'_, Material>) -> PickerResponse {
         match self.mode {
             DisplayMode::Picker => self.cfg.inline(ui, self.value),
-            DisplayMode::Input => {
-                let label = self.label.unwrap_or_else(|| self.cfg.title_text(ui.rt(), false));
-                self.cfg.docked(ui, &label, self.value)
-            }
+            DisplayMode::Input => self.cfg.docked(ui, self.value),
         }
     }
 
@@ -317,10 +308,10 @@ pub struct DateRangePicker<'a> {
 egui_mineral::kit::opaque_debug!(DateRangePicker<'_>);
 
 impl<'a> DateRangePicker<'a> {
-    /// `value` is the bound range. Agent key prefix `<id_salt>`.
-    pub fn new(id_salt: impl Into<KeyedSalt>, value: &'a mut DateRange) -> Self {
+    /// `label` is the accessible name of the dialog, `value` the bound range. Agent key prefix `<id_salt>`.
+    pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, value: &'a mut DateRange) -> Self {
         Self {
-            cfg: Config::new(id_salt.into()),
+            cfg: Config::new(id_salt.into(), label.into()),
             value,
             mode: DisplayMode::Picker,
         }
@@ -346,6 +337,7 @@ impl<'a> DateRangePicker<'a> {
 #[derive(Clone)]
 struct Config {
     salt: KeyedSalt,
+    label: String,
     bounds: DateBounds,
     first_weekday: Option<Weekday>,
     today: Option<Date>,
@@ -356,9 +348,10 @@ struct Config {
 }
 
 impl Config {
-    fn new(salt: KeyedSalt) -> Self {
+    fn new(salt: KeyedSalt, label: String) -> Self {
         Self {
             salt,
+            label,
             bounds: DateBounds::default(),
             first_weekday: None,
             today: None,
@@ -429,7 +422,7 @@ impl Config {
             .inner
     }
 
-    fn docked(&self, ui: &mut MineralUi<'_, Material>, label: &str, value: &mut Option<Date>) -> PickerResponse {
+    fn docked(&self, ui: &mut MineralUi<'_, Material>, value: &mut Option<Date>) -> PickerResponse {
         let rt = ui.rt();
         let ctx = rt.ctx();
         let t = rt.tokens();
@@ -447,7 +440,7 @@ impl Config {
         }
         let error = self.text_error(rt, loc, &text);
         let hint = input_hint(rt, loc);
-        let field = TextField::new(field_salt, label, &mut text)
+        let field = TextField::new(field_salt, &self.label, &mut text)
             .with_chrome(self.field_chrome(TextFieldVariant::Filled))
             .trailing_icon(
                 ui.icons().calendar_month,
@@ -477,7 +470,7 @@ impl Config {
                 Anchor::new(Side::Bottom, anchor::Align::Start),
             )
             .role(Role::Dialog)
-            .name(self.title_text(rt, false))
+            .name(&self.label)
             .anchor_rect(out.zones().visual)
             .return_focus(edit_id)
             .show(rt, out.response(), &mut open, |ui, _| {
@@ -563,7 +556,7 @@ impl Config {
             open,
             value,
             pick,
-            |ui, work| (self.modal_body(ui, &mc, work), mc.title.as_str()),
+            |ui, work| (self.modal_body(ui, &mc, work), self.label.as_str()),
             |d| d.remove::<View>(grid_id),
         )
     }

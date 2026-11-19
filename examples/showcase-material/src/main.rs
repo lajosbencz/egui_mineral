@@ -24,10 +24,10 @@ const CONTENT_MAX_W: f32 = 1040.0;
 const PALETTE: KeyboardShortcut = KeyboardShortcut::new(Modifiers::COMMAND, Key::K);
 const INSPECTOR: KeyboardShortcut = KeyboardShortcut::new(Modifiers::NONE, Key::F12);
 // Subsets written by build.rs.
-const ICON_FONTS: IconFonts = IconFonts {
-    filled: include_bytes!(concat!(env!("OUT_DIR"), "/MaterialSymbolsRounded_Filled-Regular.ttf")),
-    outlined: include_bytes!(concat!(env!("OUT_DIR"), "/MaterialSymbolsRounded-Regular.ttf")),
-};
+const ICON_FONTS: IconFonts = IconFonts::new(
+    include_bytes!(concat!(env!("OUT_DIR"), "/MaterialSymbolsRounded_Filled-Regular.ttf")),
+    include_bytes!(concat!(env!("OUT_DIR"), "/MaterialSymbolsRounded-Regular.ttf")),
+);
 
 pub(crate) type Mui<'a> = MineralUi<'a, Material>;
 
@@ -49,7 +49,7 @@ struct App {
 
 impl App {
     fn new(ctx: &egui::Context) -> Result<Self, InitError> {
-        let rt = Runtime::new(ctx, Material::with_icon_fonts(Contrast::STANDARD, ICON_FONTS))?;
+        let rt = Runtime::new(ctx, Material::from_fonts(ICON_FONTS.fonts()))?;
         // The navigation page binds Cmd+Q and Cmd+/- as menu commands.
         ctx.options_mut(|o| {
             o.zoom_with_keyboard = false;

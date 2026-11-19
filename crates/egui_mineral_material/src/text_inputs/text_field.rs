@@ -42,6 +42,7 @@ use crate::{
 
 /// Compose `TextField` and `OutlinedTextField` styles.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
+#[non_exhaustive]
 pub enum TextFieldVariant {
     #[default]
     /// `TextField`: filled container, bottom indicator line.
@@ -347,17 +348,7 @@ pub(crate) fn line_galley(p: &Painter, text: &str, scale: TypeScale, color: Colo
     p.layout_job(job)
 }
 
-/// Part of an overflowing one-line text replaced by an ellipsis.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum Elide {
-    /// Cuts the end: `/home/user/pro...`.
-    #[default]
-    End,
-    /// Cuts the middle: `/home/...ts/a.png`.
-    Middle,
-    /// Cuts the start, keeping e.g. a file name: `...shots/a.png`.
-    Start,
-}
+pub use egui_mineral::layout::Elide;
 
 const ELLIPSIS: char = '\u{2026}';
 
@@ -383,7 +374,7 @@ pub(crate) fn elided_galley(
     let candidate = |kept: usize| -> String {
         let (head, tail) = match elide {
             Elide::Start => (0, kept),
-            Elide::Middle | Elide::End => (kept.div_ceil(2), kept / 2),
+            _ => (kept.div_ceil(2), kept / 2),
         };
         chars[..head]
             .iter()

@@ -86,7 +86,7 @@ fn time_picker_modal_confirms_on_enter_and_returns_focus() {
     // Third field: the dismissal of the last shown pass.
     let mut h = still(WIDE, (false, Time::default(), None), |ui, (open, time, shown)| {
         trigger(ui, open);
-        let r = TimePicker::new("tp", time).show_modal(ui.rt(), open);
+        let r = TimePicker::new("tp", "Time", time).show_modal(ui.rt(), open);
         if r.response.is_some() {
             *shown = Some(r.dismissed);
         }
@@ -102,32 +102,29 @@ fn time_picker_modal_confirms_on_enter_and_returns_focus() {
 }
 
 #[test]
-fn picker_modals_emit_a_dialog_node_named_by_the_shown_headline() {
+fn picker_modals_emit_a_dialog_node_named_by_their_label() {
     let mut h = still(WIDE, (true, Time::default()), |ui, (open, time)| {
-        TimePicker::new("tp", time).show_modal(ui.rt(), open);
+        TimePicker::new("tp", "Alarm", time).show_modal(ui.rt(), open);
     });
     h.run();
-    let rt = h.rt();
     let dialog = h.node("tp-dialog");
     assert_eq!(dialog.role, Role::Dialog);
-    assert_eq!(dialog.name, rt.i18n().tr("mineral-time-headline", &[]));
+    assert_eq!(dialog.name, "Alarm");
     assert!(
         dialog.rect.contains_rect(h.rect("tp-confirm-button")),
         "the node spans the surface"
     );
     h.click("tp-mode-button");
-    assert_eq!(
-        h.node("tp-dialog").name,
-        rt.i18n().tr("mineral-time-input-headline", &[]),
-        "per mode"
-    );
+    assert_eq!(h.node("tp-dialog").name, "Alarm", "in every mode");
 
     let mut h = still(WIDE, (true, None), |ui, (open, date)| {
-        DatePicker::new("dp", date).headline("Due").show_modal(ui.rt(), open);
+        DatePicker::new("dp", "Due date", date)
+            .headline("Due")
+            .show_modal(ui.rt(), open);
     });
     h.run();
     let dialog = h.node("dp-dialog");
-    assert_eq!((dialog.role, dialog.name.as_str()), (Role::Dialog, "Due"));
+    assert_eq!((dialog.role, dialog.name.as_str()), (Role::Dialog, "Due date"));
     assert!(
         dialog.rect.contains_rect(h.rect("dp-confirm-button")),
         "the node spans the surface"
@@ -281,7 +278,7 @@ fn escape_closes_only_the_modal_above_a_popover() {
 #[test]
 fn time_picker_dial_value_uses_locale_digits() {
     let mut h = still(WIDE, (true, Time::default()), |ui, (open, time)| {
-        TimePicker::new("tp", time).show_modal(ui.rt(), open);
+        TimePicker::new("tp", "Time", time).show_modal(ui.rt(), open);
     });
     h.run();
     h.rt().i18n().set_locale("ar-EG").expect("locale");

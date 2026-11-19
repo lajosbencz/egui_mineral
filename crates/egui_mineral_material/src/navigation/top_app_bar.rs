@@ -31,6 +31,7 @@ use crate::{IconAction, actions::IconButton};
 
 /// Compose `TopAppBar`, `CenterAlignedTopAppBar`, `MediumTopAppBar` and `LargeTopAppBar` styles.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
+#[non_exhaustive]
 pub enum TopAppBarVariant {
     #[default]
     /// `TopAppBar`: one row, title at the start.
@@ -417,7 +418,8 @@ impl<'a> TopAppBar<'a> {
         );
         let layout = *ui.layout();
         egui_mineral::layout::child(ui, self.salt.child("search"), field, layout, |ui| {
-            let bar = crate::navigation::SearchBar::new(self.salt.child("search"), query).placeholder(&self.title);
+            let bar = crate::navigation::SearchBar::new(self.salt.child("search"), &self.title, query)
+                .placeholder(&self.title);
             // Degenerate in very narrow bars; the bar is clipped there anyway.
             let r = ui.mineral(bar.preferred_width(field.width().max(0.0)));
             out.changed = r.changed();

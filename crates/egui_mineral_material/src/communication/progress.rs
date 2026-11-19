@@ -42,6 +42,17 @@ fn node(i18n: &egui_mineral::i18n::I18n, id: StableId, label: Option<&str>, valu
     n
 }
 
+/// Track shape of a progress indicator.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum ProgressVariant {
+    /// Compose `LinearProgressIndicator`, `CircularProgressIndicator`: a straight track.
+    #[default]
+    Flat,
+    /// Compose `LinearWavyProgressIndicator`, `CircularWavyProgressIndicator`: the active track waves.
+    Wavy,
+}
+
 #[derive(Clone, Debug)]
 struct Spec {
     key: AgentKey,
@@ -90,9 +101,9 @@ macro_rules! indicator_setters {
             self
         }
 
-        #[doc = concat!("Compose `", $wavy, "`.")]
-        pub fn wavy(mut self, wavy: bool) -> Self {
-            self.spec.wavy = wavy;
+        #[doc = concat!("Default [`ProgressVariant::Flat`]; [`ProgressVariant::Wavy`] is Compose `", $wavy, "`.")]
+        pub fn variant(mut self, variant: ProgressVariant) -> Self {
+            self.spec.wavy = variant == ProgressVariant::Wavy;
             self
         }
 

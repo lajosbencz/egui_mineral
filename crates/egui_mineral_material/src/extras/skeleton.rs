@@ -38,8 +38,10 @@ const CELL: f32 = 4.0;
 
 /// Placeholder geometry of a [`Skeleton`].
 #[derive(Clone, Copy, Debug, PartialEq)]
+#[non_exhaustive]
 pub enum SkeletonShape {
     /// Bars of text height; the last of several is shorter.
+    #[non_exhaustive]
     Text {
         /// Bar count; 0 draws nothing.
         lines: usize,
@@ -50,6 +52,13 @@ pub enum SkeletonShape {
     Rect(egui::Vec2),
     /// Circle of this diameter in dp.
     Circle(f32),
+}
+
+impl SkeletonShape {
+    /// [`Self::Text`]: `lines` bars at the line height of `scale`.
+    pub const fn text(lines: usize, scale: TypeScale) -> Self {
+        Self::Text { lines, scale }
+    }
 }
 
 /// Shimmering loading placeholder; non-MD3.

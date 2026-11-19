@@ -502,7 +502,7 @@ fn inline(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
         caption(ui, TypeScale::LabelMedium, "Headline style");
         rt.ui(ui).mineral(
             InlineEdit::new("ti-inline-h", "Heading", &mut s.inline_heading)
-                .scale(TypeScale::HeadlineSmall)
+                .text_style(TypeScale::HeadlineSmall)
                 .preferred_width(420.0),
         );
         caption(ui, TypeScale::LabelMedium, "Empty value shows the placeholder");

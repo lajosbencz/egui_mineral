@@ -2,7 +2,7 @@
 
 use egui::Color32;
 
-use crate::icon::Icon;
+use crate::{icon::Icon, layout::Elide};
 
 /// Progress indicator of a [`StatusItem`]: the fraction done, `None` for indeterminate.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -33,15 +33,13 @@ pub enum StatusTone {
     Default,
     /// Error colors.
     Error,
-}
-
-/// App-chosen colors of a [`StatusItem`].
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct StatusColors {
-    /// Strip behind the item.
-    pub container: Color32,
-    /// Text, icon and indicator.
-    pub content: Color32,
+    /// App-chosen colors, e.g. a warning tone.
+    Custom {
+        /// Strip behind the item.
+        container: Color32,
+        /// Text, icon and indicator.
+        content: Color32,
+    },
 }
 
 /// Text, with an optional icon or progress indicator, in a stylekit's status bar.
@@ -53,8 +51,7 @@ pub struct StatusItem {
     tooltip: Option<String>,
     clickable: bool,
     tone: StatusTone,
-    colors: Option<StatusColors>,
-    elide: bool,
+    elide: Option<Elide>,
 }
 
 impl StatusItem {
@@ -66,8 +63,7 @@ impl StatusItem {
             tooltip: None,
             clickable: false,
             tone: StatusTone::Default,
-            colors: None,
-            elide: false,
+            elide: None,
         }
     }
 
@@ -101,16 +97,10 @@ impl StatusItem {
         self
     }
 
-    /// App-chosen strip and text colors, overriding the [`tone`](Self::tone) (e.g. a warning tone).
-    pub fn colors(mut self, container: Color32, content: Color32) -> Self {
-        self.colors = Some(StatusColors { container, content });
-        self
-    }
-
-    /// Start items only: the one that overflows ends in an ellipsis at the room left rather than
-    /// vanishing with the following items; default `false`.
-    pub fn elide(mut self, elide: bool) -> Self {
-        self.elide = elide;
+    /// Start items only: the one that overflows shrinks to the room left, `elide` choosing the part replaced
+    /// by an ellipsis, rather than vanishing with the following items. Default: it vanishes.
+    pub fn elide(mut self, elide: Elide) -> Self {
+        self.elide = Some(elide);
         self
     }
 
@@ -139,13 +129,8 @@ impl StatusItem {
         self.tone
     }
 
-    /// Value of [`Self::colors`].
-    pub fn custom_colors(&self) -> Option<StatusColors> {
-        self.colors
-    }
-
     /// Value of [`Self::elide`].
-    pub fn is_elided(&self) -> bool {
+    pub fn elision(&self) -> Option<Elide> {
         self.elide
     }
 }

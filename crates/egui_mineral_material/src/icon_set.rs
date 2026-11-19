@@ -4,8 +4,9 @@ use crate::icons;
 
 /// Glyphs the kit draws for its own parts (chevrons, close, check, ...), one field per role named after
 /// the Material Symbols icon it defaults to. [`Self::material`] is the default, other fonts fill the same fields
-/// ([`Material::with_icons`](crate::Material::with_icons)).
+/// ([`Material::with_icons`](crate::Material::with_icons)): start from [`Self::material`] and assign the roles.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub struct IconSet {
     /// `add`.
     pub add: Icon,

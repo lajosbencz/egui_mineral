@@ -116,7 +116,7 @@ fn linear(ui: &mut Mui<'_>, s: &mut State) {
     rt.ui(ui).mineral(
         LinearProgressIndicator::determinate("lin-wavy", v)
             .label("Wavy")
-            .wavy(true),
+            .variant(ProgressVariant::Wavy),
     );
     sub(ui, "Indeterminate");
     rt.ui(ui)
@@ -125,7 +125,7 @@ fn linear(ui: &mut Mui<'_>, s: &mut State) {
     rt.ui(ui).mineral(
         LinearProgressIndicator::indeterminate("lin-ind-wavy")
             .label("Wavy indeterminate")
-            .wavy(true)
+            .variant(ProgressVariant::Wavy)
             .preferred_width(240.0),
     );
 }
@@ -147,7 +147,7 @@ fn circular(ui: &mut Mui<'_>, s: &mut State) {
             ui.mineral(
                 CircularProgressIndicator::determinate("circ-wavy", v)
                     .label("Wavy")
-                    .wavy(true),
+                    .variant(ProgressVariant::Wavy),
             )
         });
     });
@@ -166,7 +166,7 @@ fn circular(ui: &mut Mui<'_>, s: &mut State) {
             ui.mineral(
                 CircularProgressIndicator::indeterminate("circ-ind-wavy")
                     .label("Wavy indeterminate")
-                    .wavy(true),
+                    .variant(ProgressVariant::Wavy),
             )
         });
     });
@@ -182,7 +182,7 @@ fn loading(ui: &mut Mui<'_>) {
             row.add(|ui| {
                 ui.mineral(
                     LoadingIndicator::new(("load-c", i))
-                        .contained(true)
+                        .variant(LoadingIndicatorVariant::Contained)
                         .preferred_size(egui::Vec2::splat(size)),
                 )
             });
@@ -199,7 +199,7 @@ fn snackbars(ui: &mut Mui<'_>, shared: &mut Shared) {
         if row.mineral(PushButton::new("snack-action", "With action")).clicked() {
             shared
                 .toasts
-                .push(Snackbar::new("Conversation deleted").action(SnackbarAction::new("Undo").command(snack::UNDO)));
+                .push(Snackbar::new("Conversation deleted").action(TextAction::new("Undo").command(snack::UNDO)));
         }
         if row.mineral(PushButton::new("snack-close", "With close")).clicked() {
             shared.toasts.push(Snackbar::new("Connection lost").dismissible(true));
@@ -207,7 +207,7 @@ fn snackbars(ui: &mut Mui<'_>, shared: &mut Shared) {
         if row.mineral(PushButton::new("snack-both", "Action and close")).clicked() {
             shared.toasts.push(
                 Snackbar::new("Draft saved to the cloud")
-                    .action(SnackbarAction::new("Open").command(snack::OPEN))
+                    .action(TextAction::new("Open").command(snack::OPEN))
                     .dismissible(true),
             );
         }
@@ -217,7 +217,7 @@ fn snackbars(ui: &mut Mui<'_>, shared: &mut Shared) {
                     "This snackbar carries a longer supporting text that wraps onto a second line to show the \
                      two-line layout of the component.",
                 )
-                .action(SnackbarAction::new("Retry").command(snack::RETRY))
+                .action(TextAction::new("Retry").command(snack::RETRY))
                 .dismissible(true),
             );
         }
@@ -256,14 +256,12 @@ fn tooltips(ui: &mut Mui<'_>, shared: &mut Shared) {
         let r = row.mineral(PushButton::new("tip-rich-3", "With actions").variant(ButtonVariant::Tonal));
         let tip = RichTooltip::new("tip-rich-3-tooltip", "Move the file to the archive folder.")
             .title("Archive")
-            .action("Learn more")
-            .secondary_action("Archive now")
+            .actions(["Learn more", "Archive now"])
             .show(rt, r.response());
-        if tip.action_clicked {
-            shared.toast("Tooltip action: Learn more");
-        }
-        if tip.secondary_action_clicked {
-            shared.toast("Tooltip action: Archive now");
+        match tip.clicked {
+            Some(0) => shared.toast("Tooltip action: Learn more"),
+            Some(_) => shared.toast("Tooltip action: Archive now"),
+            None => {}
         }
     });
 }
@@ -315,10 +313,7 @@ fn skeletons(ui: &mut Mui<'_>) {
     ui.allocate_ui(vec2(width, 0.0), |ui| {
         rt.ui(ui).mineral(Skeleton::new(
             "skel-text",
-            SkeletonShape::Text {
-                lines: 3,
-                scale: TypeScale::BodyMedium,
-            },
+            SkeletonShape::text(3, TypeScale::BodyMedium),
         ));
     });
     sub(ui, "Title scale text");
@@ -326,10 +321,7 @@ fn skeletons(ui: &mut Mui<'_>) {
     ui.allocate_ui(vec2(width, 0.0), |ui| {
         rt.ui(ui).mineral(Skeleton::new(
             "skel-title",
-            SkeletonShape::Text {
-                lines: 2,
-                scale: TypeScale::TitleLarge,
-            },
+            SkeletonShape::text(2, TypeScale::TitleLarge),
         ));
     });
     sub(ui, "Rect and circle");

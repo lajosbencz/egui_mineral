@@ -72,7 +72,7 @@ fn slider_defaults_to_the_xs_track_and_a_4dp_handle() {
 fn date_picker_day_grid() {
     let mut day = Some(Date::constant(2024, 5, 15));
     let p = render_on(WIDE, |ui| {
-        DatePicker::new("dp", &mut day).show(ui);
+        DatePicker::new("dp", "Date", &mut day).show(ui);
     });
     let cell = p.rect("dp-2024-05-15-cell");
     assert_eq!(cell.size(), Vec2::splat(date_picker::CELL_SIZE));
@@ -94,7 +94,7 @@ fn date_picker_modal_width() {
     let mut open = true;
     let mut day = None;
     let p = render_on(WIDE, |ui| {
-        DatePicker::new("dm", &mut day).show_modal(ui.rt(), &mut open);
+        DatePicker::new("dm", "Date", &mut day).show_modal(ui.rt(), &mut open);
     });
     let dialog = p.rect("dm-dialog");
     assert_eq!(dialog.width(), date_picker_modal::CONTAINER_WIDTH);
@@ -113,7 +113,7 @@ fn date_range_months_list() {
     let mut open = true;
     let mut range = DateRange::new(Date::constant(2024, 5, 10), Date::constant(2024, 5, 20));
     let p = render_on(WIDE, |ui| {
-        DateRangePicker::new("dr", &mut range).show_modal(ui.rt(), &mut open);
+        DateRangePicker::new("dr", "Dates", &mut range).show_modal(ui.rt(), &mut open);
     });
     assert_eq!(
         p.rect("dr-dialog").height(),
@@ -133,7 +133,7 @@ fn date_range_months_list() {
         "every month is six rows high"
     );
     let p = render_on(WIDE, |ui| {
-        DateRangePicker::new("di", &mut range).show(ui);
+        DateRangePicker::new("di", "Dates", &mut range).show(ui);
     });
     let mid = p.rect("di-2024-05-15-cell");
     let strip = date_picker_modal::RANGE_SELECTION_ACTIVE_INDICATOR_CONTAINER_COLOR;
@@ -149,7 +149,7 @@ fn date_range_months_list() {
 fn time_picker_geometry() {
     let mut time = Time::constant(9, 41, 0, 0);
     let p = render_on(WIDE, |ui| {
-        TimePicker::new("tp", &mut time).show(ui);
+        TimePicker::new("tp", "Time", &mut time).show(ui);
     });
     let hour = p.rect("tp-hour-selector");
     assert_eq!(
@@ -183,7 +183,9 @@ fn time_picker_geometry() {
 fn time_input_fields() {
     let mut time = Time::constant(9, 41, 0, 0);
     let p = render_on(WIDE, |ui| {
-        TimePicker::new("ti", &mut time).input_mode(DisplayMode::Input).show(ui);
+        TimePicker::new("ti", "Time", &mut time)
+            .input_mode(DisplayMode::Input)
+            .show(ui);
     });
     let (hour, minute) = (p.rect("ti-hour-field"), p.rect("ti-minute-field"));
     assert_eq!(

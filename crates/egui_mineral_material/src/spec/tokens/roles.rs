@@ -119,7 +119,7 @@ pub enum ColorRole {
 
 impl ColorRole {
     /// Every variant, in `ColorSchemeKeyTokens` declaration order.
-    pub const ALL: [Self; 48] = [
+    pub const ALL: &'static [Self] = &[
         Self::Background,
         Self::Error,
         Self::ErrorContainer,
@@ -253,7 +253,7 @@ pub enum ShapeScale {
 
 impl ShapeScale {
     /// Every variant, by ascending radius.
-    pub const ALL: [Self; 10] = [
+    pub const ALL: &'static [Self] = &[
         Self::None,
         Self::ExtraSmall,
         Self::Small,
@@ -337,7 +337,7 @@ pub enum ShapeRole {
 
 impl ShapeRole {
     /// Every variant, in `ShapeKeyTokens` declaration order.
-    pub const ALL: [Self; 15] = [
+    pub const ALL: &'static [Self] = &[
         Self::CornerExtraExtraLarge,
         Self::CornerExtraLarge,
         Self::CornerExtraLargeIncreased,
@@ -468,7 +468,7 @@ pub enum TypeScale {
 
 impl TypeScale {
     /// Every variant, in `TypographyKeyTokens` declaration order.
-    pub const ALL: [Self; 30] = [
+    pub const ALL: &'static [Self] = &[
         Self::BodyLarge,
         Self::BodyMedium,
         Self::BodySmall,
@@ -504,6 +504,7 @@ impl TypeScale {
 
 /// Elevation level (`ElevationTokens`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum ElevationLevel {
     /// `ElevationTokens.Level0`.
     Level0,
@@ -521,7 +522,7 @@ pub enum ElevationLevel {
 
 impl ElevationLevel {
     /// Every variant, lowest first.
-    pub const ALL: [Self; 6] = [
+    pub const ALL: &'static [Self] = &[
         Self::Level0,
         Self::Level1,
         Self::Level2,
@@ -545,6 +546,7 @@ impl ElevationLevel {
 
 /// Font family role (`TypefaceTokens`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum Typeface {
     /// `TypefaceTokens.Brand`.
     Brand,
@@ -554,5 +556,5 @@ pub enum Typeface {
 
 impl Typeface {
     /// Every variant, in `TypefaceTokens` declaration order.
-    pub const ALL: [Self; 2] = [Self::Brand, Self::Plain];
+    pub const ALL: &'static [Self] = &[Self::Brand, Self::Plain];
 }

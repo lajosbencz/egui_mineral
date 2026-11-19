@@ -14,3 +14,16 @@ pub use flow::{Flow, FlowItems};
 pub use zones::{Measure, MinTarget, TargetPolicy, Zones, breakpoint, safe_area};
 
 pub use egui_taffy as flex;
+
+/// Part of an overflowing one-line text replaced by an ellipsis.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum Elide {
+    /// Cuts the end: `/home/user/pro...`.
+    #[default]
+    End,
+    /// Cuts the middle: `/home/...ts/a.png`.
+    Middle,
+    /// Cuts the start, keeping e.g. a file name: `...shots/a.png`.
+    Start,
+}

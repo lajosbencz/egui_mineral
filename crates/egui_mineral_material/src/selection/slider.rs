@@ -277,14 +277,14 @@ impl<'a> ValueSlider<'a> {
     }
 
     /// Icon at the min end: inset in the track for sizes with a track icon, else beside it.
-    pub fn icon(mut self, icon: impl Into<Icon>) -> Self {
+    pub fn min_icon(mut self, icon: impl Into<Icon>) -> Self {
         self.icons.min = Some(icon.into());
         self
     }
 
     /// Icon at the max end: inset in the track for sizes with a track icon, else beside it.
-    pub fn trailing_icon(mut self, trailing_icon: impl Into<Icon>) -> Self {
-        self.icons.max = Some(trailing_icon.into());
+    pub fn max_icon(mut self, icon: impl Into<Icon>) -> Self {
+        self.icons.max = Some(icon.into());
         self
     }
 

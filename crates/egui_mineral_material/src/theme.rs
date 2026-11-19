@@ -250,7 +250,7 @@ mod tests {
     #[test]
     fn new_material_holds_the_baseline_at_its_contrast() {
         let ctx = Context::default();
-        let m = Material::new(Contrast::MEDIUM);
+        let m = Material::new().with_contrast(Contrast::MEDIUM);
         assert_eq!(
             current(&m, Theme::Light),
             Tokens::baseline(Theme::Light, Contrast::MEDIUM)

@@ -34,6 +34,7 @@ use crate::{
 
 /// Compose `PrimaryTabRow` and `SecondaryTabRow` styles.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
+#[non_exhaustive]
 pub enum TabsVariant {
     #[default]
     /// `PrimaryTabRow`: content-width indicator.
