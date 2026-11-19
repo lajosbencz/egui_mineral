@@ -37,6 +37,16 @@ use crate::{
 const TRAILING_CONTAINER: f32 = small_icon_button::CONTAINER_HEIGHT;
 const CONTENT_PADDING: f32 = defaults::list::START_PADDING;
 
+/// Look of an [`Accordion`].
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum AccordionVariant {
+    /// Outlined rounded container, panels separated by dividers.
+    #[default]
+    Card,
+    /// Plain section headers: title row and chevron, a divider below, no container or shape.
+    Flat,
+}
+
 /// Header data of one [`Accordion`] panel.
 #[derive(Clone, Debug)]
 #[must_use]
@@ -101,6 +111,7 @@ struct Header<'a> {
     turn: f32,
     fade: f32,
     shape: CornerRadius,
+    flat: bool,
 }
 
 impl Header<'_> {
@@ -149,15 +160,16 @@ impl MineralWidget for Header<'_> {
         let x = |from_start: f32, w: f32| dir.start_x(rect, Rangef::new(from_start, from_start + w));
         let cy = rect.center().y;
         let p = ui.painter();
-        let mut start = d::START_PADDING;
+        let edge = if self.flat { 0.0 } else { d::START_PADDING };
+        let mut start = edge;
         if let Some(icon) = self.panel.icon {
             let size = list::ITEM_LEADING_ICON_SIZE;
             common::icon(p, pos2(x(start, size) + size / 2.0, cy), icon, size, col.leading);
             start += size + d::LEADING_CONTENT_END_PADDING;
         }
-        let end = d::END_PADDING + TRAILING_CONTAINER;
+        let end = if self.flat { 0.0 } else { d::END_PADDING } + TRAILING_CONTAINER;
         let trailing = pos2(x(rect.width() - end, TRAILING_CONTAINER) + TRAILING_CONTAINER / 2.0, cy);
-        let (bg, fg) = if dis {
+        let (bg, fg) = if self.flat || dis {
             (Color32::TRANSPARENT, col.trailing)
         } else {
             (
@@ -237,6 +249,7 @@ pub struct AccordionResponse<R> {
 pub struct Accordion<'a> {
     salt: KeyedSalt,
     expansion: &'a mut Expansion<usize>,
+    variant: AccordionVariant,
     disabled: bool,
 }
 
@@ -261,6 +274,7 @@ pub struct AccordionUi<'u, 'e> {
     index: usize,
     count: usize,
     radius: CornerRadius,
+    variant: AccordionVariant,
     headers: Vec<Id>,
     toggled: Option<usize>,
     disabled: bool,
@@ -271,6 +285,28 @@ pub struct AccordionUi<'u, 'e> {
 egui_mineral::kit::opaque_debug!(AccordionUi<'_, '_>);
 
 impl AccordionUi<'_, '_> {
+    fn divider(&mut self) {
+        let color = self.rt.tokens().role(divider::COLOR);
+        let (r, _) = self
+            .ui
+            .allocate_exact_size(vec2(self.ui.available_width(), divider::THICKNESS), Sense::hover());
+        self.ui.painter().rect_filled(r, 0, color);
+    }
+
+    // The card rounds its outer corners only.
+    fn header_shape(&self, i: usize, last: bool) -> CornerRadius {
+        let r = self.radius;
+        if self.variant == AccordionVariant::Flat {
+            return CornerRadius::ZERO;
+        }
+        CornerRadius {
+            nw: if i == 0 { r.nw } else { 0 },
+            ne: if i == 0 { r.ne } else { 0 },
+            sw: if last { r.sw } else { 0 },
+            se: if last { r.se } else { 0 },
+        }
+    }
+
     /// Adds the next panel, indexed in call order, with `add` as its body.
     pub fn panel<R>(
         &mut self,
@@ -283,12 +319,9 @@ impl AccordionUi<'_, '_> {
         self.index += 1;
         let rt = self.rt;
         let ctx = self.ui.ctx().clone();
-        let t = rt.tokens();
-        if i > 0 {
-            let (r, _) = self
-                .ui
-                .allocate_exact_size(vec2(self.ui.available_width(), divider::THICKNESS), Sense::hover());
-            self.ui.painter().rect_filled(r, 0, t.role(divider::COLOR));
+        let flat = self.variant == AccordionVariant::Flat;
+        if i > 0 && !flat {
+            self.divider();
         }
         let open = self.expansion.is_expanded(&i);
         let k = egui_mineral::motion::spring(
@@ -304,7 +337,6 @@ impl AccordionUi<'_, '_> {
             motion::DEFAULT_EFFECTS,
         );
         let last = i + 1 == self.count && k <= 0.0;
-        let r = self.radius;
         let header = Header {
             salt: self.salt.child(("header", i)),
             key: self.key.sub((i, "header")),
@@ -312,12 +344,8 @@ impl AccordionUi<'_, '_> {
             expanded: open,
             turn: k,
             fade,
-            shape: CornerRadius {
-                nw: if i == 0 { r.nw } else { 0 },
-                ne: if i == 0 { r.ne } else { 0 },
-                sw: if last { r.sw } else { 0 },
-                se: if last { r.se } else { 0 },
-            },
+            shape: self.header_shape(i, last),
+            flat,
         };
         let mut hr = rt.ui(self.ui).mineral(header);
         let expand_req = egui_mineral::kit::input::accesskit_requested(&ctx, hr.id, Action::Expand);
@@ -329,6 +357,9 @@ impl AccordionUi<'_, '_> {
                 self.toggled = Some(i);
                 hr = hr.with_changed(true);
             }
+        }
+        if flat {
+            self.divider();
         }
         // The spatial spring overshoots; the panel never grows past its content.
         let k = k.clamp(0.0, 1.0);
@@ -346,7 +377,7 @@ impl AccordionUi<'_, '_> {
             None if k >= 1.0 => f32::INFINITY,
             None => 0.0,
         };
-        let pad = CONTENT_PADDING;
+        let pad = if flat { 0.0 } else { CONTENT_PADDING };
         let mut child = self.ui.new_child(
             UiBuilder::new()
                 .id_salt(self.id.with(("content", i)))
@@ -386,8 +417,15 @@ impl<'a> Accordion<'a> {
         Self {
             salt: id_salt,
             expansion,
+            variant: AccordionVariant::default(),
             disabled: false,
         }
+    }
+
+    /// Look; default [`AccordionVariant::Card`].
+    pub fn variant(mut self, variant: AccordionVariant) -> Self {
+        self.variant = variant;
+        self
     }
 
     crate::widget::setters! {
@@ -400,7 +438,7 @@ impl<'a> Accordion<'a> {
         agent_key(salt)
     }
 
-    /// Stacks the panels `add` adds, with dividers between them.
+    /// Stacks the panels `add` adds; dividers between them, or under each header when flat.
     pub fn show<R>(
         self,
         ui: &mut MineralUi<'_, Material>,
@@ -426,6 +464,7 @@ impl<'a> Accordion<'a> {
                 index: 0,
                 count: ctx.data(|d| d.get_temp(count_id)).unwrap_or(0),
                 radius,
+                variant: self.variant,
                 headers: Vec::new(),
                 toggled: None,
                 disabled: self.disabled,
@@ -448,16 +487,18 @@ impl<'a> Accordion<'a> {
         });
         let mut response = r.response;
         let rect = response.rect;
-        ui.painter().set(
-            bg,
-            egui::epaint::RectShape::filled(rect, radius, t.role(expanded_list::EXPANDED_ITEM_CONTAINER_COLOR)),
-        );
-        ui.painter().rect_stroke(
-            rect,
-            radius,
-            Stroke::new(outlined_card::OUTLINE_WIDTH, t.role(outlined_card::OUTLINE_COLOR)),
-            StrokeKind::Inside,
-        );
+        if self.variant == AccordionVariant::Card {
+            ui.painter().set(
+                bg,
+                egui::epaint::RectShape::filled(rect, radius, t.role(expanded_list::EXPANDED_ITEM_CONTAINER_COLOR)),
+            );
+            ui.painter().rect_stroke(
+                rect,
+                radius,
+                Stroke::new(outlined_card::OUTLINE_WIDTH, t.role(outlined_card::OUTLINE_COLOR)),
+                StrokeKind::Inside,
+            );
+        }
         let (inner, toggled) = r.inner;
         if toggled.is_some() {
             response.mark_changed();

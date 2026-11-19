@@ -36,6 +36,8 @@ fn cell_size(rt: &Rt, density: Density) -> egui::Vec2 {
     )
 }
 
+const LABEL_FONT: TypeScale = outlined_text_field::SUPPORTING_FONT;
+const LABEL_GAP: f32 = crate::adaptive::grid(1);
 const CELL_GAP: f32 = crate::adaptive::grid(2);
 
 /// One-time code entry of fixed length; non-MD3 (shadcn `InputOTP` pattern).
@@ -45,6 +47,7 @@ pub struct OtpField<'a> {
     salt: KeyedSalt,
     key: AgentKey,
     label: String,
+    label_visible: bool,
     value: &'a mut String,
     len: usize,
     charset: Charset,
@@ -62,6 +65,14 @@ pub struct OtpFieldOutput {
 }
 
 impl<'a> OtpField<'a> {
+    fn label_h(&self) -> f32 {
+        if self.label_visible && !self.label.is_empty() {
+            LABEL_FONT.line_height() + LABEL_GAP
+        } else {
+            0.0
+        }
+    }
+
     fn mask(&self) -> CellMask {
         CellMask {
             charset: self.charset,
@@ -69,7 +80,8 @@ impl<'a> OtpField<'a> {
         }
     }
 
-    /// `len` single-character cells (minimum 1) bound to `value`. Agent key `<id_salt>-otp`.
+    /// `len` single-character cells (minimum 1) bound to `value`; `label` is the accessible name, shown
+    /// above the cells unless [`Self::label_visible`] is `false`. Agent key `<id_salt>-otp`.
     #[track_caller]
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, len: usize, value: &'a mut String) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
@@ -78,6 +90,7 @@ impl<'a> OtpField<'a> {
             key: AgentKey::Kind("otp"),
             salt: id_salt,
             label: label.into(),
+            label_visible: true,
             value,
             len,
             charset: Charset::Digits,
@@ -90,6 +103,12 @@ impl<'a> OtpField<'a> {
     /// Accepted characters; default [`Charset::Digits`](egui_mineral::mask::Charset::Digits).
     pub fn charset(mut self, charset: Charset) -> Self {
         self.charset = charset;
+        self
+    }
+
+    /// Shows the label above the cells; `false` keeps it as the accessible name only. Default `true`.
+    pub fn label_visible(mut self, label_visible: bool) -> Self {
+        self.label_visible = label_visible;
         self
     }
 
@@ -157,6 +176,7 @@ impl<'a> OtpField<'a> {
         let radius = outlined_text_field::CONTAINER_SHAPE.corner_radius(&t.shape, rt.i18n().direction());
         let cursor = ui.visuals().text_cursor.clone();
         let mut supporting = None;
+        let mut label = None;
         for i in 0..self.len {
             let cell = Self::cell(rt, ui.density(), rect, i);
             let current = active == Some(i);
@@ -168,6 +188,7 @@ impl<'a> OtpField<'a> {
             };
             let colors = text_field::colors(TextFieldVariant::Outlined, state, &t);
             supporting.get_or_insert(colors.supporting);
+            label.get_or_insert(colors.label);
             let w = if current {
                 outlined_text_field::FOCUS_OUTLINE_WIDTH
             } else {
@@ -202,6 +223,10 @@ impl<'a> OtpField<'a> {
                     );
                 }
             }
+        }
+        if let Some(color) = label.filter(|_| self.label_h() > 0.0) {
+            let g = text_field::line_galley(p, &self.label, LABEL_FONT, color, rect.width());
+            p.galley(pos2(rect.left(), rect.top() - self.label_h()), g, color);
         }
         if let (Some(message), Some(color)) = (&self.error, supporting) {
             text_field::paint_support(ui, rect, Some(message), None, color, text_field::Elide::End);
@@ -241,8 +266,11 @@ impl MineralWidget for OtpField<'_> {
         } else {
             0.0
         };
-        c.constrain(vec2(n * cell.x + (n - 1.0) * CELL_GAP, cell.y + error_h))
-            .into()
+        c.constrain(vec2(
+            n * cell.x + (n - 1.0) * CELL_GAP,
+            self.label_h() + cell.y + error_h,
+        ))
+        .into()
     }
 
     fn update(
@@ -255,7 +283,7 @@ impl MineralWidget for OtpField<'_> {
         let ctx = rt.ctx();
         let full = frame.zones.visual;
         let cell = cell_size(rt, ui.density());
-        let rect = Rect::from_min_size(full.min, vec2(full.width(), cell.y));
+        let rect = Rect::from_min_size(full.min + vec2(0.0, self.label_h()), vec2(full.width(), cell.y));
         let edit_id = ui.make_persistent_id(self.salt.id_salt()).with("edit");
         let before = self.value.clone();
         *self.value = self.mask().sanitize(self.value);

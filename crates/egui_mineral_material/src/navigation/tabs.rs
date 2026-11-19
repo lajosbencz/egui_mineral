@@ -166,7 +166,10 @@ impl<'a> Tabs<'a> {
             .iter()
             .map(TabContent::height)
             .fold(primary::CONTAINER_HEIGHT, f32::max);
-        let height = ui.dense(height, crate::adaptive::Density::COMPACT_FLOOR);
+        let height = ui.density().dense_to(
+            height,
+            contents.iter().map(TabContent::content_height).fold(0.0, f32::max) + crate::adaptive::CONTENT_PAD,
+        );
         let outer_w = ui.available_width();
         let bar = Rect::from_min_size(ui.cursor().min, vec2(outer_w, height));
         let container = ui.interact(bar, id.with("tablist"), Sense::hover());
@@ -386,6 +389,15 @@ impl TabContent {
         let text = self.label.size().x + 2.0 * tx::TEXT_PADDING;
         if self.icon.is_some() {
             text.max(primary::ICON_SIZE)
+        } else {
+            text
+        }
+    }
+
+    fn content_height(&self) -> f32 {
+        let text = self.label.size().y;
+        if self.icon.is_some() {
+            primary::ICON_SIZE + text
         } else {
             text
         }

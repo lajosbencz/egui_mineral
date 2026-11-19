@@ -311,6 +311,10 @@ fn spin_button_paints_its_unit_after_the_value() {
     });
     let (unit, value) = (p.text("mm"), p.text("12"));
     assert!(unit.left() >= value.right(), "{unit:?} {value:?}");
+    assert!(
+        unit.left() - value.right() < 8.0,
+        "unit hugs the value: {unit:?} {value:?}"
+    );
 }
 
 #[test]

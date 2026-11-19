@@ -593,10 +593,7 @@ impl<'a, N: TreeData> TreeView<'a, N> {
     fn look(&self, ui: &MineralUi<'_, Material>) -> RowLook {
         let density = ui.density();
         // MD3 list paddings are fixed; here they narrow 4dp per density step (docs/divergences.md).
-        let gap = density.dense(
-            defaults::list::LEADING_CONTENT_END_PADDING,
-            crate::adaptive::Density::COMPACT_FLOOR,
-        );
+        let gap = density.dense_to(defaults::list::LEADING_CONTENT_END_PADDING, crate::adaptive::grid(1));
         RowLook {
             height: self.row_height.unwrap_or_else(|| row_parts::row_height(density)),
             indent: self.indent.unwrap_or(ICON + gap),

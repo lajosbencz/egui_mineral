@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use egui::{Rect, Vec2, vec2};
 use egui_mineral::{steps::Steps, widget::SizeExt};
 use egui_mineral_material::{
+    Size,
     actions::{IconButton, PushButton},
     adaptive,
     communication::{CircularProgressIndicator, LinearProgressIndicator},
@@ -215,5 +216,85 @@ fn full_width_composites_fit_every_window_class() {
             let over = h.state().value;
             assert!(over <= 0.5, "{name} at {width}: {over:.1} px wider than its page");
         }
+    }
+}
+
+#[test]
+fn dense_controls_shrink_to_their_content_and_no_further() {
+    use egui::Rect;
+    use egui_mineral_material::{
+        MaterialUiExt as _,
+        actions::SegmentedButton,
+        adaptive::Density,
+        navigation::{Tab, Tabs},
+        selection::Chip,
+        spec::TypeScale,
+    };
+    const PAD: f32 = 4.0;
+    type Add = fn(&mut Mui<'_>) -> Rect;
+    let line = TypeScale::LabelLarge.line_height();
+    let cases: [(&str, Add, f32); 5] = [
+        (
+            "button",
+            |ui| ui.mineral(PushButton::new("b", "Go")).zones().visual,
+            line,
+        ),
+        (
+            "icon button",
+            |ui| {
+                ui.mineral(IconButton::new("i", ICON_MAIL, "Mail").size(Size::Small))
+                    .zones()
+                    .visual
+            },
+            24.0,
+        ),
+        (
+            "segmented",
+            |ui| {
+                let mut s = 0;
+                SegmentedButton::single("s", "Seg", &mut s)
+                    .items(["A", "B"])
+                    .show(ui)
+                    .response
+                    .rect
+            },
+            line,
+        ),
+        (
+            "tabs",
+            |ui| {
+                let mut s = 0;
+                Tabs::new("t", "Tabs", &mut s)
+                    .item(Tab::new("A"))
+                    .item(Tab::new("B"))
+                    .show(ui)
+                    .response
+                    .rect
+            },
+            line,
+        ),
+        ("chip", |ui| ui.mineral(Chip::assist("c", "Chip")).zones().visual, line),
+    ];
+    // The segmented row reserves the hit target; the segments are what shrinks.
+    let height = |name: &str, add: Add, step: i8| {
+        let mut out = 0.0;
+        let p = crate::support::render_on(SCREEN, |ui| {
+            out = ui.with_density(Density::new(step), add).height();
+        });
+        if name == "segmented" {
+            (
+                p.stroked(egui_mineral_material::spec::ColorRole::Outline)[0].height(),
+                p.text("A").height(),
+            )
+        } else {
+            (out, f32::NAN)
+        }
+    };
+    for (name, add, content) in cases {
+        let (full, mid, min) = (height(name, add, 0).0, height(name, add, -3).0, height(name, add, -6));
+        let (min, text) = min;
+        let content = if text.is_nan() { content } else { text };
+        assert!(min >= content + PAD, "{name}: {min} below content");
+        assert!(min <= mid && min < full, "{name}: {min} vs {mid} vs {full}");
     }
 }

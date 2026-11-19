@@ -4,7 +4,7 @@ use egui_mineral_material::{
     extras::{Accordion, AccordionPanel, Avatar, DataTable, Pagination, Rating, SettingRow, TableCell, TreeView},
     spec::{
         defaults::list as list_defaults,
-        tokens::{button_small, divider, filled_tonal_button, list, small_icon_button},
+        tokens::{button_small, divider, expanded_list, filled_tonal_button, list, outlined_card, small_icon_button},
     },
 };
 
@@ -105,6 +105,31 @@ fn accordion_headers_are_list_items() {
 }
 
 #[test]
+fn flat_accordion_is_a_plain_section_header_without_a_container() {
+    use egui_mineral_material::{MaterialUiExt as _, adaptive::Density, extras::AccordionVariant};
+    let mut expansion = Expansion::default();
+    let p = render(|ui| {
+        ui.with_density(Density::MIN, |ui| {
+            Accordion::new("acc", &mut expansion)
+                .variant(AccordionVariant::Flat)
+                .show(ui, |a| {
+                    a.panel("One", |_| ());
+                });
+        });
+    });
+    let one = list::ITEM_ONE_LINE_CONTAINER_HEIGHT;
+    assert!(
+        p.outer.height() < one + divider::THICKNESS,
+        "dense header, divider below"
+    );
+    assert!(p.outer.height() >= divider::THICKNESS);
+    assert_eq!(p.text("One").left(), p.outer.left(), "no start padding");
+    assert_eq!(p.filled(expanded_list::EXPANDED_ITEM_CONTAINER_COLOR), []);
+    assert_eq!(p.stroked(outlined_card::OUTLINE_COLOR), []);
+    assert!(!p.filled(divider::COLOR).is_empty(), "divider under the header");
+}
+
+#[test]
 fn rating_stars_are_narrow_small_icon_buttons() {
     let mut value = 2.0;
     let p = render(|ui| {
@@ -138,11 +163,12 @@ fn field_wrappers_forward_the_text_chrome() {
     use egui_mineral_material::{
         MaterialUiExt as _,
         adaptive::Density,
-        extras::{Combobox, NumberField},
+        extras::{ColorPicker, Combobox, NumberField},
         spec::TypeScale,
     };
     let content = TypeScale::BodyLarge.line_height() + 8.0;
     let (mut x, mut text) = (1.5_f64, String::new());
+    let mut color = egui::Color32::RED;
     let p = crate::support::render_zones(|ui| {
         ui.with_density(Density::MIN, |ui| {
             let n = NumberField::new("x", "X", RangeModel::new(0.0, 9.0), &mut x)
@@ -156,6 +182,7 @@ fn field_wrappers_forward_the_text_chrome() {
                     .prefix("#")
                     .placeholder("pick"),
             );
+            ui.mineral(ColorPicker::new("cp", "Color", &mut color).label_visible(false));
             zones
         })
     });
@@ -165,6 +192,7 @@ fn field_wrappers_forward_the_text_chrome() {
     assert!(field.contains_rect(p.text("mm")) && p.text("mm").left() > field.center().x);
     p.text("#");
     p.text("pick");
+    assert_eq!(p.node("cp-hex-field").rect.height(), content, "color picker hex field");
 }
 
 #[test]
@@ -201,4 +229,46 @@ fn date_and_tag_fields_take_density_label_visibility_and_affixes() {
     });
     assert_eq!(p.node("t-tags").name, "Tags");
     p.text("#");
+}
+
+#[test]
+fn otp_label_sits_above_the_cells_unless_hidden() {
+    use egui_mineral_material::{extras::OtpField, spec::TypeScale};
+    let mut code = String::new();
+    let mut shown = |visible: bool| {
+        crate::support::render_zones(|ui| {
+            ui.mineral(OtpField::new("o", "Code", 4, &mut code).label_visible(visible))
+                .zones()
+        })
+    };
+    let (with, without) = (shown(true), shown(false));
+    let (visual, bare) = (
+        with.zones.expect("zones reported").visual,
+        without.zones.expect("zones reported").visual,
+    );
+    let label_h = TypeScale::BodySmall.line_height() + 4.0;
+    assert_eq!(visual.height() - bare.height(), label_h);
+    assert!(with.text("Code").bottom() <= visual.top() + label_h);
+    assert_eq!(without.node("o-otp").name, "Code");
+    assert_eq!(with.node("o-otp").name, "Code");
+}
+
+#[test]
+fn otp_cells_follow_density() {
+    use egui_mineral_material::{MaterialUiExt as _, adaptive::Density, extras::OtpField};
+    let mut code = String::new();
+    let mut height = |step: i8| {
+        crate::support::render_zones(|ui| {
+            ui.with_density(Density::new(step), |ui| {
+                ui.mineral(OtpField::new("o", "Code", 4, &mut code).label_visible(false))
+                    .zones()
+            })
+        })
+        .zones
+        .expect("zones reported")
+        .visual
+        .height()
+    };
+    let (full, dense) = (height(0), height(-6));
+    assert!(dense < full, "{dense} vs {full}");
 }
