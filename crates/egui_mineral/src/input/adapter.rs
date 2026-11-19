@@ -1,4 +1,7 @@
-use std::{sync::Arc, time::Duration};
+use std::{
+    sync::{Arc, OnceLock},
+    time::Duration,
+};
 
 use egui::{Context, Event, Pos2, Sense, TouchPhase, Vec2};
 
@@ -6,23 +9,6 @@ use super::{
     Gesture, GestureConfig, GestureRecognizer, KeyAction, PanFrame, PointerId, PointerKind, PointerState,
     UnifiedInputEvent,
 };
-
-// Read before taking the runtime's locks.
-pub(crate) struct RawPass {
-    time: f64,
-    events: Vec<Event>,
-    pinch: Option<egui::MultiTouchInfo>,
-}
-
-impl RawPass {
-    pub(crate) fn read(ctx: &Context) -> Self {
-        ctx.input(|i| Self {
-            time: i.time,
-            events: i.events.clone(),
-            pinch: i.multi_touch(),
-        })
-    }
-}
 
 #[derive(Default)]
 pub(crate) struct InputAdapter {
@@ -38,6 +24,16 @@ pub(crate) struct InputAdapter {
     pan_end: Option<PanFrame>,
 }
 
+// Quiet passes share one empty slice instead of allocating.
+fn shared(events: &[UnifiedInputEvent]) -> Arc<[UnifiedInputEvent]> {
+    static EMPTY: OnceLock<Arc<[UnifiedInputEvent]>> = OnceLock::new();
+    if events.is_empty() {
+        EMPTY.get_or_init(|| Arc::from([])).clone()
+    } else {
+        Arc::from(events)
+    }
+}
+
 impl InputAdapter {
     pub(crate) fn mark_synthetic(&mut self) {
         self.synthetic = true;
@@ -45,27 +41,25 @@ impl InputAdapter {
 
     #[tracing::instrument(level = "trace", skip_all)]
     // Second value: delay until a pending long press needs a repaint.
-    pub(crate) fn process(&mut self, pass: RawPass, config: &GestureConfig) -> (InputContext, Option<Duration>) {
+    // Holds the `ctx.input` read: never call it under the runtime's locks.
+    pub(crate) fn process(&mut self, ctx: &Context, config: &GestureConfig) -> (InputContext, Option<Duration>) {
         self.events.clear();
         self.pan_delta = Vec2::ZERO;
         self.pan_end = None;
-        let RawPass {
-            time,
-            events: raw,
-            pinch,
-        } = pass;
-
-        if let Some(force) = raw.iter().find_map(|e| match e {
-            Event::Touch { force, .. } => Some(*force),
-            _ => None,
-        }) {
-            (self.kind, self.force) = (Some(PointerKind::Touch), force);
-            self.last_kind = self.kind;
-        }
-        self.touch_ended = false;
-        for event in &raw {
-            self.translate(config, event, time);
-        }
+        let (time, pinch) = ctx.input(|i| {
+            if let Some(force) = i.events.iter().find_map(|e| match e {
+                Event::Touch { force, .. } => Some(*force),
+                _ => None,
+            }) {
+                (self.kind, self.force) = (Some(PointerKind::Touch), force);
+                self.last_kind = self.kind;
+            }
+            self.touch_ended = false;
+            for event in &i.events {
+                self.translate(config, event, i.time);
+            }
+            (i.time, i.multi_touch())
+        });
         if self.touch_ended {
             (self.kind, self.force) = (None, None);
         }
@@ -93,7 +87,7 @@ impl InputAdapter {
                 ..frame
             });
         let input = InputContext {
-            events: Arc::from(self.events.as_slice()),
+            events: shared(&self.events),
             time,
             modality,
             pan,
@@ -237,7 +231,7 @@ pub struct InputContext {
 impl Default for InputContext {
     fn default() -> Self {
         Self {
-            events: Arc::from([]),
+            events: shared(&[]),
             time: 0.0,
             modality: PointerKind::Mouse,
             pan: None,
@@ -300,7 +294,7 @@ mod tests {
     };
 
     fn process(a: &mut InputAdapter, ctx: &Context) -> InputContext {
-        a.process(RawPass::read(ctx), &crate::test_support::GESTURES).0
+        a.process(ctx, &crate::test_support::GESTURES).0
     }
 
     fn kinds(ctx: &Context, a: &mut InputAdapter, events: Vec<Event>) -> Vec<PointerKind> {

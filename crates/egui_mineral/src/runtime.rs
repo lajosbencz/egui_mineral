@@ -25,7 +25,7 @@ use crate::{
     focus,
     i18n::{Catalog, I18n, I18nError},
     input::claim::Relay,
-    input::{InputAdapter, InputContext, RawPass, UnifiedInputEvent},
+    input::{InputAdapter, InputContext, UnifiedInputEvent},
     motion::Motion,
     policy::Policies,
     semantic::{self, SemanticTree},
@@ -535,16 +535,17 @@ impl<K> Runtime<K> {
         shortcut::begin_pass(core);
         focus::track_modality(ctx);
         let keep = self.input_history();
-        let raw = RawPass::read(ctx);
-        let repaint_after = core.passes.with(viewport, |st| {
-            let repaint_after;
-            (st.input, repaint_after) = st.adapter.process(raw, &core.policies.gestures);
+        // The adapter reads `ctx.input`, which must not happen under the passes lock.
+        let mut adapter = core.passes.with(viewport, |st| std::mem::take(&mut st.adapter));
+        let (input, repaint_after) = adapter.process(ctx, &core.policies.gestures);
+        core.passes.with(viewport, |st| {
+            st.adapter = adapter;
+            st.input = input;
             if keep > 0 {
                 st.history.extend(st.input.events.iter().copied());
                 let excess = st.history.len().saturating_sub(keep);
                 st.history.drain(..excess);
             }
-            repaint_after
         });
         if let Some(after) = repaint_after {
             ctx.request_repaint_after(after);
