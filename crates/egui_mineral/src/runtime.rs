@@ -126,6 +126,16 @@ impl Passes {
             .or_insert_with(|| PassState::new(&self.ctx, viewport)))
     }
 
+    // `raw.viewports` lists every live viewport; an empty list is an integration that does not report them.
+    fn prune(&self, raw: &RawInput) {
+        if raw.viewports.is_empty() {
+            return;
+        }
+        self.lock().retain(|id, st| {
+            st.active || *id == ViewportId::ROOT || *id == raw.viewport_id || raw.viewports.contains_key(id)
+        });
+    }
+
     fn inject(&self, raw: &mut RawInput) {
         // `raw` carries the rect only when it changed; otherwise the previous pass's applies.
         let screen = raw
@@ -153,6 +163,7 @@ impl egui::Plugin for AgentPlugin {
     fn input_hook(&mut self, _ctx: &Context, raw: &mut RawInput) {
         self.runtimes.retain(|w| w.strong_count() > 0);
         for passes in self.runtimes.iter().filter_map(Weak::upgrade) {
+            passes.prune(raw);
             passes.inject(raw);
         }
     }
@@ -713,5 +724,22 @@ mod tests {
                 .data_mut(|d| d.get_temp_mut_or_default::<Owner>(owner_id(viewport)).current);
             assert_eq!(current, None, "owner left set");
         });
+    }
+
+    #[test]
+    fn closed_viewport_state_is_pruned() {
+        let ctx = ctx();
+        let rt = runtime(&ctx);
+        let child = ViewportId::from_hash_of("child");
+        let raw = |current: ViewportId, live: &[ViewportId]| RawInput {
+            viewport_id: current,
+            viewports: live.iter().map(|id| (*id, egui::ViewportInfo::default())).collect(),
+            ..RawInput::default()
+        };
+        let live = [ViewportId::ROOT, child];
+        run(&ctx, raw(child, &live), |ui| rt.pass(ui, |_| {}));
+        assert!(rt.core.passes.lock().contains_key(&child));
+        run(&ctx, raw(ViewportId::ROOT, &live[..1]), |ui| rt.pass(ui, |_| {}));
+        assert!(!rt.core.passes.lock().contains_key(&child));
     }
 }
