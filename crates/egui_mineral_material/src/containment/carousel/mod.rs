@@ -488,7 +488,7 @@ impl<'a> Carousel<'a> {
             let step = -flip * axis.main(pan.delta);
             // Past either end the rest of the pan chains to the enclosing scroll.
             let over = st.scroll + step - (st.scroll + step).clamp(0.0, max_scroll);
-            st.claim.chain(rt.core(), ui, axis, &pan, -flip * over);
+            st.claim.chain(ui, axis, &pan, -flip * over);
             delta += step - over;
             if pan.ended {
                 released = Some(-flip * axis.main(pan.velocity));

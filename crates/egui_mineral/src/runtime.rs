@@ -16,7 +16,7 @@ use std::{
 };
 
 use egui::{
-    Context, Id, Pos2, RawInput, Rect, Response, Style, Theme, ThemePreference, Ui, Vec2, ViewportId, ViewportIdMap,
+    Context, Id, RawInput, Rect, Response, Style, Theme, ThemePreference, Ui, ViewportId, ViewportIdMap,
 };
 use parking_lot::{Mutex, MutexGuard};
 
@@ -24,7 +24,6 @@ use crate::{
     agent::{AgentHandle, AgentHost},
     focus,
     i18n::{Catalog, I18n, I18nError},
-    input::claim::Relay,
     input::{InputAdapter, InputContext, RawPass, UnifiedInputEvent},
     motion::Motion,
     policy::Policies,
@@ -88,7 +87,6 @@ struct PassState {
     agent: AgentHost,
     agent_handle: AgentHandle,
     active: bool,
-    relay: Relay,
 }
 
 impl PassState {
@@ -103,7 +101,6 @@ impl PassState {
             agent,
             agent_handle,
             active: false,
-            relay: Relay::default(),
         }
     }
 }
@@ -274,16 +271,6 @@ impl Core {
         }
     }
 
-    pub(crate) fn coast(&self, velocity: Vec2) {
-        let viewport = self.ctx.viewport_id();
-        self.passes.with(viewport, |st| st.relay.coast = velocity);
-    }
-
-    pub(crate) fn relay(&self, origin: Pos2) {
-        let viewport = self.ctx.viewport_id();
-        self.passes.with(viewport, |st| st.relay.origin = Some(origin));
-    }
-
     /// Input of the current viewport's pass; empty before its first [`Runtime::pass`].
     pub fn input(&self) -> InputContext {
         let viewport = self.ctx.viewport_id();
@@ -389,9 +376,6 @@ impl<K> Runtime<K> {
             outer,
         };
         self.begin_pass(viewport);
-        self.core.passes.with(viewport, |st| {
-            st.relay.step(ui, &self.core.policies.fling, st.input.pan);
-        });
         let style = self.style();
         if outer.is_none() {
             self.sync_global(&style);
