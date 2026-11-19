@@ -7,6 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral-v0.5.0...egui_mineral-v0.6.0) - 2026-11-19
+
+### Added
+
+- *(material)* [**breaking**] MaterialIcon is a local type with From<MaterialIcon> for Icon; drop the core material-icons feature
+- *(core)* [**breaking**] shared icon types, IconFont installer and glyph shape helper.
+- *(core)* kit::semantic::emit_culled and VirtualList::show_culled; Material TreeView keeps off-screen rows reachable to agents.
+- *(core)* [**breaking**] persist-fs no longer implies the codecs, defaults ship persist-toml only, so serde_json is opt-in via persist-json.
+
+### Fixed
+
+- *(material,fluent)* Escape after switching menus returns focus to the open menu's title, which becomes the bar's Tab stop.
+- *(core)* kit doc comments state facts; test: status bar fixture robust to font widths.
+- box toolbar slot base, rustfmt, readme and doc lint fixes for icon sets.
+- drop the unused fluent shadow tint flag, doc links and private-doc lints after the merge.
+- *(core,material)* clippy similar_names in state eviction, TreeView culled emit extracted.
+- *(perf)* size_or_discard requests a discard on the first pass only.
+- *(core)* per-frame log sites report once and log under the egui_mineral target.
+- *(core)* SetValue warnings log the widget id and text length, not the text.
+- *(persist)* FsStorage::set removes its temp file on every error path.
+- *(platform)* native file read, writer creation and clipboard run on a worker thread instead of the polling thread.
+- *(core)* prune per-viewport pass state of closed viewports.
+
+### Other
+
+- material API future-proofing; Elide moves to the core and StatusTone::Custom replaces StatusItem::colors
+- *(core)* [**breaking**] Stylekit::window_close returns the close glyph shapes with a kit-styled default; the core submits them, so kits need no override.
+- *(core)* [**breaking**] Stylekit::paint_window_close stays required, so the core never paints; kits supply the default chrome.
+- *(core)* [**breaking**] future-proof the public API with non_exhaustive configs, payloads and responses, private fields behind constructors (Icon, PickedFile, FileFilter, Catalog, SaveRequest) and enums instead of positional bools; shared SelectionResponse, status bar and command palette data move into the core and both kits re-export them.
+- *(core)* kit::palette, kit::menubar and kit::strip hold the palette, menu bar and status strip models Material's extras used.
+- Merge branch 'worktree-agent-a84b4023cee9248d6'
+- *(core,material)* pull-to-refresh and sheet handle read the per-pass input; document remaining Core::input callers
+- *(core)* window close glyph shapes live in kit::paint, kits only add them
+- Merge branch 'worktree-agent-a9996d56bdb434124'
+- *(core)* [**breaking**] native platform I/O runs on the app's BlockingSpawner, NativePlatform::new takes one, so the core stays threadless.
+- *(core)* scope_of no longer links the private is_modal.
+- lint fixes for windows harness and JsError.
+- *(core)* widget states untouched for 3600 passes are evicted from egui temp data, which never frees them.
+- *(core)* [**breaking**] PanClaim::update takes the MineralUi; kit interact, card and number field read the per-pass cached input, MinTarget::points_for skips the lookup.
+- *(core)* [**breaking**] PanClaim::update drops the enabled flag for PanClaim::reset, PanGate holds one state enum, both join kit::prelude.
+- *(core)* [**breaking**] declare_modal and is_modal are crate-private; kit::overlay::modal_on and outside_press_after_open replace them for kits.
+- *(core)* shared NumberPass::consume_step_keys, kit::i18n::tr_or, kit::rating::value_at; Fluent menus share text_width.
+- *(core)* kit::scroll::page replaces the duplicated Material and Fluent page containers.
+- *(wasm)* JsError keeps exception name, message and stack.
+- *(i18n)* tr caches plain messages as Arc<str> and skips the second lock for arg messages; set_locale and add_resource negotiate outside the state lock.
+- *(core)* PassCache freezes per-pass derived state; Fluent style() shares the pass snapshot, so set_brand mid-pass never mixes styles.
+
 ## [0.5.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral-v0.4.1...egui_mineral-v0.5.0) - 2026-11-19
 
 ### Added

@@ -7,6 +7,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral_material-v0.5.0...egui_mineral_material-v0.6.0) - 2026-11-19
+
+### Added
+
+- *(material)* [**breaking**] default `extras` feature gates the non-MD3 components, ValueSlider::value_field, catalog entries and their tests; drag handle painter moves to containment.
+- *(material)* [**breaking**] Accordion::variant with a flat section-header look; showcase groups the Inspector rows.
+- *(material)* OtpField label_visible shows the label above the cells; no affixes, recorded in divergences.
+- *(material)* [**breaking**] buttons, icon buttons, tabs, segmented buttons, chips and tree rows dense down to their measured content; remove COMPACT_FLOOR.
+- *(material)* [**breaking**] MaterialIcon is a local type with From<MaterialIcon> for Icon; drop the core material-icons feature
+- *(tools)* material_symbols generates the Material icon constants, checked by just spec
+- *(material)* [**breaking**] Toolbar::custom content slots (measured, hidden on overflow, roving) on docked and floating toolbars.
+- *(material)* [**breaking**] ValueSlider::value_field adds an inline NumberField bound to the slider value
+- *(material)* [**breaking**] modal SideSheet is resizable like the standard one, width persists per sheet id.
+- *(material)* [**breaking**] DateField and TagsField paint affixes through the shared field chrome and take label_visible; OtpField cells follow density
+- *(material)* [**breaking**] icons take impl Into<Icon>, kit glyphs come from IconSet, Material::with_icons takes any IconSet and icon fonts.
+- *(material)* [**breaking**] NumberField, Combobox, DatePicker, ColorPicker and InlineEdit forward the TextField chrome
+- *(material)* [**breaking**] density down to -6 clamping at content minimum, TextField::label_visible and text chrome in FieldChrome
+- *(core)* [**breaking**] shared icon types, IconFont installer and glyph shape helper.
+- *(core)* kit::semantic::emit_culled and VirtualList::show_culled; Material TreeView keeps off-screen rows reachable to agents.
+- *(core)* [**breaking**] persist-fs no longer implies the codecs, defaults ship persist-toml only, so serde_json is opt-in via persist-json.
+
+### Fixed
+
+- *(material,fluent)* Escape after switching menus returns focus to the open menu's title, which becomes the bar's Tab stop.
+- *(material)* egui_material_icons is optional behind bundled-icons, so builds without it skip the dependency.
+- box toolbar slot base, rustfmt, readme and doc lint fixes for icon sets.
+- *(material,fluent)* satisfy private-doc and builder-unchecked-float rules
+- *(core,material)* clippy similar_names in state eviction, TreeView culled emit extracted.
+- *(material)* accordion keeps one height list per widget, pruned to its panels.
+- *(core)* SetValue warnings log the widget id and text length, not the text.
+- *(material,fluent)* table paging, password reveal and menu sizing discard only in pass 0.
+- *(material)* dialog discards once per growth burst instead of every frame while content grows.
+
+### Other
+
+- material API future-proofing; Elide moves to the core and StatusTone::Custom replaces StatusItem::colors
+- *(material)* [**breaking**] future-proof the public API: non_exhaustive option and slot enums, slice ALL lists, sealed ext traits, Material::new() with builder setters, TextAction, label-taking picker and search constructors, variant enums instead of bool flags and one name per setter concept. Prelude exports responses and outputs.
+- *(core)* [**breaking**] Stylekit::window_close returns the close glyph shapes with a kit-styled default; the core submits them, so kits need no override.
+- *(core)* [**breaking**] Stylekit::paint_window_close stays required, so the core never paints; kits supply the default chrome.
+- *(core)* [**breaking**] future-proof the public API with non_exhaustive configs, payloads and responses, private fields behind constructors (Icon, PickedFile, FileFilter, Catalog, SaveRequest) and enums instead of positional bools; shared SelectionResponse, status bar and command palette data move into the core and both kits re-export them.
+- *(core)* kit::palette, kit::menubar and kit::strip hold the palette, menu bar and status strip models Material's extras used.
+- *(material)* extras tests stay in behavior and spec, which require the feature, instead of two duplicated binaries.
+- default-features leg tests the libraries without showcase feature unification; smaller culling fixtures, thinner holds_up matrix, agent and route tests join behavior.
+- Merge branch 'worktree-agent-a84b4023cee9248d6'
+- private-doc lint.
+- Merge branch 'worktree-agent-a36e4fcc22cc574d6'
+- *(material)* MaterialIcon docs state facts
+- *(material)* cover color picker and OTP density forwarding; mutation-checked density, label_visible, affix and forwarding tests.
+- *(core,material)* pull-to-refresh and sheet handle read the per-pass input; document remaining Core::input callers
+- *(core)* window close glyph shapes live in kit::paint, kits only add them
+- Merge branch 'worktree-agent-a27a0aca72025ecf8'
+- Merge branch 'worktree-agent-a5d70f788e9a9e74e'
+- *(material,fluent)* Density::dense_to, AffixCx and extracted helpers to satisfy clippy and fmt
+- cross-kit icon sets, showcase-fluent MINERAL_ICONS=material, icon set tests.
+- Merge branch 'worktree-agent-a9996d56bdb434124'
+- Merge branch 'worktree-agent-ae375825d85bd2df9'
+- lint fixes for windows harness and JsError.
+- *(material)* TreeView drop-expand extracted to satisfy too_many_lines.
+- fmt and line-count lint fixes for the dialog, menu and test changes.
+- *(fluent,material)* [**breaking**] Tokens::shadow takes ShadowTint, StatusItem::progress takes StatusProgress replacing linear_progress.
+- *(core)* [**breaking**] PanClaim::update takes the MineralUi; kit interact, card and number field read the per-pass cached input, MinTarget::points_for skips the lookup.
+- *(core)* [**breaking**] PanClaim::update drops the enabled flag for PanClaim::reset, PanGate holds one state enum, both join kit::prelude.
+- *(core)* [**breaking**] declare_modal and is_modal are crate-private; kit::overlay::modal_on and outside_press_after_open replace them for kits.
+- *(core)* shared NumberPass::consume_step_keys, kit::i18n::tr_or, kit::rating::value_at; Fluent menus share text_width.
+- *(material)* TreeView culled rows stay agent-reachable without widgets.
+- *(core)* kit::scroll::page replaces the duplicated Material and Fluent page containers.
+- *(material)* window harness reports every open viewport in RawInput like integrations do.
+- *(core)* PassCache freezes per-pass derived state; Fluent style() shares the pass snapshot, so set_brand mid-pass never mixes styles.
+
 ## [0.5.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral_material-v0.4.1...egui_mineral_material-v0.5.0) - 2026-11-19
 
 ### Added
