@@ -103,7 +103,7 @@ pub(crate) fn policies(os: egui::os::OperatingSystem) -> Policies {
     p
 }
 
-/// Vertical padding kept around a component's glyph or label at the densest step, in dp.
+// dp
 pub(crate) const CONTENT_PAD: f32 = 4.0;
 
 /// Compose `VisualDensity` step: 0 or negative, 4dp per step.
