@@ -1,0 +1,15 @@
+[package]
+name = "material_symbols"
+description = "Generates egui_mineral_material's icon constants from the Material Symbols codepoints bundled by egui_material_icons"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+serde_json.workspace = true
+
+[lints]
+workspace = true

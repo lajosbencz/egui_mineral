@@ -1384,7 +1384,6 @@ dependencies = [
  "dirs",
  "egui",
  "egui_kittest",
- "egui_material_icons",
  "egui_mineral_macros",
  "egui_taffy",
  "fixed_decimal",
@@ -1431,8 +1430,8 @@ version = "0.0.0"
 dependencies = [
  "egui",
  "egui_kittest",
- "egui_material_icons",
  "egui_mineral",
+ "egui_mineral_material",
  "futures-executor",
  "parking_lot",
 ]
@@ -2910,6 +2909,13 @@ dependencies = [
  "ahash",
  "indexmap",
  "serde",
+]
+
+[[package]]
+name = "material_symbols"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
 ]
 
 [[package]]
@@ -4432,8 +4438,8 @@ version = "0.0.0"
 dependencies = [
  "eframe",
  "egui",
- "egui_material_icons",
  "egui_mineral_fluent",
+ "egui_mineral_material",
  "mineral_inspector",
  "tracing",
  "tracing-subscriber",
