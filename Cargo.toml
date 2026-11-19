@@ -130,6 +130,7 @@ unescaped_backticks = "deny"
 lto = "fat"
 codegen-units = 1
 strip = "symbols"
+panic = "abort"
 
 # Browser bundle size; selected by examples/showcase/index.html.
 [profile.wasm-release]
