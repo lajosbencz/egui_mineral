@@ -635,7 +635,7 @@ impl SideSheet {
             if self.close_button {
                 let slot = parts::action_slot(dir.reversed(), row, SIDE_CLOSE_END);
                 let layout = *ui.layout();
-                *closed = egui_mineral::layout::child(ui, "close", slot, layout, |ui| {
+                *closed = egui_mineral::layout::child(ui, self.salt.child("close"), slot, layout, |ui| {
                     parts::close_button(ui, self.salt.child("close"))
                 })
                 .inner;

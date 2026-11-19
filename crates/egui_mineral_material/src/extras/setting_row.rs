@@ -160,7 +160,9 @@ impl SettingRow {
             // Top-aligned so the measured size is the control's own; centered with last pass's size.
             let top = content.center().y - ctrl.y / 2.0;
             let col_rect = Rect::from_x_y_ranges(content.x_range(), top..=content.bottom().max(top));
-            let col = egui_mineral::layout::child(ui, "control", col_rect, end, |ui| control(ui, &self.label));
+            let col = egui_mineral::layout::child(ui, self.salt.child("control"), col_rect, end, |ui| {
+                control(ui, &self.label)
+            });
             perf::store_size(ctx, memo, col.response.rect.size());
             (response, col.inner)
         };

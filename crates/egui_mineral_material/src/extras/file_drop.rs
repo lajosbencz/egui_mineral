@@ -254,7 +254,8 @@ impl MineralWidget for FileDropZone {
         } else {
             t.role(dialog::ICON_COLOR)
         };
-        let browse = egui_mineral::layout::child(ui, "content", inner, Layout::top_down(egui::Align::Center), |ui| {
+        let scope = self.salt.child("content");
+        let browse = egui_mineral::layout::child(ui, scope, inner, Layout::top_down(egui::Align::Center), |ui| {
             ui.spacing_mut().item_spacing.y = 0.0;
             ui.add_space(((inner.height() - content) / 2.0).max(0.0));
             let (ir, _) = ui.allocate_exact_size(vec2(dialog::ICON_SIZE, dialog::ICON_SIZE), Sense::hover());

@@ -718,7 +718,8 @@ impl<'a> NavigationBar<'a> {
             axis: Axis::Horizontal,
         };
         let mut picked = None;
-        egui_mineral::layout::child(ui, "items", rect, rt.i18n().direction().row(), |ui| {
+        let scope = self.group.salt.child("items");
+        egui_mineral::layout::child(ui, scope, rect, rt.i18n().direction().row(), |ui| {
             ui.spacing_mut().item_spacing = vec2(space, 0.0);
             picked = self.group.items(ui, id, &self.items, *self.selected, row).0;
         });
@@ -1027,7 +1028,7 @@ impl<'a> NavigationRail<'a> {
             axis: Axis::Vertical,
         };
         let mut out = RailBody::default();
-        egui_mineral::layout::child(ui, "items", inner, align, |ui| {
+        egui_mineral::layout::child(ui, self.group.salt.child("items"), inner, align, |ui| {
             ui.spacing_mut().item_spacing = vec2(0.0, gap);
             ui.add_space(top);
             let header = self.menu || self.fab.is_some();
@@ -1201,7 +1202,8 @@ impl Drawer {
         ui.painter()
             .rect_filled(rect, 0, t.role(drawer::STANDARD_CONTAINER_COLOR));
         let mut picked = None;
-        egui_mineral::layout::child(ui, "content", rect, rt.i18n().direction().column(), |ui| {
+        let scope = self.group.salt.child("content");
+        egui_mineral::layout::child(ui, scope, rect, rt.i18n().direction().column(), |ui| {
             picked = self.content(ui, id, width, *selected).0;
         });
         self.group.emit(rt, response.id, rect, "navigation", None);
@@ -1245,7 +1247,8 @@ impl Drawer {
         }
         .show(rt, mounted, |ui, panel_id| {
             let mut target = None;
-            egui_mineral::layout::child(ui, "content", panel, rt.i18n().direction().column(), |ui| {
+            let scope = self.group.salt.child("content");
+            egui_mineral::layout::child(ui, scope, panel, rt.i18n().direction().column(), |ui| {
                 (picked, target) = self.content(ui, id, width, current);
             });
             self.group.emit(rt, panel_id, panel, "navigation", None);

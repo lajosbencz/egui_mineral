@@ -942,7 +942,8 @@ impl TableView<'_, '_> {
         let row_h = self.row_h;
         let pending_row = st.pending.map(|p| p.row).filter(|r| *r > 0);
         let mut first = true;
-        egui_mineral::layout::child(ui, "body", brect, rt.i18n().direction().column(), |ui| {
+        let scope = self.table.salt.child("body");
+        egui_mineral::layout::child(ui, scope, brect, rt.i18n().direction().column(), |ui| {
             ui.spacing_mut().item_spacing = vec2(0.0, 0.0);
             VirtualList::uniform(self.table.salt.child("rows"), row_h).show(ui, page_rows, |ui, i| {
                 if std::mem::take(&mut first)

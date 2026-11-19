@@ -294,11 +294,12 @@ impl<'a> TopAppBar<'a> {
         };
         let mut start = app_bar::LEADING_SPACE;
         if let Some((icon, label)) = &self.navigation {
-            out.leading_clicked = egui_mineral::layout::child(ui, "nav", row.slot(start), *ui.layout(), |ui| {
-                ui.mineral(IconButton::new(self.salt.child("nav"), *icon, label))
-                    .clicked()
-            })
-            .inner;
+            out.leading_clicked =
+                egui_mineral::layout::child(ui, self.salt.child("nav"), row.slot(start), *ui.layout(), |ui| {
+                    ui.mineral(IconButton::new(self.salt.child("nav"), *icon, label))
+                        .clicked()
+                })
+                .inner;
             start += MIN_INTERACTIVE_DP;
         }
         let end = self.show_actions(ui, &row, start, &mut out);
@@ -408,7 +409,7 @@ impl<'a> TopAppBar<'a> {
             row.rect.center().y - h / 2.0..=row.rect.center().y + h / 2.0,
         );
         let layout = *ui.layout();
-        egui_mineral::layout::child(ui, "search", field, layout, |ui| {
+        egui_mineral::layout::child(ui, self.salt.child("search"), field, layout, |ui| {
             let bar = crate::navigation::SearchBar::new(self.salt.child("search"), query).placeholder(&self.title);
             // Degenerate in very narrow bars; the bar is clipped there anyway.
             let r = ui.mineral(bar.fixed_width(field.width().max(0.0)));

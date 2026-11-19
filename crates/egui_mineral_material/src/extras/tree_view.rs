@@ -866,7 +866,8 @@ impl<'a, N: TreeData> TreeView<'a, N> {
         let mut first = true;
         let reorderable = self.can_reorder();
         let dim = rt.tokens().state.disabled_content;
-        egui_mineral::layout::child(ui, "rows", area, rt.i18n().direction().column(), |ui| {
+        let scope = self.salt.child("rows");
+        egui_mineral::layout::child(ui, scope, area, rt.i18n().direction().column(), |ui| {
             ui.spacing_mut().item_spacing.y = 0.0;
             VirtualList::uniform(self.salt.child("rows"), row_h).show(ui, rows.len(), |ui, i| {
                 if std::mem::take(&mut first)
