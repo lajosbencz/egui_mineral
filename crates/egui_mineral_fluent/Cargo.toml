@@ -30,6 +30,8 @@ persist-json = ["egui_mineral/persist-json"]
 persist-toml = ["egui_mineral/persist-toml"]
 # `egui_mineral/persist-fs`: file-backed persistence.
 persist-fs = ["egui_mineral/persist-fs"]
+# `egui_mineral/material-icons`: Material Symbols icons as `Icon`s.
+material-icons = ["egui_mineral/material-icons"]
 # Component provenance: `catalog` module. Unstable: outside semver.
 unstable-catalog = []
 # Spec tokens and component defaults as public API. Unstable: outside semver.

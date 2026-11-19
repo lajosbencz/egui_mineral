@@ -1384,6 +1384,7 @@ dependencies = [
  "dirs",
  "egui",
  "egui_kittest",
+ "egui_material_icons",
  "egui_mineral_macros",
  "egui_taffy",
  "fixed_decimal",

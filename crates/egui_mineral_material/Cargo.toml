@@ -38,7 +38,7 @@ unstable-spec = []
 theme-file = ["dep:toml", "dep:notify-debouncer-mini"]
 
 [dependencies]
-egui_mineral.workspace = true
+egui_mineral = { workspace = true, features = ["material-icons"] }
 egui.workspace = true
 serde.workspace = true
 material-colors.workspace = true
