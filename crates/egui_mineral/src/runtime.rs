@@ -15,13 +15,16 @@ use std::{
     },
 };
 
-use egui::{Context, Id, RawInput, Rect, Response, Style, Theme, ThemePreference, Ui, ViewportId, ViewportIdMap};
+use egui::{
+    Context, Id, Pos2, RawInput, Rect, Response, Style, Theme, ThemePreference, Ui, Vec2, ViewportId, ViewportIdMap,
+};
 use parking_lot::{Mutex, MutexGuard};
 
 use crate::{
     agent::{AgentHandle, AgentHost},
     focus,
     i18n::{Catalog, I18n, I18nError},
+    input::claim::Relay,
     input::{InputAdapter, InputContext, RawPass, UnifiedInputEvent},
     motion::Motion,
     policy::Policies,
@@ -85,6 +88,7 @@ struct PassState {
     agent: AgentHost,
     agent_handle: AgentHandle,
     active: bool,
+    relay: Relay,
 }
 
 impl PassState {
@@ -99,6 +103,7 @@ impl PassState {
             agent,
             agent_handle,
             active: false,
+            relay: Relay::default(),
         }
     }
 }
@@ -269,6 +274,27 @@ impl Core {
         }
     }
 
+    pub(crate) fn coast(&self, velocity: Vec2, owner: Id) {
+        let viewport = self.ctx.viewport_id();
+        self.passes.with(viewport, |st| {
+            st.relay.coast = velocity;
+            st.relay.owner = Some(owner);
+        });
+    }
+
+    pub(crate) fn relay(&self, origin: Pos2, owner: Id) {
+        let viewport = self.ctx.viewport_id();
+        self.passes.with(viewport, |st| {
+            st.relay.origin = Some(origin);
+            st.relay.owner = Some(owner);
+        });
+    }
+
+    pub(crate) fn take_relay(&self, owner: Id) -> Vec2 {
+        let viewport = self.ctx.viewport_id();
+        self.passes.with(viewport, |st| st.relay.take(owner))
+    }
+
     /// Input of the current viewport's pass; empty before its first [`Runtime::pass`].
     pub fn input(&self) -> InputContext {
         let viewport = self.ctx.viewport_id();
@@ -374,6 +400,9 @@ impl<K> Runtime<K> {
             outer,
         };
         self.begin_pass(viewport);
+        let (mut relay, pan) = self.core.passes.with(viewport, |st| (st.relay, st.input.pan));
+        relay.step(ui, &self.core.policies.fling, pan);
+        self.core.passes.with(viewport, |st| st.relay = relay);
         let style = self.style();
         if outer.is_none() {
             self.sync_global(&style);

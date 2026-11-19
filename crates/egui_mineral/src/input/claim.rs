@@ -1,7 +1,7 @@
-use egui::{Pos2, Response, Ui, Vec2, style::ScrollAnimation};
+use egui::{Id, Pos2, Response, Ui, Vec2, style::ScrollAnimation};
 
 use super::PanFrame;
-use crate::{layout::Axis, runtime::Core};
+use crate::{layout::Axis, motion::Fling, runtime::Core};
 
 const COAST_STOP: f32 = 5.0;
 
@@ -9,15 +9,15 @@ const COAST_STOP: f32 = 5.0;
 /// at the first frame (past the touch slop) lies mostly on its axis, hands everything else, the
 /// overshoot and the release fling to the enclosing [`egui::ScrollArea`].
 ///
-/// Egui hands a scroll delta to the first scroll area that finishes after it is queued, so the
-/// delta is queued from the widget's own `Ui` (never at pass start) and reaches its nearest scrolling ancestor.
-/// The widget must run [`PanClaim::update`] every pass, a culled widget stops relaying and coasting.
+/// Egui hands a scroll delta to the first scroll area that finishes after it is queued, so a relayed pan and its
+/// coast are queued from the widget's own `Ui` and reach its nearest scrolling ancestor, never a sibling area.
+/// A widget that is not laid out (culled) falls back to the root `Ui` one pass later.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct PanClaim {
     // Press origin and axis decision of the pan in progress.
     pan: Option<(Pos2, bool)>,
     chained: bool,
-    coast: Vec2,
+    id: Option<Id>,
 }
 
 impl PanClaim {
@@ -25,7 +25,8 @@ impl PanClaim {
     /// `None`, the pass then relays the pan and its release velocity to the enclosing scroll area.
     /// Only the start is hit-tested, the pan stays this widget's when the scroll moves it away from the press.
     pub fn update(&mut self, ui: &Ui, core: &Core, axis: Axis, response: &Response, enabled: bool) -> Option<PanFrame> {
-        self.step_coast(ui, core);
+        self.id = Some(response.id);
+        forward(ui, core.take_relay(response.id));
         let pan = match self.pan {
             Some((origin, _)) => core.input().pan.filter(|p| p.origin == origin),
             None if enabled => core.input().pan_on(response),
@@ -35,6 +36,7 @@ impl PanClaim {
             self.pan = None;
             return None;
         };
+        let first = self.pan.is_none();
         let total = p.pos - p.origin;
         let (_, own) = *self
             .pan
@@ -45,26 +47,60 @@ impl PanClaim {
         if own {
             return Some(p);
         }
-        forward(ui, p.delta);
-        if p.ended {
-            self.coast = p.velocity;
+        if first {
+            // The pass relays the rest, this widget may scroll out of view mid-pan.
+            forward(ui, p.delta);
+            core.relay(p.origin, response.id);
         }
         None
     }
 
     /// Hands `over`, the part of a claimed frame's travel the widget could not use, to the enclosing scroll area;
     /// coasts the frame's `axis` release velocity there when anything was chained during the pan.
-    pub fn chain(&mut self, ui: &Ui, axis: Axis, frame: &PanFrame, over: f32) {
+    pub fn chain(&mut self, core: &Core, ui: &Ui, axis: Axis, frame: &PanFrame, over: f32) {
         if over != 0.0 {
             forward(ui, axis.vec2(over, 0.0));
             self.chained = true;
         }
-        if frame.ended && std::mem::take(&mut self.chained) {
-            self.coast = axis.vec2(axis.main(frame.velocity), 0.0);
+        if frame.ended
+            && std::mem::take(&mut self.chained)
+            && let Some(id) = self.id
+        {
+            core.coast(axis.vec2(axis.main(frame.velocity), 0.0), id);
         }
     }
+}
 
-    fn step_coast(&mut self, ui: &Ui, core: &Core) {
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct Relay {
+    pub(crate) origin: Option<Pos2>,
+    pub(crate) coast: Vec2,
+    pub(crate) owner: Option<Id>,
+    pending: Vec2,
+    served: bool,
+}
+
+impl Relay {
+    // The delta of this pass waits for the owner widget to queue it from its own `Ui`; an unserved one
+    // (owner culled) goes to the root `Ui` at the next pass.
+    pub(crate) fn step(&mut self, ui: &Ui, fling: &Fling, pan: Option<PanFrame>) {
+        if !self.served {
+            forward(ui, self.pending);
+        }
+        self.pending = Vec2::ZERO;
+        self.served = false;
+        if let Some(origin) = self.origin {
+            match pan.filter(|p| p.origin == origin) {
+                Some(p) => {
+                    self.pending += p.delta;
+                    if p.ended {
+                        self.origin = None;
+                        self.coast = p.velocity;
+                    }
+                }
+                None => self.origin = None,
+            }
+        }
         if self.coast == Vec2::ZERO {
             return;
         }
@@ -73,9 +109,17 @@ impl PanClaim {
             self.coast = Vec2::ZERO;
             return;
         }
-        forward(ui, self.coast * dt);
-        self.coast *= core.policies().fling.deceleration.clamp(0.0, 0.999).powf(dt * 1000.0);
+        self.pending += self.coast * dt;
+        self.coast *= fling.deceleration.clamp(0.0, 0.999).powf(dt * 1000.0);
         ui.ctx().request_repaint_after(std::time::Duration::from_millis(16));
+    }
+
+    pub(crate) fn take(&mut self, owner: Id) -> Vec2 {
+        if self.owner != Some(owner) {
+            return Vec2::ZERO;
+        }
+        self.served = true;
+        std::mem::take(&mut self.pending)
     }
 }
 
@@ -128,7 +172,7 @@ mod tests {
                             if let Some(f) = p.claim.update(ui, rt.core(), axis, &r, true) {
                                 let step = -axis.main(f.delta);
                                 let over = p.pos + step - (p.pos + step).clamp(0.0, RANGE);
-                                p.claim.chain(ui, axis, &f, -over);
+                                p.claim.chain(rt.core(), ui, axis, &f, -over);
                                 p.pos += step - over;
                             }
                             ui.allocate_space(vec2(1.0, 2000.0));
