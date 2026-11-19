@@ -282,3 +282,26 @@ fn split_arrows_move_between_main_and_trigger_and_open_from_the_trigger() {
     h.press(Key::Enter);
     assert_eq!(h.state().value.log, ["plain"], "the first submenu row has focus");
 }
+
+#[test]
+fn menu_opened_by_a_menu_pick_survives_the_picking_press() {
+    let mut h = harness((false, false), |ui, (first, second)| {
+        let rt = ui.rt();
+        let more = ui.mineral(PushButton::new("more", "More")).response().clone();
+        let mut picked = false;
+        Menu::new("a", "More").show(rt, &more, first, |m| {
+            picked = m.item("Rename").clicked;
+        });
+        *second |= picked;
+        ui.add_space(200.0);
+        let target = ui.mineral(PushButton::new("target", "Target")).response().clone();
+        Menu::new("b", "Target").show(rt, &target, second, |m| {
+            m.item("Copy");
+        });
+    });
+    h.run();
+    h.click("more-button");
+    h.run();
+    h.click("a-0-menuitem");
+    assert!(h.state().value.1, "still open after the picking pass");
+}
