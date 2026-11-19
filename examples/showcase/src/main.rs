@@ -576,8 +576,37 @@ mod tests {
         assert_eq!(app.pages.navigation.last_action, "Command: Quit");
     }
 
-    #[test]
-    fn every_page_holds_up() {
+    macro_rules! every_page_holds_up {
+        ($($test:ident: $page:ident),* $(,)?) => {
+            mod every_page_holds_up {
+                // Exhaustive: a new page fails to compile until it has a test.
+                const _: fn(super::Page) = |page| match page {
+                    $(super::Page::$page => ()),*
+                };
+                $(
+                    #[test]
+                    fn $test() {
+                        super::holds_up(super::Page::$page);
+                    }
+                )*
+            }
+        };
+    }
+
+    every_page_holds_up! {
+        foundations: Foundations,
+        actions: Actions,
+        communication: Communication,
+        containment: Containment,
+        navigation: Navigation,
+        selection: Selection,
+        text_inputs: TextInputs,
+        data: Data,
+        system: System,
+        interop: Interop,
+    }
+
+    fn holds_up(page: Page) {
         use std::panic::{self, AssertUnwindSafe};
 
         // Narrowest phone in portrait (dp); the other window classes start at their breakpoints.
@@ -608,15 +637,13 @@ mod tests {
             let (mut ctx, mut app) = fresh(locale, density, zoom);
             for size in DEGENERATE.into_iter().chain(classes.iter().copied()) {
                 let width = i == 0 && classes.contains(&size);
-                for page in Page::ALL {
-                    let case = format!("{page:?} {size:?} locale={locale} density={density} zoom={zoom}");
-                    let run = panic::catch_unwind(AssertUnwindSafe(|| check(&ctx, &mut app, page, size, width)));
-                    if let Ok(problems) = run {
-                        failed.extend(problems.into_iter().map(|p| format!("{case}: {p}")));
-                    } else {
-                        failed.push(format!("{case}: panicked"));
-                        (ctx, app) = fresh(locale, density, zoom);
-                    }
+                let case = format!("{size:?} locale={locale} density={density} zoom={zoom}");
+                let run = panic::catch_unwind(AssertUnwindSafe(|| check(&ctx, &mut app, page, size, width)));
+                if let Ok(problems) = run {
+                    failed.extend(problems.into_iter().map(|p| format!("{case}: {p}")));
+                } else {
+                    failed.push(format!("{case}: panicked"));
+                    (ctx, app) = fresh(locale, density, zoom);
                 }
             }
         }
