@@ -412,7 +412,7 @@ impl<'a> TopAppBar<'a> {
         egui_mineral::layout::child(ui, self.salt.child("search"), field, layout, |ui| {
             let bar = crate::navigation::SearchBar::new(self.salt.child("search"), query).placeholder(&self.title);
             // Degenerate in very narrow bars; the bar is clipped there anyway.
-            let r = ui.mineral(bar.fixed_width(field.width().max(0.0)));
+            let r = ui.mineral(bar.preferred_width(field.width().max(0.0)));
             out.changed = r.changed();
             out.submitted = r.output().submitted;
         });

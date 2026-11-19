@@ -287,11 +287,11 @@ fn dialogs(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
         .action(DialogAction::new("Save").disabled(s.dialog_name.trim().is_empty()))
         .default_action(1)
         .show_modal(rt, &mut s.dialog_icon, |ui| {
-            ui.mineral(TextField::new("dlg-name", "Name", &mut s.dialog_name).fixed_width(260.0));
+            ui.mineral(TextField::new("dlg-name", "Name", &mut s.dialog_name).preferred_width(260.0));
             ui.mineral(
                 TextField::new("dlg-notes", "Notes", &mut s.dialog_notes)
                     .rows(NonZero::new(3).expect("non-zero"))
-                    .fixed_width(260.0),
+                    .preferred_width(260.0),
             );
         });
     if let Some(a) = r.clicked {
@@ -384,9 +384,9 @@ fn dividers(ui: &mut Mui<'_>) {
     sub(ui, "Vertical");
     super::row(ui, |row| {
         row.add(|ui| ui.label("One"));
-        row.add(|ui| ui.mineral(Divider::new("div-v1").axis(Axis::Vertical).fixed_height(24.0)));
+        row.add(|ui| ui.mineral(Divider::new("div-v1").axis(Axis::Vertical).preferred_height(24.0)));
         row.add(|ui| ui.label("Two"));
-        row.add(|ui| ui.mineral(Divider::new("div-v2").axis(Axis::Vertical).fixed_height(24.0)));
+        row.add(|ui| ui.mineral(Divider::new("div-v2").axis(Axis::Vertical).preferred_height(24.0)));
         row.add(|ui| ui.label("Three"));
     });
 }
@@ -619,7 +619,7 @@ fn accordions(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
         )
         .ticks(true)
         .format(|v| format!("{v:.0}"))
-        .fixed_width(280.0),
+        .preferred_width(280.0),
     );
     shared.settings.density = density.round() as i8;
     sub(ui, "Single expand");

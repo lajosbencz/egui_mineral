@@ -281,8 +281,9 @@ pub(crate) fn choice(ui: &mut Mui<'_>, id: &'static str, label: &str, labels: &[
 pub(crate) fn count(ui: &mut Mui<'_>, id: &'static str, label: &str, value: &mut usize, max: usize) {
     let rt = ui.rt();
     let mut v = *value as f64;
-    rt.ui(ui)
-        .mineral(NumberField::new(id, label, RangeModel::new(0.0, max as f64).step(1.0), &mut v).fixed_width(140.0));
+    rt.ui(ui).mineral(
+        NumberField::new(id, label, RangeModel::new(0.0, max as f64).step(1.0), &mut v).preferred_width(140.0),
+    );
     #[expect(clippy::cast_sign_loss, reason = "the range starts at 0")]
     let rounded = v.round() as usize;
     *value = rounded;

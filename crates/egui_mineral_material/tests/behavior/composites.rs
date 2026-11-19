@@ -99,7 +99,7 @@ fn transfer_list_moves_checked_items_to_the_target() {
 #[test]
 fn transfer_list_takes_its_size_from_constraints() {
     let h = still(WIDE, Vec::new(), |ui, chosen| {
-        ui.mineral(TransferList::new("tl", ["Red"], chosen).fixed_size(vec2(480.0, 240.0)));
+        ui.mineral(TransferList::new("tl", ["Red"], chosen).preferred_size(vec2(480.0, 240.0)));
     });
     assert_eq!(h.rect("tl-transfer").size(), vec2(480.0, 240.0));
 }

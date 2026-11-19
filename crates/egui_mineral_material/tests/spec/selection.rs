@@ -48,7 +48,7 @@ fn unlabeled_checkbox_and_switch_fill_the_interactive_minimum() {
 fn slider_defaults_to_the_xs_track_and_a_4dp_handle() {
     let mut v = 50.0;
     let p = render(|ui| {
-        ui.mineral(ValueSlider::new("sl", "Slider", RangeModel::new(0.0, 100.0), &mut v).fixed_width(300.0));
+        ui.mineral(ValueSlider::new("sl", "Slider", RangeModel::new(0.0, 100.0), &mut v).preferred_width(300.0));
     });
     assert_eq!(p.outer.height(), min_interactive(), "interactive minimum");
     let primary = p.filled(slider::ACTIVE_TRACK_COLOR);

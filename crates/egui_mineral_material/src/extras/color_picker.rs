@@ -214,7 +214,7 @@ impl Composite for ColorPicker<'_> {
             .variant(TextFieldVariant::Outlined)
             .disabled(self.disabled)
             .agent_key(StableId::of(&self.salt, "hex-field"))
-            .fixed_width(width - SWATCH - crate::adaptive::grid(4));
+            .preferred_width(width - SWATCH - crate::adaptive::grid(4));
         let out = ui
             .horizontal_top(|ui| {
                 ui.spacing_mut().item_spacing.x = crate::adaptive::grid(4);
@@ -319,7 +319,7 @@ impl ColorPicker<'_> {
                             .scrub(true)
                             .disabled(self.disabled)
                             .agent_key(StableId::of(&self.salt, salt))
-                            .fixed_width(w),
+                            .preferred_width(w),
                         )
                         .changed();
                 }

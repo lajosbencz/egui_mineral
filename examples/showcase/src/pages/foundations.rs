@@ -150,7 +150,7 @@ fn theme(ui: &mut Mui<'_>, shared: &mut Shared) {
     ui.add_space(8.0);
     let mut variant = Some(s.variant);
     rt.ui(ui).mineral(
-        Select::new("set-variant", "Scheme variant", VARIANTS.map(|(_, n)| n), &mut variant).fixed_width(240.0),
+        Select::new("set-variant", "Scheme variant", VARIANTS.map(|(_, n)| n), &mut variant).preferred_width(240.0),
     );
     if let Some(v) = variant {
         s.variant = v;
@@ -158,7 +158,7 @@ fn theme(ui: &mut Mui<'_>, shared: &mut Shared) {
     ui.add_space(8.0);
     let mut locale = Some(s.locale);
     rt.ui(ui)
-        .mineral(Select::new("set-locale", "Locale", LOCALES, &mut locale).fixed_width(240.0));
+        .mineral(Select::new("set-locale", "Locale", LOCALES, &mut locale).preferred_width(240.0));
     if let Some(l) = locale {
         s.locale = l;
     }
@@ -173,7 +173,7 @@ fn theme(ui: &mut Mui<'_>, shared: &mut Shared) {
         )
         .ticks(true)
         .format(|v| format!("{v:.0}"))
-        .fixed_width(280.0),
+        .preferred_width(280.0),
     );
     s.density = density.round() as i8;
     caption(
@@ -403,7 +403,7 @@ fn motion_demo(ui: &mut Mui<'_>, s: &mut State) {
             &mut s.step,
         )
         .ticks(true)
-        .fixed_width(200.0),
+        .preferred_width(200.0),
     );
     let mut sel = s.group.clone();
     ButtonGroup::new("motion-group", "Duration group")
@@ -573,7 +573,7 @@ fn locale(ui: &mut Mui<'_>, s: &mut State) {
         row.mineral(
             TextField::new("fd-parse-number", "Parse number", &mut s.number_input)
                 .placeholder("type a localized number")
-                .fixed_width(240.0),
+                .preferred_width(240.0),
         );
         row.add(|ui| {
             ui.label(match f.parse_number(&s.number_input) {
@@ -587,7 +587,7 @@ fn locale(ui: &mut Mui<'_>, s: &mut State) {
         row.mineral(
             TextField::new("fd-parse-date", "Parse date", &mut s.date_input)
                 .placeholder(f.date(sample, DateFields::YearMonthDay, DateLength::Numeric))
-                .fixed_width(240.0),
+                .preferred_width(240.0),
         );
         row.add(|ui| {
             ui.label(match f.parse_date(&s.date_input) {

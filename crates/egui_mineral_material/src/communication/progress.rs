@@ -415,7 +415,7 @@ impl CircularProgressIndicator {
         use egui_mineral::widget::SizeExt as _;
         let layout = egui::Layout::centered_and_justified(egui::Direction::TopDown);
         egui_mineral::layout::child(ui, self.salt.clone(), rect, layout, |ui| {
-            ui.mineral(self.fixed_size(rect.size()))
+            ui.mineral(self.preferred_size(rect.size()))
         });
     }
 

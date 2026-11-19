@@ -745,7 +745,7 @@ impl Config {
                                 .variant(TextFieldVariant::Outlined)
                                 .placeholder(hint.clone())
                                 .maybe_error(error)
-                                .fixed_width(field_w),
+                                .preferred_width(field_w),
                         );
                     }
                 });

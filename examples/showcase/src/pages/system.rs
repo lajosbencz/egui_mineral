@@ -417,7 +417,7 @@ fn drag_drop(ui: &mut Mui<'_>, s: &mut State) {
 
 fn deep_links(ui: &mut Mui<'_>, s: &mut State) {
     super::row(ui, |row| {
-        row.mineral(TextField::new("link-url", "URL", &mut s.link).fixed_width(240.0));
+        row.mineral(TextField::new("link-url", "URL", &mut s.link).preferred_width(240.0));
         if row.add(|ui| button(ui, "link-go", "Deep link")) {
             s.link_note = match s.router.deep_link(&s.link) {
                 Ok(()) => "Stack replaced".to_owned(),
@@ -506,7 +506,7 @@ fn run_persist(s: &mut State, op: &PersistOp) -> Result<String, PersistError> {
 
 fn persistence(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     super::row(ui, |row| {
-        row.mineral(TextField::new("p-name", "Name", &mut s.profile.name).fixed_width(160.0));
+        row.mineral(TextField::new("p-name", "Name", &mut s.profile.name).preferred_width(160.0));
         row.add(|ui| super::count(ui, "p-visits", "Visits", &mut s.profile.visits, 9_999));
     });
     super::row(ui, |row| {
@@ -678,7 +678,7 @@ fn platform(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
         }
     };
     super::row(ui, |row| {
-        row.mineral(TextField::new("plat-clip", "Clipboard", &mut s.clip_text).fixed_width(220.0));
+        row.mineral(TextField::new("plat-clip", "Clipboard", &mut s.clip_text).preferred_width(220.0));
         if row.add(|ui| button(ui, "plat-copy", "Copy")) {
             run(shared, p.set_clipboard_text(s.clip_text.clone()), |()| {
                 "Copied".to_owned()

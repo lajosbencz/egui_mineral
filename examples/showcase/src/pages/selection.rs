@@ -309,21 +309,23 @@ fn slider(ui: &mut Mui<'_>, s: &mut State) {
         let r100 = || RangeModel::new(0.0, 100.0);
         caption(ui, TypeScale::LabelMedium, "Continuous");
         rt.ui(ui)
-            .mineral(ValueSlider::new("sel-slider", "Continuous", r100(), &mut s.slider).fixed_width(360.0));
+            .mineral(ValueSlider::new("sel-slider", "Continuous", r100(), &mut s.slider).preferred_width(360.0));
         caption(ui, TypeScale::LabelMedium, "Stepped (10)");
         rt.ui(ui).mineral(
-            ValueSlider::new("sel-slider-step", "Stepped", r100().step(10.0), &mut s.slider_step).fixed_width(360.0),
+            ValueSlider::new("sel-slider-step", "Stepped", r100().step(10.0), &mut s.slider_step)
+                .preferred_width(360.0),
         );
         caption(ui, TypeScale::LabelMedium, "Stepped with ticks, formatted");
         rt.ui(ui).mineral(
             ValueSlider::new("sel-slider-ticks", "Ticks", r100().step(10.0), &mut s.slider_ticks)
                 .ticks(true)
                 .format(|v| format!("{v:.0}%"))
-                .fixed_width(360.0),
+                .preferred_width(360.0),
         );
         caption(ui, TypeScale::LabelMedium, "Range");
-        rt.ui(ui)
-            .mineral(ValueSlider::range("sel-slider-range", "Range", r100(), &mut s.slider_range).fixed_width(360.0));
+        rt.ui(ui).mineral(
+            ValueSlider::range("sel-slider-range", "Range", r100(), &mut s.slider_range).preferred_width(360.0),
+        );
         caption(ui, TypeScale::LabelMedium, "Range, stepped with ticks");
         rt.ui(ui).mineral(
             ValueSlider::range(
@@ -333,13 +335,13 @@ fn slider(ui: &mut Mui<'_>, s: &mut State) {
                 &mut s.slider_range_step,
             )
             .ticks(true)
-            .fixed_width(360.0),
+            .preferred_width(360.0),
         );
         caption(ui, TypeScale::LabelMedium, "Centered (-50..50)");
         rt.ui(ui).mineral(
             ValueSlider::new("sel-slider-center", "Centered", -50.0..=50.0, &mut s.slider_center)
                 .centered(true)
-                .fixed_width(360.0),
+                .preferred_width(360.0),
         );
         caption(ui, TypeScale::LabelMedium, "Log scale (20 Hz..20 kHz)");
         rt.ui(ui).mineral(
@@ -350,27 +352,27 @@ fn slider(ui: &mut Mui<'_>, s: &mut State) {
                 &mut s.slider_log,
             )
             .format(|v| format!("{v:.0} Hz"))
-            .fixed_width(360.0),
+            .preferred_width(360.0),
         );
         caption(ui, TypeScale::LabelMedium, "End icons");
         rt.ui(ui).mineral(
             ValueSlider::new("sel-slider-icons", "Volume", r100(), &mut s.slider_icons)
                 .icon(ICON_VOLUME_DOWN)
                 .trailing_icon(ICON_VOLUME_UP)
-                .fixed_width(360.0),
+                .preferred_width(360.0),
         );
         caption(ui, TypeScale::LabelMedium, "Disabled");
         let mut dis = 50.0;
         rt.ui(ui).mineral(
             ValueSlider::new("sel-slider-dis", "Disabled", r100(), &mut dis)
                 .disabled(true)
-                .fixed_width(360.0),
+                .preferred_width(360.0),
         );
         caption(ui, TypeScale::LabelMedium, "No value indicator");
         rt.ui(ui).mineral(
             ValueSlider::new("sel-slider-quiet", "Quiet", r100(), &mut s.slider_quiet)
                 .indicator(false)
-                .fixed_width(360.0),
+                .preferred_width(360.0),
         );
         caption(ui, TypeScale::LabelMedium, "Expressive sizes XS, S, M, L, XL");
         let sizes = [Size::XSmall, Size::Small, Size::Medium, Size::Large, Size::XLarge];
@@ -380,14 +382,14 @@ fn slider(ui: &mut Mui<'_>, s: &mut State) {
                     .size(size)
                     .icon(ICON_VOLUME_DOWN)
                     .trailing_icon(ICON_VOLUME_UP)
-                    .fixed_width(360.0),
+                    .preferred_width(360.0),
             );
         }
         caption(ui, TypeScale::LabelMedium, "Vertical");
         rt.ui(ui).mineral(
             ValueSlider::new("sel-slider-vert", "Vertical", r100(), &mut s.slider_vert)
                 .axis(Axis::Vertical)
-                .fixed_height(180.0),
+                .preferred_height(180.0),
         );
     });
 }
@@ -520,7 +522,7 @@ fn selects(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     super::section(ui, TOPICS[6], Some(<Select<'static>>::META), |ui| {
         // Rows by box top: outlined fields with a label reserve its overhang above the box.
         super::top_row(ui, |row| {
-            row.mineral(Select::new("sel-select", "Fruit", FRUITS, &mut s.select_single).fixed_width(240.0));
+            row.mineral(Select::new("sel-select", "Fruit", FRUITS, &mut s.select_single).preferred_width(240.0));
             row.add(|ui| color_select(ui, s));
             // No label, so no overhang: its box lines up with the filled ones.
             row.add(|ui| codec_select(ui, s));
@@ -528,7 +530,7 @@ fn selects(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
             row.mineral(
                 Select::new("sel-select-dis", "Disabled", FRUITS, &mut dis)
                     .disabled(true)
-                    .fixed_width(240.0),
+                    .preferred_width(240.0),
             );
         });
         super::top_row(ui, |row| {
@@ -537,14 +539,14 @@ fn selects(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
                     .variant(TextFieldVariant::Outlined)
                     .icon(ICON_SEARCH)
                     .supporting("With leading icon")
-                    .fixed_width(240.0),
+                    .preferred_width(240.0),
             );
             let err = s.select_err.is_none().then(|| "Pick a fruit".to_owned());
             row.mineral(
                 Select::new("sel-select-err", "Required", FRUITS, &mut s.select_err)
                     .variant(TextFieldVariant::Outlined)
                     .maybe_error(err)
-                    .fixed_width(240.0),
+                    .preferred_width(240.0),
             );
         });
         caption(ui, TypeScale::LabelMedium, "Multiple (input chips)");
@@ -552,7 +554,7 @@ fn selects(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
             Select::multi("sel-select-multi", "Fruits", FRUITS, &mut s.select_multi)
                 .variant(TextFieldVariant::Outlined)
                 .supporting("Toggling keeps the menu open")
-                .fixed_width(420.0),
+                .preferred_width(420.0),
         );
         let picked: Vec<&str> = s.select_multi.selected().map(|i| FRUITS[*i]).collect();
         ui.label(format!(
@@ -578,7 +580,7 @@ fn comboboxes(ui: &mut Mui<'_>, s: &mut State) {
                 ui.mineral(
                     Combobox::new("sel-combo", "Filter fruit", FRUITS, &mut s.combo_text)
                         .supporting("Type to filter")
-                        .fixed_width(260.0),
+                        .preferred_width(260.0),
                 )
             });
             if let Some(i) = r.output().selected {
@@ -589,7 +591,7 @@ fn comboboxes(ui: &mut Mui<'_>, s: &mut State) {
                 ui.mineral(
                     Combobox::new("sel-combo-dis", "Disabled", FRUITS, &mut dis)
                         .disabled(true)
-                        .fixed_width(260.0),
+                        .preferred_width(260.0),
                 )
             });
         });
@@ -602,7 +604,7 @@ fn comboboxes(ui: &mut Mui<'_>, s: &mut State) {
                         .free_text(true)
                         .icon(ICON_SEARCH)
                         .supporting("Enter creates a value")
-                        .fixed_width(260.0),
+                        .preferred_width(260.0),
                 )
             });
             if let Some(text) = r.into_output().created {
@@ -619,7 +621,7 @@ fn comboboxes(ui: &mut Mui<'_>, s: &mut State) {
                     )
                     .variant(TextFieldVariant::Outlined)
                     .loading(loading)
-                    .fixed_width(260.0),
+                    .preferred_width(260.0),
                 )
             });
         });
@@ -643,7 +645,7 @@ fn color_select(ui: &mut Mui<'_>, s: &mut State) {
     ui.mineral(
         Select::new("sel-select-color", "Colour", colors, &mut s.select_color)
             .supporting("Painted option leading")
-            .fixed_width(240.0),
+            .preferred_width(240.0),
     );
 }
 
@@ -658,7 +660,7 @@ fn codec_select(ui: &mut Mui<'_>, s: &mut State) {
             .variant(TextFieldVariant::Outlined)
             .label_visible(false)
             .supporting("Hidden label, disabled option")
-            .fixed_width(240.0),
+            .preferred_width(240.0),
     );
 }
 
@@ -669,7 +671,7 @@ fn transfer(ui: &mut Mui<'_>, s: &mut State) {
             TransferList::new("sel-transfer", FRUITS, &mut s.transfer)
                 .source_title("Available")
                 .target_title("Basket")
-                .fixed_size(vec2(500.0, 300.0)),
+                .preferred_size(vec2(500.0, 300.0)),
         );
         let names: Vec<&str> = s.transfer.iter().map(|i| FRUITS[*i]).collect();
         ui.label(format!("Basket: {}", names.join(", ")));
@@ -679,7 +681,7 @@ fn transfer(ui: &mut Mui<'_>, s: &mut State) {
         rt.ui(ui).mineral(
             TransferList::new("sel-transfer-dis", FRUITS, &mut fixed)
                 .disabled(true)
-                .fixed_size(vec2(500.0, 200.0)),
+                .preferred_size(vec2(500.0, 200.0)),
         );
     });
 }
@@ -706,7 +708,7 @@ fn color(ui: &mut Mui<'_>, s: &mut State) {
                         .space(ColorSpace::Hsv)
                         .swatches(swatches)
                         .rgb_fields(true)
-                        .fixed_width(300.0),
+                        .preferred_width(300.0),
                 );
             });
             row.add(|ui| {
@@ -714,7 +716,7 @@ fn color(ui: &mut Mui<'_>, s: &mut State) {
                 rt.ui(ui).mineral(
                     ColorPicker::new("sel-color-hct", "HCT color", &mut s.color_hct)
                         .space(ColorSpace::Hct)
-                        .fixed_width(300.0),
+                        .preferred_width(300.0),
                 );
             });
             row.add(|ui| {
@@ -723,7 +725,7 @@ fn color(ui: &mut Mui<'_>, s: &mut State) {
                 rt.ui(ui).mineral(
                     ColorPicker::new("sel-color-dis", "Disabled color", &mut c)
                         .disabled(true)
-                        .fixed_width(300.0),
+                        .preferred_width(300.0),
                 );
             });
         });

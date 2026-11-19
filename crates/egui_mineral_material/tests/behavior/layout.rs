@@ -26,11 +26,11 @@ fn rows(locale: &'static str) -> (HashMap<&'static str, Rect>, Rect, u64) {
         (String::from("text"), String::from("text"), Rect::NOTHING),
         move |ui, (a, b, label)| {
             adaptive::wrapping_row_top(ui, |row| {
-                row.mineral(TextField::new("f", "Filled", a).fixed_width(150.0));
+                row.mineral(TextField::new("f", "Filled", a).preferred_width(150.0));
                 row.mineral(
                     TextField::new("o", "Outlined", b)
                         .variant(TextFieldVariant::Outlined)
-                        .fixed_width(150.0),
+                        .preferred_width(150.0),
                 );
             });
             adaptive::wrapping_row(ui, |row| {
@@ -75,11 +75,11 @@ fn flow_rows_start_at_the_rtl_edge() {
 fn size_overrides_win_over_token_defaults() {
     let h = harness(SCREEN, (String::new(), String::new()), |ui, (a, b)| {
         ui.mineral(TextField::new("tf", "Label", a));
-        ui.mineral(TextField::new("tf-fixed", "Label", b).fixed_width(200.0));
+        ui.mineral(TextField::new("tf-fixed", "Label", b).preferred_width(200.0));
         ui.mineral(LinearProgressIndicator::determinate("lp", 0.5));
-        ui.mineral(LinearProgressIndicator::determinate("lp-fixed", 0.5).fixed_width(120.0));
+        ui.mineral(LinearProgressIndicator::determinate("lp-fixed", 0.5).preferred_width(120.0));
         ui.mineral(CircularProgressIndicator::determinate("cp", 0.5));
-        ui.mineral(CircularProgressIndicator::determinate("cp-fixed", 0.5).fixed_size(Vec2::splat(64.0)));
+        ui.mineral(CircularProgressIndicator::determinate("cp-fixed", 0.5).preferred_size(Vec2::splat(64.0)));
     });
     let (field, fixed) = (h.rect("tf-field"), h.rect("tf-fixed-field"));
     assert_eq!(field.width(), text_field::MIN_WIDTH);
@@ -100,12 +100,12 @@ fn linear_progress_narrower_than_its_caps_paints() {
                 ui.mineral(
                     LinearProgressIndicator::determinate(("d", i), 0.5)
                         .wavy(wavy)
-                        .fixed_width(width),
+                        .preferred_width(width),
                 );
                 ui.mineral(
                     LinearProgressIndicator::indeterminate(("i", i))
                         .wavy(wavy)
-                        .fixed_width(width),
+                        .preferred_width(width),
                 );
             }
         });

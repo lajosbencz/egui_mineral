@@ -143,13 +143,13 @@ fn text_fields(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
 
 fn filled_fields(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     super::top_row(ui, |row| {
-        row.mineral(TextField::new("ti-filled", "Filled", &mut s.filled).fixed_width(260.0));
+        row.mineral(TextField::new("ti-filled", "Filled", &mut s.filled).preferred_width(260.0));
         let f = TextField::new("ti-icons", "Search", &mut s.icons)
             .placeholder("Type to search")
             .icon(ICON_SEARCH)
             .trailing_icon(ICON_PERSON, "Account")
             .supporting("Clickable trailing icon")
-            .fixed_width(260.0);
+            .preferred_width(260.0);
         if row.mineral(f).output().trailing_clicked {
             shared.toast("Trailing icon clicked");
         }
@@ -158,47 +158,47 @@ fn filled_fields(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
             TextField::new("ti-error", "Address", &mut s.error)
                 .supporting("Format: name@host")
                 .maybe_error(err)
-                .fixed_width(260.0),
+                .preferred_width(260.0),
         );
         row.mineral(
             TextField::new("ti-money", "Amount", &mut s.money)
                 .prefix("$")
                 .suffix("USD")
                 .icon(ICON_ATTACH_MONEY)
-                .fixed_width(260.0),
+                .preferred_width(260.0),
         );
         row.mineral(
             TextField::new("ti-pw", "Password", &mut s.password)
                 .masked(true)
                 .icon(ICON_LOCK)
                 .supporting("Reveal toggle")
-                .fixed_width(260.0),
+                .preferred_width(260.0),
         );
         let mut v = String::from("Prefilled value");
         row.mineral(
             TextField::new("ti-dis", "Disabled", &mut v)
                 .disabled(true)
-                .fixed_width(260.0),
+                .preferred_width(260.0),
         );
         row.mineral(
             TextField::new("ti-path", "Path", &mut s.path)
                 .elide(Elide::Start)
                 .supporting("/home/user/projects/wavedude/renders: the file name stays visible")
-                .fixed_width(260.0),
+                .preferred_width(260.0),
         );
         row.mineral(
             TextField::new("ti-desc", "Description", &mut s.description)
                 .rows(NonZero::new(3).expect("non-zero"))
                 .text_style(TypeScale::BodyMedium)
                 .supporting("BodyMedium text style")
-                .fixed_width(260.0),
+                .preferred_width(260.0),
         );
         row.mineral(
             TextField::new("ti-multi", "Message", &mut s.multiline)
                 .rows(NonZero::new(4).expect("non-zero"))
                 .max_chars(200)
                 .supporting("Fixed 4 rows")
-                .fixed_width(320.0),
+                .preferred_width(320.0),
         );
     });
 }
@@ -209,24 +209,24 @@ fn outlined(f: TextField<'_>) -> TextField<'_> {
 
 fn outlined_fields(ui: &mut Mui<'_>, s: &mut State) {
     super::top_row(ui, |row| {
-        row.mineral(outlined(TextField::new("ti-outlined", "Outlined", &mut s.outlined)).fixed_width(260.0));
+        row.mineral(outlined(TextField::new("ti-outlined", "Outlined", &mut s.outlined)).preferred_width(260.0));
         row.mineral(
             outlined(TextField::new("ti-icons-o", "Email", &mut s.supporting))
                 .icon(ICON_EMAIL)
                 .supporting("We never share it")
-                .fixed_width(260.0),
+                .preferred_width(260.0),
         );
         row.mineral(
             outlined(TextField::new("ti-limit", "Short bio", &mut s.limited))
                 .max_chars(20)
                 .supporting("Up to 20 characters")
-                .fixed_width(260.0),
+                .preferred_width(260.0),
         );
         row.mineral(
             outlined(TextField::new("ti-url", "Website", &mut s.url))
                 .prefix("https://")
                 .suffix(".com")
-                .fixed_width(260.0),
+                .preferred_width(260.0),
         );
         row.mineral(
             outlined(TextField::new("ti-pw-nt", "PIN", &mut s.password_plain))
@@ -234,20 +234,20 @@ fn outlined_fields(ui: &mut Mui<'_>, s: &mut State) {
                 .reveal_toggle(false)
                 .trailing_icon(ICON_VISIBILITY, "Show password")
                 .supporting("No reveal toggle")
-                .fixed_width(260.0),
+                .preferred_width(260.0),
         );
         let mut v = String::from("Prefilled value");
         row.mineral(
             outlined(TextField::new("ti-dis-o", "Disabled outlined", &mut v))
                 .disabled(true)
-                .fixed_width(260.0),
+                .preferred_width(260.0),
         );
         row.mineral(
             outlined(TextField::new("ti-grow", "Notes", &mut s.grow))
                 .rows(NonZero::new(2).expect("non-zero"))
                 .grow_rows(4)
                 .supporting("Grows 2 to 6 rows")
-                .fixed_width(320.0),
+                .preferred_width(320.0),
         );
     });
 }
@@ -271,14 +271,14 @@ fn buffered(ui: &mut Mui<'_>, s: &mut State) {
         let r = row.mineral(
             TextField::new("ti-buffered", "Name", &mut s.buffered_name)
                 .commit_on_submit(true)
-                .fixed_width(220.0),
+                .preferred_width(220.0),
         );
         s.buffered_event = r.output().edit.or(s.buffered_event);
         let r = row.add(|ui| {
             ui.mineral(
                 NumberField::new("ti-num-buffered", "Gain (dB)", -24.0..=24.0, &mut s.buffered_gain)
                     .commit_on_submit(true)
-                    .fixed_width(220.0),
+                    .preferred_width(220.0),
             )
         });
         s.buffered_event = r.output().edit.or(s.buffered_event);
@@ -311,7 +311,7 @@ fn numbers(ui: &mut Mui<'_>, s: &mut State) {
                         &mut s.number,
                     )
                     .supporting("0 to 10, step 0.5")
-                    .fixed_width(220.0),
+                    .preferred_width(220.0),
                 )
             });
             row.add(|ui| {
@@ -324,7 +324,7 @@ fn numbers(ui: &mut Mui<'_>, s: &mut State) {
                     )
                     .snap_typed(false)
                     .supporting("Typed values stay unsnapped")
-                    .fixed_width(220.0),
+                    .preferred_width(220.0),
                 )
             });
             let err = (s.number_err > 100.0).then(|| "Above 100".to_owned());
@@ -337,7 +337,7 @@ fn numbers(ui: &mut Mui<'_>, s: &mut State) {
                         &mut s.number_err,
                     )
                     .maybe_error(err)
-                    .fixed_width(220.0),
+                    .preferred_width(220.0),
                 )
             });
             row.add(|ui| {
@@ -351,7 +351,7 @@ fn numbers(ui: &mut Mui<'_>, s: &mut State) {
                     .supporting("Log scale; drag to scrub, Shift for fine")
                     .format(|v| format!("{v:.0} Hz"))
                     .scrub(true)
-                    .fixed_width(220.0),
+                    .preferred_width(220.0),
                 )
             });
             let mut v = 4.0;
@@ -359,7 +359,7 @@ fn numbers(ui: &mut Mui<'_>, s: &mut State) {
                 ui.mineral(
                     NumberField::new("ti-num-dis", "Disabled", 0.0..=10.0, &mut v)
                         .disabled(true)
-                        .fixed_width(220.0),
+                        .preferred_width(220.0),
                 )
             });
         });
@@ -373,7 +373,7 @@ fn numbers(ui: &mut Mui<'_>, s: &mut State) {
                         &mut s.number_int,
                     )
                     .variant(TextFieldVariant::Outlined)
-                    .fixed_width(220.0),
+                    .preferred_width(220.0),
                 )
             });
             row.add(|ui| {
@@ -386,7 +386,7 @@ fn numbers(ui: &mut Mui<'_>, s: &mut State) {
                     )
                     .variant(TextFieldVariant::Outlined)
                     .format(|v| format!("${v:.2}"))
-                    .fixed_width(220.0),
+                    .preferred_width(220.0),
                 )
             });
         });
@@ -426,7 +426,7 @@ fn tags(ui: &mut Mui<'_>, s: &mut State) {
     super::section(ui, TOPICS[3], Some(<TagsField<'static>>::META), |ui| {
         let f = TagsField::new("ti-tags", "Topics", &mut s.tags)
             .placeholder("Type and press Enter or comma")
-            .fixed_width(420.0);
+            .preferred_width(420.0);
         let out = rt.ui(ui).mineral(f).into_output();
         if !out.added.is_empty() || !out.removed.is_empty() {
             s.tags_last = format!("added {:?}, removed {:?}", out.added, out.removed);
@@ -437,19 +437,19 @@ fn tags(ui: &mut Mui<'_>, s: &mut State) {
             .max_tags(3)
             .icon(ICON_SEARCH)
             .supporting("Counter shows used tags")
-            .fixed_width(420.0);
+            .preferred_width(420.0);
         rt.ui(ui).mineral(f);
         let err = s.tags_semi.is_empty().then(|| "Add at least one tag".to_owned());
         let f = TagsField::new("ti-tags-semi", "Semicolon delimiter, required", &mut s.tags_semi)
             .delimiters([';'])
             .maybe_error(err)
-            .fixed_width(420.0);
+            .preferred_width(420.0);
         rt.ui(ui).mineral(f);
         let mut off = vec!["locked".to_owned()];
         rt.ui(ui).mineral(
             TagsField::new("ti-tags-dis", "Disabled", &mut off)
                 .disabled(true)
-                .fixed_width(420.0),
+                .preferred_width(420.0),
         );
     });
 }
@@ -464,7 +464,7 @@ fn inline(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
         );
         let r = rt
             .ui(ui)
-            .mineral(InlineEdit::new("ti-inline", "Title", &mut s.inline_title).fixed_width(320.0));
+            .mineral(InlineEdit::new("ti-inline", "Title", &mut s.inline_title).preferred_width(320.0));
         if r.output().submitted {
             shared.toast(format!("Renamed to {}", s.inline_title));
         }
@@ -472,13 +472,13 @@ fn inline(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
         rt.ui(ui).mineral(
             InlineEdit::new("ti-inline-h", "Heading", &mut s.inline_heading)
                 .scale(TypeScale::HeadlineSmall)
-                .fixed_width(420.0),
+                .preferred_width(420.0),
         );
         caption(ui, TypeScale::LabelMedium, "Empty value shows the placeholder");
         rt.ui(ui).mineral(
             InlineEdit::new("ti-inline-e", "Description", &mut s.inline_empty)
                 .placeholder("Add a description")
-                .fixed_width(320.0),
+                .preferred_width(320.0),
         );
         caption(ui, TypeScale::LabelMedium, "Disabled");
         let mut fixed = String::from("Read-only text");
@@ -493,13 +493,13 @@ fn dates(ui: &mut Mui<'_>, s: &mut State) {
             row.mineral(
                 DateField::new("ti-date", "Birthday", &mut s.date)
                     .supporting("Digits fill segments")
-                    .fixed_width(220.0),
+                    .preferred_width(220.0),
             );
             let mut v = Some(Date::constant(2026, 6, 1));
             row.mineral(
                 DateField::new("ti-date-d", "Disabled", &mut v)
                     .disabled(true)
-                    .fixed_width(220.0),
+                    .preferred_width(220.0),
             );
         });
         super::top_row(ui, |row| {
@@ -508,7 +508,7 @@ fn dates(ui: &mut Mui<'_>, s: &mut State) {
                 DateField::new("ti-date-o", "Outlined", &mut s.date_outlined)
                     .variant(TextFieldVariant::Outlined)
                     .maybe_error(required)
-                    .fixed_width(220.0),
+                    .preferred_width(220.0),
             );
             row.mineral(
                 DateField::new("ti-date-b", "2026 only", &mut s.date_bounded)
@@ -517,7 +517,7 @@ fn dates(ui: &mut Mui<'_>, s: &mut State) {
                         Some(Date::constant(2026, 1, 1)),
                         Some(Date::constant(2026, 12, 31)),
                     ))
-                    .fixed_width(220.0),
+                    .preferred_width(220.0),
             );
         });
         ui.label(format!(
@@ -612,7 +612,7 @@ fn files(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
                 .accept(FileFilter::new(FileType::new("Images", ["png", "jpg", "jpeg", "gif"])))
                 .max_files(3)
                 .supporting("PNG, JPG or GIF")
-                .fixed_width(420.0)
+                .preferred_width(420.0)
                 .height_range(140.0..),
         );
         for f in &r.output().dropped {
@@ -634,7 +634,7 @@ fn files(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
         rt.ui(ui).mineral(
             FileDropZone::new("ti-drop-dis")
                 .disabled(true)
-                .fixed_width(420.0)
+                .preferred_width(420.0)
                 .height_range(100.0..),
         );
     });

@@ -61,7 +61,7 @@ fn growing_field_wraps_beside_its_affixes() {
                 Some(p) => field.prefix(p),
                 None => field,
             };
-            ui.mineral(field.fixed_width(200.0));
+            ui.mineral(field.preferred_width(200.0));
         });
         h.rect("f-field").height()
     };
@@ -145,8 +145,8 @@ fn multiline_fields_in_one_ui_scroll_independently() {
     let long = (0..12).map(|i| format!("line {i}")).collect::<Vec<_>>().join("\n");
     let rows = NonZeroUsize::MIN.saturating_add(1);
     let mut h = harness(SCREEN, (long, String::from("short")), |ui, (a, b)| {
-        ui.mineral(TextField::new("a", "A", a).rows(rows).fixed_width(200.0));
-        ui.mineral(TextField::new("b", "B", b).rows(rows).fixed_width(200.0));
+        ui.mineral(TextField::new("a", "A", a).rows(rows).preferred_width(200.0));
+        ui.mineral(TextField::new("b", "B", b).rows(rows).preferred_width(200.0));
     });
     // `click` settles: a shared scroll state flips scrollbar visibility every pass.
     h.click("a-field");

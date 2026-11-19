@@ -347,7 +347,9 @@ fn avatars(ui: &mut Mui<'_>) {
         for (i, size) in sizes.into_iter().enumerate() {
             row.add(|ui| ui.mineral(Avatar::new(("av-size", i), "Radia Perlman").size(size)));
         }
-        row.add(|ui| ui.mineral(Avatar::new("av-size-custom", "Radia Perlman").fixed_size(egui::Vec2::splat(64.0))));
+        row.add(|ui| {
+            ui.mineral(Avatar::new("av-size-custom", "Radia Perlman").preferred_size(egui::Vec2::splat(64.0)))
+        });
     });
     ui.add_space(8.0);
     super::row(ui, |row| {

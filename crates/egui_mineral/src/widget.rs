@@ -562,18 +562,18 @@ pub trait SizeExt: MineralWidget + Sized {
         }
     }
 
-    /// Tight width in points.
-    fn fixed_width(self, width: f32) -> Constrained<Self> {
+    /// Exact width in points, within the parent's constraints (Compose `Modifier.width`).
+    fn preferred_width(self, width: f32) -> Constrained<Self> {
         self.width_range(width..=width)
     }
 
-    /// Tight height in points.
-    fn fixed_height(self, height: f32) -> Constrained<Self> {
+    /// Exact height in points, within the parent's constraints (Compose `Modifier.height`).
+    fn preferred_height(self, height: f32) -> Constrained<Self> {
         self.height_range(height..=height)
     }
 
-    /// Tight size in points.
-    fn fixed_size(self, size: Vec2) -> Constrained<Self> {
+    /// Exact size in points, within the parent's constraints (Compose `Modifier.size`).
+    fn preferred_size(self, size: Vec2) -> Constrained<Self> {
         self.constrain(Constraints::tight(size))
     }
 
@@ -678,16 +678,16 @@ mod tests {
 
     #[test]
     fn constrained_narrows_layout_and_update() {
-        let (size, c) = shown(500.0, |ui| ui.mineral(Probe.fixed_width(120.0)));
+        let (size, c) = shown(500.0, |ui| ui.mineral(Probe.preferred_width(120.0)));
         assert_eq!(size, vec2(120.0, Probe::NATURAL.y));
         assert_eq!((c.min.x, c.max.x), (120.0, 120.0));
         assert_eq!(c.max.y, f32::INFINITY, "the other axis keeps the parent's bounds");
 
-        let (size, _) = shown(500.0, |ui| ui.mineral(Probe.fixed_size(vec2(64.0, 64.0))));
+        let (size, _) = shown(500.0, |ui| ui.mineral(Probe.preferred_size(vec2(64.0, 64.0))));
         assert_eq!(size, vec2(64.0, 64.0));
         let (size, _) = shown(500.0, |ui| ui.mineral(Probe.width_range(..=150.0).height_range(48.0..)));
         assert_eq!(size, vec2(150.0, 48.0));
-        let (size, _) = shown(100.0, |ui| ui.mineral(Probe.fixed_width(120.0)));
+        let (size, _) = shown(100.0, |ui| ui.mineral(Probe.preferred_width(120.0)));
         assert_eq!(size.x, 100.0, "the parent's max wins");
         let (size, _) = shown(500.0, |ui| ui.mineral(Probe));
         assert_eq!(size, Probe::NATURAL);
@@ -695,7 +695,7 @@ mod tests {
 
     #[test]
     fn layout_derived_overflow_saturates_instead_of_panicking() {
-        let (size, c) = shown(500.0, |ui| ui.mineral(Probe.fixed_width(-23.0)));
+        let (size, c) = shown(500.0, |ui| ui.mineral(Probe.preferred_width(-23.0)));
         assert_eq!(size.x, 0.0);
         assert_eq!((c.min.x, c.max.x), (0.0, 0.0));
         let (_, c) = shown(500.0, |ui| ui.mineral(Probe.width_range(f32::NAN..=f32::NAN)));
@@ -709,7 +709,7 @@ mod tests {
         let mut h = harness(
             |ui, (wrapped, seen): &mut (bool, Vec<(egui::Id, u32)>)| {
                 let r = if *wrapped {
-                    ui.mineral(Probe.fixed_width(120.0))
+                    ui.mineral(Probe.preferred_width(120.0))
                 } else {
                     ui.mineral(Probe)
                 };

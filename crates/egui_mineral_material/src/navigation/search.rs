@@ -800,7 +800,7 @@ impl<'a> SearchView<'a> {
         .placeholder(placeholder.clone())
         .disabled(self.disabled);
         bar.label = Some(name.clone());
-        let bar_out = ui.mineral(bar.fixed_width(width));
+        let bar_out = ui.mineral(bar.preferred_width(width));
         let bar_rect = Rect::from_min_size(bar_pos, vec2(width, BAR_H));
         if !*open && (bar_out.has_focus() || bar_out.clicked()) {
             *open = true;

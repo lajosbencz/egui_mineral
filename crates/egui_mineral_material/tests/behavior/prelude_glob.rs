@@ -29,7 +29,7 @@ fn preludes_glob_with_egui() {
             );
             ui.mineral(CheckButton::new("check", "Check", &mut b.checked));
             ui.mineral(Radio::new("radio", "Radio").selected(b.selection.is_selected(&0)));
-            ui.mineral(ValueSlider::new("slider", "Slider", 0.0..=1.0, &mut b.value).fixed_width(200.0));
+            ui.mineral(ValueSlider::new("slider", "Slider", 0.0..=1.0, &mut b.value).preferred_width(200.0));
             ui.mineral(TextLink::new("link", "Link"));
         },
     );

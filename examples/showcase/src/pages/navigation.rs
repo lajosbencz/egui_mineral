@@ -434,7 +434,7 @@ fn app_bars(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
                     0.0..=120.0,
                     &mut s.appbar_scroll,
                 )
-                .fixed_width(320.0),
+                .preferred_width(320.0),
             );
         });
         let variants = [
@@ -943,7 +943,7 @@ fn search(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
         caption(ui, TypeScale::LabelMedium, "Back button, narrow");
         let bar = SearchBar::new("nav-sbar-back", &mut s.back_query)
             .back_button(true)
-            .fixed_width(360.0);
+            .preferred_width(360.0);
         if rt.ui(ui).mineral(bar).output().leading_clicked {
             s.back_query.clear();
         }

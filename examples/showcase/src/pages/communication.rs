@@ -126,7 +126,7 @@ fn linear(ui: &mut Mui<'_>, s: &mut State) {
         LinearProgressIndicator::indeterminate("lin-ind-wavy")
             .label("Wavy indeterminate")
             .wavy(true)
-            .fixed_width(240.0),
+            .preferred_width(240.0),
     );
 }
 
@@ -139,7 +139,7 @@ fn circular(ui: &mut Mui<'_>, s: &mut State) {
                 ui.mineral(
                     CircularProgressIndicator::determinate(("circ-det", i), v)
                         .label("Determinate")
-                        .fixed_size(egui::Vec2::splat(size)),
+                        .preferred_size(egui::Vec2::splat(size)),
                 )
             });
         }
@@ -158,7 +158,7 @@ fn circular(ui: &mut Mui<'_>, s: &mut State) {
                 ui.mineral(
                     CircularProgressIndicator::indeterminate(("circ-ind", i))
                         .label("Indeterminate")
-                        .fixed_size(egui::Vec2::splat(size)),
+                        .preferred_size(egui::Vec2::splat(size)),
                 )
             });
         }
@@ -176,14 +176,14 @@ fn loading(ui: &mut Mui<'_>) {
     sub(ui, "Uncontained and contained, sizes 32/48/96");
     super::row(ui, |row| {
         for (i, size) in [32.0, 48.0, 96.0].into_iter().enumerate() {
-            row.add(|ui| ui.mineral(LoadingIndicator::new(("load", i)).fixed_size(egui::Vec2::splat(size))));
+            row.add(|ui| ui.mineral(LoadingIndicator::new(("load", i)).preferred_size(egui::Vec2::splat(size))));
         }
         for (i, size) in [32.0, 48.0, 96.0].into_iter().enumerate() {
             row.add(|ui| {
                 ui.mineral(
                     LoadingIndicator::new(("load-c", i))
                         .contained(true)
-                        .fixed_size(egui::Vec2::splat(size)),
+                        .preferred_size(egui::Vec2::splat(size)),
                 )
             });
         }

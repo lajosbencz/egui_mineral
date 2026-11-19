@@ -381,7 +381,7 @@ fn a_squeezed_switch_keeps_its_track() {
         ui.mineral(
             egui_mineral_material::selection::Switch::new("sw", "Enabled", on)
                 .label_visible(false)
-                .fixed_width(20.0),
+                .preferred_width(20.0),
         );
     });
     assert!(h.rect("sw-switch").width() >= 52.0, "{:?}", h.rect("sw-switch"));

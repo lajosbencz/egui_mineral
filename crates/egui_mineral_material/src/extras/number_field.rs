@@ -285,7 +285,7 @@ impl<N: Numeric> Composite for NumberField<'_, N> {
             let out = ui
                 .allocate_ui_with_layout(vec2(field_w, height), dir.column(), |ui| {
                     ui.add_space(field_top);
-                    rt.ui(ui).mineral(field.fixed_width(field_w))
+                    rt.ui(ui).mineral(field.preferred_width(field_w))
                 })
                 .inner;
             // Over the text edit, so it takes presses until the field has focus.
