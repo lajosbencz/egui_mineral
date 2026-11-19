@@ -430,8 +430,8 @@ impl SideSheet {
         self
     }
 
-    /// Standard sheet: a drag handle on its inner edge resizes it within [`Self::width_range`]
-    /// (arrow keys when focused); the width persists in egui memory. Default `false`.
+    /// Standard and modal sheet: a drag handle on its inner edge resizes it within [`Self::width_range`]
+    /// (arrow keys when focused); the width persists in egui memory per sheet id. Default `false`.
     pub fn resizable(mut self, resizable: bool) -> Self {
         self.resizable = resizable;
         self
@@ -508,7 +508,9 @@ impl SideSheet {
         let t = rt.tokens();
         let screen = ctx.content_rect();
         let dir = rt.i18n().direction();
-        let w = self.widths.clamp(self.width).min(screen.width());
+        let width_id = self.id.with("width");
+        let width = self.widths.clamp(self.persisted_width(ctx, width_id));
+        let w = width.min(screen.width());
         let hidden = (1.0 - e) * w;
         let x = self.side(dir).start_x(screen, Rangef::new(-hidden, -hidden + w));
         let mut closed = false;
@@ -528,6 +530,12 @@ impl SideSheet {
                     self.body(&mut rt.ui(ui), w, screen.height(), &mut closed, add)
                 });
             self.emit(ui.ctx(), framed.response.rect, Role::Dialog, name);
+            if self.resizable && e >= 1.0 {
+                let resized = self.resize_handle(&rt.ui(ui), framed.response.rect, width);
+                if resized.to_bits() != width.to_bits() {
+                    ctx.data_mut(|d| d.insert_persisted(width_id, resized));
+                }
+            }
             framed.inner
         });
         let closed = if closed { Some(Dismiss::Close) } else { shown.close };
@@ -545,12 +553,7 @@ impl SideSheet {
         let t = rt.tokens();
         let dir = rt.i18n().direction();
         let width_id = self.id.with("width");
-        let width = if self.resizable {
-            ui.data_mut(|d| *d.get_persisted_mut_or(width_id, self.width))
-        } else {
-            self.width
-        };
-        let width = self.widths.clamp(width);
+        let width = self.widths.clamp(self.persisted_width(ui.ctx(), width_id));
         let w = width.min(ui.available_rect_before_wrap().width());
         let panel = match (dir, self.edge) {
             (Direction::Ltr, Edge::End) | (Direction::Rtl, Edge::Start) => egui::Panel::right((self.id, "dock")),
@@ -585,6 +588,14 @@ impl SideSheet {
                 inner
             });
         (r.inner, r.response, closed.then_some(Dismiss::Close))
+    }
+
+    fn persisted_width(&self, ctx: &Context, id: Id) -> f32 {
+        if self.resizable {
+            ctx.data_mut(|d| *d.get_persisted_mut_or(id, self.width))
+        } else {
+            self.width
+        }
     }
 
     // Direction whose start is the side the sheet sits at.

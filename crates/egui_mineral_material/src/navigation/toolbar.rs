@@ -8,7 +8,7 @@ use egui_mineral::i18n::I18n;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::MineralUi;
 
-use egui::{Id, Layout, Rangef, Rect, Response, Sense, UiBuilder, pos2, vec2};
+use egui::{Id, Layout, Rangef, Rect, Response, Sense, Ui, UiBuilder, pos2, vec2};
 use egui_mineral::widget::Availability;
 use egui_mineral::{
     focus::RovingFocus,
@@ -50,20 +50,79 @@ fn slot(rt: &Rt) -> f32 {
 pub struct ToolbarResponse {
     /// Toolbar container response.
     pub response: Response,
-    /// Index of the clicked action.
+    /// Index of the clicked action, counting icon actions only.
     pub clicked: Option<usize>,
-    /// Shown action targets, in action order; empty while the toolbar is off screen or collapsed. Anchor a menu
+    /// Shown action targets, in action order (custom items excluded); empty while the toolbar is off screen or collapsed. Anchor a menu
     /// to one with [`Menu::show_at`](crate::selection::Menu::show_at).
     pub actions: Vec<Rect>,
     /// Paired FAB clicked; see [`FloatingToolbar::fab`].
     pub fab_clicked: bool,
 }
 
-fn actions(
+// Room offered to a custom item so it measures at its natural width.
+const NATURAL_WIDTH: f32 = 10_000.0;
+
+enum Item<'a> {
+    Action(IconAction),
+    Custom(Custom<'a>),
+}
+
+type CustomFn<'a> = Box<dyn FnOnce(&mut MineralUi<'_, Material>) -> Response + 'a>;
+
+struct Custom<'a> {
+    salt: KeyedSalt,
+    add: Option<CustomFn<'a>>,
+}
+
+impl Item<'_> {
+    fn is_custom(&self) -> bool {
+        matches!(self, Self::Custom(_))
+    }
+}
+
+fn custom_id(toolbar: &KeyedSalt, c: &Custom<'_>) -> Id {
+    Id::unique(("mineral::toolbar_custom", toolbar.id_salt(), c.salt.id_salt()))
+}
+
+// Main-axis length per item, `None` when hidden. Custom items take the width measured last pass; vertical
+// toolbars and, beyond `room`, trailing custom items are hidden.
+fn plan(ui: &Ui, salt: &KeyedSalt, list: &[Item<'_>], item: f32, axis: Axis, room: Option<f32>) -> Vec<Option<f32>> {
+    let mut widths: Vec<Option<f32>> = list
+        .iter()
+        .map(|i| match i {
+            Item::Action(_) => Some(item),
+            Item::Custom(_) if axis == Axis::Vertical => None,
+            Item::Custom(c) => {
+                Some(egui_mineral::perf::size_or_discard(ui.ctx(), custom_id(salt, c)).map_or(0.0, |s| s.x))
+            }
+        })
+        .collect();
+    if let Some(room) = room {
+        while widths.iter().flatten().sum::<f32>() > room {
+            let tail = list
+                .iter()
+                .zip(&widths)
+                .rposition(|(i, w)| i.is_custom() && w.is_some_and(|w| w > 0.0));
+            match tail.and_then(|i| widths.get_mut(i)) {
+                Some(w) => *w = None,
+                None => break,
+            }
+        }
+    }
+    widths
+}
+
+fn total(plan: &[Option<f32>]) -> f32 {
+    plan.iter().flatten().sum()
+}
+
+#[expect(clippy::too_many_arguments, reason = "one laid-out row")]
+fn items(
     ui: &mut MineralUi<'_, Material>,
     rect: Rect,
     salt: &KeyedSalt,
-    list: &[IconAction],
+    list: &mut [Item<'_>],
+    plan: &[Option<f32>],
     palette: Palette,
     axis: Axis,
     gap: f32,
@@ -73,13 +132,22 @@ fn actions(
         Axis::Horizontal => rt.i18n().direction().row(),
         Axis::Vertical => Layout::top_down(egui::Align::Center),
     };
+    let item = slot(rt);
     let mut clicked = None;
-    let shown: Vec<(Id, Rect)> = ui
-        .scope_builder(UiBuilder::new().max_rect(rect).layout(layout), |ui| {
-            ui.spacing_mut().item_spacing = vec2(gap, gap);
-            list.iter()
-                .enumerate()
-                .map(|(i, a)| {
+    let mut rects = Vec::new();
+    // (widget id, enabled) in roving order
+    let mut stops: Vec<(Id, bool)> = Vec::new();
+    ui.scope_builder(UiBuilder::new().max_rect(rect).layout(layout), |ui| {
+        ui.spacing_mut().item_spacing = vec2(gap, gap);
+        let mut index = 0;
+        for (entry, shown) in list.iter_mut().zip(plan) {
+            if shown.is_none() {
+                continue;
+            }
+            match entry {
+                Item::Action(a) => {
+                    let i = index;
+                    index += 1;
                     let mut b = IconButton::new(
                         item_salt(salt, a.salt.as_ref(), a.command.as_ref(), i),
                         a.icon,
@@ -97,17 +165,27 @@ fn actions(
                             None => clicked = Some(i),
                         }
                     }
-                    (r.response().id, r.response().rect)
-                })
-                .collect()
-        })
-        .inner;
-    let (ids, rects): (Vec<Id>, Vec<Rect>) = shown.into_iter().unzip();
-    RovingFocus::new(axis).update(ui.core(), &ids, |i| !list[i].disabled);
+                    stops.push((r.response().id, !a.disabled));
+                    rects.push(r.response().rect);
+                }
+                Item::Custom(c) => {
+                    let Some(add) = c.add.take() else { continue };
+                    let cache = custom_id(salt, c);
+                    let out = ui.allocate_ui_with_layout(vec2(NATURAL_WIDTH, item), layout, |ui| add(&mut rt.ui(ui)));
+                    egui_mineral::perf::store_size(ui.ctx(), cache, out.response.rect.size());
+                    if out.inner.sense.is_focusable() {
+                        stops.push((out.inner.id, true));
+                    }
+                }
+            }
+        }
+    });
+    let ids: Vec<Id> = stops.iter().map(|s| s.0).collect();
+    RovingFocus::new(axis).update(ui.core(), &ids, |i| stops.get(i).is_some_and(|s| s.1));
     (clicked, rects)
 }
 
-fn announce(ctx: &egui::Context, response: &Response, core: &Core, expanded: Option<bool>) {
+fn announce(ctx: &egui::Context, response: &Response, core: &Core<'_>, expanded: Option<bool>) {
     semantic::emit(ctx, Some(response.id), response.rect, || {
         let mut n = SemanticNode::new(StableId::of(&core.salt, "toolbar"), Role::Toolbar, &core.label);
         n.state.expanded = expanded;
@@ -145,13 +223,13 @@ pub enum Toolbar {}
 
 impl Toolbar {
     /// `FlexibleBottomAppBar`; `label` names the toolbar for assistive technology.
-    pub fn docked(id_salt: impl Into<KeyedSalt>, label: impl Into<String>) -> DockedToolbar {
+    pub fn docked<'a>(id_salt: impl Into<KeyedSalt>, label: impl Into<String>) -> DockedToolbar<'a> {
         let id_salt: KeyedSalt = id_salt.into();
         DockedToolbar(Core::new(id_salt, label))
     }
 
     /// `HorizontalFloatingToolbar`; `label` names the toolbar for assistive technology.
-    pub fn floating(id_salt: impl Into<KeyedSalt>, label: impl Into<String>) -> FloatingToolbar {
+    pub fn floating<'a>(id_salt: impl Into<KeyedSalt>, label: impl Into<String>) -> FloatingToolbar<'a> {
         let id_salt: KeyedSalt = id_salt.into();
         FloatingToolbar {
             core: Core::new(id_salt, label),
@@ -162,15 +240,15 @@ impl Toolbar {
     }
 }
 
-struct Core {
+struct Core<'a> {
     salt: KeyedSalt,
     label: String,
     vibrant: bool,
     disabled: bool,
-    actions: Vec<IconAction>,
+    items: Vec<Item<'a>>,
 }
 
-impl Core {
+impl Core<'_> {
     fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
@@ -178,13 +256,15 @@ impl Core {
             label: label.into(),
             vibrant: false,
             disabled: false,
-            actions: Vec::new(),
+            items: Vec::new(),
         }
     }
 
     fn apply_disabled(&mut self) {
-        for a in &mut self.actions {
-            a.disabled |= self.disabled;
+        for i in &mut self.items {
+            if let Item::Action(a) = i {
+                a.disabled |= self.disabled;
+            }
         }
     }
 
@@ -220,13 +300,32 @@ macro_rules! core_setters {
 
         /// Appends one icon button.
         pub fn action(mut self, action: impl Into<IconAction>) -> Self {
-            self.core().actions.push(action.into());
+            self.core().items.push(Item::Action(action.into()));
             self
         }
 
         /// Appends icon buttons.
         pub fn actions(mut self, actions: impl IntoIterator<Item = impl Into<IconAction>>) -> Self {
-            self.core().actions.extend(actions.into_iter().map(Into::into));
+            self.core()
+                .items
+                .extend(actions.into_iter().map(|a| Item::Action(a.into())));
+            self
+        }
+
+        /// Appends a content slot laid out in the toolbar row at the action height, between the
+        /// actions in call order; `add` returns the response of the item's focusable widget, which
+        /// joins the arrow-key roving order (a group that roves itself returns its non-focusable
+        /// group response and is entered by Tab). Docked toolbars hide trailing custom items that do
+        /// not fit; vertical floating toolbars hide them all. The first pass measures the item.
+        pub fn custom(
+            mut self,
+            id_salt: impl Into<KeyedSalt>,
+            add: impl FnOnce(&mut MineralUi<'_, Material>) -> Response + 'a,
+        ) -> Self {
+            self.core().items.push(Item::Custom(Custom {
+                salt: id_salt.into(),
+                add: Some(Box::new(add)),
+            }));
             self
         }
     };
@@ -234,12 +333,12 @@ macro_rules! core_setters {
 
 /// Docked toolbar (`FlexibleBottomAppBar`), built by [`Toolbar::docked`]; always horizontal.
 #[must_use = "call .show(..)"]
-pub struct DockedToolbar(Core);
+pub struct DockedToolbar<'a>(Core<'a>);
 
-egui_mineral::kit::opaque_debug!(DockedToolbar);
+egui_mineral::kit::opaque_debug!(DockedToolbar<'_>);
 
-impl DockedToolbar {
-    fn core(&mut self) -> &mut Core {
+impl<'a> DockedToolbar<'a> {
+    fn core(&mut self) -> &mut Core<'a> {
         &mut self.0
     }
 
@@ -271,14 +370,26 @@ impl DockedToolbar {
                     rect.center().y + item / 2.0,
                 ),
             );
-            let n = core.actions.len() as f32;
-            let gap = ((inner.width() - n * item) / (n - 1.0).max(1.0)).max(0.0);
+            let widths = plan(ui, &core.salt, &core.items, item, Axis::Horizontal, Some(inner.width()));
+            let count = widths.iter().flatten().count() as f32;
+            let custom = core
+                .items
+                .iter()
+                .zip(&widths)
+                .any(|(i, w)| i.is_custom() && w.is_some());
+            // Custom items pack at the start; actions alone spread edge to edge.
+            let gap = if custom {
+                0.0
+            } else {
+                ((inner.width() - total(&widths)) / (count - 1.0).max(1.0)).max(0.0)
+            };
             let mut child = ui.new_child(UiBuilder::new().id_salt(core.salt.id_salt()).max_rect(rect));
-            (clicked, shown) = actions(
+            (clicked, shown) = items(
                 &mut rt.ui(&mut child),
                 inner,
                 &core.salt,
-                &core.actions,
+                &mut core.items,
+                &widths,
                 palette,
                 Axis::Horizontal,
                 gap,
@@ -297,17 +408,17 @@ impl DockedToolbar {
 /// Floating toolbar (`HorizontalFloatingToolbar`, `VerticalFloatingToolbar`), built by
 /// [`Toolbar::floating`]; can stack vertically and pair with a FAB.
 #[must_use = "call .show(..)"]
-pub struct FloatingToolbar {
-    core: Core,
+pub struct FloatingToolbar<'a> {
+    core: Core<'a>,
     axis: Axis,
     fab: Option<PairedFab>,
     expanded: bool,
 }
 
-egui_mineral::kit::opaque_debug!(FloatingToolbar);
+egui_mineral::kit::opaque_debug!(FloatingToolbar<'_>);
 
-impl FloatingToolbar {
-    fn core(&mut self) -> &mut Core {
+impl<'a> FloatingToolbar<'a> {
+    fn core(&mut self) -> &mut Core<'a> {
         &mut self.core
     }
 
@@ -344,9 +455,9 @@ impl FloatingToolbar {
         let ctx = ui.ctx().clone();
         let id = ui.make_persistent_id(self.core.salt.id_salt());
         let item = slot(rt);
-        let n = self.core.actions.len() as f32;
+        let widths = plan(ui, &self.core.salt, &self.core.items, item, axis, None);
         // `ContentPadding` around the actions; `heightIn(min = ContainerSize)` across them.
-        let length = floating::CONTAINER_LEADING_SPACE + n * item + floating::CONTAINER_TRAILING_SPACE;
+        let length = floating::CONTAINER_LEADING_SPACE + total(&widths) + floating::CONTAINER_TRAILING_SPACE;
         let across = floating::CONTAINER_HEIGHT
             .max(floating::CONTAINER_LEADING_SPACE + item + floating::CONTAINER_TRAILING_SPACE);
         let progress = egui_mineral::motion::spring(
@@ -431,7 +542,7 @@ impl FloatingToolbar {
                 }
             }
         };
-        (out.clicked, out.actions) = self.floating_bar(ui, rect, place, axis);
+        (out.clicked, out.actions) = self.floating_bar(ui, rect, place, axis, &widths);
         let expanded = self.fab.as_ref().map(|_| self.expanded);
         announce(&ctx, &out.response, &self.core, expanded);
         out
@@ -445,13 +556,14 @@ struct BarPlace {
     elevation: f32,
 }
 
-impl FloatingToolbar {
+impl FloatingToolbar<'_> {
     fn floating_bar(
-        &self,
+        &mut self,
         ui: &mut MineralUi<'_, Material>,
         rect: Rect,
         place: BarPlace,
         axis: Axis,
+        widths: &[Option<f32>],
     ) -> (Option<usize>, Vec<Rect>) {
         let BarPlace {
             bar,
@@ -464,7 +576,6 @@ impl FloatingToolbar {
         }
         let t = rt.tokens();
         let item = slot(ui.rt());
-        let n = self.core.actions.len() as f32;
         let (fill, palette) = self.core.container(Kind::Floating);
         let r = floating::CONTAINER_SHAPE.corner_radius(&t.shape, rt.i18n().direction());
         let r = common::radius(bar, r.nw);
@@ -472,14 +583,15 @@ impl FloatingToolbar {
             ui.painter().add(t.shadow_dp(elevation).as_shape(bar, r));
         }
         ui.painter().rect_filled(bar, r, t.role(fill));
-        let inner = Rect::from_center_size(content.center(), axis.vec2(n * item, item));
+        let inner = Rect::from_center_size(content.center(), axis.vec2(total(widths), item));
         let mut child = ui.new_child(UiBuilder::new().id_salt(self.core.salt.id_salt()).max_rect(rect));
         child.set_clip_rect(bar.intersect(ui.clip_rect()));
-        actions(
+        items(
             &mut rt.ui(&mut child),
             inner,
             &self.core.salt,
-            &self.core.actions,
+            &mut self.core.items,
+            widths,
             palette,
             axis,
             0.0,

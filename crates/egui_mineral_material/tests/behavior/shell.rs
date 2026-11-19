@@ -1,10 +1,11 @@
 use egui::{Id, Key, Rect, UiBuilder, Vec2, vec2};
 use egui_mineral_material::{
     IconAction,
+    actions::{PushButton, Segment, SegmentedButton},
     containment::{Dialog, DialogAction, SideSheet},
     extras::SettingRow,
     icons::ICON_STAR,
-    navigation::TopAppBar,
+    navigation::{Toolbar, TopAppBar},
     selection::Switch,
 };
 
@@ -193,6 +194,38 @@ fn resizable_side_sheet_drags_and_steps_within_its_range() {
 }
 
 #[test]
+fn resizable_modal_side_sheet_drags_clamps_and_persists() {
+    let mut h = still(WIDE, true, |ui, open| {
+        SideSheet::new("sheet")
+            .width_range(300.0..=380.0)
+            .width(320.0)
+            .resizable(true)
+            .show_modal(ui.rt(), open, |_| {});
+    });
+    h.step_until("the sheet slides in", |h| {
+        h.tree().find_key("sheet-resize").is_some() && (h.rect("sheet-side-sheet").width() - 320.0).abs() < 0.5
+    });
+    let edge = h.rect("sheet-resize");
+    h.hover_at(edge.center());
+    h.drag_at(edge.center());
+    h.hover_at(edge.center() - egui::vec2(200.0, 0.0));
+    h.drop_at(edge.center() - egui::vec2(200.0, 0.0));
+    h.run();
+    assert_eq!(h.rect("sheet-side-sheet").width(), 380.0, "drag clamps to the maximum");
+    h.run();
+    h.run();
+    assert_eq!(h.rect("sheet-side-sheet").width(), 380.0, "the width persists");
+    for _ in 0..8 {
+        if !h.focused("sheet-resize") {
+            h.press(Key::Tab);
+        }
+    }
+    assert!(h.focused("sheet-resize"), "the handle is a Tab stop");
+    h.press(Key::Home);
+    assert_eq!(h.rect("sheet-side-sheet").width(), 300.0, "Home clamps to the minimum");
+}
+
+#[test]
 fn side_sheet_edge_docks_and_slides_at_the_start_in_both_directions() {
     use egui_mineral::{i18n::Direction, layout::Edge};
     for (dir, left) in [(Direction::Ltr, true), (Direction::Rtl, false)] {
@@ -251,4 +284,62 @@ fn side_sheet_without_scroll_gives_content_the_full_height_and_padding() {
     );
     assert!((bare.x - sheet.width()).abs() < 1.0, "no side padding: {bare:?}");
     assert!((bare.x - padded.x - 20.0).abs() < 1.0 && (bare.y - padded.y - 20.0).abs() < 1.0);
+}
+
+#[test]
+fn toolbar_custom_items_share_the_row_height_and_the_roving_order() {
+    let mut h = still(WIDE, 0usize, |ui, seg| {
+        Toolbar::docked("t", "Edit")
+            .action(IconAction::new(ICON_STAR, "A"))
+            .action(IconAction::new(ICON_STAR, "B"))
+            .custom("seg", |ui| {
+                SegmentedButton::single("seg", "Mode", seg)
+                    .items([Segment::new("Field"), Segment::new("Both"), Segment::new("Intensity")])
+                    .show(ui)
+                    .response
+            })
+            .custom("go", |ui| ui.mineral(PushButton::new("go", "Go")).response().clone())
+            .show(ui);
+    });
+    h.run();
+    let bar = h.rect("t-toolbar");
+    for key in ["seg-0-segment", "seg-2-segment", "go-button"] {
+        let r = h.rect(key);
+        assert!(bar.contains_rect(r), "{key} {r:?} inside {bar:?}");
+        assert!((r.center().y - bar.center().y).abs() < 0.5, "{key} centered in the row");
+    }
+    assert!(
+        h.rect("seg-0-segment").right() <= h.rect("go-button").left(),
+        "call order"
+    );
+    h.press(Key::Tab);
+    for _ in 0..4 {
+        if !h.focused("t-1-button") {
+            h.press(Key::Tab);
+        }
+    }
+    assert!(h.focused("t-1-button"));
+    h.press(Key::ArrowRight);
+    assert!(h.focused("go-button"), "arrows rove into the custom item");
+    h.press(Key::ArrowLeft);
+    assert!(h.focused("t-1-button"));
+}
+
+#[test]
+fn docked_toolbar_hides_custom_items_that_do_not_fit() {
+    let mut h = still(vec2(200.0, 200.0), (), |ui, ()| {
+        Toolbar::docked("t", "Edit")
+            .action(IconAction::new(ICON_STAR, "A"))
+            .custom("go", |ui| ui.mineral(PushButton::new("go", "Go")).response().clone())
+            .custom("wide", |ui| {
+                ui.mineral(PushButton::new("wide", "A very wide button label"))
+                    .response()
+                    .clone()
+            })
+            .show(ui);
+    });
+    h.run();
+    h.run();
+    assert!(h.tree().find_key("wide-button").is_none(), "overflowed item is hidden");
+    assert!(h.tree().find_key("go-button").is_some(), "the one that fits stays");
 }

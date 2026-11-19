@@ -73,6 +73,7 @@ pub(crate) struct State {
     toolbar_bold: bool,
     toolbar_italic: bool,
     toolbar_expanded: bool,
+    toolbar_mode: usize,
     menu_selected: usize,
     menu_checked: bool,
     pub(crate) last_action: String,
@@ -117,6 +118,7 @@ impl Default for State {
             toolbar_bold: true,
             toolbar_italic: false,
             toolbar_expanded: true,
+            toolbar_mode: 0,
             menu_selected: 1,
             menu_checked: true,
             last_action: "none".to_owned(),
@@ -523,6 +525,20 @@ fn toolbars(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
             Some(1) => s.toolbar_italic = !s.toolbar_italic,
             _ => report_action(&r, shared),
         }
+        ui.add_space(8.0);
+        caption(ui, TypeScale::LabelMedium, "Docked, with a segmented button");
+        let mode = &mut s.toolbar_mode;
+        let r = Toolbar::docked("nav-toolbar-custom", "Display")
+            .action(IconAction::new(ICON_FORMAT_BOLD, "Bold"))
+            .action(IconAction::new(ICON_CONTENT_CUT, "Cut"))
+            .custom("mode", |ui| {
+                SegmentedButton::single("nav-toolbar-mode", "Display", mode)
+                    .items(["Field", "Both", "Intensity"])
+                    .show(ui)
+                    .response
+            })
+            .show(ui);
+        report_action(&r, shared);
         ui.add_space(8.0);
         super::top_row(ui, |row| {
             row.add(|ui| {
