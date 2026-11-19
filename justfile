@@ -4,6 +4,9 @@
 
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
+# Nightly for the docs.rs build, minimal-versions and rustdoc JSON; at least a week old.
+nightly_version := "nightly-2026-11-12"
+
 # Tool pins, read by the workflows (`just --evaluate <name>`); Dependabot does not bump them.
 machete_version := "0.9.2"
 rdme_version := "2.2.3"
@@ -26,7 +29,7 @@ default:
 tools: icu-datagen
     cargo install --locked cargo-nextest cargo-deny typos-cli
     cargo install --locked cargo-machete@{{ machete_version }} cargo-hack@{{ hack_version }} cargo-rdme@{{ rdme_version }} ast-grep@{{ ast_grep_version }} zizmor@{{ zizmor_version }} cargo-edit@{{ cargo_edit_version }}
-    rustup toolchain install nightly --profile minimal --target wasm32-unknown-unknown
+    rustup toolchain install {{ nightly_version }} --profile minimal --target wasm32-unknown-unknown
     @command -v actionlint >/dev/null || echo "actionlint {{ actionlint_version }} is not on crates.io: https://github.com/rhysd/actionlint"
     @command -v shellcheck >/dev/null || echo "shellcheck is not on crates.io: install it with the system package manager"
 
@@ -92,9 +95,9 @@ doc:
     RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --features {{ test_features }}
     RUSTDOCFLAGS="-D warnings" cargo doc -p egui_mineral -p egui_mineral_material -p egui_mineral_fluent --no-deps --no-default-features
     for t in x86_64-unknown-linux-gnu wasm32-unknown-unknown; do \
-        RUSTDOCFLAGS="--cfg docsrs -D warnings" cargo +nightly doc -p egui_mineral --no-deps --target "$t" --features {{ docsrs_core }}; \
-        RUSTDOCFLAGS="--cfg docsrs -D warnings" cargo +nightly doc -p egui_mineral_material --no-deps --target "$t" --features {{ docsrs_material }}; \
-        RUSTDOCFLAGS="--cfg docsrs -D warnings" cargo +nightly doc -p egui_mineral_fluent --no-deps --target "$t" --features {{ docsrs_fluent }}; \
+        RUSTDOCFLAGS="--cfg docsrs -D warnings" cargo +{{ nightly_version }} doc -p egui_mineral --no-deps --target "$t" --features {{ docsrs_core }}; \
+        RUSTDOCFLAGS="--cfg docsrs -D warnings" cargo +{{ nightly_version }} doc -p egui_mineral_material --no-deps --target "$t" --features {{ docsrs_material }}; \
+        RUSTDOCFLAGS="--cfg docsrs -D warnings" cargo +{{ nightly_version }} doc -p egui_mineral_fluent --no-deps --target "$t" --features {{ docsrs_fluent }}; \
     done
 
 # Published crates; their READMEs are generated from the crate docs
@@ -147,7 +150,7 @@ minimal-versions:
     lock=$(mktemp)
     cp Cargo.lock "$lock"
     trap 'cp "$lock" Cargo.lock; rm -f "$lock"' EXIT
-    cargo +nightly check --workspace --all-features -Z direct-minimal-versions
+    cargo +{{ nightly_version }} check --workspace --all-features -Z direct-minimal-versions
 
 # Regenerates the MD3 and Fluent specs and the Material Symbols icons; fails when it changed (non-blocking in CI)
 spec:
@@ -193,7 +196,7 @@ api-diff base head="HEAD" release="false":
     for target in x86_64-unknown-linux-gnu wasm32-unknown-unknown; do
         echo "## \`$crate\` ($target)" | tee -a "$summary"
         echo '```diff' >> "$summary"
-        cargo public-api -p "$crate" --features "$features" --target "$target" -sss diff "${deny[@]}" "$base..{{ head }}" \
+        cargo +{{ nightly_version }} public-api -p "$crate" --features "$features" --target "$target" -sss diff "${deny[@]}" "$base..{{ head }}" \
             | tee -a "$summary" || status=1
         echo '```' >> "$summary"
     done
