@@ -11,7 +11,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.100"
 license = "GPL-3.0-or-later"
@@ -22,9 +22,9 @@ keywords = ["egui", "gui", "ui", "widgets", "accessibility"]
 categories = ["gui", "accessibility"]
 
 [workspace.dependencies]
-egui_mineral = { path = "crates/egui_mineral", version = "=0.1.0", default-features = false }
-egui_mineral_macros = { path = "crates/egui_mineral_macros", version = "=0.1.0" }
-egui_mineral_material = { path = "crates/egui_mineral_material", version = "=0.1.0", default-features = false }
+egui_mineral = { path = "crates/egui_mineral", version = "=0.2.0", default-features = false }
+egui_mineral_macros = { path = "crates/egui_mineral_macros", version = "=0.2.0" }
+egui_mineral_material = { path = "crates/egui_mineral_material", version = "=0.2.0", default-features = false }
 mineral_inspector = { path = "tools/mineral_inspector" }
 
 egui = { version = "0.37.0", features = ["serde"] }
