@@ -185,6 +185,9 @@ pub(crate) trait MineralHarness {
     /// Mouse click at `pos`, then settle.
     fn click_at(&mut self, pos: Pos2);
 
+    /// Press and release at `pos` in one pass (a fast click, synthetic input), then settle.
+    fn click_at_once(&mut self, pos: Pos2);
+
     fn click(&mut self, key: &str) {
         let at = self.rect(key).center();
         self.click_at(at);
@@ -243,6 +246,19 @@ impl<S> MineralHarness for Harness<'_, S> {
         self.hover_at(pos);
         self.drag_at(pos);
         self.drop_at(pos);
+        self.run();
+    }
+
+    fn click_at_once(&mut self, pos: Pos2) {
+        self.hover_at(pos);
+        self.run();
+        let button = |pressed| Event::PointerButton {
+            pos,
+            button: egui::PointerButton::Primary,
+            pressed,
+            modifiers: egui::Modifiers::NONE,
+        };
+        self.input_mut().events.extend([button(true), button(false)]);
         self.run();
     }
 

@@ -4,7 +4,7 @@ use egui::{Context, EventFilter, Id};
 
 use crate::{focus::tab_stop_key, layout::Axis};
 
-/// Focuses `response` on a pointer press this pass, as browsers do for focusable elements (egui
+/// Focuses `response` on a pointer press or click this pass, as browsers do for focusable elements (egui
 /// itself only focuses text edits on click); `true` when focus moved. Focusable senses get it from
 /// [`super::input::interact`] and [`crate::widget::MineralUi::mineral`]; roving items built with
 /// [`crate::focus::roving_sense`] call it themselves, since [`crate::focus::TabStop::Skip`] is not
@@ -13,7 +13,8 @@ use crate::{focus::tab_stop_key, layout::Axis};
 /// (<https://www.w3.org/WAI/ARIA/apg/practices/keyboard-interface/>).
 pub fn follow_press(response: &egui::Response) -> bool {
     let ctx = &response.ctx;
-    let press = response.is_pointer_button_down_on() && ctx.input(|i| i.pointer.any_pressed());
+    // A press released in the same pass clears `is_pointer_button_down_on` but still clicks.
+    let press = (response.is_pointer_button_down_on() && ctx.input(|i| i.pointer.any_pressed())) || response.clicked();
     let moved = press && !response.has_focus();
     if moved {
         ctx.memory_mut(|m| m.request_focus(response.id));

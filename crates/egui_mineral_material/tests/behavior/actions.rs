@@ -306,6 +306,17 @@ fn segmented_button_is_one_tab_stop_and_arrows_select_in_single_mode() {
 }
 
 #[test]
+fn segmented_button_click_released_in_one_pass_hands_arrows_to_the_segment() {
+    let mut h = segmented();
+    let at = h.rect("one-2-segment").center();
+    h.click_at_once(at);
+    assert_eq!(h.state().value.0, 2, "the click selects");
+    assert!(h.focused("one-2-segment"), "the click focuses");
+    h.press(Key::ArrowLeft);
+    assert_eq!(h.state().value.0, 0, "arrows select from the clicked segment");
+}
+
+#[test]
 fn optional_single_segments_start_empty_and_content_width_hugs_labels() {
     let mut h = harness(SCREEN, None, |ui, picked: &mut Option<usize>| {
         let items = ["Field", "Both", "Intensity"];
