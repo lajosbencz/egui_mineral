@@ -1,5 +1,7 @@
 use egui::Key;
-use egui_mineral_fluent::extras::{Pagination, SplitPane, StatusBar, StatusItem, StatusProgress};
+use egui_mineral_fluent::extras::{
+    CommandPalette, Pagination, PaletteCommand, SplitPane, StatusBar, StatusItem, StatusProgress,
+};
 
 use crate::support::{FluentHarness, Fui, harness};
 
@@ -99,10 +101,7 @@ fn status_item_bar_progress_exposes_its_value() {
 
 fn pagination(total: usize, page: usize) -> crate::support::Harness<'static, usize> {
     harness(page, move |ui, page| {
-        let changed = ui
-            .mineral(Pagination::new("pg", total, page).first_last(true))
-            .changed();
-        let _ = changed;
+        ui.mineral(Pagination::new("pg", total, page).first_last(true));
     })
 }
 
@@ -128,4 +127,52 @@ fn pagination_moves_a_stale_page_onto_the_last() {
     h.run();
     assert_eq!(h.state().value, 2);
     assert_eq!(h.node("pg-pagination").role, egui_mineral::semantic::Role::Navigation);
+}
+
+#[test]
+fn command_palette_reports_the_clicked_entry() {
+    let mut h = harness((true, String::new(), None), |ui, (open, query, clicked)| {
+        let commands = [PaletteCommand::new("Save"), PaletteCommand::new("Open")];
+        let r = CommandPalette::new("pal", commands, query).show_modal(ui.rt(), open);
+        *clicked = clicked.or(r.clicked);
+    });
+    h.run();
+    h.click("pal-1-command");
+    assert_eq!((h.state().value.0, h.state().value.2), (false, Some(1)));
+}
+
+#[test]
+fn command_palette_keys_skip_disabled_entries() {
+    let mut h = harness((true, String::new(), None), |ui, (open, query, clicked)| {
+        let commands = [
+            PaletteCommand::new("Save"),
+            PaletteCommand::new("Print").disabled(true),
+            PaletteCommand::new("Open"),
+        ];
+        let r = CommandPalette::new("pal", commands, query).show_modal(ui.rt(), open);
+        *clicked = clicked.or(r.clicked);
+    });
+    h.run();
+    h.press(Key::ArrowDown);
+    h.press(Key::Enter);
+    assert_eq!((h.state().value.0, h.state().value.2), (false, Some(2)));
+}
+
+#[test]
+fn command_palette_exposes_semantics_and_escape_dismisses() {
+    let mut h = harness((true, String::new(), None), |ui, (open, query, dismissed)| {
+        let commands = [PaletteCommand::new("Save").group("File"), PaletteCommand::new("Open")];
+        let r = CommandPalette::new("pal", commands, query).show_modal(ui.rt(), open);
+        *dismissed = dismissed.or(r.dismissed);
+    });
+    h.run();
+    assert_eq!(h.node("pal-commands").role, egui_mineral::semantic::Role::ListBox);
+    assert_eq!(
+        h.node("pal-0-command").role,
+        egui_mineral::semantic::Role::ListBoxOption
+    );
+    assert!(h.tree().find_key("pal-search").is_some());
+    h.press(Key::Escape);
+    assert!(!h.state().value.0, "Escape closes");
+    assert!(h.state().value.2.is_some());
 }

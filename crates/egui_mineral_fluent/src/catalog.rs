@@ -721,6 +721,7 @@ mod extras {
 
     other!(SplitPane, "Desktop splitter: resizable panes");
     other!(StatusBar, "Desktop status bar");
+    other!(CommandPalette<'a>, "Command palette: modal fuzzy-filtered command list");
     other!(Pagination<'a>, "Page selector with siblings, boundaries and gaps");
 }
 
@@ -835,6 +836,8 @@ pub const CATALOG: &[ComponentMeta] = &[
     SplitPane::META,
     #[cfg(feature = "extras")]
     StatusBar::META,
+    #[cfg(feature = "extras")]
+    <CommandPalette<'static>>::META,
     #[cfg(feature = "extras")]
     <Pagination<'static>>::META,
 ];

@@ -14,7 +14,10 @@ pub use crate::data::{
     TagGroupResponse, TagShape, TagSize, Text, TextAlign, TextFont, TextSize, TextWeight,
 };
 #[cfg(feature = "extras")]
-pub use crate::extras::{Pagination, SplitPane, StatusBar, StatusItem, StatusProgress, StatusTone};
+pub use crate::extras::{
+    CommandPalette, CommandPaletteResponse, Pagination, PaletteCommand, SplitPane, StatusBar, StatusItem,
+    StatusProgress, StatusTone,
+};
 pub use crate::feedback::{
     Badge, BadgeAppearance, BadgeColor, BadgeShape, BadgeSize, CounterBadge, CounterBadgeAppearance, CounterBadgeColor,
     MessageBar, MessageBarGroup, MessageBarIntent, MessageBarLayout, MessageBarResponse, MessageBarShape,

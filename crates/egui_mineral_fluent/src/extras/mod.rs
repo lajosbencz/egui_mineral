@@ -10,10 +10,12 @@
     doc = "[`Origin::Other`]: https://docs.rs/egui_mineral_fluent/latest/egui_mineral_fluent/catalog/enum.Origin.html#variant.Other"
 )]
 
+pub(crate) mod command_palette;
 pub(crate) mod pagination;
 pub(crate) mod split_pane;
 pub(crate) mod status_bar;
 
+pub use command_palette::{CommandPalette, CommandPaletteResponse, PaletteCommand};
 pub use pagination::Pagination;
 pub use split_pane::SplitPane;
 pub use status_bar::{StatusBar, StatusBarResponse, StatusItem, StatusProgress, StatusTone};
