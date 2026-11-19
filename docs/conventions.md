@@ -39,4 +39,4 @@ API shape, naming and component conventions. Rules: [rules.md](rules.md).
 - Everything is fully implemented: no `todo!`, stubs or runtime "unsupported" errors.
 - Composition over inheritance. Reuse egui/taffy facilities before writing new ones (e.g. egui dnd payloads, `egui::Modal`, `ScrollArea::show_viewport`).
 - egui 0.37 specifics: `Id::unique` for root ids, `IdSalt`/`AsIdSalt` for internal salts (public ones are `KeyedSalt`), `Panel::*/CentralPanel::show(ui, ..)`, and `eframe::App::ui`.
-- Conventional commits (`feat(core): ...`, `fix(material): ...`); they drive versions and `CHANGELOG.md`. Pre-1.0: no backward compatibility, no deprecation shims.
+- Conventional commits (`feat(core): ...`, `fix(material): ...`); they drive versions and the per-crate `CHANGELOG.md`. Pre-1.0: no backward compatibility, no deprecation shims.
