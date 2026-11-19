@@ -605,6 +605,17 @@ impl<'a, N: TreeData> TreeView<'a, N> {
         }
     }
 
+    // A row dropped inside a collapsed parent opens it.
+    fn expand_drop_target(&mut self, out: &mut TreeViewResponse<N::Key>) {
+        if let Some(m) = &out.moved
+            && m.position == DropPosition::Inside
+            && !self.expansion.is_expanded(&m.target)
+        {
+            self.expansion.expand(m.target.clone());
+            out.expanded = Some(m.target.clone());
+        }
+    }
+
     // Off-screen row: tree-only node under the id the drawn row would have.
     fn emit_culled(&self, ui: &Ui, rows: &[TreeRow<'a, N>], (i, rect): (usize, Rect), look: RowLook, i18n: &I18n) {
         let Some(row) = rows.get(i) else { return };
@@ -956,13 +967,7 @@ impl<'a, N: TreeData> TreeView<'a, N> {
             kit::focus::lock_arrows(ctx, fid, kit::focus::Arrows::Both);
             self.navigate(rt, &rows, cur, &mut state, &mut out);
         }
-        if let Some(m) = &out.moved
-            && m.position == DropPosition::Inside
-            && !self.expansion.is_expanded(&m.target)
-        {
-            self.expansion.expand(m.target.clone());
-            out.expanded = Some(m.target.clone());
-        }
+        self.expand_drop_target(&mut out);
         state.store(ctx, id);
         if out.expanded.is_some() || out.collapsed.is_some() {
             out.changed = true;
