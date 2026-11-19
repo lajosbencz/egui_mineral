@@ -17,7 +17,6 @@ rust-version = "1.100"
 license = "GPL-3.0-or-later"
 repository = "https://github.com/lajosbencz/egui_mineral"
 homepage = "https://lajosbencz.github.io/egui_mineral/"
-readme = "README.md"
 keywords = ["egui", "gui", "ui", "widgets", "accessibility"]
 categories = ["gui", "accessibility"]
 

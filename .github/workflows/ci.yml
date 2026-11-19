@@ -48,6 +48,14 @@ jobs:
       # The docs.rs build in `just doc`.
       - if: ${{ github.event_name != 'push' }}
         run: rustup toolchain install nightly --profile minimal
+      - id: pins
+        if: ${{ github.event_name != 'push' }}
+        run: echo "rdme=$(just --evaluate rdme_version)" >> "$GITHUB_OUTPUT"
+      - if: ${{ github.event_name != 'push' }}
+        uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        with:
+          tool: cargo-rdme@${{ steps.pins.outputs.rdme }}
+          fallback: cargo-install
       # Installed on push too, for the cache.
       - run: just icu-datagen
       - if: ${{ github.event_name == 'push' }}
