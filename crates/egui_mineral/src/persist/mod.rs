@@ -192,13 +192,17 @@ mod fs {
             let mut tmp = path.clone().into_os_string();
             tmp.push("%tmp");
             let tmp = PathBuf::from(tmp);
-            std::fs::write(&tmp, value)?;
-            std::fs::rename(&tmp, &path).map_err(|e| {
-                if let Err(rm) = std::fs::remove_file(&tmp) {
-                    tracing::warn!(path = %tmp.display(), error = %rm, "temp file left behind");
+            let written = std::fs::write(&tmp, value).and_then(|()| std::fs::rename(&tmp, &path));
+            if let Err(e) = written {
+                // A failed write may have created the file.
+                if let Err(rm) = std::fs::remove_file(&tmp)
+                    && rm.kind() != std::io::ErrorKind::NotFound
+                {
+                    tracing::warn!(target: "egui_mineral", path = %tmp.display(), error = %rm, "temp file left behind");
                 }
-                e.into()
-            })
+                return Err(e.into());
+            }
+            Ok(())
         }
 
         fn remove(&mut self, key: &str) -> Result<(), PersistError> {
@@ -226,6 +230,17 @@ mod fs {
             assert_eq!(s.get("a.c").unwrap().as_deref(), Some("2"));
             assert_eq!(s.get(temp_of_a_b).unwrap().as_deref(), Some("3"));
             std::fs::remove_dir_all(&dir).unwrap();
+        }
+
+        #[test]
+        fn failed_set_removes_its_temp_file() {
+            let dir = std::env::temp_dir().join(format!("mineral-persist-fail-{}", std::process::id()));
+            let mut s = FsStorage::new(&dir).unwrap();
+            // A non-empty directory at the target makes the rename fail.
+            std::fs::create_dir_all(dir.join("k").join("child")).unwrap();
+            assert!(s.set("k", "v".into()).is_err());
+            assert!(!dir.join("k%tmp").exists());
+            std::fs::remove_dir_all(dir).unwrap();
         }
 
         #[test]

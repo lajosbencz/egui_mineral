@@ -305,7 +305,7 @@ fn events(node: &SemanticNode, tap: Option<Pos2>, action: &AgentAction, out: &mu
 
 fn reply<T>(tx: futures_channel::oneshot::Sender<T>, value: T) {
     if tx.send(value).is_err() {
-        tracing::debug!("agent requester gone; reply dropped");
+        tracing::debug!(target: "egui_mineral", "agent requester gone; reply dropped");
     }
 }
 

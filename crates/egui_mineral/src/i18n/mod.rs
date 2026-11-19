@@ -455,7 +455,7 @@ impl Localizer for FluentLocalizer {
             let mut errs = Vec::new();
             let out = bundle.format_pattern(pattern, Some(&fargs), &mut errs);
             if !errs.is_empty() {
-                tracing::warn!(id, ?errs, "fluent format errors");
+                crate::kit::sanitize::report(format_args!("fluent format errors in message {id:?}: {errs:?}"));
             }
             Some(out.into_owned())
         })
@@ -473,7 +473,7 @@ struct State {
     format: Arc<dyn LocaleFormat>,
     sources: Vec<Catalog>,
     defaults: Option<Arc<FluentLocalizer>>,
-    plain: HashMap<String, String>,
+    plain: HashMap<String, Arc<str>>,
     missing: HashSet<String>,
     generation: u64,
 }
@@ -544,7 +544,7 @@ impl I18n {
         let system = system_locale().and_then(|l| match SystemFormat::new(&l) {
             Ok(f) => Some((l, f)),
             Err(error) => {
-                tracing::warn!(tag = %l, %error, "system locale unsupported, using root");
+                tracing::warn!(target: "egui_mineral", tag = %l, %error, "system locale unsupported, using root");
                 None
             }
         });
@@ -606,18 +606,28 @@ impl I18n {
         self.switch(tag, None)
     }
 
-    fn switch(&self, tag: &str, app: Option<Arc<dyn Localizer>>) -> Result<(), I18nError> {
-        let format = SystemFormat::new(tag)?;
-        self.with(|s| {
-            let defaults = negotiate(&s.sources, tag)?;
-            tag.clone_into(&mut s.locale);
-            s.format = Arc::new(format);
-            if app.is_some() {
-                s.app = app;
+    fn switch(&self, tag: &str, app: Option<&Arc<dyn Localizer>>) -> Result<(), I18nError> {
+        let format: Arc<dyn LocaleFormat> = Arc::new(SystemFormat::new(tag)?);
+        // Negotiation parses catalogs: it runs outside the state lock and retries when state changed meanwhile.
+        loop {
+            let (sources, generation) = self.with(|s| (s.sources.clone(), s.generation));
+            let defaults = negotiate(&sources, tag)?;
+            let applied = self.with(|s| {
+                if s.generation != generation {
+                    return false;
+                }
+                tag.clone_into(&mut s.locale);
+                s.format = Arc::clone(&format);
+                if app.is_some() {
+                    s.app = app.cloned();
+                }
+                s.set_defaults(defaults);
+                true
+            });
+            if applied {
+                break;
             }
-            s.set_defaults(defaults);
-            Ok::<_, I18nError>(())
-        })?;
+        }
         self.changed();
         Ok(())
     }
@@ -628,7 +638,8 @@ impl I18n {
     /// As [`Self::set_locale`] for the locale of `localizer`.
     pub fn set_localizer(&self, localizer: impl Localizer + 'static) -> Result<(), I18nError> {
         let tag = localizer.locale().to_owned();
-        self.switch(&tag, Some(Arc::new(localizer)))
+        let app: Arc<dyn Localizer> = Arc::new(localizer);
+        self.switch(&tag, Some(&app))
     }
 
     /// App catalog set by [`Self::set_localizer`]; `None` while only library catalogs are registered.
@@ -651,20 +662,31 @@ impl I18n {
     /// As [`FluentLocalizer::new`] for the catalog.
     pub fn add_resource(&self, catalog: Catalog) -> Result<(), I18nError> {
         FluentLocalizer::new([catalog])?;
-        let added = self.with(|s| {
-            if s.sources
-                .iter()
-                .any(|&(l, f)| l == catalog.0 && std::ptr::eq(f, catalog.1))
-            {
-                return Ok(false);
-            }
-            let mut sources = s.sources.clone();
+        let added = loop {
+            let snapshot = self.with(|s| {
+                let known = s
+                    .sources
+                    .iter()
+                    .any(|&(l, f)| l == catalog.0 && std::ptr::eq(f, catalog.1));
+                (!known).then(|| (s.sources.clone(), s.locale.clone(), s.generation))
+            });
+            let Some((mut sources, locale, generation)) = snapshot else {
+                break false;
+            };
             sources.push(catalog);
-            let defaults = negotiate(&sources, &s.locale)?;
-            s.sources = sources;
-            s.set_defaults(defaults);
-            Ok::<_, I18nError>(true)
-        })?;
+            let defaults = negotiate(&sources, &locale)?;
+            let applied = self.with(|s| {
+                if s.generation != generation {
+                    return false;
+                }
+                s.sources = sources;
+                s.set_defaults(defaults);
+                true
+            });
+            if applied {
+                break true;
+            }
+        };
         if added {
             self.changed();
         }
@@ -696,35 +718,38 @@ impl I18n {
         // Snapshot under one lock; messages format outside it, an app localizer may call back in.
         let snapshot = self.with(|s| {
             if s.missing.contains(id) {
-                return ControlFlow::Break(id.to_owned());
+                return ControlFlow::Break(None);
             }
             match s.plain.get(id).filter(|_| args.is_empty()) {
-                Some(m) => ControlFlow::Break(m.clone()),
+                Some(m) => ControlFlow::Break(Some(Arc::clone(m))),
                 None => ControlFlow::Continue((s.app.clone(), s.defaults.clone(), s.generation)),
             }
         });
         let (app, defaults, generation) = match snapshot {
             ControlFlow::Continue(snapshot) => snapshot,
-            ControlFlow::Break(cached) => return cached,
+            ControlFlow::Break(cached) => return cached.map_or_else(|| id.to_owned(), |m| m.to_string()),
         };
         let found = app
             .and_then(|a| a.message(id, args))
             .or_else(|| defaults.and_then(|d| d.message(id, args)));
-        self.with(|s| {
-            if s.generation != generation {
-                return;
-            }
-            match &found {
-                None => {
-                    tracing::warn!(id, "missing message");
-                    s.missing.insert(id.to_owned());
+        // Messages with arguments are not cached: only a miss or a plain message takes the lock again.
+        if found.is_none() || args.is_empty() {
+            let plain = found.as_deref().map(Arc::<str>::from);
+            self.with(|s| {
+                if s.generation != generation {
+                    return;
                 }
-                Some(m) if args.is_empty() => {
-                    s.plain.insert(id.to_owned(), m.clone());
+                match plain {
+                    None => {
+                        tracing::warn!(target: "egui_mineral", id, "missing message");
+                        s.missing.insert(id.to_owned());
+                    }
+                    Some(m) => {
+                        s.plain.insert(id.to_owned(), m);
+                    }
                 }
-                Some(_) => {}
-            }
-        });
+            });
+        }
         found.unwrap_or_else(|| id.to_owned())
     }
 }

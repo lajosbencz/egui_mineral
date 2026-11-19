@@ -108,7 +108,7 @@ pub trait SpawnerExt: Spawner {
         let tx = events.clone();
         self.spawn(Box::pin(async move {
             if tx.send(fut.await).is_err() {
-                tracing::debug!("spawn_event: UI side dropped, event discarded");
+                tracing::debug!(target: "egui_mineral", "spawn_event: UI side dropped, event discarded");
             }
         }));
     }

@@ -140,7 +140,7 @@ pub trait LocaleFormat: Send + Sync {
         if value.is_finite() {
             self.number(value, fraction_digits)
         } else {
-            tracing::warn!(value, "non-finite number rendered unformatted");
+            crate::kit::sanitize::report(format_args!("non-finite number {value} rendered unformatted"));
             value.to_string()
         }
     }

@@ -291,7 +291,11 @@ impl MineralWidget for DateField<'_> {
                 seg = DateSegments::from_date(order, date);
                 edited = true;
             } else {
-                tracing::warn!(value = %s, "SetValue: not a date");
+                egui_mineral::kit::sanitize::report(format_args!(
+                    "SetValue on {:?}: not a date ({} chars)",
+                    r.id,
+                    s.chars().count()
+                ));
             }
         }
 

@@ -638,14 +638,17 @@ impl RangeModel {
             for r in i.accesskit_action_requests(id, Action::SetValue) {
                 out = match &r.data {
                     Some(ActionData::NumericValue(n)) if n.is_finite() => Some(self.snap(*n)),
-                    Some(ActionData::NumericValue(n)) => {
-                        tracing::warn!(value = n, "SetValue: non-finite number");
+                    Some(ActionData::NumericValue(_)) => {
+                        crate::kit::sanitize::report(format_args!("SetValue on {id:?}: non-finite number"));
                         out
                     }
                     Some(ActionData::Value(s)) => {
                         let parsed = self.parse(s, locale.as_ref());
                         if parsed.is_none() {
-                            tracing::warn!(value = %s, "SetValue: not a number");
+                            crate::kit::sanitize::report(format_args!(
+                                "SetValue on {id:?}: not a number ({} chars)",
+                                s.chars().count()
+                            ));
                         }
                         parsed.or(out)
                     }

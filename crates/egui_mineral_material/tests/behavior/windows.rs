@@ -12,11 +12,15 @@ use egui_mineral_material::{Rt, communication::Snackbar, prelude::*};
 
 use crate::support::{AGENT_DEADLINE, MAX_STEPS, SCREEN, run, runtime};
 
-fn screen(viewport_id: ViewportId, time: f64) -> RawInput {
+// `live`: every other open viewport, as integrations report them.
+fn screen(viewport_id: ViewportId, time: f64, live: &[ViewportId]) -> RawInput {
     RawInput {
         viewport_id,
         time: Some(time),
-        viewports: std::iter::once((viewport_id, egui::ViewportInfo::default())).collect(),
+        viewports: std::iter::once(viewport_id)
+            .chain(live.iter().copied())
+            .map(|id| (id, egui::ViewportInfo::default()))
+            .collect(),
         screen_rect: Some(Rect::from_min_size(pos2(0.0, 0.0), SCREEN)),
         ..RawInput::default()
     }
@@ -27,7 +31,9 @@ fn native_windows() -> Context {
     ctx.set_embed_viewports(false);
     Context::set_immediate_viewport_renderer(|ctx, mut viewport| {
         let time = ctx.input(|i| i.time);
-        run(ctx, screen(viewport.ids.this, time), |ui| (viewport.viewport_ui_cb)(ui));
+        run(ctx, screen(viewport.ids.this, time, &[]), |ui| {
+            (viewport.viewport_ui_cb)(ui);
+        });
     });
     ctx
 }
@@ -73,7 +79,8 @@ impl Two {
         } = self;
         let [wa, wb] = win;
         let [qa, qb] = toasts;
-        run(ctx, screen(ViewportId::ROOT, time), |ui| {
+        let live: Vec<ViewportId> = wb.viewport.into_iter().collect();
+        run(ctx, screen(ViewportId::ROOT, time, &live), |ui| {
             a.pass(ui, |ui| window(ui, wa, qa));
             if *second {
                 WindowSpec::new("second", "Second").show(b, &mut true, |ui| window(ui, wb, qb));
@@ -199,7 +206,7 @@ fn embedded_window_runtimes_keep_their_trees() {
         if published() {
             break;
         }
-        run(&ctx, screen(ViewportId::ROOT, 0.0), |ui| {
+        run(&ctx, screen(ViewportId::ROOT, 0.0, &[]), |ui| {
             two.a.pass(ui, |ui| {
                 ui.mineral(PushButton::new("a-first", "A1"));
                 WindowSpec::new("second", "Second").show(&two.b, &mut true, |ui| {
