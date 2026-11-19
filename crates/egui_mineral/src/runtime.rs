@@ -15,9 +15,7 @@ use std::{
     },
 };
 
-use egui::{
-    Context, Id, RawInput, Rect, Response, Style, Theme, ThemePreference, Ui, ViewportId, ViewportIdMap,
-};
+use egui::{Context, Id, RawInput, Rect, Response, Style, Theme, ThemePreference, Ui, ViewportId, ViewportIdMap};
 use parking_lot::{Mutex, MutexGuard};
 
 use crate::{
