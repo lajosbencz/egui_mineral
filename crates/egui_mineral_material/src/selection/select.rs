@@ -95,8 +95,8 @@ impl ChipRows {
         self.top + row as f32 * (self.chip_h + CHIP_GAP)
     }
 
-    pub(crate) fn field_height(self, density: Density, variant: TextFieldVariant, rows: usize) -> f32 {
-        field_h(density, variant) + self.grow + rows.saturating_sub(1) as f32 * (self.chip_h + CHIP_GAP)
+    pub(crate) fn field_height(self, density: Density, variant: TextFieldVariant, labeled: bool, rows: usize) -> f32 {
+        field_h(density, variant, labeled) + self.grow + rows.saturating_sub(1) as f32 * (self.chip_h + CHIP_GAP)
     }
 }
 
@@ -476,8 +476,8 @@ impl<'a> Select<'a> {
         &self.options[i].label
     }
 
-    fn content_width(&self, rt: &Rt, w: f32) -> f32 {
-        w - content_inset(rt, self.chrome.leading.is_some()) - content_inset(rt, true)
+    fn content_width(&self, rt: &Rt, density: Density, w: f32) -> f32 {
+        w - content_inset(rt, density, self.chrome.leading.is_some()) - content_inset(rt, density, true)
     }
 
     fn chip_widths(&self, ui: &MineralUi<'_, Material>, chips: &[usize]) -> Vec<f32> {
@@ -487,12 +487,13 @@ impl<'a> Select<'a> {
     fn field_height(&self, ui: &MineralUi<'_, Material>, w: f32) -> f32 {
         let chips = self.chips();
         if chips.is_empty() {
-            return field_h(ui.density(), self.chrome.variant);
+            return field_h(ui.density(), self.chrome.variant, self.shows_label());
         }
-        let rows = chip_flow(&self.chip_widths(ui, &chips), self.content_width(ui.rt(), w), 0.0).1;
+        let rows = chip_flow(&self.chip_widths(ui, &chips), self.content_width(ui.rt(), ui.density(), w), 0.0).1;
         ChipRows::new(ui, self.chrome.variant, self.shows_label(), true).field_height(
             ui.density(),
             self.chrome.variant,
+            self.shows_label(),
             rows,
         )
     }
@@ -618,7 +619,7 @@ impl Select<'_> {
         let colors = decor.colors;
         let dir = rt.i18n().direction();
         // `ExposedDropdownMenuDefaults.TrailingIcon`: the drop-down arrow turned over while expanded.
-        let slot = text_field::icon_slot(rt) / 2.0;
+        let slot = text_field::icon_slot(rt, ui.density()) / 2.0;
         let ax = dir.reversed().start_x(field, Rangef::point(slot));
         let turn = if state.combo.is_open() {
             std::f32::consts::PI

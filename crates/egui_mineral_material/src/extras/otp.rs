@@ -31,8 +31,8 @@ const DOT_RADIUS: f32 = CELL_FONT.size() / 4.0;
 // Minimum interactive width, text field height
 fn cell_size(rt: &Rt, density: Density) -> egui::Vec2 {
     vec2(
-        text_field::icon_slot(rt),
-        text_field::field_h(density, TextFieldVariant::Outlined),
+        text_field::icon_slot(rt, density),
+        text_field::field_h(density, TextFieldVariant::Outlined, false),
     )
 }
 

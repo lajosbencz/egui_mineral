@@ -237,7 +237,7 @@ impl MineralWidget for DateField<'_> {
         let w = c.constrain(vec2(tf::MIN_WIDTH, 0.0)).x;
         // The supporting row is always reserved: parse errors appear without a layout shift.
         text_field::measure(
-            c.constrain(vec2(w, field_h(ui.density(), self.chrome.variant))),
+            c.constrain(vec2(w, field_h(ui.density(), self.chrome.variant, !self.label.is_empty()))),
             self.chrome.variant,
             !self.label.is_empty(),
             true,

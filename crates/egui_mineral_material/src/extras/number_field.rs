@@ -12,7 +12,7 @@ use egui_mineral::widget::MineralUi;
 use egui_mineral::{
     edit::{EditEvent, FieldFocus},
     input::button_steps,
-    layout::Constraints,
+    layout::{Constraints, MinTarget},
     number::{self, NumberEdit, NumberSource},
     range::{RangeModel, Track},
     widget::{SizeExt, WidgetResponse},
@@ -26,8 +26,8 @@ use crate::text_inputs::{
 };
 use crate::{icons, spec::defaults::text_field as tf, tr};
 
-// No MD3 value; five bodyLarge digits
-const MIN_FIELD_W: f32 = 80.0;
+// No MD3 value; two bodyLarge digits between the paddings
+const MIN_FIELD_W: f32 = 2.0 * tf::PADDING + 2.0 * text_field::INPUT_FONT.size();
 
 /// Numeric field with stepper, range and locale formatting over any [`Numeric`]; non-MD3. Integer
 /// values step by whole numbers (the range step and increment are at least 1 and rounded) and round typed text.
@@ -153,11 +153,12 @@ impl<'a, N: Numeric> NumberField<'a, N> {
         agent_key(salt)
     }
 
-    fn buttons(&self, rt: &Rt, v: f64) -> (IconButton<'_>, IconButton<'_>) {
+    fn buttons(&self, rt: &Rt, density: Density, v: f64) -> (IconButton<'_>, IconButton<'_>) {
         let button = |salt: &'static str, icon, msg: &str, key: &'static str, at_end: bool| {
             IconButton::new(self.salt.child(salt), icon, tr(rt.i18n(), msg))
                 .agent_key(StableId::of(&self.salt, key))
                 .disabled(self.disabled || at_end)
+                .hit_target(if density.step() < 0 { MinTarget::None } else { crate::adaptive::MIN_INTERACTIVE })
         };
         (
             button(
@@ -197,7 +198,7 @@ impl<'a, N: Numeric> NumberField<'a, N> {
         let field_w = (total - 2.0 * slot).max(MIN_FIELD_W);
         let support = self.chrome.supporting.is_some() || self.chrome.error.is_some();
         let measure = text_field::measure(
-            vec2(field_w, field_h(density, self.chrome.variant)),
+            vec2(field_w, field_h(density, self.chrome.variant, !self.label.is_empty() && !self.chrome.label_hidden)),
             self.chrome.variant,
             !self.label.is_empty(),
             support,
@@ -261,7 +262,7 @@ impl<N: Numeric> Composite for NumberField<'_, N> {
         let gap = crate::adaptive::grid(1);
         let dir = rt.i18n().direction();
         let disabled = self.disabled;
-        let buttons = self.step_buttons.then(|| self.buttons(rt, v));
+        let buttons = self.step_buttons.then(|| self.buttons(rt, ui.density(), v));
         let foot = buttons.as_ref().map(|(dec, _)| dec.footprint(rt, ui.density()));
         let RowMetrics {
             field_w,

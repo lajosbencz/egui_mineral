@@ -55,13 +55,15 @@ const LABEL_FONT: TypeScale = filled_text_field::LABEL_FONT;
 // Compose bodySmall
 const SMALL_FONT: TypeScale = filled_text_field::SUPPORTING_FONT;
 
-// Compose MinHeight
-pub(crate) fn field_h(density: Density, variant: TextFieldVariant) -> f32 {
-    let min = match variant {
-        TextFieldVariant::Filled => crate::adaptive::Density::new(-1),
-        TextFieldVariant::Outlined => crate::adaptive::Density::MIN,
+// Compose MinHeight, shrunk by density down to the label and one input line with padding.
+pub(crate) fn field_h(density: Density, variant: TextFieldVariant, labeled: bool) -> f32 {
+    let content = match (variant, labeled) {
+        (TextFieldVariant::Filled, true) => {
+            tf::LABEL_VERTICAL_PADDING + SMALL_FONT.line_height().max(tf::MIN_FOCUSED_LABEL_LINE_HEIGHT) + line_h() + 4.0
+        }
+        _ => line_h() + 8.0,
     };
-    density.dense(tf::MIN_HEIGHT, min)
+    density.dense(tf::MIN_HEIGHT, Density::MIN).max(content.min(tf::MIN_HEIGHT))
 }
 
 // Compose MinTextLineHeight
@@ -95,7 +97,7 @@ pub(crate) fn measure(container: Vec2, variant: TextFieldVariant, labeled: bool,
 
 // Compose textPosition
 pub(crate) fn text_top(density: Density, variant: TextFieldVariant, labeled: bool) -> f32 {
-    let h = field_h(density, variant);
+    let h = field_h(density, variant, labeled);
     match variant {
         TextFieldVariant::Filled if labeled => {
             // Density shrink moves filled content up by half of it.
@@ -106,9 +108,13 @@ pub(crate) fn text_top(density: Density, variant: TextFieldVariant, labeled: boo
     }
 }
 
-// Compose minimumInteractiveComponentSize
-pub(crate) fn icon_slot(rt: &Rt) -> f32 {
-    crate::adaptive::MIN_INTERACTIVE.points(rt.core())
+// Compose minimumInteractiveComponentSize, shrunk by density down to the icon with padding.
+pub(crate) fn icon_slot(rt: &Rt, density: Density) -> f32 {
+    let slot = crate::adaptive::MIN_INTERACTIVE.points(rt.core());
+    density
+        .dense(slot, Density::MIN)
+        .max(small_icon_button::ICON_SIZE + 8.0)
+        .min(slot)
 }
 
 pub(crate) fn trailing_icon_size(variant: TextFieldVariant) -> f32 {
@@ -119,9 +125,9 @@ pub(crate) fn trailing_icon_size(variant: TextFieldVariant) -> f32 {
 }
 
 // Compose textFieldHorizontalIconPadding
-pub(crate) fn content_inset(rt: &Rt, icon: bool) -> f32 {
+pub(crate) fn content_inset(rt: &Rt, density: Density, icon: bool) -> f32 {
     if icon {
-        let slot = icon_slot(rt);
+        let slot = icon_slot(rt, density);
         let icon_padding = ((slot - small_icon_button::ICON_SIZE) / 2.0).max(0.0);
         slot + (tf::PADDING - icon_padding).max(0.0)
     } else {
@@ -466,8 +472,8 @@ impl Decor<'_> {
         );
         let colors = self.colors(ui, field, t);
         let (lead, trail) = (
-            content_inset(rt, self.leading.is_some()),
-            content_inset(rt, self.trailing),
+            content_inset(rt, ui.density(), self.leading.is_some()),
+            content_inset(rt, ui.density(), self.trailing),
         );
         let Sides { left, right } = dir.sides(lead, trail);
         let (start, end) = (field.left() + left, field.right() - right);
@@ -512,7 +518,7 @@ impl Decor<'_> {
             p.rect_filled(line, 0, colors.indicator);
         }
         if let Some(icon) = self.leading {
-            let slot = icon_slot(rt) / 2.0;
+            let slot = icon_slot(rt, ui.density()) / 2.0;
             let x = dir.start_x(field, Rangef::point(slot));
             let size = match self.variant {
                 TextFieldVariant::Filled => filled_text_field::LEADING_ICON_SIZE,
@@ -547,9 +553,9 @@ impl Decor<'_> {
         let ctx = p.ctx();
         let outlined = self.variant == TextFieldVariant::Outlined;
         // Single-line container height; content of taller fields stays at its top.
-        let h = field_h(density, self.variant).min(field.height());
+        let h = field_h(density, self.variant, true).min(field.height());
         // Density shrink; filled content moves up by half of it.
-        let lift = (tf::MIN_HEIGHT - field_h(density, self.variant)) / 2.0;
+        let lift = (tf::MIN_HEIGHT - field_h(density, self.variant, true)) / 2.0;
         // Outlined labels minimize to the padding, over a leading icon too.
         let min_x = if outlined { tf::PADDING } else { lead };
         let label_x = egui::lerp(lead..=min_x, k);
@@ -601,7 +607,7 @@ pub(crate) fn trailing_button(
     disabled: bool,
 ) -> Response {
     let rt = ui.rt();
-    let slot = icon_slot(ui.rt()) / 2.0;
+    let slot = icon_slot(ui.rt(), ui.density()) / 2.0;
     let x = rt.i18n().direction().reversed().start_x(field, Rangef::point(slot));
     slot_button(ui, pos2(x, field.center().y), id, icon, color, disabled)
 }
@@ -696,6 +702,12 @@ pub(crate) struct FieldChrome {
     pub supporting: Option<String>,
     pub error: Option<String>,
     pub leading: Option<MaterialIcon>,
+    pub prefix: Option<String>,
+    pub suffix: Option<String>,
+    pub placeholder: Option<String>,
+    pub max_chars: Option<usize>,
+    pub text_style: Option<TypeScale>,
+    pub label_hidden: bool,
 }
 
 /// `variant`, `supporting`, `error`, `maybe_error` and (unless `no_icon`) `icon` builders over a
@@ -707,6 +719,44 @@ macro_rules! field_chrome_setters {
         /// Leading icon.
         pub fn icon(mut self, icon: $crate::MaterialIcon) -> Self {
             self.chrome.leading = Some(icon);
+            self
+        }
+    };
+    (text) => {
+        /// Hint shown while empty.
+        pub fn placeholder(mut self, placeholder: impl Into<String>) -> Self {
+            self.chrome.placeholder = Some(placeholder.into());
+            self
+        }
+
+        /// Type style of the value, placeholder and affixes; default [`TypeScale::BodyLarge`]($crate::spec::TypeScale::BodyLarge).
+        /// Lines past the first are spaced by its line height; the first keeps the 24dp line box.
+        pub fn text_style(mut self, text_style: $crate::spec::TypeScale) -> Self {
+            self.chrome.text_style = Some(text_style);
+            self
+        }
+
+        /// Text before the input, e.g. a currency sign.
+        pub fn prefix(mut self, prefix: impl Into<String>) -> Self {
+            self.chrome.prefix = Some(prefix.into());
+            self
+        }
+
+        /// Text after the input, e.g. a unit.
+        pub fn suffix(mut self, suffix: impl Into<String>) -> Self {
+            self.chrome.suffix = Some(suffix.into());
+            self
+        }
+
+        /// Character limit, with a counter below the field.
+        pub fn max_chars(mut self, max_chars: usize) -> Self {
+            self.chrome.max_chars = Some(max_chars);
+            self
+        }
+
+        /// `false` hides the label but keeps it as the accessible name; default `true`.
+        pub fn label_visible(mut self, label_visible: bool) -> Self {
+            self.chrome.label_hidden = !label_visible;
             self
         }
     };
@@ -745,20 +795,15 @@ pub struct TextField<'a> {
     key: AgentKey,
     label: String,
     value: &'a mut String,
-    placeholder: Option<String>,
     trailing: Option<(MaterialIcon, String)>,
-    prefix: Option<String>,
-    suffix: Option<String>,
     password: bool,
     reveal_toggle: bool,
     revealed: bool,
     rows: NonZeroUsize,
     grow_rows: usize,
-    max_chars: Option<usize>,
     disabled: bool,
     commit_on_submit: bool,
     event_filter: Option<EventFilter>,
-    text_style: TypeScale,
     elide: Option<Elide>,
     pub(crate) spin: Option<NumericRange>,
     pub(crate) combo: Option<Combo>,
@@ -795,20 +840,15 @@ impl<'a> TextField<'a> {
             salt: id_salt,
             label,
             value,
-            placeholder: None,
             trailing: None,
-            prefix: None,
-            suffix: None,
             password: false,
             reveal_toggle: true,
             revealed: false,
             rows: NonZeroUsize::MIN,
             grow_rows: 0,
-            max_chars: None,
             disabled: false,
             commit_on_submit: false,
             event_filter: None,
-            text_style: INPUT_FONT,
             elide: None,
             spin: None,
             combo: None,
@@ -817,19 +857,7 @@ impl<'a> TextField<'a> {
     }
 
     crate::text_inputs::text_field::field_chrome_setters!();
-
-    /// Hint shown while empty.
-    pub fn placeholder(mut self, placeholder: impl Into<String>) -> Self {
-        self.placeholder = Some(placeholder.into());
-        self
-    }
-
-    /// Type style of the value, placeholder and affixes; default [`TypeScale::BodyLarge`].
-    /// Lines past the first are spaced by its line height; the first keeps the 24dp line box.
-    pub fn text_style(mut self, text_style: TypeScale) -> Self {
-        self.text_style = text_style;
-        self
-    }
+    crate::text_inputs::text_field::field_chrome_setters!(text);
 
     /// Overflowing text keeps this part visible: a single-line value while unfocused, and the
     /// supporting text. [`Elide::Start`] shows a path's file name. Default: the value scrolls
@@ -842,18 +870,6 @@ impl<'a> TextField<'a> {
     /// Trailing icon button named `label`; reports [`TextFieldOutput::trailing_clicked`].
     pub fn trailing_icon(mut self, icon: MaterialIcon, label: impl Into<String>) -> Self {
         self.trailing = Some((icon, label.into()));
-        self
-    }
-
-    /// Text before the input, e.g. a currency sign.
-    pub fn prefix(mut self, prefix: impl Into<String>) -> Self {
-        self.prefix = Some(prefix.into());
-        self
-    }
-
-    /// Text after the input, e.g. a unit.
-    pub fn suffix(mut self, suffix: impl Into<String>) -> Self {
-        self.suffix = Some(suffix.into());
         self
     }
 
@@ -882,12 +898,6 @@ impl<'a> TextField<'a> {
     /// Lines the field grows by past [`Self::rows`] before it scrolls; default 0.
     pub fn grow_rows(mut self, grow_rows: usize) -> Self {
         self.grow_rows = grow_rows;
-        self
-    }
-
-    /// Character limit, with a counter below the field.
-    pub fn max_chars(mut self, max_chars: usize) -> Self {
-        self.max_chars = Some(max_chars);
         self
     }
 
@@ -920,6 +930,19 @@ impl<'a> TextField<'a> {
         self
     }
 
+    pub(crate) fn with_chrome(mut self, chrome: FieldChrome) -> Self {
+        self.chrome = chrome;
+        self
+    }
+
+    fn input_style(&self) -> TypeScale {
+        self.chrome.text_style.unwrap_or(INPUT_FONT)
+    }
+
+    fn labeled(&self) -> bool {
+        !self.chrome.label_hidden && !self.label.is_empty()
+    }
+
     fn multiline(&self) -> bool {
         self.max_lines() > 1
     }
@@ -942,16 +965,16 @@ impl<'a> TextField<'a> {
     // Editor width in a `width` wide field: the span `paint_chrome` leaves beside the affixes.
     fn text_width(&self, ui: &MineralUi<'_, Material>, width: f32) -> f32 {
         let rt = ui.rt();
-        let span = width - content_inset(rt, self.chrome.leading.is_some()) - content_inset(rt, self.has_trailing());
+        let span = width - content_inset(rt, ui.density(), self.chrome.leading.is_some()) - content_inset(rt, ui.density(), self.has_trailing());
         let room = |s: &Option<String>| {
             s.as_deref().map_or(0.0, |s| {
-                line_galley(ui.painter(), s, self.text_style, Color32::PLACEHOLDER, span)
+                line_galley(ui.painter(), s, self.input_style(), Color32::PLACEHOLDER, span)
                     .size()
                     .x
                     + tf::AFFIX_PADDING
             })
         };
-        span - room(&self.prefix) - room(&self.suffix)
+        span - room(&self.chrome.prefix) - room(&self.chrome.suffix)
     }
 
     fn lines(&self, ui: &MineralUi<'_, Material>, width: f32, buffer: &EditBuffer<String>) -> usize {
@@ -960,7 +983,7 @@ impl<'a> TextField<'a> {
         }
         let mut job = LayoutJob::single_section(
             self.shown(Some(buffer)).to_owned(),
-            self.text_style.format(ui.ctx(), Color32::PLACEHOLDER),
+            self.input_style().format(ui.ctx(), Color32::PLACEHOLDER),
         );
         job.wrap.max_width = self.text_width(ui, width).max(1.0);
         let galley = ui.painter().layout_job(job);
@@ -972,7 +995,7 @@ impl<'a> TextField<'a> {
         if self.grow_rows == 0 {
             return self.rows.get();
         }
-        let extra = ((height - field_h(density, self.chrome.variant)) / self.text_style.line_height())
+        let extra = ((height - field_h(density, self.chrome.variant, self.labeled())) / self.input_style().line_height())
             .round()
             .max(0.0);
         #[expect(clippy::cast_sign_loss, reason = "max(0.0)")]
@@ -981,11 +1004,11 @@ impl<'a> TextField<'a> {
     }
 
     fn field_height(&self, density: Density, lines: usize) -> f32 {
-        field_h(density, self.chrome.variant) + (lines - 1) as f32 * self.text_style.line_height()
+        field_h(density, self.chrome.variant, self.labeled()) + (lines - 1) as f32 * self.input_style().line_height()
     }
 
     fn has_support_row(&self) -> bool {
-        self.chrome.supporting.is_some() || self.chrome.error.is_some() || self.max_chars.is_some()
+        self.chrome.supporting.is_some() || self.chrome.error.is_some() || self.chrome.max_chars.is_some()
     }
 }
 
@@ -1105,7 +1128,7 @@ impl TextField<'_> {
         let rt = ui.rt();
         let colors = decor.colors;
         // Compose `placeholderOpacity` and `affixOpacity`: hidden under an expanded label.
-        let shown_unfocused = self.label.is_empty();
+        let shown_unfocused = !self.labeled();
         let placeholder_alpha = egui_mineral::motion::spring(
             rt.core(),
             base.with("placeholder"),
@@ -1126,9 +1149,9 @@ impl TextField<'_> {
         let p = ui.painter().clone();
         let affix = |s: &Option<String>| {
             s.as_deref()
-                .map(|s| line_galley(&p, s, self.text_style, colors.affix, decor.span.span()))
+                .map(|s| line_galley(&p, s, self.input_style(), colors.affix, decor.span.span()))
         };
-        let (prefix, suffix) = (affix(&self.prefix), affix(&self.suffix));
+        let (prefix, suffix) = (affix(&self.chrome.prefix), affix(&self.chrome.suffix));
         let room = |g: &Option<Arc<Galley>>| g.as_ref().map_or(0.0, |g| g.size().x + tf::AFFIX_PADDING);
         let (lead_room, trail_room) = (room(&prefix), room(&suffix));
         let Sides { left, right } = dir.sides(lead_room, trail_room);
@@ -1137,7 +1160,7 @@ impl TextField<'_> {
             pos2(x0, decor.text_top),
             pos2(
                 x1.max(x0),
-                decor.text_top + line_h() + (lines - 1) as f32 * self.text_style.line_height(),
+                decor.text_top + line_h() + (lines - 1) as f32 * self.input_style().line_height(),
             ),
         );
         let fade = |c: Color32, a: f32| c.gamma_multiply(a.clamp(0.0, 1.0));
@@ -1151,8 +1174,8 @@ impl TextField<'_> {
                 p.galley(pos2(x, decor.text_top), g, fade(colors.affix, affix_alpha));
             }
         }
-        if let (Some(ph), true) = (&self.placeholder, empty && placeholder_alpha > 0.0) {
-            let g = line_galley(&p, ph, self.text_style, colors.placeholder, text_rect.width());
+        if let (Some(ph), true) = (&self.chrome.placeholder, empty && placeholder_alpha > 0.0) {
+            let g = line_galley(&p, ph, self.input_style(), colors.placeholder, text_rect.width());
             let x = dir.start_x(text_rect, Rangef::new(0.0, 0.0 + g.size().x));
             p.galley(pos2(x, text_rect.top()), g, fade(colors.placeholder, placeholder_alpha));
         }
@@ -1168,14 +1191,15 @@ impl TextField<'_> {
         let buffered = self.commit_on_submit;
         let mask = self.password && !self.revealed;
         let rows = self.multiline().then_some(cx.lines);
-        let (interactive, max_chars, event_filter) = (!self.disabled, self.max_chars, self.event_filter);
+        let (interactive, max_chars, event_filter) = (!self.disabled, self.chrome.max_chars, self.event_filter);
+        let style = self.input_style();
         let text: &mut String = if buffered { buffer.draft_mut() } else { &mut *self.value };
         // The unfocused editor stays for clicks and Tab; an elided copy is painted over its
         // transparent text.
         let elided = self
             .elide
             .filter(|_| !cx.focused && rows.is_none() && !mask)
-            .map(|e| elided_galley(ui.painter(), text, self.text_style, cx.colors.input, cx.rect.width(), e))
+            .map(|e| elided_galley(ui.painter(), text, style, cx.colors.input, cx.rect.width(), e))
             .filter(|g| g.text() != text.as_str());
         let color = if elided.is_some() {
             Color32::TRANSPARENT
@@ -1190,7 +1214,7 @@ impl TextField<'_> {
             ui.painter()
                 .galley(pos2(x, cx.rect.top()), Arc::clone(g), Color32::PLACEHOLDER);
         }
-        BareEdit::new(cx.id, cx.rect, self.text_style.format(ui.ctx(), color), cx.colors, cx.t)
+        BareEdit::new(cx.id, cx.rect, style.format(ui.ctx(), color), cx.colors, cx.t)
             .mask(mask)
             .rows(rows)
             .show(ui, text, |ui, mut edit| {
@@ -1317,7 +1341,7 @@ impl MineralWidget for TextField<'_> {
         measure(
             container,
             self.chrome.variant,
-            !self.label.is_empty(),
+            self.labeled(),
             self.has_support_row(),
         )
     }
@@ -1342,7 +1366,7 @@ impl MineralWidget for TextField<'_> {
         let decor = Decor {
             id: base,
             variant: self.chrome.variant,
-            label: &self.label,
+            label: if self.labeled() { &self.label } else { "" },
             focused,
             floated: focused || !empty,
             error: self.chrome.error.is_some(),
@@ -1380,6 +1404,7 @@ impl MineralWidget for TextField<'_> {
         if self.has_support_row() {
             let support = self.chrome.error.as_deref().or(self.chrome.supporting.as_deref());
             let count = self
+                .chrome
                 .max_chars
                 .map(|n| counter(rt, self.shown(Some(buffer)).chars().count(), n));
             paint_support(

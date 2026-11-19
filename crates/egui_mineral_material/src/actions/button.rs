@@ -645,7 +645,7 @@ impl PushButton<'_> {
         let m = self.sized().map_or(BASELINE, Size::metrics);
         Metrics {
             height: if self.size.is_none() {
-                density.dense(m.height, Density::MIN)
+                density.dense(m.height, Density::COMPACT_FLOOR)
             } else {
                 m.height
             },

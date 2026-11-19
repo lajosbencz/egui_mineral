@@ -1,3 +1,4 @@
+use crate::MaterialUiExt as _;
 use egui_mineral::kit::state::{Memo, TempState};
 use std::collections::HashMap;
 
@@ -275,12 +276,12 @@ impl<'a> CommandPalette<'a> {
         let (head, _) = ui.allocate_exact_size(vec2(width, header_h), Sense::hover());
         common::icon(
             ui.painter(),
-            search::icon_center(ui.rt(), head, Edge::Start),
+            search::icon_center(ui.rt(), ui.density(), head, Edge::Start),
             ICON_SEARCH,
             list::ITEM_LEADING_ICON_SIZE,
             col(search_view::HEADER_LEADING_ICON_COLOR),
         );
-        let input = search::input_rect(rt, head, false);
+        let input = search::input_rect(rt, ui.density(), head, false);
         let te = search::SearchInput {
             text: &mut *query,
             id: edit_id,

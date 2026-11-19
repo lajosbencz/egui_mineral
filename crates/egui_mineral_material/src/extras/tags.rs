@@ -1,3 +1,4 @@
+use crate::adaptive::Density;
 use crate::Material;
 use crate::MaterialExt;
 use crate::MaterialUiExt as _;
@@ -99,8 +100,8 @@ impl<'a> TagsField<'a> {
         agent_key(key)
     }
 
-    fn content_width(&self, rt: &Rt, w: f32) -> f32 {
-        w - content_inset(rt, self.chrome.leading.is_some()) - content_inset(rt, false)
+    fn content_width(&self, rt: &Rt, density: Density, w: f32) -> f32 {
+        w - content_inset(rt, density, self.chrome.leading.is_some()) - content_inset(rt, density, false)
     }
 
     fn paint_chips(
@@ -130,7 +131,7 @@ impl<'a> TagsField<'a> {
 
     fn flow(&self, ui: &MineralUi<'_, Material>, w: f32) -> (Vec<f32>, Vec<(usize, f32)>, usize) {
         let widths: Vec<f32> = self.tags.iter().map(|t| chip_size(ui, t).x).collect();
-        let (pos, rows) = chip_flow(&widths, self.content_width(ui.rt(), w), INPUT_MIN);
+        let (pos, rows) = chip_flow(&widths, self.content_width(ui.rt(), ui.density(), w), INPUT_MIN);
         (widths, pos, rows)
     }
 
@@ -153,7 +154,7 @@ impl MineralWidget for TagsField<'_> {
     fn layout(&self, ui: &MineralUi<'_, Material>, c: Constraints, (): &Self::State) -> Measure {
         let w = c.constrain(vec2(tf::MIN_WIDTH, 0.0)).x;
         let rows = ChipRows::new(ui, self.chrome.variant, !self.label.is_empty(), !self.tags.is_empty());
-        let h = rows.field_height(ui.density(), self.chrome.variant, self.flow(ui, w).2);
+        let h = rows.field_height(ui.density(), self.chrome.variant, !self.label.is_empty(), self.flow(ui, w).2);
         text_field::measure(
             c.constrain(vec2(w, h)),
             self.chrome.variant,

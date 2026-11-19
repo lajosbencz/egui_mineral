@@ -32,8 +32,15 @@ use crate::{
     tokens::Tokens,
 };
 
+// Dense down to the text lines and padding.
 pub(crate) fn height(density: Density, lines: ListLines) -> f32 {
-    density.dense(lines.height(), Density::MIN)
+    let (head, sub) = (TypeScale::BodyLarge.line_height(), TypeScale::BodyMedium.line_height());
+    let text = match lines {
+        ListLines::One => head,
+        ListLines::Two => head + sub,
+        ListLines::Three => head + 2.0 * sub,
+    };
+    density.dense(lines.height(), Density::MIN).max(text + 8.0).min(lines.height())
 }
 
 pub(crate) fn row_height(density: Density) -> f32 {

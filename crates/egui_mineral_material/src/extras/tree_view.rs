@@ -595,7 +595,7 @@ impl<'a, N: TreeData> TreeView<'a, N> {
         // MD3 list paddings are fixed; here they narrow 4dp per density step (docs/divergences.md).
         let gap = density.dense(
             defaults::list::LEADING_CONTENT_END_PADDING,
-            crate::adaptive::Density::MIN,
+            crate::adaptive::Density::COMPACT_FLOOR,
         );
         RowLook {
             height: self.row_height.unwrap_or_else(|| row_parts::row_height(density)),

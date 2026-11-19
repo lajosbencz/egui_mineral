@@ -65,3 +65,43 @@ fn leading_icon_inset() {
     let inset = slot + text_field::PADDING - icon_padding;
     assert_eq!(p.text("Input").left() - visual.left(), inset);
 }
+
+fn dense(field: impl FnMut(&mut String) -> TextField<'_>) -> (Pass, egui::Rect) {
+    use egui_mineral_material::{MaterialUiExt as _, adaptive::Density};
+    let mut field = field;
+    let mut value = "Input".to_owned();
+    let p = render_zones(|ui| ui.with_density(Density::MIN, |ui| ui.mineral(field(&mut value)).zones()));
+    let visual = p.zones.expect("zones reported").visual;
+    (p, visual)
+}
+
+#[test]
+fn dense_fields_clamp_at_their_content() {
+    use egui_mineral_material::adaptive::Density;
+    assert_eq!(Density::MIN.step(), -6);
+    let content = TypeScale::BodyLarge.line_height() + 8.0;
+    for variant in [TextFieldVariant::Filled, TextFieldVariant::Outlined] {
+        let (_, visual) = dense(|v| TextField::new("d", "Name", v).variant(variant).label_visible(false));
+        assert_eq!(visual.height(), content, "{variant:?}");
+    }
+    let (_, labeled) = dense(|v| TextField::new("d", "Name", v));
+    let floor = text_field::LABEL_VERTICAL_PADDING
+        + text_field::MIN_FOCUSED_LABEL_LINE_HEIGHT
+        + TypeScale::BodyLarge.line_height()
+        + 4.0;
+    assert_eq!(labeled.height(), floor, "a filled label keeps its room");
+}
+
+#[test]
+fn hidden_label_stays_the_accessible_name() {
+    let (p, _) = render(|v| TextField::new("n", "Name", v).label_visible(false));
+    assert_eq!(p.node("n-field").name, "Name");
+    assert!(p.shapes.iter().all(|s| !matches!(&s.shape, egui::Shape::Text(t) if t.galley.text() == "Name")));
+}
+
+#[test]
+fn suffix_is_painted_after_the_input() {
+    let (p, visual) = render(|v| TextField::new("u", "", v).suffix("mm"));
+    assert!(p.text("mm").left() > p.text("Input").right());
+    assert!(visual.contains_rect(p.text("mm")));
+}

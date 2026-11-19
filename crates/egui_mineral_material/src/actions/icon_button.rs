@@ -228,6 +228,7 @@ pub struct IconButton<'a> {
     disabled: bool,
     shortcut: Option<KeyboardShortcut>,
     badge: Option<Badge>,
+    target: MinTarget,
     pub(crate) palette: Palette,
 }
 
@@ -249,6 +250,7 @@ impl<'a> IconButton<'a> {
             disabled: false,
             shortcut: None,
             badge: None,
+            target: crate::adaptive::MIN_INTERACTIVE,
             palette: Palette::default(),
         }
     }
@@ -256,6 +258,12 @@ impl<'a> IconButton<'a> {
     crate::widget::setters! {
         /// Replaces the `<id_salt>-button` agent key.
         agent_key(key)
+    }
+
+    // Dense composites size the slot to the container instead of the 48dp target.
+    pub(crate) fn hit_target(mut self, target: MinTarget) -> Self {
+        self.target = target;
+        self
     }
 
     /// Default [`IconButtonVariant::Standard`].
@@ -329,7 +337,7 @@ impl<'a> IconButton<'a> {
         if self.size != Size::Small {
             return g.container;
         }
-        let shrink = g.container.y - density.dense(g.container.y, Density::MIN);
+        let shrink = g.container.y - density.dense(g.container.y, Density::COMPACT_FLOOR);
         vec2((g.container.x - shrink).max(g.icon), g.container.y - shrink)
     }
 }
@@ -346,7 +354,7 @@ impl MineralWidget for IconButton<'_> {
     }
 
     fn min_target(&self) -> MinTarget {
-        crate::adaptive::MIN_INTERACTIVE
+        self.target
     }
 
     fn layout(&self, ui: &MineralUi<'_, Material>, constraints: Constraints, (): &Self::State) -> Measure {

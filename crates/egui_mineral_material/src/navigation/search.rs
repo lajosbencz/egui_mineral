@@ -1,3 +1,4 @@
+use crate::adaptive::Density;
 use crate::MaterialUiExt as _;
 use std::sync::Arc;
 
@@ -40,19 +41,24 @@ use crate::{
 
 const BAR_H: f32 = search_bar::CONTAINER_HEIGHT;
 
+// Dense down to one input line with padding.
+fn bar_h(ui: &MineralUi<'_, Material>) -> f32 {
+    ui.dense(BAR_H, Density::MIN).max(text_field::line_h() + 8.0).min(BAR_H)
+}
+
 // Compose SearchBarIconOffsetX
-pub(crate) fn icon_center(rt: &Rt, rect: Rect, edge: Edge) -> Pos2 {
-    let d = sb::ICON_OFFSET_X + text_field::icon_slot(rt) / 2.0;
+pub(crate) fn icon_center(rt: &Rt, density: Density, rect: Rect, edge: Edge) -> Pos2 {
+    let d = sb::ICON_OFFSET_X + text_field::icon_slot(rt, density) / 2.0;
     pos2(
         rt.i18n().direction().from_edge(edge).start_x(rect, Rangef::point(d)),
         rect.center().y,
     )
 }
 
-pub(crate) fn input_rect(rt: &Rt, rect: Rect, trailing: bool) -> Rect {
+pub(crate) fn input_rect(rt: &Rt, density: Density, rect: Rect, trailing: bool) -> Rect {
     let Sides { left, right } = rt.i18n().direction().sides(
-        text_field::content_inset(rt, true),
-        text_field::content_inset(rt, trailing),
+        text_field::content_inset(rt, density, true),
+        text_field::content_inset(rt, density, trailing),
     );
     let (x0, x1) = (rect.left() + left, rect.right() - right);
     let h = text_field::line_h();
@@ -214,8 +220,8 @@ impl MineralWidget for SearchBar<'_> {
 
     egui_mineral::kit::widget_meta!(salt, enabled, no_target, frame_sense);
 
-    fn layout(&self, _ui: &MineralUi<'_, Material>, c: Constraints, _: &Self::State) -> Measure {
-        c.constrain(vec2(sb::MIN_WIDTH, BAR_H)).into()
+    fn layout(&self, ui: &MineralUi<'_, Material>, c: Constraints, _: &Self::State) -> Measure {
+        c.constrain(vec2(sb::MIN_WIDTH, bar_h(ui))).into()
     }
 
     fn update(
@@ -249,7 +255,7 @@ impl MineralWidget for SearchBar<'_> {
         ui.painter().rect_filled(rect, r, t.role(search_bar::CONTAINER_COLOR));
 
         let mut out = SearchBarOutput::default();
-        let lead = icon_center(rt, rect, Edge::Start);
+        let lead = icon_center(rt, ui.density(), rect, Edge::Start);
         if self.back {
             let node = self.button_node("back-button", &crate::tr(ui.i18n(), "mineral-back"));
             out.leading_clicked = slot_icon(
@@ -264,7 +270,7 @@ impl MineralWidget for SearchBar<'_> {
             let (_, size) = crate::widget::parts::small_icon_metrics();
             common::icon(ui.painter(), lead, ICON_SEARCH, size, c(search_bar::LEADING_ICON_COLOR));
         }
-        let text_rect = input_rect(rt, rect, self.trailing.is_some());
+        let text_rect = input_rect(rt, ui.density(), rect, self.trailing.is_some());
         let te = SearchInput {
             text: &mut *self.value,
             id: edit_id,
@@ -280,7 +286,7 @@ impl MineralWidget for SearchBar<'_> {
             let node = self.button_node("trailing-button", &label);
             out.trailing_clicked = slot_icon(
                 ui,
-                icon_center(rt, rect, Edge::End),
+                icon_center(rt, ui.density(), rect, Edge::End),
                 base.with("trailing"),
                 icon,
                 c(search_bar::TRAILING_ICON_COLOR),
@@ -801,7 +807,7 @@ impl<'a> SearchView<'a> {
         .disabled(self.disabled);
         bar.label = Some(name.clone());
         let bar_out = ui.mineral(bar.preferred_width(width));
-        let bar_rect = Rect::from_min_size(bar_pos, vec2(width, BAR_H));
+        let bar_rect = Rect::from_min_size(bar_pos, vec2(width, bar_h(ui)));
         if !*open && (bar_out.has_focus() || bar_out.clicked()) {
             *open = true;
             st.focus = true;
@@ -980,7 +986,7 @@ impl<'a> SearchView<'a> {
         let back_label = crate::tr(rt.i18n(), "mineral-back");
         let back = slot_icon(
             ui,
-            icon_center(ui.rt(), head, Edge::Start),
+            icon_center(ui.rt(), ui.density(), head, Edge::Start),
             vc.base.with("view-back"),
             rt.i18n().direction().pick(ICON_ARROW_BACK, ICON_ARROW_FORWARD),
             t.role(search_view::HEADER_LEADING_ICON_COLOR),
@@ -994,7 +1000,7 @@ impl<'a> SearchView<'a> {
             let clear_label = crate::tr(rt.i18n(), "mineral-search-clear");
             if slot_icon(
                 ui,
-                icon_center(ui.rt(), head, Edge::End),
+                icon_center(ui.rt(), ui.density(), head, Edge::End),
                 vc.base.with("view-clear"),
                 ICON_CLOSE,
                 t.role(search_view::HEADER_TRAILING_ICON_COLOR),
@@ -1014,7 +1020,7 @@ impl<'a> SearchView<'a> {
             input: t.role(search_view::HEADER_INPUT_TEXT_COLOR),
             hint: t.role(search_view::HEADER_SUPPORTING_TEXT_COLOR),
         }
-        .show(ui, input_rect(ui.rt(), head, clear));
+        .show(ui, input_rect(ui.rt(), ui.density(), head, clear));
         if te.changed() {
             st.active = None;
             ev.typed = true;

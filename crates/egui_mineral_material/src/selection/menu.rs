@@ -1,4 +1,6 @@
 use crate::Material;
+use crate::MaterialUiExt as _;
+use crate::adaptive::Density;
 use crate::MaterialExt;
 use crate::Rt;
 use egui_mineral::i18n::I18n;
@@ -78,12 +80,15 @@ struct ItemMetrics {
     inset: f32,
 }
 
+// No MD3 value; one label line with padding
+const GROUP_LABEL_MIN: f32 = 24.0;
+
 impl MenuColors {
     fn expressive(self) -> bool {
         self != Self::Baseline
     }
 
-    fn metrics(self) -> ItemMetrics {
+    fn metrics(self, density: Density) -> ItemMetrics {
         use defaults::menu as d;
         if self.expressive() {
             ItemMetrics {
@@ -94,7 +99,10 @@ impl MenuColors {
             }
         } else {
             ItemMetrics {
-                height: d::ITEM_HEIGHT,
+                height: density
+                    .dense(d::ITEM_HEIGHT, Density::MIN)
+                    .max(list::ITEM_LEADING_ICON_SIZE + 4.0)
+                    .min(d::ITEM_HEIGHT),
                 icon: list::ITEM_LEADING_ICON_SIZE,
                 gap: d::ITEM_HORIZONTAL_PADDING,
                 inset: 0.0,
@@ -500,10 +508,10 @@ impl Menu {
         self
     }
 
-    fn width(&self, rt: &Rt, entries: &[Entry]) -> f32 {
+    fn width(&self, rt: &Rt, density: Density, entries: &[Entry]) -> f32 {
         use defaults::menu as d;
         let ctx = rt.ctx();
-        let m = self.style.metrics();
+        let m = self.style.metrics(density);
         let format = defaults::menu::ITEM_FONT.format(ctx, Color32::PLACEHOLDER);
         let job = |s: &str, mnemonic| parts::format_job(rt.core(), s, &format, mnemonic);
         let icon = m.icon + m.gap;
@@ -572,11 +580,12 @@ impl Menu {
         }
     }
 
-    fn geometry(&self, rt: &Rt, entries: &[Entry]) -> Geometry {
+    fn geometry(&self, rt: &Rt, density: Density, entries: &[Entry]) -> Geometry {
         use defaults::menu as d;
-        let width = self.width(rt, entries);
+        let width = self.width(rt, density, entries);
         let exp = self.style.expressive();
-        let item_h = self.style.metrics().height;
+        let item_h = self.style.metrics(density).height;
+        let label_h = density.dense(d::GROUP_LABEL_HEIGHT, Density::MIN).max(GROUP_LABEL_MIN).min(d::GROUP_LABEL_HEIGHT);
         let divider_h = divider::THICKNESS + 2.0 * d::DIVIDER_VERTICAL_PADDING;
         let edge = self.edge_padding();
         let mut slots = Vec::new();
@@ -609,7 +618,7 @@ impl Menu {
                         }
                     }
                     if label.is_some() {
-                        push(&mut slots, SlotKind::Label(e), d::GROUP_LABEL_HEIGHT, &mut y);
+                        push(&mut slots, SlotKind::Label(e), label_h, &mut y);
                     }
                 }
             }
@@ -840,7 +849,7 @@ impl Menu {
         let mut level_ids: Vec<Vec<RowRect>> = Vec::new();
         let mut parent = parent;
         while let Some(entries) = self.level_entries(&st.path, level) {
-            let geo = self.geometry(rt, entries);
+            let geo = self.geometry(rt, rt.kit().density(), entries);
             let placement = if level == 0 {
                 place.place(anchor_rect, geo.size, surroundings)
             } else {
@@ -1329,9 +1338,9 @@ impl MineralWidget for MenuRow<'_> {
         !self.item.disabled
     }
 
-    fn layout(&self, _ui: &MineralUi<'_, Material>, constraints: Constraints, (): &Self::State) -> Measure {
+    fn layout(&self, ui: &MineralUi<'_, Material>, constraints: Constraints, (): &Self::State) -> Measure {
         constraints
-            .constrain(vec2(self.width, self.style.metrics().height))
+            .constrain(vec2(self.width, self.style.metrics(ui.density()).height))
             .into()
     }
 
@@ -1339,7 +1348,7 @@ impl MineralWidget for MenuRow<'_> {
         let rt = ui.rt();
         let t = ui.tokens();
         let item = self.item;
-        let m = self.style.metrics();
+        let m = self.style.metrics(ui.density());
         let response = &frame.response;
         let rect = frame.zones.visual.shrink2(vec2(m.inset, 0.0));
         let i = parts::press(ui, frame, Availability::disabled_if(item.disabled)).interaction;

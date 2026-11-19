@@ -1,4 +1,6 @@
 use crate::Material;
+use crate::MaterialUiExt as _;
+use crate::adaptive::Density;
 use crate::MaterialExt;
 use crate::Rt;
 use egui::{Color32, CornerRadius, Rect, Sense, Ui, Vec2, vec2};
@@ -75,6 +77,15 @@ struct PageButton {
     disabled: bool,
 }
 
+// Dense down to the label line with padding.
+fn page_metrics(ui: &MineralUi<'_, Material>) -> Metrics {
+    let m = PAGE.metrics();
+    Metrics {
+        height: ui.dense(m.height, Density::MIN).max(m.font.line_height() + 8.0).min(m.height),
+        ..m
+    }
+}
+
 impl MineralWidget for PageButton {
     type Kit = Material;
     type State = ();
@@ -87,13 +98,13 @@ impl MineralWidget for PageButton {
     }
 
     fn layout(&self, ui: &MineralUi<'_, Material>, c: Constraints, (): &Self::State) -> Measure {
-        let m = PAGE.metrics();
+        let m = page_metrics(ui);
         c.constrain(vec2(button_width(ui, m, &self.label), m.height)).into()
     }
 
     fn update(&mut self, ui: &mut MineralUi<'_, Material>, frame: &WidgetFrame<'_>, (): &mut ()) -> WidgetResponse {
         let t = ui.tokens();
-        let m = PAGE.metrics();
+        let m = page_metrics(ui);
         let rect = frame.zones.visual;
         let press = parts::press(ui, frame, Availability::disabled_if(self.disabled));
         let changed = press.clicked && !self.selected;
@@ -253,7 +264,8 @@ impl Composite for Pagination<'_> {
                         }
                     }
                     PageItem::Gap => {
-                        let (r, _) = ui.allocate_exact_size(Vec2::splat(PAGE.metrics().height), Sense::hover());
+                        let gap = page_metrics(ui).height;
+                        let (r, _) = ui.allocate_exact_size(Vec2::splat(gap), Sense::hover());
                         common::icon(
                             ui.painter(),
                             r.center(),

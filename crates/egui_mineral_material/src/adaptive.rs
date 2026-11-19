@@ -110,8 +110,10 @@ pub struct Density(i8);
 impl Density {
     /// No density step; spec sizes.
     pub const DEFAULT: Self = Self(0);
-    /// Densest step, -12dp.
-    pub const MIN: Self = Self(-3);
+    /// Densest step, -24dp; components clamp at their content minimum before it.
+    pub const MIN: Self = Self(-6);
+    /// Step where fixed-size components stop shrinking (Compose `VisualDensity.Compact`).
+    pub(crate) const COMPACT_FLOOR: Self = Self(-3);
     /// Least dense step; equals [`Self::DEFAULT`].
     pub const MAX: Self = Self::DEFAULT;
 
@@ -120,7 +122,7 @@ impl Density {
     pub fn new(step: i8) -> Self {
         let valid = step.clamp(Self::MIN.0, Self::MAX.0);
         if valid != step {
-            egui_mineral::kit::sanitize::report(format_args!("density must be in -3..=0, got {step}"));
+            egui_mineral::kit::sanitize::report(format_args!("density must be in -6..=0, got {step}"));
         }
         Self(valid)
     }

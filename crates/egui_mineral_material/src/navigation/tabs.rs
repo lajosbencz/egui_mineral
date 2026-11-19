@@ -166,7 +166,7 @@ impl<'a> Tabs<'a> {
             .iter()
             .map(TabContent::height)
             .fold(primary::CONTAINER_HEIGHT, f32::max);
-        let height = ui.dense(height, crate::adaptive::Density::MIN);
+        let height = ui.dense(height, crate::adaptive::Density::COMPACT_FLOOR);
         let outer_w = ui.available_width();
         let bar = Rect::from_min_size(ui.cursor().min, vec2(outer_w, height));
         let container = ui.interact(bar, id.with("tablist"), Sense::hover());

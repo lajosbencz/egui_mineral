@@ -170,12 +170,12 @@ impl Control {
     }
 
     pub(crate) fn layer(self, density: Density) -> f32 {
-        let size = match self {
-            Self::Checkbox => cb::STATE_LAYER_SIZE,
-            Self::Radio => rb::STATE_LAYER_SIZE,
-            Self::Switch => sw::STATE_LAYER_SIZE,
+        let (size, content) = match self {
+            Self::Checkbox => (cb::STATE_LAYER_SIZE, cbx::BOX_SIZE),
+            Self::Radio => (rb::STATE_LAYER_SIZE, rb::ICON_SIZE),
+            Self::Switch => (sw::STATE_LAYER_SIZE, sw::TRACK_HEIGHT),
         };
-        density.dense(size, Density::MIN)
+        density.dense(size, Density::MIN).max(content)
     }
 
     // Compose minimumInteractiveComponentSize
