@@ -8,6 +8,9 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 nightly_version := "nightly-2026-11-12"
 
 # Tool pins, read by the workflows (`just --evaluate <name>`); Dependabot does not bump them.
+nextest_version := "0.9.152"
+deny_version := "0.20.2"
+typos_version := "1.52.2"
 machete_version := "0.9.2"
 rdme_version := "2.2.3"
 hack_version := "0.6.46"
@@ -28,14 +31,24 @@ default:
 
 # Installs the check tools with cargo at the pinned versions, and a nightly toolchain
 tools: icu-datagen
-    cargo install --locked cargo-nextest cargo-deny typos-cli
-    cargo install --locked cargo-machete@{{ machete_version }} cargo-hack@{{ hack_version }} cargo-rdme@{{ rdme_version }} ast-grep@{{ ast_grep_version }} zizmor@{{ zizmor_version }} cargo-edit@{{ cargo_edit_version }}
+    cargo install --locked cargo-nextest@{{ nextest_version }} cargo-deny@{{ deny_version }} typos-cli@{{ typos_version }}
+    cargo install --locked cargo-machete@{{ machete_version }} cargo-hack@{{ hack_version }} cargo-rdme@{{ rdme_version }} ast-grep@{{ ast_grep_version }} zizmor@{{ zizmor_version }} cargo-edit@{{ cargo_edit_version }} cargo-public-api@{{ public_api_version }} trunk@{{ trunk_version }} dioxus-cli@{{ dx_version }}
     rustup toolchain install {{ nightly_version }} --profile minimal --target wasm32-unknown-unknown
     @command -v actionlint >/dev/null || echo "actionlint {{ actionlint_version }} is not on crates.io: https://github.com/rhysd/actionlint"
     @command -v shellcheck >/dev/null || echo "shellcheck is not on crates.io: install it with the system package manager"
 
 # Every blocking check of CI and Hygiene
 ci: check hygiene
+
+# Fast local loop: format check, default-feature clippy of the libraries, first test leg
+quick: fmt
+    cargo clippy -p egui_mineral -p egui_mineral_material -p egui_mineral_fluent --all-targets -- -D warnings
+    just test-default
+
+# Formats and applies machine-applicable clippy fixes
+fix:
+    cargo fmt --all
+    cargo clippy --fix --allow-dirty --workspace --all-targets
 
 # Every blocking check of the CI jobs clippy, test and docs
 check: check-clippy check-test check-docs
@@ -66,10 +79,13 @@ clippy:
 test_features := "egui_mineral/platform-native,egui_mineral/persist-json,egui_mineral/web-save-stream,egui_mineral_material/theme-file,egui_mineral_material/unstable-catalog,egui_mineral_material/unstable-spec,egui_mineral_fluent/unstable-catalog,egui_mineral_fluent/unstable-spec"
 
 # Default features (+spec) without the showcases' feature unification, every feature, none; extra args go to nextest, e.g. `--no-run`
-test *args:
-    cargo nextest run -p egui_mineral -p egui_mineral_material -p egui_mineral_fluent --features egui_mineral_material/unstable-spec,egui_mineral_fluent/unstable-spec {{ args }}
+test *args: (test-default args)
     cargo nextest run --workspace --features {{ test_features }} {{ args }}
     cargo nextest run -p egui_mineral -p egui_mineral_material -p egui_mineral_fluent --no-default-features --features egui_mineral_material/bundled-icons,egui_mineral_fluent/bundled-icons {{ args }}
+
+# First leg of `test`: default features (+spec)
+test-default *args:
+    cargo nextest run -p egui_mineral -p egui_mineral_material -p egui_mineral_fluent --features egui_mineral_material/unstable-spec,egui_mineral_fluent/unstable-spec {{ args }}
 
 # icu4x-datagen matching the locked ICU4X version
 icu-datagen:
