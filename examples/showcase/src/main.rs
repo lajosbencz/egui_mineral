@@ -5,7 +5,7 @@ mod spawn;
 
 use std::{sync::Arc, time::Duration};
 
-use egui::{CentralPanel, Key, KeyboardShortcut, Modifiers, Panel, Ui};
+use egui::{CentralPanel, Key, KeyboardShortcut, Modifiers, Panel, Ui, scroll_area::ScrollAreaOutput};
 use egui_mineral::{
     bus::{Bus, SpawnerExt},
     i18n::Direction,
@@ -210,7 +210,7 @@ impl App {
 }
 
 impl App {
-    fn shell(&mut self, ui: &mut Ui) {
+    fn shell(&mut self, ui: &mut Ui) -> ScrollAreaOutput<()> {
         let rt = Arc::clone(&self.rt);
         let ctx = rt.ctx();
         self.inspector.toggle_on(ctx, INSPECTOR);
@@ -227,12 +227,13 @@ impl App {
             }
         }
 
-        rt.pass(ui, |ui| self.body(ui));
+        let page = rt.pass(ui, |ui| self.body(ui));
         self.inspector
             .show_with_state(&rt, &mut Serde(&mut self.shared.settings));
+        page
     }
 
-    fn body(&mut self, ui: &mut Mui<'_>) {
+    fn body(&mut self, ui: &mut Mui<'_>) -> ScrollAreaOutput<()> {
         let rt = ui.rt();
         pages::navigation::run_commands(rt, &mut self.pages.navigation, &mut self.shared);
         let class = WindowClass::of(rt.core());
@@ -253,7 +254,7 @@ impl App {
             .show_separator_line(false)
             .show(ui, |ui| self.top_bar(&mut rt.ui(ui), compact));
         let page = *self.router.current();
-        CentralPanel::default().show(ui, |ui| {
+        let page_out = CentralPanel::default().show(ui, |ui| {
             scroll::page(&mut rt.ui(ui), ("page", page.index()), |ui| {
                 let w = ui.available_width().min(CONTENT_MAX_W);
                 let pad = (ui.available_width() - w) / 2.0;
@@ -264,7 +265,7 @@ impl App {
                         pages::show(page, &mut rt.ui(ui), &mut self.pages, &mut self.shared);
                     });
                 });
-            });
+            })
         });
         if compact {
             self.drawer(rt);
@@ -289,6 +290,7 @@ impl App {
         if shortcut::take_action(ctx, &snack::RETRY) {
             self.shared.toast("Retrying connection");
         }
+        page_out.inner
     }
 }
 
@@ -450,7 +452,9 @@ mod tests {
     fn step(app: &mut App, ctx: &egui::Context, events: Vec<egui::Event>) -> Vec<egui::ViewportCommand> {
         let mut raw = screen();
         raw.events = events;
-        let mut out = ctx.run_ui(raw, |ui| app.shell(ui));
+        let mut out = ctx.run_ui(raw, |ui| {
+            app.shell(ui);
+        });
         out.textures_delta.clear();
         out.viewport_output
             .remove(&egui::ViewportId::ROOT)
@@ -568,6 +572,36 @@ mod tests {
     }
 
     #[test]
+    fn every_page_fits_its_width() {
+        // Settled overflow: wider content pushes the page scroll bar out of view.
+        const PASSES: usize = 8;
+        let mut wide = Vec::new();
+        for width in [360.0, 800.0, 1280.0] {
+            let ctx = egui::Context::default();
+            let mut app = App::new(&ctx).expect("showcase app");
+            for page in Page::ALL {
+                app.navigate(page);
+                let mut over = 0.0;
+                for _ in 0..PASSES {
+                    let raw = RawInput {
+                        screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(width, 900.0))),
+                        ..RawInput::default()
+                    };
+                    let mut out = ctx.run_ui(raw, |ui| {
+                        let page = app.shell(ui);
+                        over = page.content_size.x - page.inner_rect.width();
+                    });
+                    out.textures_delta.clear();
+                }
+                if over > 0.5 {
+                    wide.push(format!("{page:?} at {width}: {over:.1} px too wide"));
+                }
+            }
+        }
+        assert!(wide.is_empty(), "pages wider than the window:\n{}", wide.join("\n"));
+    }
+
+    #[test]
     fn every_page_renders() {
         let ctx = egui::Context::default();
         let mut app = App::new(&ctx).expect("showcase app");
@@ -659,7 +693,9 @@ mod tests {
                                 screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, size)),
                                 ..RawInput::default()
                             };
-                            let mut out = ctx.run_ui(raw, |ui| app.shell(ui));
+                            let mut out = ctx.run_ui(raw, |ui| {
+                                app.shell(ui);
+                            });
                             out.textures_delta.clear();
                         }
                     }));
