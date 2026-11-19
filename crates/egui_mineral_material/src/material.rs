@@ -25,6 +25,8 @@ use crate::{
 #[derive(Debug)]
 pub struct Material {
     tokens: Mutex<TokenStore>,
+    // Tokens frozen for one egui pass: setters apply from the next pass, no frame mixes two token sets.
+    pass: Mutex<Option<(u64, Theme, Arc<Tokens>)>>,
     density: AtomicI8,
     icons: Icons,
 }
@@ -51,6 +53,7 @@ impl Material {
     fn with_icons(contrast: Contrast, icons: Icons) -> Self {
         Self {
             tokens: Mutex::new(TokenStore::new(SchemeSpec::default().contrast(contrast))),
+            pass: Mutex::new(None),
             density: AtomicI8::new(Density::DEFAULT.step()),
             icons,
         }
@@ -59,6 +62,19 @@ impl Material {
     /// Tokens of `theme`; widgets read `ui.tokens()` ([`MaterialExt`]).
     pub fn tokens(&self, theme: Theme) -> Arc<Tokens> {
         self.tokens.lock().tokens(theme)
+    }
+
+    fn pass_tokens(&self, pass: u64, theme: Theme) -> Arc<Tokens> {
+        let mut cache = self.pass.lock();
+        if let Some((p, t, tokens)) = &*cache
+            && *p == pass
+            && *t == theme
+        {
+            return Arc::clone(tokens);
+        }
+        let tokens = self.tokens.lock().tokens(theme);
+        *cache = Some((pass, theme, Arc::clone(&tokens)));
+        tokens
     }
 
     /// Makes `tokens` current for `tokens.theme()`; the other brightness and the preference stay.
@@ -155,13 +171,13 @@ pub type Rt = Runtime<Material>;
 
 /// Material state on a [`Rt`] or Material [`MineralUi`].
 pub trait MaterialExt {
-    /// Tokens of the current theme.
+    /// Tokens of the current theme, frozen for the egui pass: [`Material`] setters apply from the next pass.
     fn tokens(&self) -> Arc<Tokens>;
 }
 
 impl MaterialExt for Rt {
     fn tokens(&self) -> Arc<Tokens> {
-        self.kit().tokens(self.theme())
+        self.kit().pass_tokens(self.ctx().cumulative_pass_nr(), self.theme())
     }
 }
 

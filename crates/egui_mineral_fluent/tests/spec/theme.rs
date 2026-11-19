@@ -16,20 +16,28 @@ fn web_light_brand_background_is_brand_80() {
     );
 }
 
+// Tokens are frozen per egui pass.
+fn next_pass(ctx: &egui::Context) {
+    ctx.run_ui(egui::RawInput::default(), |_| {}).textures_delta.clear();
+}
+
 #[test]
 fn custom_brand_reaches_light_and_dark_but_not_high_contrast() {
     let ctx = egui::Context::default();
     let rt = runtime(&ctx, Theme::Light);
     let brand = BrandRamp([Color32::from_rgb(200, 10, 10); 16]);
     rt.kit().set_brand(&ctx, brand);
+    next_pass(&ctx);
     assert_eq!(
         rt.tokens().color(ColorToken::ColorBrandBackground),
         brand.step(BrandStep::S80)
     );
     rt.core().set_preference(ThemePreference::Dark);
+    next_pass(&ctx);
     assert_eq!(rt.tokens().scheme(), Scheme::WebDark);
     assert_eq!(rt.tokens().brand(), brand);
     rt.kit().set_high_contrast(&ctx, true);
+    next_pass(&ctx);
     let hc = rt.tokens();
     assert_eq!(hc.scheme(), Scheme::HighContrast);
     assert_eq!(
@@ -57,4 +65,29 @@ fn shadows_and_radii_follow_the_tokens() {
     assert_eq!(Radius::Medium.points(), 4.0);
     let pill = Radius::Circular.on(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(80.0, 32.0)));
     assert_eq!(pill.nw, 16);
+}
+
+#[test]
+fn a_setter_mid_pass_applies_from_the_next_pass() {
+    let ctx = egui::Context::default();
+    let rt = runtime(&ctx, Theme::Light);
+    let mut seen = Vec::new();
+    for _ in 0..2 {
+        ctx.run_ui(egui::RawInput::default(), |_| {
+            seen.push(rt.tokens().scheme());
+            rt.kit().set_high_contrast(&ctx, true);
+            seen.push(rt.tokens().scheme());
+        })
+        .textures_delta
+        .clear();
+    }
+    assert_eq!(
+        seen,
+        [
+            Scheme::WebLight,
+            Scheme::WebLight,
+            Scheme::HighContrast,
+            Scheme::HighContrast
+        ]
+    );
 }

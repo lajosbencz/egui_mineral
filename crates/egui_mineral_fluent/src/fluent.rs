@@ -25,6 +25,8 @@ use crate::{
 pub struct Fluent {
     high_contrast: AtomicBool,
     tokens: Mutex<TokenStore>,
+    // Scheme and tokens frozen for one egui pass: setters apply from the next pass, no frame mixes two schemes.
+    pass: Mutex<Option<PassTokens>>,
     icon_font: &'static [u8],
 }
 
@@ -41,6 +43,7 @@ impl Fluent {
         Self {
             high_contrast: AtomicBool::new(false),
             tokens: Mutex::new(TokenStore::new(BRAND_WEB)),
+            pass: Mutex::new(None),
             icon_font: ttf,
         }
     }
@@ -77,10 +80,37 @@ impl Fluent {
         }
     }
 
+    fn pass_tokens(&self, pass: u64, theme: Theme) -> (Scheme, Arc<Tokens>) {
+        let mut cache = self.pass.lock();
+        if let Some(c) = &*cache
+            && c.pass == pass
+            && c.theme == theme
+        {
+            return (c.scheme, Arc::clone(&c.tokens));
+        }
+        let scheme = self.scheme(theme);
+        let tokens = self.tokens.lock().tokens(scheme);
+        *cache = Some(PassTokens {
+            pass,
+            theme,
+            scheme,
+            tokens: Arc::clone(&tokens),
+        });
+        (scheme, tokens)
+    }
+
     /// Tokens of `scheme`; widgets read `ui.tokens()` ([`FluentExt`]).
     pub fn tokens(&self, scheme: Scheme) -> Arc<Tokens> {
         self.tokens.lock().tokens(scheme)
     }
+}
+
+#[derive(Debug)]
+struct PassTokens {
+    pass: u64,
+    theme: Theme,
+    scheme: Scheme,
+    tokens: Arc<Tokens>,
 }
 
 #[expect(clippy::disallowed_methods, reason = "one pass after the theme changed")]
@@ -109,8 +139,8 @@ impl Stylekit for Fluent {
         Ok(())
     }
 
-    fn style(&self, _: &Context, theme: Theme) -> Arc<Style> {
-        let scheme = self.scheme(theme);
+    fn style(&self, ctx: &Context, theme: Theme) -> Arc<Style> {
+        let (scheme, _) = self.pass_tokens(ctx.cumulative_pass_nr(), theme);
         self.tokens.lock().style(scheme)
     }
 
@@ -136,13 +166,13 @@ pub type Rt = Runtime<Fluent>;
 
 /// Fluent state on a [`Rt`] or Fluent [`MineralUi`].
 pub trait FluentExt {
-    /// Tokens of the current scheme.
+    /// Tokens of the current scheme, frozen for the egui pass: [`Fluent`] setters apply from the next pass.
     fn tokens(&self) -> Arc<Tokens>;
 }
 
 impl FluentExt for Rt {
     fn tokens(&self) -> Arc<Tokens> {
-        self.kit().tokens(self.kit().scheme(self.theme()))
+        self.kit().pass_tokens(self.ctx().cumulative_pass_nr(), self.theme()).1
     }
 }
 
