@@ -398,7 +398,10 @@ mod web {
 
 #[cfg(test)]
 mod tests {
-    use std::time::Instant;
+    use std::{
+        collections::{BTreeSet, HashSet},
+        time::Instant,
+    };
 
     use egui::RawInput;
     use egui_mineral::{
@@ -410,6 +413,8 @@ mod tests {
 
     const FRAME_BUDGET: usize = 20;
     const AGENT_DEADLINE: Duration = Duration::from_secs(5);
+    // Page overflow settles once its scroll bar appears.
+    const SETTLE: usize = 8;
 
     fn screen() -> RawInput {
         RawInput {
@@ -571,160 +576,95 @@ mod tests {
         assert_eq!(app.pages.navigation.last_action, "Command: Quit");
     }
 
+    /// Every page at each window class's narrowest width and at degenerate viewports, LTR and RTL, at density and
+    /// zoom extremes: no panic, id clash or duplicate agent key; at the baseline, no page wider than its window.
     #[test]
-    fn every_page_fits_every_window_class() {
-        // Settled overflow: wider content pushes the page scroll bar out of view.
-        const PASSES: usize = 8;
-        // Narrowest phone in portrait (dp); the other classes start at their breakpoints.
+    fn every_page_holds_up() {
+        use std::panic::{self, AssertUnwindSafe};
+
+        // Narrowest phone in portrait (dp); the other window classes start at their breakpoints.
         const COMPACT_MIN: f32 = 320.0;
-        let ctx = egui::Context::default();
-        let breakpoints = App::new(&ctx)
-            .expect("showcase app")
-            .rt
-            .core()
-            .policies()
-            .breakpoints
-            .clone();
-        let mut wide = Vec::new();
-        for width in std::iter::once(COMPACT_MIN).chain(breakpoints.iter().copied()) {
-            let ctx = egui::Context::default();
-            let mut app = App::new(&ctx).expect("showcase app");
-            for page in Page::ALL {
-                app.navigate(page);
-                let mut over = 0.0;
-                for _ in 0..PASSES {
-                    let raw = RawInput {
-                        screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(width, 900.0))),
-                        ..RawInput::default()
-                    };
-                    let mut out = ctx.run_ui(raw, |ui| {
-                        let page = app.shell(ui);
-                        over = page.content_size.x - page.inner_rect.width();
-                    });
-                    out.textures_delta.clear();
-                }
-                if over > 0.5 {
-                    wide.push(format!("{page:?} at {width}: {over:.1} px too wide"));
-                }
-            }
-        }
-        assert!(wide.is_empty(), "pages wider than the window:\n{}", wide.join("\n"));
-    }
-
-    #[test]
-    fn every_page_renders() {
-        let ctx = egui::Context::default();
-        let mut app = App::new(&ctx).expect("showcase app");
-        app.rt.set_collect_semantics(true);
-        for page in Page::ALL {
-            for _ in 0..FRAME_BUDGET {
-                let mut out = ctx.run_ui(screen(), |ui| {
-                    app.apply_settings();
-                    let rt = Arc::clone(&app.rt);
-                    rt.pass(ui, |ui| {
-                        CentralPanel::default().show(ui, |ui| {
-                            scroll::page(&mut rt.ui(ui), ("page", page.index()), |ui| {
-                                pages::show(page, ui, &mut app.pages, &mut app.shared);
-                            });
-                        });
-                    });
-                });
-                out.textures_delta.clear();
-                // egui paints id clashes as debug text (`Options::warn_on_id_clash`, on in debug builds).
-                let clashes: Vec<String> = out
-                    .shapes
-                    .iter()
-                    .filter_map(|c| match &c.shape {
-                        // "First use of {what} ID", "Second use of ...", "Double use of ..."
-                        egui::Shape::Text(t) if t.galley.text().contains(" use of ") => {
-                            Some(t.galley.text().to_owned())
-                        }
-                        _ => None,
-                    })
-                    .collect();
-                assert!(clashes.is_empty(), "{page:?}: id clashes {clashes:?}");
-                if !ctx.requested_repaint_last_pass() {
-                    break;
-                }
-            }
-            let tree = app.rt.tree(egui::ViewportId::ROOT).expect("semantic tree collected");
-            let mut seen = std::collections::HashSet::new();
-            let dups: Vec<_> = tree
-                .nodes
-                .iter()
-                .filter(|n| !seen.insert(n.id.key()))
-                .map(|n| n.id.key())
-                .collect();
-            assert!(dups.is_empty(), "{page:?}: duplicate agent keys {dups:?}");
-        }
-    }
-
-    #[test]
-    fn every_page_survives_degenerate_layouts() {
-        use std::{
-            collections::BTreeSet,
-            panic::{self, AssertUnwindSafe},
-            sync::{Arc, Mutex},
-        };
-
-        const VIEWPORTS: [egui::Vec2; 5] = [
+        const DEGENERATE: [egui::Vec2; 4] = [
             egui::Vec2::ZERO,
             egui::vec2(1.0, 1.0),
             egui::vec2(40.0, 40.0),
-            egui::vec2(320.0, 568.0),
             egui::vec2(4000.0, 3000.0),
         ];
         let rtl = LOCALES.iter().position(|l| *l == "ar-EG").expect("an RTL locale");
-        let sites = Arc::new(Mutex::new(BTreeSet::new()));
-        let hook = panic::take_hook();
-        let record = Arc::clone(&sites);
-        panic::set_hook(Box::new(move |info| {
-            let at = info.location().map_or_default(|l| format!("{}:{}", l.file(), l.line()));
-            let msg = info.payload_as_str().unwrap_or_default().to_owned();
-            record.lock().expect("panic log").insert(format!("{at}: {msg}"));
-        }));
         let fresh = |locale, density, zoom| {
             let ctx = egui::Context::default();
             ctx.set_zoom_factor(zoom);
             let mut app = App::new(&ctx).expect("showcase app");
+            app.rt.set_collect_semantics(true);
             app.shared.settings.locale = locale;
             app.shared.settings.density = density;
             (ctx, app)
         };
+        let classes: Vec<egui::Vec2> = std::iter::once(COMPACT_MIN)
+            .chain(fresh(0, 0, 1.0).1.rt.core().policies().breakpoints.iter().copied())
+            .map(|w| egui::vec2(w, 900.0))
+            .collect();
         let mut failed = Vec::new();
-        for (locale, density, zoom) in [(0, 0, 1.0), (rtl, -3, 0.5), (0, -3, 3.0), (rtl, 0, 3.0)] {
+        let configs = [(0, 0, 1.0), (rtl, -3, 0.5), (0, -3, 3.0), (rtl, 0, 3.0)];
+        for (i, (locale, density, zoom)) in configs.into_iter().enumerate() {
             let (mut ctx, mut app) = fresh(locale, density, zoom);
-            for size in VIEWPORTS {
+            for size in DEGENERATE.into_iter().chain(classes.iter().copied()) {
+                let width = i == 0 && classes.contains(&size);
                 for page in Page::ALL {
-                    let run = panic::catch_unwind(AssertUnwindSafe(|| {
-                        app.navigate(page);
-                        for _ in 0..2 {
-                            let raw = RawInput {
-                                screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, size)),
-                                ..RawInput::default()
-                            };
-                            let mut out = ctx.run_ui(raw, |ui| {
-                                app.shell(ui);
-                            });
-                            out.textures_delta.clear();
-                        }
-                    }));
-                    if run.is_err() {
-                        failed.push(format!(
-                            "{page:?} {size:?} locale={locale} density={density} zoom={zoom}"
-                        ));
+                    let case = format!("{page:?} {size:?} locale={locale} density={density} zoom={zoom}");
+                    let run = panic::catch_unwind(AssertUnwindSafe(|| check(&ctx, &mut app, page, size, width)));
+                    if let Ok(problems) = run {
+                        failed.extend(problems.into_iter().map(|p| format!("{case}: {p}")));
+                    } else {
+                        failed.push(format!("{case}: panicked"));
                         (ctx, app) = fresh(locale, density, zoom);
                     }
                 }
             }
         }
-        panic::set_hook(hook);
-        let sites = sites.lock().expect("panic log");
         assert!(
             failed.is_empty(),
-            "{} cases panicked at:\n{}",
+            "{} failures (panic messages above):\n{}",
             failed.len(),
-            sites.iter().cloned().collect::<Vec<_>>().join("\n")
+            failed.join("\n")
         );
+    }
+
+    /// Shows `page` until settled; `width` also checks that it fits its window.
+    fn check(ctx: &egui::Context, app: &mut App, page: Page, size: egui::Vec2, width: bool) -> BTreeSet<String> {
+        app.navigate(page);
+        let mut problems = BTreeSet::new();
+        let mut over = 0.0;
+        for _ in 0..if width { SETTLE } else { 2 } {
+            let raw = RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, size)),
+                ..RawInput::default()
+            };
+            let mut out = ctx.run_ui(raw, |ui| {
+                let page = app.shell(ui);
+                over = page.content_size.x - page.inner_rect.width();
+            });
+            out.textures_delta.clear();
+            // egui paints id clashes as debug text (`Options::warn_on_id_clash`, on in debug builds):
+            // "First use of {what} ID", "Second use of ...", "Double use of ...".
+            problems.extend(out.shapes.iter().filter_map(|c| match &c.shape {
+                egui::Shape::Text(t) if t.galley.text().contains(" use of ") => {
+                    Some(format!("id clash: {}", t.galley.text()))
+                }
+                _ => None,
+            }));
+        }
+        if width && over > 0.5 {
+            problems.insert(format!("{over:.1} px too wide"));
+        }
+        let tree = app.rt.tree(egui::ViewportId::ROOT).expect("semantic tree collected");
+        let mut seen = HashSet::new();
+        problems.extend(
+            tree.nodes
+                .iter()
+                .filter(|n| !seen.insert(n.id.key()))
+                .map(|n| format!("duplicate agent key {:?}", n.id.key())),
+        );
+        problems
     }
 }
