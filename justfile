@@ -147,6 +147,10 @@ api-diff base head="HEAD":
 # Every Hygiene job
 hygiene: typos deny rules machete workflows
 
+# Native showcase under `dx` subsecond hot-patching; needs `cargo install dioxus-cli --version 0.7.10 --locked`
+hotpatch:
+    dx serve --hotpatch --platform linux --package showcase --features hotpatch
+
 # CI runs crate-ci/typos
 typos:
     typos

@@ -18,6 +18,8 @@ futures-util.workspace = true
 serde.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+subsecond = { version = "0.7.10", optional = true }
+dioxus-devtools = { version = "0.7.10", optional = true }
 egui_mineral_material = { workspace = true, features = ["theme-file"] }
 tracing-subscriber.workspace = true
 futures-executor.workspace = true
@@ -34,6 +36,10 @@ web-sys = { workspace = true, features = ["Window", "Document", "Element", "Html
 [build-dependencies]
 allsorts.workspace = true
 serde_json.workspace = true
+
+[features]
+# Dev only: `just hotpatch`.
+hotpatch = ["dep:subsecond", "dep:dioxus-devtools"]
 
 [lints]
 workspace = true
