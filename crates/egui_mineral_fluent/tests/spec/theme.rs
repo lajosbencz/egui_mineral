@@ -91,3 +91,24 @@ fn a_setter_mid_pass_applies_from_the_next_pass() {
         ]
     );
 }
+
+#[test]
+fn set_brand_mid_pass_keeps_style_for_the_pass() {
+    use egui_mineral::runtime::Stylekit;
+    let ctx = egui::Context::default();
+    let rt = runtime(&ctx, Theme::Light);
+    let mut styles = Vec::new();
+    for _ in 0..2 {
+        ctx.run_ui(egui::RawInput::default(), |_| {
+            styles.push(rt.kit().style(&ctx, Theme::Light));
+            rt.kit()
+                .set_brand(&ctx, BrandRamp([Color32::from_rgb(200, 10, 10); 16]));
+            styles.push(rt.kit().style(&ctx, Theme::Light));
+        })
+        .textures_delta
+        .clear();
+    }
+    assert!(std::sync::Arc::ptr_eq(&styles[0], &styles[1]), "frozen within pass 1");
+    assert!(!std::sync::Arc::ptr_eq(&styles[1], &styles[2]), "new brand from pass 2");
+    assert!(std::sync::Arc::ptr_eq(&styles[2], &styles[3]), "frozen within pass 2");
+}

@@ -6,6 +6,7 @@ use std::sync::{
 use egui::{Context, Style, Theme};
 use egui_mineral::{
     i18n::Catalog,
+    kit::state::PassCache,
     policy::Policies,
     runtime::{Runtime, Stylekit},
     widget::MineralUi,
@@ -26,7 +27,7 @@ pub struct Fluent {
     high_contrast: AtomicBool,
     tokens: Mutex<TokenStore>,
     // Scheme and tokens frozen for one egui pass: setters apply from the next pass, no frame mixes two schemes.
-    pass: Mutex<Option<PassTokens>>,
+    pass: PassCache<Theme, PassState>,
     icon_font: &'static [u8],
 }
 
@@ -43,7 +44,7 @@ impl Fluent {
         Self {
             high_contrast: AtomicBool::new(false),
             tokens: Mutex::new(TokenStore::new(BRAND_WEB)),
-            pass: Mutex::new(None),
+            pass: PassCache::default(),
             icon_font: ttf,
         }
     }
@@ -80,23 +81,15 @@ impl Fluent {
         }
     }
 
-    fn pass_tokens(&self, pass: u64, theme: Theme) -> (Scheme, Arc<Tokens>) {
-        let mut cache = self.pass.lock();
-        if let Some(c) = &*cache
-            && c.pass == pass
-            && c.theme == theme
-        {
-            return (c.scheme, Arc::clone(&c.tokens));
-        }
-        let scheme = self.scheme(theme);
-        let tokens = self.tokens.lock().tokens(scheme);
-        *cache = Some(PassTokens {
-            pass,
-            theme,
-            scheme,
-            tokens: Arc::clone(&tokens),
-        });
-        (scheme, tokens)
+    fn pass_state(&self, pass: u64, theme: Theme) -> PassState {
+        self.pass.get_or_insert(pass, theme, || {
+            let scheme = self.scheme(theme);
+            let store = self.tokens.lock();
+            PassState {
+                tokens: store.tokens(scheme),
+                style: store.style(scheme),
+            }
+        })
     }
 
     /// Tokens of `scheme`; widgets read `ui.tokens()` ([`FluentExt`]).
@@ -105,12 +98,10 @@ impl Fluent {
     }
 }
 
-#[derive(Debug)]
-struct PassTokens {
-    pass: u64,
-    theme: Theme,
-    scheme: Scheme,
+#[derive(Debug, Clone)]
+struct PassState {
     tokens: Arc<Tokens>,
+    style: Arc<Style>,
 }
 
 #[expect(clippy::disallowed_methods, reason = "one pass after the theme changed")]
@@ -140,8 +131,7 @@ impl Stylekit for Fluent {
     }
 
     fn style(&self, ctx: &Context, theme: Theme) -> Arc<Style> {
-        let (scheme, _) = self.pass_tokens(ctx.cumulative_pass_nr(), theme);
-        self.tokens.lock().style(scheme)
+        self.pass_state(ctx.cumulative_pass_nr(), theme).style
     }
 
     fn paint_window_close(&self, ui: &egui::Ui, visual: egui::Rect, response: &egui::Response) {
@@ -172,7 +162,9 @@ pub trait FluentExt {
 
 impl FluentExt for Rt {
     fn tokens(&self) -> Arc<Tokens> {
-        self.kit().pass_tokens(self.ctx().cumulative_pass_nr(), self.theme()).1
+        self.kit()
+            .pass_state(self.ctx().cumulative_pass_nr(), self.theme())
+            .tokens
     }
 }
 

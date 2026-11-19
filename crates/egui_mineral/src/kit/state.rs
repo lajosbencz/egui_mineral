@@ -88,9 +88,57 @@ impl<T> Memo<T> {
     }
 }
 
+/// Value derived once per egui pass and key; a new pass or key recomputes it. Stylekits freeze setter-driven
+/// state (tokens, styles) with it, so no frame mixes two states.
+#[derive(Debug)]
+pub struct PassCache<K, V> {
+    slot: parking_lot::Mutex<Option<(u64, K, V)>>,
+}
+
+impl<K, V> Default for PassCache<K, V> {
+    fn default() -> Self {
+        Self {
+            slot: parking_lot::Mutex::new(None),
+        }
+    }
+}
+
+impl<K: PartialEq, V: Clone> PassCache<K, V> {
+    /// Value cached for `key` in egui pass `pass` (`Context::cumulative_pass_nr`); otherwise `compute()`.
+    /// `compute` runs under the cache lock and must not re-enter it.
+    pub fn get_or_insert(&self, pass: u64, key: K, compute: impl FnOnce() -> V) -> V {
+        let mut slot = self.slot.lock();
+        if let Some((p, k, v)) = &*slot
+            && *p == pass
+            && *k == key
+        {
+            return v.clone();
+        }
+        let v = compute();
+        *slot = Some((pass, key, v.clone()));
+        v
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn pass_cache_recomputes_per_pass_and_key() {
+        let cache = PassCache::<u8, u32>::default();
+        let mut calls = 0;
+        let mut get = |pass, key| {
+            cache.get_or_insert(pass, key, || {
+                calls += 1;
+                calls
+            })
+        };
+        assert_eq!(get(1, 0), 1);
+        assert_eq!(get(1, 0), 1, "same pass and key");
+        assert_eq!(get(1, 1), 2, "new key");
+        assert_eq!(get(2, 1), 3, "new pass");
+    }
 
     #[test]
     fn memo_recomputes_only_when_inputs_change() {
