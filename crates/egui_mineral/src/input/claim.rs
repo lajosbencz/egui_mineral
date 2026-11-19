@@ -61,7 +61,6 @@ impl PanClaim {
     }
 }
 
-/// Pan and release velocity of a declined pan, forwarded to the enclosing scroll area by the pass.
 #[derive(Clone, Copy, Debug, Default)]
 pub(crate) struct Relay {
     pub(crate) origin: Option<Pos2>,
@@ -69,7 +68,6 @@ pub(crate) struct Relay {
 }
 
 impl Relay {
-    /// Runs before the app's `Ui`; `pan` is this pass's.
     pub(crate) fn step(&mut self, ui: &Ui, fling: &Fling, pan: Option<PanFrame>) {
         if let Some(origin) = self.origin {
             match pan.filter(|p| p.origin == origin) {

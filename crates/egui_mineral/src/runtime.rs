@@ -269,13 +269,11 @@ impl Core {
         }
     }
 
-    /// Coasts `velocity` (points/s, pointer direction) on the enclosing scroll area of the current viewport until it decays.
     pub(crate) fn coast(&self, velocity: Vec2) {
         let viewport = self.ctx.viewport_id();
         self.passes.with(viewport, |st| st.relay.coast = velocity);
     }
 
-    /// Relays the pan pressed at `origin` to the enclosing scroll area from the next pass on.
     pub(crate) fn relay(&self, origin: Pos2) {
         let viewport = self.ctx.viewport_id();
         self.passes.with(viewport, |st| st.relay.origin = Some(origin));
