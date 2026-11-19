@@ -150,7 +150,13 @@ api-diff base head="HEAD":
         git show "$1:crates/$2/Cargo.toml" | sed -nE '0,/^version/s/^version = "([0-9]+)\.([0-9]+)\..*/\1 \2/p' \
             | awk '{ print ($1 == "0") ? "0." $2 : $1 }'
     }
+    # Stable features of `crate` at `ref`; both commits build with the ones they share.
+    features() {
+        git show "$1:crates/$2/Cargo.toml" | awk '/^\[features\]/ { f = 1; next } /^\[/ { f = 0 } f && /^[a-z0-9_-]+ *=/ { print $1 }' \
+            | grep -v '^unstable' | grep -vx default | sort
+    }
     for crate in egui_mineral egui_mineral_material; do
+    features=$(comm -12 <(features "{{ base }}" "$crate") <(features "{{ head }}" "$crate") | paste -sd, -)
     deny=(--deny removed --deny changed)
     if [ "$(breaking "{{ base }}" "$crate")" != "$(breaking "{{ head }}" "$crate")" ]; then
         deny=()
@@ -159,8 +165,6 @@ api-diff base head="HEAD":
     for target in x86_64-unknown-linux-gnu wasm32-unknown-unknown; do
         echo "## \`$crate\` ($target)" | tee -a "$summary"
         echo '```diff' >> "$summary"
-        features=$(cargo metadata --no-deps --format-version 1 | jq -r --arg c "$crate" \
-            '.packages[] | select(.name == $c) | .features | keys | map(select(startswith("unstable") | not)) | join(",")')
         cargo public-api -p "$crate" --features "$features" --target "$target" -sss diff "${deny[@]}" "{{ base }}..{{ head }}" \
             | tee -a "$summary" || status=1
         echo '```' >> "$summary"
