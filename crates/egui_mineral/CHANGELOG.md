@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral-v0.3.0...egui_mineral-v0.3.1) - 2026-11-19
+
+### Added
+
+- *(core)* unstable-hotpatch feature wires Dioxus subsecond into Runtime for dx serve --hotpatch.
+
+### Fixed
+
+- *(core)* hotpatch recipe forces the relink dx 0.7.10 misses under cargo's build-dir layout; blocker recorded.
+
 ## [0.3.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral-v0.2.0...egui_mineral-v0.3.0) - 2026-11-19
 
 ### Added
