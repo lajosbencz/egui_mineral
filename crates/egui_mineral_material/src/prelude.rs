@@ -17,13 +17,13 @@ pub use crate::containment::{
     FullScreenDialog, ListControl, ListItem, ListLines, ListSlot, ListVisual, SideSheet, SwipeAction,
 };
 pub use crate::extras::{
-    Accordion, AccordionPanel, AccordionUi, Alert, AlertVariant, Avatar, AvatarGroup, AvatarSize, Breadcrumbs,
-    ColorPicker, ColorSpace, Combobox, CommandPalette, DataTable, DateField, DescriptionItem, DescriptionLayout,
-    DescriptionList, EmptyPlaceholder, FileDropZone, FloatingPanel, HoverCard, ImageList, ImageListLayout, ImageTile,
-    InlineEdit, Kbd, MenuStrip, NumberField, OtpField, Pagination, PaletteCommand, Popover, Rating, ReorderableList,
-    SettingRow, Severity, Skeleton, SkeletonShape, SplitPane, Statistic, StatusBar, StatusItem, StatusTone, StepLabel,
-    Stepper, TableCell, TableColumn, TagsField, TextLink, Timeline, TimelineItem, Tour, TourStep, TransferList,
-    TreeView, Trend,
+    Accordion, AccordionPanel, AccordionUi, AccordionVariant, Alert, AlertVariant, Avatar, AvatarGroup, AvatarSize,
+    Breadcrumbs, ColorPicker, ColorSpace, Combobox, CommandPalette, DataTable, DateField, DescriptionItem,
+    DescriptionLayout, DescriptionList, EmptyPlaceholder, FileDropZone, FloatingPanel, HoverCard, ImageList,
+    ImageListLayout, ImageTile, InlineEdit, Kbd, MenuStrip, NumberField, OtpField, Pagination, PaletteCommand, Popover,
+    Rating, ReorderableList, SettingRow, Severity, Skeleton, SkeletonShape, SplitPane, Statistic, StatusBar,
+    StatusItem, StatusTone, StepLabel, Stepper, TableCell, TableColumn, TagsField, TextLink, Timeline, TimelineItem,
+    Tour, TourStep, TransferList, TreeView, Trend,
 };
 pub use crate::navigation::{
     DockedToolbar, FloatingToolbar, NavDestination, NavLabels, NavigationBar, NavigationDrawer, NavigationRail,

@@ -4,7 +4,7 @@ use egui_mineral_material::{
     extras::{Accordion, AccordionPanel, Avatar, DataTable, Pagination, Rating, SettingRow, TableCell, TreeView},
     spec::{
         defaults::list as list_defaults,
-        tokens::{button_small, divider, filled_tonal_button, list, small_icon_button},
+        tokens::{button_small, divider, expanded_list, filled_tonal_button, list, outlined_card, small_icon_button},
     },
 };
 
@@ -102,6 +102,31 @@ fn accordion_headers_are_list_items() {
         (p.text("One").center().y - (p.outer.top() + one / 2.0)).abs() < 1.0,
         "one-line headline centers in its row"
     );
+}
+
+#[test]
+fn flat_accordion_is_a_plain_section_header_without_a_container() {
+    use egui_mineral_material::{MaterialUiExt as _, adaptive::Density, extras::AccordionVariant};
+    let mut expansion = Expansion::default();
+    let p = render(|ui| {
+        ui.with_density(Density::MIN, |ui| {
+            Accordion::new("acc", &mut expansion)
+                .variant(AccordionVariant::Flat)
+                .show(ui, |a| {
+                    a.panel("One", |_| ());
+                });
+        });
+    });
+    let one = list::ITEM_ONE_LINE_CONTAINER_HEIGHT;
+    assert!(
+        p.outer.height() < one + divider::THICKNESS,
+        "dense header, divider below"
+    );
+    assert!(p.outer.height() >= divider::THICKNESS);
+    assert_eq!(p.text("One").left(), p.outer.left(), "no start padding");
+    assert_eq!(p.filled(expanded_list::EXPANDED_ITEM_CONTAINER_COLOR), []);
+    assert_eq!(p.stroked(outlined_card::OUTLINE_COLOR), []);
+    assert!(!p.filled(divider::COLOR).is_empty(), "divider under the header");
 }
 
 #[test]

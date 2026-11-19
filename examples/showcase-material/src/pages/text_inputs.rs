@@ -74,6 +74,7 @@ pub(crate) struct State {
     rejected: Vec<String>,
     inspector_name: String,
     inspector: [f64; 4],
+    inspector_open: Expansion<usize>,
 }
 
 impl Default for State {
@@ -125,6 +126,10 @@ impl Default for State {
             inline_heading: "Project Mineral".to_owned(),
             inspector_name: "Rectangle 1".to_owned(),
             inspector: [120.0, 48.0, 15.0, 80.0],
+            inspector_open: (0..3).fold(Expansion::default(), |mut e, i| {
+                e.expand(i);
+                e
+            }),
         }
     }
 }
@@ -731,52 +736,76 @@ fn inspector(ui: &mut Mui<'_>, s: &mut State) {
         caption(
             ui,
             TypeScale::LabelMedium,
-            "Density -6: label column, label-less fields, units as suffixes",
+            "Density -6, flat accordion groups: label column, label-less fields, units as suffixes",
         );
         let [x, y, angle, opacity] = &mut s.inspector;
         let name = &mut s.inspector_name;
-        rt.ui(ui).with_density(Density::MIN, |ui| {
-            egui::Grid::new("ti-inspector")
+        let group = |ui: &mut Mui<'_>, id, rows: &mut dyn FnMut(&mut egui::Ui)| {
+            egui::Grid::new(id)
                 .num_columns(2)
+                .min_col_width(64.0)
                 .spacing([16.0, 4.0])
-                .show(ui, |g| {
-                    g.label("Name");
-                    rt.ui(g).mineral(
-                        TextField::new("ti-insp-name", "Name", name)
-                            .variant(TextFieldVariant::Outlined)
-                            .label_visible(false)
-                            .preferred_width(200.0),
-                    );
-                    g.end_row();
-                    for (id, label, unit, v) in [
-                        ("x", "X", "px", x),
-                        ("y", "Y", "px", y),
-                        ("angle", "Angle", "deg", angle),
-                    ] {
-                        g.label(label);
-                        rt.ui(g).mineral(
-                            NumberField::new(("ti-insp", id), label, RangeModel::new(-360.0, 360.0).step(1.0), v)
-                                .variant(TextFieldVariant::Outlined)
-                                .label_visible(false)
-                                .step_buttons(false)
-                                .scrub(true)
-                                .suffix(unit)
+                .show(ui, |g| rows(g));
+        };
+        rt.ui(ui).with_density(Density::MIN, |ui| {
+            Accordion::new("ti-insp-acc", &mut s.inspector_open)
+                .variant(AccordionVariant::Flat)
+                .show(ui, |a| {
+                    let title = |t| AccordionPanel::new(t).title_style(TypeScale::TitleSmall);
+                    a.panel(title("Identity"), |ui| {
+                        group(ui, "ti-insp-identity", &mut |g| {
+                            g.label("Name");
+                            rt.ui(g).mineral(
+                                TextField::new("ti-insp-name", "Name", name)
+                                    .variant(TextFieldVariant::Outlined)
+                                    .label_visible(false)
+                                    .preferred_width(200.0),
+                            );
+                            g.end_row();
+                        });
+                    });
+                    a.panel(title("Transform"), |ui| {
+                        group(ui, "ti-insp-transform", &mut |g| {
+                            for (id, label, unit, v) in [
+                                ("x", "X", "px", &mut *x),
+                                ("y", "Y", "px", &mut *y),
+                                ("angle", "Angle", "deg", &mut *angle),
+                            ] {
+                                g.label(label);
+                                rt.ui(g).mineral(
+                                    NumberField::new(
+                                        ("ti-insp", id),
+                                        label,
+                                        RangeModel::new(-360.0, 360.0).step(1.0),
+                                        v,
+                                    )
+                                    .variant(TextFieldVariant::Outlined)
+                                    .label_visible(false)
+                                    .step_buttons(false)
+                                    .scrub(true)
+                                    .suffix(unit)
+                                    .preferred_width(200.0),
+                                );
+                                g.end_row();
+                            }
+                        });
+                    });
+                    a.panel(title("Appearance"), |ui| {
+                        group(ui, "ti-insp-appearance", &mut |g| {
+                            g.label("Opacity");
+                            rt.ui(g).mineral(
+                                ValueSlider::new(
+                                    "ti-insp-opacity",
+                                    "Opacity",
+                                    RangeModel::new(0.0, 100.0).step(1.0),
+                                    &mut *opacity,
+                                )
+                                .value_field(true)
                                 .preferred_width(200.0),
-                        );
-                        g.end_row();
-                    }
-                    g.label("Opacity");
-                    rt.ui(g).mineral(
-                        ValueSlider::new(
-                            "ti-insp-opacity",
-                            "Opacity",
-                            RangeModel::new(0.0, 100.0).step(1.0),
-                            opacity,
-                        )
-                        .value_field(true)
-                        .preferred_width(200.0),
-                    );
-                    g.end_row();
+                            );
+                            g.end_row();
+                        });
+                    });
                 });
         });
     });

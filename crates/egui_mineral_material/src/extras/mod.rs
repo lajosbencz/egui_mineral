@@ -41,7 +41,9 @@ pub(crate) mod tour;
 pub(crate) mod transfer;
 pub(crate) mod tree_view;
 
-pub use accordion::{Accordion, AccordionPanel, AccordionPanelResponse, AccordionResponse, AccordionUi};
+pub use accordion::{
+    Accordion, AccordionPanel, AccordionPanelResponse, AccordionResponse, AccordionUi, AccordionVariant,
+};
 pub use alert::{Alert, AlertResponse, AlertVariant, Severity};
 pub use avatar::{Avatar, AvatarGroup, AvatarSize};
 pub use color_picker::{ColorPicker, ColorSpace};
