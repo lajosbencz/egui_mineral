@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral-v0.4.0...egui_mineral-v0.4.1) - 2026-11-19
+
+### Added
+
+- *(core)* FileFilter::directory resolves when the dialog opens (an existing file proposes itself in its folder, a missing path opens its parent), FileFilter::start names that intent.
+- *(core)* PlatformPathPickers returns picked file paths without reading them.
+
 ## [0.4.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral-v0.3.1...egui_mineral-v0.4.0) - 2026-11-19
 
 ### Added
