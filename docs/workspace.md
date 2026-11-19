@@ -32,7 +32,7 @@ Module map, config, commands and release. Overview: [WORKSPACE.md](../WORKSPACE.
 | [`sgconfig.yml`](../sgconfig.yml), [`lints/rules`](../lints/rules) | ast-grep rules and their tests |
 | [`_typos.toml`](../_typos.toml), [`rustfmt.toml`](../rustfmt.toml), [`.editorconfig`](../.editorconfig) | Spelling, formatting |
 | [`.config/nextest.toml`](../.config/nextest.toml) | Test profiles (`ci`) |
-| [`release-plz.toml`](../release-plz.toml) | Release grouping |
+| [`release-plz.toml`](../release-plz.toml) | Release config |
 | [`.github/workflows`](../.github/workflows) | `ci`, `hygiene`, `pages`, `release-plz`, `dependabot-automerge` |
 
 ## Commands
@@ -45,6 +45,8 @@ Not in CI: `cargo bench -p egui_mineral`, `cargo run -p showcase` (F12: inspecto
 
 Paused: `release = false` in [`release-plz.toml`](../release-plz.toml) until trusted publishing is set up.
 
-Automated by [`release-plz.toml`](../release-plz.toml) and [`release-plz.yml`](../.github/workflows/release-plz.yml): merging the release pull request publishes the published crates in lockstep and tags `vX.Y.Z`. `CHANGELOG.md` is generated, never hand-edited.
-[`pages.yml`](../.github/workflows/pages.yml) deploys, on each release, the static index ([`.github/pages`](../.github/pages)) with the showcase's wasm build under `material/`.
+Automated by [`release-plz.toml`](../release-plz.toml) and [`release-plz.yml`](../.github/workflows/release-plz.yml): merging the release pull request publishes the changed crates and tags `<crate>-vX.Y.Z` with a git release each. Each published crate has its own `crates/<crate>/CHANGELOG.md` (generated, never hand-edited); the root [`CHANGELOG.md`](../CHANGELOG.md) is the frozen history up to 0.2.0.
+Versions are per crate, but the published crates share the breaking component (0.MINOR, MAJOR from 1.0): release-plz has no shared-minor option (`version_group` forces identical full versions), and bumps a dependent only by a patch. A breaking release therefore starts with a PR running `just bump-breaking <version>` (sets all three crates and the workspace requirements; release-plz publishes manifest versions that are not yet released as they are). `just versions-check` fails a PR when they diverge. Patch releases are plain release-plz runs: workspace requirements are carets, so a patch of one crate does not release the others.
+`just minimal-versions` (nightly `-Z direct-minimal-versions`) keeps the requirement lower bounds honest; raise a bound by hand when a crate starts using a newer sibling API.
+[`pages.yml`](../.github/workflows/pages.yml) deploys, on each published crate release, the static index ([`.github/pages`](../.github/pages)) with the showcase's wasm build under `material/`.
 [`dependabot.yml`](../.github/dependabot.yml) and [`dependabot-automerge.yml`](../.github/workflows/dependabot-automerge.yml) keep dependencies and pinned actions current.

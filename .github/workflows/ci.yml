@@ -117,7 +117,7 @@ jobs:
         run: |
           base=$BASE_SHA
           if [[ $HEAD_REF == release-plz-* ]]; then
-            base=$(git describe --tags --abbrev=0 --match 'v*' "$BASE_SHA" || echo "$BASE_SHA")
+            base=$(git describe --tags --abbrev=0 --match 'egui_mineral-v*' "$BASE_SHA" || echo "$BASE_SHA")
           fi
           just api-diff "$base" "$HEAD_SHA"
 

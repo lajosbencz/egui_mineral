@@ -1,6 +1,6 @@
 # Single source of the checks: .github/workflows/{ci,hygiene}.yml call these recipes.
 # Tools: `just tools`; cargo-nextest, icu4x-datagen, a nightly toolchain, cargo-deny, cargo-machete,
-# cargo-rdme, typos, ast-grep, actionlint, shellcheck, zizmor; `api-diff` also needs cargo-public-api.
+# cargo-rdme, typos, ast-grep, actionlint, shellcheck, zizmor; `api-diff` also needs cargo-public-api, `bump-breaking` cargo-edit.
 
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
@@ -8,6 +8,7 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 machete_version := "0.9.2"
 rdme_version := "2.2.3"
 public_api_version := "0.52.0"
+cargo_edit_version := "0.13.14"
 zizmor_version := "1.32.0"
 ast_grep_version := "0.51.2"
 # Release asset digests of the downloaded binaries, CI only.
@@ -22,7 +23,7 @@ default:
 # Installs the check tools with cargo at the pinned versions, and a nightly toolchain
 tools: icu-datagen
     cargo install --locked cargo-nextest cargo-deny typos-cli
-    cargo install --locked cargo-machete@{{ machete_version }} cargo-rdme@{{ rdme_version }} ast-grep@{{ ast_grep_version }} zizmor@{{ zizmor_version }}
+    cargo install --locked cargo-machete@{{ machete_version }} cargo-rdme@{{ rdme_version }} ast-grep@{{ ast_grep_version }} zizmor@{{ zizmor_version }} cargo-edit@{{ cargo_edit_version }}
     rustup toolchain install nightly --profile minimal --target wasm32-unknown-unknown
     @command -v actionlint >/dev/null || echo "actionlint {{ actionlint_version }} is not on crates.io: https://github.com/rhysd/actionlint"
     @command -v shellcheck >/dev/null || echo "shellcheck is not on crates.io: install it with the system package manager"
@@ -31,7 +32,7 @@ tools: icu-datagen
 ci: check hygiene
 
 # CI "Check" job
-check: fmt clippy test icu-trimmed doc readme-check package
+check: fmt clippy test icu-trimmed doc readme-check package versions-check minimal-versions
 
 fmt:
     cargo fmt --all --check
@@ -86,6 +87,30 @@ readme-check:
 # Unverified: verification resolves sibling crates from crates.io, which lacks unreleased APIs. Dirty: runs before committing.
 package:
     cargo package --no-verify --allow-dirty -p egui_mineral -p egui_mineral_macros -p egui_mineral_material
+
+# Published crates share 0.MINOR (MAJOR from 1.0)
+versions-check:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cargo metadata --no-deps --format-version 1 | jq -e --arg crates "{{ readme_crates }}" '
+        [.packages[] | select(.name | IN($crates | split(" ")[])) | .version | split(".") | if .[0] == "0" then .[0:2] else .[0:1] end | join(".")]
+        | unique | length == 1' >/dev/null \
+        || { echo "published crates differ in breaking version: run just bump-breaking <version>"; exit 1; }
+
+# Sets every published crate to <version> (a breaking release, e.g. 0.3.0) and the workspace dependency requirements
+bump-breaking version:
+    for c in {{ readme_crates }}; do cargo set-version -p "$c" "{{ version }}"; done
+    sed -i -E '/^egui_mineral(_macros|_material)? = /s/version = "[^"]*"/version = "{{ version }}"/' Cargo.toml
+    cargo update --workspace
+
+# Lower bounds of the direct dependencies hold (nightly -Z direct-minimal-versions, lockfile restored)
+minimal-versions:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    lock=$(mktemp)
+    cp Cargo.lock "$lock"
+    trap 'cp "$lock" Cargo.lock; rm -f "$lock"' EXIT
+    cargo +nightly check --workspace --all-features -Z direct-minimal-versions
 
 # Regenerates the MD3 spec; fails when it changed (non-blocking in CI)
 spec:

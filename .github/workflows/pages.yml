@@ -1,6 +1,6 @@
 name: Pages
 
-# The showcase tracks the released crates; release-plz publishes releases with the App token, so they trigger this.
+# The showcase tracks the released crates; release-plz publishes one release per crate with the App token, so each triggers this.
 on:
   release:
     types: [published]
