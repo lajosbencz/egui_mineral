@@ -191,3 +191,52 @@ fn resizable_side_sheet_drags_and_steps_within_its_range() {
     h.press(Key::ArrowRight);
     assert!(h.rect("sheet-side-sheet").width() < 380.0, "toward the end shrinks it");
 }
+
+#[test]
+fn side_sheet_edge_docks_and_slides_at_the_start_in_both_directions() {
+    use egui_mineral::{i18n::Direction, layout::Edge};
+    for (dir, left) in [(Direction::Ltr, true), (Direction::Rtl, false)] {
+        let pass = crate::support::render_directed(dir, WIDE, |ui| {
+            let mut open = true;
+            SideSheet::new("sheet").edge(Edge::Start).width(200.0).show(ui, &mut open, |_| {});
+        });
+        let sheet = pass.tree.find_key("sheet-side-sheet").expect("sheet").rect;
+        let near_left = sheet.center().x < WIDE.x / 2.0;
+        assert_eq!(near_left, left, "{dir:?}: sheet at the reading start, {sheet:?}");
+    }
+    let pass = crate::support::render_directed(Direction::Ltr, WIDE, |ui| {
+        let mut open = true;
+        SideSheet::new("sheet").edge(Edge::Start).width(200.0).show_modal(ui.rt(), &mut open, |_| {});
+    });
+    let sheet = pass.tree.find_key("sheet-side-sheet").expect("modal sheet").rect;
+    assert!(sheet.left().abs() < 1.0, "modal at the start: {sheet:?}");
+    let pass = crate::support::render_directed(Direction::Ltr, WIDE, |ui| {
+        let mut open = true;
+        SideSheet::new("sheet").show_modal(ui.rt(), &mut open, |_| {});
+    });
+    let sheet = pass.tree.find_key("sheet-side-sheet").expect("modal sheet").rect;
+    assert!((sheet.right() - WIDE.x).abs() < 1.0, "modal default at the end: {sheet:?}");
+}
+
+#[test]
+fn side_sheet_without_scroll_gives_content_the_full_height_and_padding() {
+    use egui::Margin;
+    let mut h = still(WIDE, (true, Vec2::ZERO, Vec2::ZERO), |ui, (open, bare, padded)| {
+        SideSheet::new("a")
+            .scroll(false)
+            .content_padding(Margin::ZERO)
+            .headline("H")
+            .show(ui, open, |ui| *bare = ui.available_size());
+        SideSheet::new("b")
+            .scroll(false)
+            .content_padding(Margin::same(10))
+            .headline("H")
+            .show(ui, open, |ui| *padded = ui.available_size());
+    });
+    h.run();
+    let (bare, padded) = (h.state().value.1, h.state().value.2);
+    let sheet = h.rect("a-side-sheet");
+    assert!((bare.y - (sheet.height() - 64.0)).abs() < 1.0, "full remaining height: {bare:?} in {sheet:?}");
+    assert!((bare.x - sheet.width()).abs() < 1.0, "no side padding: {bare:?}");
+    assert!((bare.x - padded.x - 20.0).abs() < 1.0 && (bare.y - padded.y - 20.0).abs() < 1.0);
+}

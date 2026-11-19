@@ -355,6 +355,15 @@ fn side_sheets(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
         .show_modal(rt, &mut s.side_modal, |ui| sheet_body(ui, "ss-modal-row", shared));
     ui.label("The standard sheet docks at the end of this box and shares its width with the content; drag its edge to resize.");
     boxed(ui, 240.0, |ui| {
+        SideSheet::new("ss-start")
+            .edge(egui_mineral::layout::Edge::Start)
+            .headline("Outline")
+            .width(200.0)
+            .scroll(false)
+            .close_button(false)
+            .show(ui, &mut true, |ui| {
+                ui.label("Start edge, no scroll area: the content owns the full height.");
+            });
         SideSheet::new("ss-std")
             .headline("Details")
             .width(280.0)

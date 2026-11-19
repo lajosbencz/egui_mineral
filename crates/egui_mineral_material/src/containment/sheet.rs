@@ -15,7 +15,7 @@ use egui_mineral::widget::MineralUi;
 use egui_mineral::{
     i18n::Direction,
     kit,
-    layout::Axis,
+    layout::{Axis, Edge},
     overlay::Dismiss,
     range::{RangeModel, Track},
     semantic::{self, Role, SemanticNode, StableId},
@@ -362,7 +362,7 @@ const SIDE_MODAL_SHAPE: ShapeRole = ShapeRole::CornerLargeStart;
 // 40dp container in the 48dp minimum interactive size
 
 /// MD3 side sheet. A standard sheet docks into the `Ui` it is shown in at the logical end edge
-/// and takes its width from the remaining content, like `egui::Panel`; a modal sheet overlays the
+/// (see [`SideSheet::edge`]) and takes its width from the remaining content, like `egui::Panel`; a modal sheet overlays the
 /// viewport with a scrim.
 #[derive(Clone, Debug)]
 #[must_use = "call .show(..)"]
@@ -374,6 +374,9 @@ pub struct SideSheet {
     width: f32,
     widths: Rangef,
     resizable: bool,
+    edge: Edge,
+    scroll: bool,
+    padding: Margin,
 }
 
 impl SideSheet {
@@ -388,6 +391,9 @@ impl SideSheet {
             width: SIDE_WIDTH,
             widths: SIDE_WIDTHS,
             resizable: false,
+            edge: Edge::End,
+            scroll: true,
+            padding: Margin::from(vec2(SIDE_PADDING, 0.0)),
         }
     }
 
@@ -428,6 +434,25 @@ impl SideSheet {
     /// (arrow keys when focused); the width persists in egui memory. Default `false`.
     pub fn resizable(mut self, resizable: bool) -> Self {
         self.resizable = resizable;
+        self
+    }
+
+    /// Logical edge the sheet sits at, docked and modal; default [`Edge::End`].
+    pub fn edge(mut self, edge: Edge) -> Self {
+        self.edge = edge;
+        self
+    }
+
+    /// Wraps the content in a vertical `ScrollArea`; default `true`. Without it the content gets
+    /// the full remaining height and scrolls itself.
+    pub fn scroll(mut self, scroll: bool) -> Self {
+        self.scroll = scroll;
+        self
+    }
+
+    /// Margin around the content; default 24dp at the sides, none above and below.
+    pub fn content_padding(mut self, padding: Margin) -> Self {
+        self.padding = padding;
         self
     }
 
@@ -485,7 +510,7 @@ impl SideSheet {
         let dir = rt.i18n().direction();
         let w = self.widths.clamp(self.width).min(screen.width());
         let hidden = (1.0 - e) * w;
-        let x = dir.reversed().start_x(screen, Rangef::new(-hidden, -hidden + w));
+        let x = self.side(dir).start_x(screen, Rangef::new(-hidden, -hidden + w));
         let mut closed = false;
         let shown = EdgeSurface {
             id: self.id,
@@ -496,7 +521,7 @@ impl SideSheet {
         .show(rt, |ui| {
             let framed = Frame::new()
                 .fill(t.role(SIDE_CONTAINER_COLOR))
-                .corner_radius(SIDE_MODAL_SHAPE.corner_radius(&t.shape, dir))
+                .corner_radius(self.modal_shape().corner_radius(&t.shape, dir))
                 .show(ui, |ui| {
                     ui.set_min_size(vec2(w, screen.height()));
                     ui.set_max_size(vec2(w, screen.height()));
@@ -527,9 +552,9 @@ impl SideSheet {
         };
         let width = self.widths.clamp(width);
         let w = width.min(ui.available_rect_before_wrap().width());
-        let panel = match dir {
-            Direction::Ltr => egui::Panel::right((self.id, "dock")),
-            Direction::Rtl => egui::Panel::left((self.id, "dock")),
+        let panel = match (dir, self.edge) {
+            (Direction::Ltr, Edge::End) | (Direction::Rtl, Edge::Start) => egui::Panel::right((self.id, "dock")),
+            (Direction::Rtl, Edge::End) | (Direction::Ltr, Edge::Start) => egui::Panel::left((self.id, "dock")),
         };
         let mut closed = false;
         let r = panel
@@ -541,7 +566,7 @@ impl SideSheet {
                 // The sheet keeps its full width and slides: the panel reveals its start edge.
                 let shown = ui.max_rect();
                 let sheet = Rect::from_min_size(
-                    pos2(dir.start_x(shown, Rangef::new(0.0, 0.0 + w)), shown.top()),
+                    pos2(self.inner_side(dir).start_x(shown, Rangef::new(0.0, 0.0 + w)), shown.top()),
                     vec2(w, shown.height()),
                 );
                 ui.painter().rect_filled(shown, 0, t.role(SIDE_CONTAINER_COLOR));
@@ -559,11 +584,34 @@ impl SideSheet {
         (r.inner, r.response, closed.then_some(Dismiss::Close))
     }
 
-    // Inner edge handle, the sheet growing toward the reading start.
+    // Direction whose start is the side the sheet sits at.
+    fn side(&self, dir: Direction) -> Direction {
+        match self.edge {
+            Edge::End => dir.reversed(),
+            Edge::Start => dir,
+        }
+    }
+
+    // Direction whose start is the sheet's inner (content-facing) side.
+    fn inner_side(&self, dir: Direction) -> Direction {
+        match self.edge {
+            Edge::End => dir,
+            Edge::Start => dir.reversed(),
+        }
+    }
+
+    fn modal_shape(&self) -> ShapeRole {
+        match self.edge {
+            Edge::End => SIDE_MODAL_SHAPE,
+            Edge::Start => ShapeRole::CornerLargeEnd,
+        }
+    }
+
+    // Inner edge handle, the sheet growing toward the content.
     fn resize_handle(&self, ui: &MineralUi<'_, Material>, sheet: Rect, width: f32) -> f32 {
         let rt = ui.rt();
         let dir = rt.i18n().direction();
-        let edge = dir.start_x(sheet, Rangef::point(0.0));
+        let edge = self.inner_side(dir).start_x(sheet, Rangef::point(0.0));
         let hit = MIN_INTERACTIVE_DP / 2.0;
         let rect = Rect::from_x_y_ranges(edge - hit / 2.0..=edge + hit / 2.0, sheet.y_range());
         let range = RangeModel::new(f64::from(self.widths.min), f64::from(self.widths.max));
@@ -571,7 +619,10 @@ impl SideSheet {
             ui,
             self.id.with("resize"),
             rect,
-            Track::horizontal(dir).reversed(),
+            match self.edge {
+                Edge::End => Track::horizontal(dir).reversed(),
+                Edge::Start => Track::horizontal(dir),
+            },
             &range,
             f64::from(width),
             1.0,
@@ -642,8 +693,25 @@ impl SideSheet {
             }
         }
         let used = if header { SIDE_HEADER_HEIGHT } else { 0.0 };
+        let margin = self.padding;
+        if !self.scroll {
+            let body = vec2(w, (h - used).max(0.0));
+            let inner = (body - margin.sum()).max(Vec2::ZERO);
+            return ui
+                .allocate_ui(body, |ui| {
+                    Frame::new()
+                        .inner_margin(margin)
+                        .show(ui, |ui| {
+                            ui.set_min_size(inner);
+                            ui.set_max_size(inner);
+                            add(&mut rt.ui(ui))
+                        })
+                        .inner
+                })
+                .inner
+                .into();
+        }
         let mut add = Some(add);
-        let margin = Margin::from(vec2(SIDE_PADDING, 0.0));
         ScrollArea::vertical()
             .id_salt((self.id, "scroll"))
             .max_height((h - used).max(0.0))
