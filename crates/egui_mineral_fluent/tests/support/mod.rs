@@ -145,6 +145,16 @@ impl Pass {
             .unwrap_or_else(|| panic!("no text {text:?}"))
     }
 
+    pub(crate) fn text_clip(&self, prefix: &str) -> Rect {
+        self.shapes
+            .iter()
+            .find_map(|c| match &c.shape {
+                Shape::Text(t) if t.galley.text().starts_with(prefix) => Some(c.clip_rect),
+                _ => None,
+            })
+            .unwrap_or_else(|| panic!("no text starting {prefix:?}"))
+    }
+
     pub(crate) fn text_color(&self, text: &str) -> Color32 {
         self.flat()
             .into_iter()

@@ -176,10 +176,20 @@ impl<'a> TableCellLayout<'a> {
         }
     }
 
-    fn lines(&self, ui: &MineralUi<'_, Fluent>, color: egui::Color32) -> (Arc<Galley>, Option<Arc<Galley>>) {
+    // `TableCellLayout` truncate: one line per text, cut to `width` with an ellipsis.
+    fn lines(
+        &self,
+        ui: &MineralUi<'_, Fluent>,
+        color: egui::Color32,
+        width: f32,
+    ) -> (Arc<Galley>, Option<Arc<Galley>>) {
         let layout = |text: &str, ramp: TypeRamp, c| {
-            ui.painter()
-                .layout_job(LayoutJob::single_section(text.to_owned(), ramp.format(ui.ctx(), c)))
+            let mut job = LayoutJob::single_section(text.to_owned(), ramp.format(ui.ctx(), c));
+            job.wrap.max_width = width.max(0.0);
+            job.wrap.max_rows = 1;
+            job.wrap.break_anywhere = true;
+            job.wrap.overflow_character = Some('\u{2026}');
+            ui.painter().layout_job(job)
         };
         let main = if self.primary {
             TypeRamp::Body1Strong
@@ -204,12 +214,12 @@ impl MineralWidget for TableCellLayout<'_> {
     kit::widget_meta!(salt, hover, no_target);
 
     fn layout(&self, ui: &MineralUi<'_, Fluent>, c: Constraints, (): &()) -> Measure {
-        let (main, desc) = self.lines(ui, egui::Color32::WHITE);
         let media = if self.media.is_some() {
             self.media_side() + d::LAYOUT_GAP
         } else {
             0.0
         };
+        let (main, desc) = self.lines(ui, egui::Color32::WHITE, c.max.x - media);
         let w = media + main.size().x.max(desc.as_ref().map_or(0.0, |g| g.size().x));
         let h = (main.size().y + desc.as_ref().map_or(0.0, |g| g.size().y)).max(if self.media.is_some() {
             self.media_side()
@@ -223,7 +233,12 @@ impl MineralWidget for TableCellLayout<'_> {
         let t = ui.tokens();
         let rect = frame.zones.visual;
         let dir = ui.i18n().direction();
-        let (main, desc) = self.lines(ui, t.color(ColorNeutralForeground1));
+        let media = if self.media.is_some() {
+            self.media_side() + d::LAYOUT_GAP
+        } else {
+            0.0
+        };
+        let (main, desc) = self.lines(ui, t.color(ColorNeutralForeground1), rect.width() - media);
         let mut x = 0.0;
         if let Some(avatar) = &self.media {
             let side = self.media_side();
@@ -833,7 +848,9 @@ fn body_row(
             }
             clicked |= resp.clicked();
         }
+        // Cell content clipped to its cell.
         place(ui, crect.shrink2(vec2(d::CELL_PADDING, 0.0)), |ui| {
+            ui.set_clip_rect(ui.max_rect().intersect(ui.clip_rect()));
             cell(&mut rt.ui(ui), data, c);
         });
         x += w;

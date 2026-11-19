@@ -305,11 +305,34 @@ mod table {
     use egui::vec2;
     use egui_mineral::select::Selection;
     use egui_mineral_fluent::{
-        data::{Table, TableSize, Text},
+        data::{Table, TableCellLayout, TableSize, Text},
         spec::defaults::table as d,
     };
 
-    use crate::support::{FluentHarness, harness};
+    use crate::support::{FluentHarness, harness, render};
+
+    #[test]
+    fn long_cell_text_stays_inside_its_cell() {
+        let p = render(|ui| {
+            ui.set_max_width(120.0);
+            Table::new("t", "T", ["A"]).show(ui, 1, |ui, _, _| {
+                ui.mineral(
+                    TableCellLayout::new("c", "A very long person name that overruns").description("Also a long role"),
+                );
+            });
+        });
+        let table =
+            p.rt.tree(egui::ViewportId::ROOT)
+                .expect("semantics")
+                .find_key("t-table")
+                .expect("table")
+                .rect;
+        let limit = table.right() - d::CELL_PADDING;
+        for text in ["A very long", "Also a long"] {
+            let clip = p.text_clip(text);
+            assert!(clip.right() <= limit, "{text}: {clip:?} past {limit}");
+        }
+    }
 
     fn rects(size: TableSize, selectable: bool) -> (egui::Rect, egui::Rect) {
         let h = harness(Selection::<usize>::multiple(), move |ui, sel| {
