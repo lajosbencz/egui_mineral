@@ -1,3 +1,4 @@
+use crate::tokens::ShadowTint;
 use egui::{
     Color32, Context, CornerRadius, Id, InnerResponse, Margin, Memory, Pos2, Rect, Response, Sense, Shape, Stroke,
     StrokeKind, Ui, vec2,
@@ -93,7 +94,7 @@ pub(crate) fn framed<R>(
     let rect = inner.response.rect;
     let radius = corner(look.radius);
     let mut shapes: Vec<Shape> = t
-        .shadow(look.elevation, false)
+        .shadow(look.elevation, ShadowTint::Neutral)
         .into_iter()
         .map(|layer| Shape::from(layer.as_shape(rect, radius)))
         .collect();

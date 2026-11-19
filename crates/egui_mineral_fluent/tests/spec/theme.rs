@@ -2,7 +2,7 @@ use egui::{Color32, Theme, ThemePreference};
 use egui_mineral_fluent::{
     BrandRamp, BrandStep, ColorToken, FluentExt,
     spec::tokens::brand::BRAND_WEB,
-    theme::{Elevation, Radius, Scheme, Tokens},
+    theme::{Elevation, Radius, Scheme, ShadowTint, Tokens},
 };
 
 use crate::support::runtime;
@@ -59,7 +59,7 @@ fn every_token_resolves_in_every_scheme() {
 #[test]
 fn shadows_and_radii_follow_the_tokens() {
     let t = Tokens::new(Scheme::WebLight, BRAND_WEB);
-    let [ambient, key] = t.shadow(Elevation::E8, false);
+    let [ambient, key] = t.shadow(Elevation::E8, ShadowTint::Neutral);
     assert_eq!(ambient.color, t.color(ColorToken::ColorNeutralShadowAmbient));
     assert_eq!((key.offset, key.blur), ([0, 4], 8));
     assert_eq!(Radius::Medium.points(), 4.0);

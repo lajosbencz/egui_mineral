@@ -1,3 +1,4 @@
+use crate::tokens::ShadowTint;
 use egui::{CornerRadius, Frame, Margin, Sense, Stroke, Vec2};
 use egui_mineral::{
     anchor::{Align, Anchor, Side},
@@ -116,7 +117,7 @@ impl Composite for InfoLabel {
                 .stroke(Stroke::new(g::STROKE_WIDTH_THIN, t.color(ColorNeutralStroke1)))
                 .corner_radius(CornerRadius::from(g::BORDER_RADIUS_MEDIUM))
                 .inner_margin(Margin::same(pad as i8))
-                .shadow(t.shadow(Elevation::E16, false)[0])
+                .shadow(t.shadow(Elevation::E16, ShadowTint::Neutral)[0])
                 .show(ui, |ui| {
                     ui.set_max_width(il::POPOVER_MAX_WIDTH - 2.0 * pad);
                     let format = crate::typography::format(

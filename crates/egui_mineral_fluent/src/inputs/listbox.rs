@@ -1,3 +1,4 @@
+use crate::tokens::ShadowTint;
 use egui::{
     CornerRadius, Frame, Id, LayerId, Margin, Rangef, Rect, Response, ScrollArea, Sense, Stroke, StrokeKind, Vec2, vec2,
 };
@@ -268,7 +269,7 @@ pub(crate) fn show(
                 .stroke(Stroke::new(g::STROKE_WIDTH_THIN, t.color(ColorTransparentStroke)))
                 .corner_radius(radius)
                 .inner_margin(Margin::same(LIST_PAD as i8))
-                .shadow(t.shadow(Elevation::E16, false)[0])
+                .shadow(t.shadow(Elevation::E16, ShadowTint::Neutral)[0])
                 .show(ui, |ui| {
                     ui.set_width(width - frame_pad);
                     ui.spacing_mut().item_spacing = Vec2::new(0.0, ROW_GAP);

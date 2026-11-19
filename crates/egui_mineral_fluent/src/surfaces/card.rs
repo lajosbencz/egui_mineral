@@ -1,3 +1,4 @@
+use crate::tokens::ShadowTint;
 use egui::{Align, Frame, Margin, Rect, Response, Sense, Shape, Stroke, StrokeKind, Ui, UiBuilder, pos2, vec2};
 use egui_mineral::{
     semantic::{self, AgentKey, KeyedSalt, Role, SemanticNode},
@@ -311,7 +312,7 @@ impl<'a> Card<'a> {
         let mut shapes: Vec<Shape> = Vec::new();
         if let Some(e) = elevation {
             shapes.extend(
-                t.shadow(e, false)
+                t.shadow(e, ShadowTint::Neutral)
                     .into_iter()
                     .map(|l| Shape::from(l.as_shape(rect, radius))),
             );

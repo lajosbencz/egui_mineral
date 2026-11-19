@@ -1,3 +1,4 @@
+use crate::tokens::ShadowTint;
 use egui::{
     Align, Align2, Color32, CornerRadius, Id, Layout, Margin, Order, Sense, Stroke, StrokeKind, UiBuilder, vec2,
 };
@@ -476,7 +477,7 @@ fn paint_toast(rt: &Rt, s: &Shown, at: &Placement<'_>) -> Painted {
         });
         let rect = framed.response.rect;
         let mut shapes: Vec<egui::Shape> = t
-            .shadow(Elevation::E8, false)
+            .shadow(Elevation::E8, ShadowTint::Neutral)
             .into_iter()
             .map(|layer| egui::Shape::from(layer.as_shape(rect, radius)))
             .collect();
