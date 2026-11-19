@@ -83,7 +83,7 @@ jobs:
           fallback: none
       - run: just spec
 
-  # Fails on any public API change vs the PR base (release PRs: the last release tag), never blocks merging
+  # Removed or changed public API vs the PR base (release PRs: the last release tag) fails unless the breaking version rises
   public-api:
     name: Public API diff
     if: ${{ github.event_name == 'pull_request' }}
@@ -124,7 +124,7 @@ jobs:
   result:
     name: CI result
     if: ${{ always() }}
-    needs: [check]
+    needs: [check, public-api]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
