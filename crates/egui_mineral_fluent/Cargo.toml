@@ -44,6 +44,8 @@ parking_lot.workspace = true
 
 [dev-dependencies]
 egui_kittest.workspace = true
+egui_material_icons.workspace = true
+egui_mineral = { workspace = true, features = ["material-icons"] }
 futures-executor.workspace = true
 
 [[test]]

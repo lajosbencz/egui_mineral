@@ -63,6 +63,44 @@ struct Settings {
     locale: usize,
 }
 
+// `MINERAL_ICONS=material` draws the kit's own icons (chevrons, dismiss, ...) from Material Symbols.
+fn kit(ctx: &egui::Context) -> Fluent {
+    if std::env::var("MINERAL_ICONS").is_ok_and(|v| v == "material") {
+        egui_material_icons::initialize(ctx);
+        Fluent::with_icons(&material_icons(), &[])
+    } else {
+        Fluent::default()
+    }
+}
+
+fn material_icons() -> IconSet {
+    use egui_material_icons::icons as m;
+    IconSet {
+        arrow_down: m::ICON_ARROW_DOWNWARD.into(),
+        arrow_up: m::ICON_ARROW_UPWARD.into(),
+        calendar_month: m::ICON_CALENDAR_MONTH.into(),
+        checkmark: m::ICON_CHECK.into(),
+        checkmark_circle: m::ICON_CHECK_CIRCLE.into(),
+        chevron_down: m::ICON_KEYBOARD_ARROW_DOWN.into(),
+        chevron_left: m::ICON_CHEVRON_LEFT.into(),
+        chevron_right: m::ICON_CHEVRON_RIGHT.into(),
+        chevron_up: m::ICON_KEYBOARD_ARROW_UP.into(),
+        dismiss: m::ICON_CLOSE.into(),
+        error_circle: m::ICON_ERROR.into(),
+        image_off: m::ICON_HIDE_IMAGE.into(),
+        info: m::ICON_INFO.into(),
+        more_horizontal: m::ICON_MORE_HORIZ.into(),
+        pause: m::ICON_PAUSE.into(),
+        person: m::ICON_PERSON.into(),
+        play: m::ICON_PLAY_ARROW.into(),
+        prohibited: m::ICON_BLOCK.into(),
+        search: m::ICON_SEARCH.into(),
+        square: m::ICON_CHECK_BOX_OUTLINE_BLANK.into(),
+        star: m::ICON_STAR.into(),
+        warning: m::ICON_WARNING.into(),
+    }
+}
+
 struct App {
     rt: Arc<Rt>,
     page: Page,
@@ -74,7 +112,7 @@ struct App {
 
 impl App {
     fn new(ctx: &egui::Context) -> Result<Self, InitError> {
-        let rt = Runtime::new(ctx, Fluent::default())?;
+        let rt = Runtime::new(ctx, kit(ctx))?;
         Ok(Self {
             rt,
             page: Page::Foundations,

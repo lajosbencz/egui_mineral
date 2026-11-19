@@ -71,7 +71,7 @@
 //! | `persist-json` | | JSON persistence codec (`egui_mineral/persist-json`) |
 //! | `persist-toml` | yes | TOML persistence codec (`egui_mineral/persist-toml`) |
 //! | `persist-fs` | yes | Native file-backed storage (`egui_mineral/persist-fs`) |
-//! | `bundled-icons` | yes | Material Symbols Rounded fonts, filled and outlined ([3 MB](https://github.com/lajosbencz/egui_mineral#release-size)); without it `Material::new` and `Default` are absent: use [`Material::with_icon_fonts`] |
+//! | `bundled-icons` | yes | Material Symbols Rounded fonts, filled and outlined ([3 MB](https://github.com/lajosbencz/egui_mineral#release-size)); without it `Material::new` and `Default` are absent: use [`Material::with_icon_fonts`] or [`Material::with_icons`] |
 //! | `theme-file` | | TOML theme files and live reload ([`theme::load_toml`], [`theme::watch`]); native only |
 //! | `unstable-catalog` | | [`catalog`]: each component's category and spec origin ([`catalog::CATALOG`]) |
 //! | `unstable-spec` | | Public [`spec::tokens`] and [`spec::defaults`]: the generated Compose Material3 values, changed by every re-pin of the Compose sources |
