@@ -26,7 +26,7 @@ use crate::{
 pub struct Material {
     tokens: Mutex<TokenStore>,
     // Tokens frozen for one egui pass: setters apply from the next pass, no frame mixes two token sets.
-    pass: Mutex<Option<(u64, Theme, Arc<Tokens>)>>,
+    pass: Mutex<Option<PassSnapshot>>,
     density: AtomicI8,
     icons: Icons,
 }
@@ -36,6 +36,14 @@ enum Icons {
     #[cfg(feature = "bundled-icons")]
     Bundled,
     Custom(IconFonts),
+}
+
+#[derive(Debug)]
+struct PassSnapshot {
+    pass: u64,
+    theme: Theme,
+    tokens: Arc<Tokens>,
+    style: Arc<Style>,
 }
 
 impl Material {
@@ -64,17 +72,26 @@ impl Material {
         self.tokens.lock().tokens(theme)
     }
 
-    fn pass_tokens(&self, pass: u64, theme: Theme) -> Arc<Tokens> {
+    // Tokens and style of one store state for the whole egui pass.
+    fn pass_snapshot(&self, pass: u64, theme: Theme) -> (Arc<Tokens>, Arc<Style>) {
         let mut cache = self.pass.lock();
-        if let Some((p, t, tokens)) = &*cache
-            && *p == pass
-            && *t == theme
+        if let Some(c) = &*cache
+            && c.pass == pass
+            && c.theme == theme
         {
-            return Arc::clone(tokens);
+            return (Arc::clone(&c.tokens), Arc::clone(&c.style));
         }
-        let tokens = self.tokens.lock().tokens(theme);
-        *cache = Some((pass, theme, Arc::clone(&tokens)));
-        tokens
+        let (tokens, style) = {
+            let store = self.tokens.lock();
+            (store.tokens(theme), store.style(theme))
+        };
+        *cache = Some(PassSnapshot {
+            pass,
+            theme,
+            tokens: Arc::clone(&tokens),
+            style: Arc::clone(&style),
+        });
+        (tokens, style)
     }
 
     /// Makes `tokens` current for `tokens.theme()`; the other brightness and the preference stay.
@@ -145,8 +162,8 @@ impl Stylekit for Material {
         Ok(())
     }
 
-    fn style(&self, _: &Context, theme: Theme) -> Arc<Style> {
-        self.tokens.lock().style(theme)
+    fn style(&self, ctx: &Context, theme: Theme) -> Arc<Style> {
+        self.pass_snapshot(ctx.cumulative_pass_nr(), theme).1
     }
 
     fn paint_window_close(&self, ui: &egui::Ui, visual: egui::Rect, response: &egui::Response) {
@@ -177,7 +194,9 @@ pub trait MaterialExt {
 
 impl MaterialExt for Rt {
     fn tokens(&self) -> Arc<Tokens> {
-        self.kit().pass_tokens(self.ctx().cumulative_pass_nr(), self.theme())
+        self.kit()
+            .pass_snapshot(self.ctx().cumulative_pass_nr(), self.theme())
+            .0
     }
 }
 

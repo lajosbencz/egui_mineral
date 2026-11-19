@@ -11,7 +11,7 @@ pub fn size_or_discard(ctx: &Context, id: Id) -> Option<Vec2> {
     size
 }
 
-/// Whether `now` differs from `before` by more than half a point on either axis.
+/// `now` and `before` differ by more than half a point on either axis; smaller differences are layout noise.
 pub fn size_changed(now: Vec2, before: Vec2) -> bool {
     let d = (now - before).abs();
     d.x > 0.5 || d.y > 0.5

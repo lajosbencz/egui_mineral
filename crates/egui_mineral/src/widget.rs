@@ -287,7 +287,6 @@ impl<'a, K> MineralUi<'a, K> {
         }
     }
 
-    /// Input of this pass, fetched once per `MineralUi`.
     fn pass_input(&self) -> Rc<InputContext> {
         Rc::clone(self.input.get_or_init(|| Rc::new(self.rt.core().input())))
     }
