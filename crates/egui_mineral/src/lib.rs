@@ -232,8 +232,6 @@ macro_rules! __widget_meta {
 pub mod agent;
 /// Anchored popup placement: side, alignment, flip and shift.
 pub mod anchor;
-/// Error boundary for the render path.
-pub mod boundary;
 /// Executor-agnostic command and event channels.
 pub mod bus;
 pub mod combobox;

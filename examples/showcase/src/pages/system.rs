@@ -4,7 +4,6 @@ use std::any::Any;
 
 use egui::{Frame, Key, KeyboardShortcut, Modifiers, Rect, RichText, Sense, Stroke, StrokeKind, vec2};
 use egui_mineral::{
-    boundary::{Recovery, error_boundary},
     bus::{BoxFuture, SpawnerExt},
     dnd::{self, RowView},
     input::{Gesture, PointerKind, UnifiedInputEvent},
@@ -50,7 +49,6 @@ pub(crate) const TOPICS: &[&str] = &[
     "Undo and redo",
     "Drag and drop",
     "Deep links",
-    "Error boundary",
     "Persistence",
     "Platform services",
     "Unified input",
@@ -136,7 +134,6 @@ pub(crate) struct State {
     router: Router<Page>,
     link: String,
     link_note: String,
-    broken: bool,
     profile: Profile,
     loaded: Option<Profile>,
     backend: Backend,
@@ -177,7 +174,6 @@ impl Default for State {
             router: Router::new(Page::Foundations),
             link: "/data".to_owned(),
             link_note: String::new(),
-            broken: false,
             profile: Profile {
                 name: "Ada".to_owned(),
                 visits: 1,
@@ -237,12 +233,11 @@ pub(crate) fn show(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     section(ui, TOPICS[1], None, |ui| undo(ui, s));
     section(ui, TOPICS[2], None, |ui| drag_drop(ui, s));
     section(ui, TOPICS[3], None, |ui| deep_links(ui, s));
-    section(ui, TOPICS[4], None, |ui| boundary(ui, s));
-    section(ui, TOPICS[5], None, |ui| persistence(ui, s, shared));
-    section(ui, TOPICS[6], None, |ui| platform(ui, s, shared));
-    section(ui, TOPICS[7], None, |ui| input(ui, s));
-    section(ui, TOPICS[8], None, |ui| windows(ui, s));
-    section(ui, TOPICS[9], None, |ui| caches(ui, s));
+    section(ui, TOPICS[4], None, |ui| persistence(ui, s, shared));
+    section(ui, TOPICS[5], None, |ui| platform(ui, s, shared));
+    section(ui, TOPICS[6], None, |ui| input(ui, s));
+    section(ui, TOPICS[7], None, |ui| windows(ui, s));
+    section(ui, TOPICS[8], None, |ui| caches(ui, s));
 }
 
 fn bus(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
@@ -444,52 +439,6 @@ fn deep_links(ui: &mut Mui<'_>, s: &mut State) {
         ui,
         TypeScale::BodySmall,
         "Own router instance; the shell's router drives the navigation rail. Query and fragment are ignored.",
-    );
-}
-
-fn boundary(ui: &mut Mui<'_>, s: &mut State) {
-    let rt = ui.rt();
-    let broken = s.broken;
-    let t = rt.tokens();
-    Frame::new()
-        .stroke(Stroke::new(1.0, t.color.outline_variant))
-        .corner_radius(8)
-        .inner_margin(12)
-        .show(ui, |ui| {
-            error_boundary(
-                &mut rt.ui(ui),
-                "demo-boundary",
-                |ui| {
-                    assert!(!broken, "guarded widget failed");
-                    ui.label("Guarded content renders normally.");
-                },
-                |ui, msg| {
-                    ui.colored_label(t.color.error, format!("Fallback: {}", msg.unwrap_or("panic")));
-                    if button(ui, "boundary-reset", "Recover") {
-                        s.broken = false;
-                        Recovery::Retry
-                    } else {
-                        Recovery::Keep
-                    }
-                },
-            );
-        });
-    if button_if(
-        ui,
-        "boundary-break",
-        "Make content panic",
-        !s.broken && cfg!(panic = "unwind"),
-    ) {
-        s.broken = true;
-    }
-    caption(
-        ui,
-        TypeScale::BodySmall,
-        if cfg!(panic = "unwind") {
-            "Logged once to stderr and tracing; the boundary stays tripped until Recover."
-        } else {
-            "Catches only with panic = \"unwind\"; this build aborts on panic (wasm32 default), so the trigger is disabled."
-        },
     );
 }
 
