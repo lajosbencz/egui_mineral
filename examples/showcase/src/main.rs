@@ -572,11 +572,21 @@ mod tests {
     }
 
     #[test]
-    fn every_page_fits_its_width() {
+    fn every_page_fits_every_window_class() {
         // Settled overflow: wider content pushes the page scroll bar out of view.
         const PASSES: usize = 8;
+        // Narrowest phone in portrait (dp); the other classes start at their breakpoints.
+        const COMPACT_MIN: f32 = 320.0;
+        let ctx = egui::Context::default();
+        let breakpoints = App::new(&ctx)
+            .expect("showcase app")
+            .rt
+            .core()
+            .policies()
+            .breakpoints
+            .clone();
         let mut wide = Vec::new();
-        for width in [360.0, 800.0, 1280.0] {
+        for width in std::iter::once(COMPACT_MIN).chain(breakpoints.iter().copied()) {
             let ctx = egui::Context::default();
             let mut app = App::new(&ctx).expect("showcase app");
             for page in Page::ALL {
