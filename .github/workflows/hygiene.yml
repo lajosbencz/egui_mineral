@@ -3,8 +3,7 @@ name: Hygiene
 # Lints that need no build
 on:
   pull_request:
-  push:
-    branches: [master]
+  # The one sanctioned scheduled job: advisories and typos drift without a push.
   schedule:
     - cron: "17 5 * * 1"
   workflow_dispatch:
