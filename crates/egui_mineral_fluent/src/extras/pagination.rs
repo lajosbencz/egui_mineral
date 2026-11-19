@@ -4,7 +4,7 @@ use egui_mineral::{
     layout::Constraints,
     pagination::{PageItem, Spread},
     semantic::{self, KeyedSalt, Role, SemanticNode, StableId},
-    widget::{Composite, MineralUi, WidgetResponse},
+    widget::{Composite, MineralUi, SizeExt as _, WidgetResponse},
 };
 
 use crate::ColorToken::ColorNeutralForeground2;
@@ -21,6 +21,8 @@ const SIZE: Size = Size::Small;
 const ROW: f32 = 24.0;
 const GAP: f32 = g::SPACING_HORIZONTAL_XS;
 const ICON: f32 = 20.0;
+// Narrower than the button min width: page numbers are one to three digits.
+const PAGE_WIDTH: f32 = 28.0;
 
 /// Page selector with siblings, boundaries and gaps; not in Fluent UI React v9.
 #[derive(Debug)]
@@ -149,7 +151,8 @@ impl Composite for Pagination<'_> {
                             .appearance(ButtonAppearance::Subtle)
                             .size(SIZE)
                             .disabled(self.disabled)
-                            .agent_key(StableId::of(&self.salt, (n, "page-button")));
+                            .agent_key(StableId::of(&self.salt, (n, "page-button")))
+                            .preferred_width(PAGE_WIDTH);
                         if rt.ui(ui).mineral(button).changed() {
                             target = n;
                         }

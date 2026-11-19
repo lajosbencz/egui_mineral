@@ -377,6 +377,7 @@ mod tests {
         surfaces: Page::Category(Category::Surfaces),
         navigation: Page::Category(Category::Navigation),
         data: Page::Category(Category::Data),
+        extras: Page::Category(Category::Extras),
     }
 
     fn holds_up(page: Page) {

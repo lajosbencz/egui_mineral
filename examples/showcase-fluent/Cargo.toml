@@ -7,7 +7,7 @@ license.workspace = true
 publish = false
 
 [dependencies]
-egui_mineral_fluent = { workspace = true, features = ["icu", "bundled-icons", "unstable-catalog", "unstable-spec"] }
+egui_mineral_fluent = { workspace = true, features = ["icu", "bundled-icons", "extras", "unstable-catalog", "unstable-spec"] }
 egui_mineral_material = { workspace = true, features = ["bundled-icons"] }
 mineral_inspector.workspace = true
 # glow: a smaller web bundle than eframe's default wgpu.
