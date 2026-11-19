@@ -167,6 +167,13 @@ spec:
     echo "$changes"
     exit 1
 
+# Builds the spec generators without running them (cache warm-up)
+spec-build:
+    cargo build -p md3_tokens -p fluent_tokens -p material_symbols
+
+# Builds the rustdoc JSON of HEAD that `api-diff` needs (cache warm-up)
+api-build: (api-diff "HEAD" "HEAD")
+
 # Public API diff of the libraries between two commits; removals and changes fail unless the crate's breaking version (0.MINOR, MAJOR from 1.0) rises. With release=true each crate's base is its last `<crate>-v*` tag reachable from <base>.
 api-diff base head="HEAD" release="false":
     #!/usr/bin/env bash

@@ -1,7 +1,7 @@
 name: CI
 
 # Pull requests verify; the ruleset keeps them up to date with master, so merges are not verified again.
-# A push to master that changes what the caches are keyed on only builds, saving the caches pull requests restore.
+# A push to master that changes what the caches are keyed on only builds (check, spec generators, rustdoc JSON), saving the caches pull requests restore.
 on:
   pull_request:
   push:
@@ -78,7 +78,6 @@ jobs:
   # Fails when specs change, never blocks merging
   spec:
     name: Generated spec
-    if: ${{ github.event_name != 'push' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -88,17 +87,19 @@ jobs:
       - run: rustup toolchain install
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
-          save-if: false
+          save-if: ${{ github.event_name == 'push' }}
       - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
         with:
           tool: just@1.59.0
           fallback: none
-      - run: just spec
+      - if: ${{ github.event_name == 'push' }}
+        run: just spec-build
+      - if: ${{ github.event_name != 'push' }}
+        run: just spec
 
   # Removed or changed public API vs the PR base (release PRs: each crate's last release tag) fails unless the breaking version rises
   public-api:
     name: Public API diff
-    if: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -110,7 +111,7 @@ jobs:
       - run: rustup toolchain install nightly --profile minimal --target wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
-          save-if: false
+          save-if: ${{ github.event_name == 'push' }}
       - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
         with:
           tool: just@1.59.0
@@ -121,7 +122,10 @@ jobs:
         with:
           tool: cargo-public-api@${{ steps.pins.outputs.public-api }}
           fallback: cargo-install
-      - name: Diff against base
+      - if: ${{ github.event_name == 'push' }}
+        run: just api-build
+      - if: ${{ github.event_name == 'pull_request' }}
+        name: Diff against base
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
@@ -141,7 +145,7 @@ jobs:
   # Default-branch caches: the newest per key. rust-cache keys end in the lockfile's hash.
   caches:
     name: Prune caches
-    needs: [check]
+    needs: [check, spec, public-api]
     if: ${{ always() && github.event_name == 'push' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
