@@ -7,6 +7,7 @@ pub mod i18n;
 pub mod icon;
 pub mod input;
 pub mod overlay;
+pub mod paint;
 pub mod rating;
 pub mod sanitize;
 pub mod scroll;
