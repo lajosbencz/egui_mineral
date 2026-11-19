@@ -3,8 +3,10 @@
 
 pub mod edit;
 pub mod focus;
+pub mod i18n;
 pub mod input;
 pub mod overlay;
+pub mod rating;
 pub mod sanitize;
 pub mod scroll;
 pub mod semantic;

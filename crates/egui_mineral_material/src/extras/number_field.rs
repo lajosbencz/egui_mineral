@@ -3,7 +3,7 @@ use crate::MaterialUiExt as _;
 use crate::Rt;
 use crate::adaptive::Density;
 use crate::text_inputs::text_field::FieldChrome;
-use egui::{Align, Context, CursorIcon, Event, Id, Layout, Modifiers, MouseWheelUnit, Ui, Vec2, emath::Numeric, vec2};
+use egui::{Align, Context, CursorIcon, Event, Id, Layout, MouseWheelUnit, Ui, Vec2, emath::Numeric, vec2};
 use egui_mineral::kit::state::TempState;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::semantic::StableId;
@@ -253,7 +253,7 @@ impl<N: Numeric> Composite for NumberField<'_, N> {
         edit.set_snap(self.snap_typed);
         let mut pass = edit.begin(self.range, before, focus, &fmt);
         let mut scrubbed = false;
-        let mut stepped = focused && !self.disabled && consume_step_keys(ctx, &mut pass);
+        let mut stepped = focused && !self.disabled && pass.consume_step_keys(ctx);
         let mut event = escape.then(|| cancel_edit(ctx, &mut pass, edit_id)).flatten();
         let v = pass.value();
 
@@ -362,16 +362,6 @@ fn apply_steps(pass: &mut number::NumberPass<'_>, buttons: i64, wheel: i64) -> b
         if steps != 0 {
             pass.step(steps, source);
             stepped = true;
-        }
-    }
-    stepped
-}
-
-fn consume_step_keys(ctx: &Context, pass: &mut number::NumberPass<'_>) -> bool {
-    let mut stepped = false;
-    for k in NumberEdit::STEP_KEYS {
-        while ctx.input_mut(|i| i.consume_key(Modifiers::NONE, k)) {
-            stepped |= pass.step_key(k);
         }
     }
     stepped

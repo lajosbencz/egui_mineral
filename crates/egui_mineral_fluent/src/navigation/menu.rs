@@ -147,7 +147,7 @@ struct Row<'a> {
     width: f32,
 }
 
-fn text_width(ui: &MineralUi<'_, Fluent>, text: &str, ramp: TypeRamp) -> f32 {
+pub(super) fn text_width(ui: &MineralUi<'_, Fluent>, text: &str, ramp: TypeRamp) -> f32 {
     let job = LayoutJob::single_section(text.to_owned(), ramp.format(ui.ctx(), egui::Color32::PLACEHOLDER));
     ui.painter().layout_job(job).size().x
 }
