@@ -137,14 +137,19 @@ struct EndIcons {
 
 egui_mineral::kit::opaque_debug!(ValueSlider<'_>);
 
-// The step's decimals; the value's own (`None`) on a significant-digit grid; else 2.
+// The range's fraction digits, else the step's (then the increment's) decimals; the value's own
+// (`None`) on a significant-digit grid; else 2.
 pub(crate) fn fraction_digits(range: &RangeModel) -> Option<i16> {
-    match range.step_size() {
-        Some(s) => Some(
-            s.to_string()
-                .split_once('.')
-                .map_or(0, |(_, f)| i16::try_from(f.len()).map_or(6, |n| n.min(6))),
-        ),
+    let decimals = |s: f64| {
+        s.to_string()
+            .split_once('.')
+            .map_or(0, |(_, f)| i16::try_from(f.len()).map_or(6, |n| n.min(6)))
+    };
+    if let Some(d) = range.fraction_digit_count() {
+        return Some(i16::from(d));
+    }
+    match range.step_size().or(range.increment_size()) {
+        Some(s) => Some(decimals(s)),
         None if range.significant_digits().is_some() => None,
         None => Some(2),
     }

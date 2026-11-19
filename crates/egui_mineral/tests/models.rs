@@ -1113,26 +1113,36 @@ fn range_model() -> impl Strategy<Value = RangeModel> {
         prop::option::of(select(vec![Scale::Linear, Scale::Log])),
         any::<bool>(),
         prop::option::of(0u8..20),
+        prop::option::of(f64s()),
+        prop::option::of(0u8..20),
     )
-        .prop_map(|(min, max, step, jump, scale, scale_first, significant)| {
-            let mut r = RangeModel::new(min, max);
-            if let (true, Some(s)) = (scale_first, scale) {
-                r = r.scale(s);
-            }
-            if let Some(s) = step {
-                r = r.step(s);
-            }
-            if let Some(j) = jump {
-                r = r.jump(j);
-            }
-            if let Some(d) = significant {
-                r = r.significant(d);
-            }
-            match scale {
-                Some(s) if !scale_first => r.scale(s),
-                _ => r,
-            }
-        })
+        .prop_map(
+            |(min, max, step, jump, scale, scale_first, significant, increment, fraction_digits)| {
+                let mut r = RangeModel::new(min, max);
+                if let (true, Some(s)) = (scale_first, scale) {
+                    r = r.scale(s);
+                }
+                if let Some(s) = step {
+                    r = r.step(s);
+                }
+                if let Some(j) = jump {
+                    r = r.jump(j);
+                }
+                if let Some(d) = significant {
+                    r = r.significant(d);
+                }
+                if let Some(i) = increment {
+                    r = r.increment(i);
+                }
+                if let Some(d) = fraction_digits {
+                    r = r.fraction_digits(d);
+                }
+                match scale {
+                    Some(s) if !scale_first => r.scale(s),
+                    _ => r,
+                }
+            },
+        )
 }
 
 fn range_op() -> impl Strategy<Value = RangeOp> {
@@ -1198,7 +1208,7 @@ proptest! {
                 RangeOp::Snap(x) => {
                     v = r.snap(x);
                     within(&r, v)?;
-                    if x.is_finite() && x >= r.min() && x <= r.max() && r.step_size().is_none() && r.significant_digits().is_none() {
+                    if x.is_finite() && x >= r.min() && x <= r.max() && r.step_size().is_none() && r.significant_digits().is_none() && r.fraction_digit_count().is_none() {
                         prop_assert!(same(v, x), "an in-range continuous value stays: {x} became {v}");
                     }
                 }
@@ -1243,6 +1253,21 @@ proptest! {
             }
             check_range(&r, v)?;
         }
+    }
+
+    #[test]
+    fn increments_move_by_their_size_wherever_min_sits(
+        min in -1e6..1e6f64,
+        span in 1e-3..1e6f64,
+        increment in 1e-4..1e3f64,
+        at in 0.0..1.0f64,
+    ) {
+        let r = RangeModel::new(min, min + span).increment(increment);
+        let from = r.snap(min + at * span);
+        prop_assume!(from + increment <= r.max());
+        let next = r.step_by(from, 1);
+        let tolerance = 1e-9 * from.abs().max(increment).max(1.0);
+        prop_assert!((next - from - increment).abs() <= tolerance, "{from} + {increment} gave {next}");
     }
 
     #[test]

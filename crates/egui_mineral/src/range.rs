@@ -97,7 +97,8 @@ pub enum Scale {
     Log,
 }
 
-/// Bounded value with an optional value grid (`step`) and a [`Scale`].
+/// Bounded value with an optional value grid (`step`), keyboard unit (`increment`), decimal
+/// precision (`fraction_digits`) and a [`Scale`].
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(try_from = "RawRange")]
 pub struct RangeModel {
@@ -110,6 +111,10 @@ pub struct RangeModel {
     ratio: Option<f64>,
     #[serde(default)]
     significant: Option<u8>,
+    #[serde(default)]
+    increment: Option<f64>,
+    #[serde(default)]
+    fraction_digits: Option<u8>,
 }
 
 #[derive(serde::Deserialize)]
@@ -124,6 +129,10 @@ struct RawRange {
     ratio: Option<f64>,
     #[serde(default)]
     significant: Option<u8>,
+    #[serde(default)]
+    increment: Option<f64>,
+    #[serde(default)]
+    fraction_digits: Option<u8>,
 }
 
 impl TryFrom<RawRange> for RangeModel {
@@ -131,17 +140,22 @@ impl TryFrom<RawRange> for RangeModel {
 
     fn try_from(r: RawRange) -> Result<Self, String> {
         check_bounds(r.min, r.max)?;
-        for (name, v) in [("step", r.step), ("jump", r.jump)] {
+        for (name, v) in [("step", r.step), ("jump", r.jump), ("increment", r.increment)] {
             if let Some(v) = v {
                 check_size(name, v)?;
             }
         }
-        check_scale(r.scale, r.min, r.jump)?;
+        check_scale(r.scale, r.min)?;
+        check_linear(r.scale, "jump", r.jump)?;
+        check_linear(r.scale, "increment", r.increment)?;
         if let Some(v) = r.ratio {
             check_ratio(v)?;
         }
         if let Some(d) = r.significant {
             check_significant(d)?;
+        }
+        if let Some(d) = r.fraction_digits {
+            check_fraction_digits(d)?;
         }
         Ok(Self {
             min: r.min,
@@ -151,6 +165,8 @@ impl TryFrom<RawRange> for RangeModel {
             scale: r.scale,
             ratio: r.ratio,
             significant: r.significant,
+            increment: r.increment,
+            fraction_digits: r.fraction_digits,
         })
     }
 }
@@ -195,11 +211,26 @@ fn check_significant(digits: u8) -> Result<(), String> {
         .ok_or_else(|| format!("RangeModel: significant digits {digits} must be in 1..={MAX_SIGNIFICANT}"))
 }
 
-fn check_scale(scale: Scale, min: f64, jump: Option<f64>) -> Result<(), String> {
+// Decimals `decimal_places` and f64 resolve exactly.
+const MAX_FRACTION_DIGITS: u8 = 15;
+
+fn check_fraction_digits(digits: u8) -> Result<(), String> {
+    (digits <= MAX_FRACTION_DIGITS)
+        .then_some(())
+        .ok_or_else(|| format!("RangeModel: fraction digits {digits} must be in 0..={MAX_FRACTION_DIGITS}"))
+}
+
+fn check_scale(scale: Scale, min: f64) -> Result<(), String> {
     if scale == Scale::Log && min <= 0.0 {
         Err(format!("RangeModel: log scale needs min > 0, got {min}"))
-    } else if scale == Scale::Log && jump.is_some() {
-        Err("RangeModel: log scale pages by track share; drop `jump`".to_owned())
+    } else {
+        Ok(())
+    }
+}
+
+fn check_linear(scale: Scale, name: &str, v: Option<f64>) -> Result<(), String> {
+    if scale == Scale::Log && v.is_some() {
+        Err(format!("RangeModel: log scale moves by track share; drop `{name}`"))
     } else {
         Ok(())
     }
@@ -221,7 +252,7 @@ impl RangeModel {
             value,
             min: self.min(),
             max: self.max(),
-            step: self.step_size(),
+            step: self.increment.or(self.step),
         }
     }
 
@@ -241,11 +272,14 @@ impl RangeModel {
             scale: Scale::Linear,
             ratio: None,
             significant: None,
+            increment: None,
+            fraction_digits: None,
         }
     }
 
-    /// Value grid on both scales: values snap to `min + k * step`. A `step` that is not finite and
-    /// > 0 is ignored.
+    /// Value grid on both scales, the ticks of a discrete slider: values snap to `min + k * step`.
+    /// Arrows, wheel and buttons move by it unless [`Self::increment`] is set. A `step` that is not
+    /// finite and > 0 is ignored.
     #[must_use]
     pub fn step(mut self, step: f64) -> Self {
         match check_size("step", step) {
@@ -259,8 +293,32 @@ impl RangeModel {
     /// [`Scale::Log`].
     #[must_use]
     pub fn jump(mut self, jump: f64) -> Self {
-        match check_size("jump", jump).and_then(|()| check_scale(self.scale, self.min, Some(jump))) {
+        match check_size("jump", jump).and_then(|()| check_linear(self.scale, "jump", Some(jump))) {
             Ok(()) => self.jump = Some(jump),
+            Err(e) => crate::kit::sanitize::report(format_args!("{e}; ignored")),
+        }
+        self
+    }
+
+    /// Arrow, wheel and button distance on [`Scale::Linear`], added to the value as is (no grid
+    /// anchored at `min`); a `step` grid still snaps the result. Default `step`, else 1% of the
+    /// span. Ignored when not finite and > 0, or on [`Scale::Log`].
+    #[must_use]
+    pub fn increment(mut self, increment: f64) -> Self {
+        match check_size("increment", increment).and_then(|()| check_linear(self.scale, "increment", Some(increment))) {
+            Ok(()) => self.increment = Some(increment),
+            Err(e) => crate::kit::sanitize::report(format_args!("{e}; ignored")),
+        }
+        self
+    }
+
+    /// Rounds snapped values to `digits` decimals (multiples of 10^-digits from 0), after
+    /// [`Self::significant`] and before the `step` grid. Exact `min` and `max` stay reachable.
+    /// Ignored above 15.
+    #[must_use]
+    pub fn fraction_digits(mut self, digits: u8) -> Self {
+        match check_fraction_digits(digits) {
+            Ok(()) => self.fraction_digits = Some(digits),
             Err(e) => crate::kit::sanitize::report(format_args!("{e}; ignored")),
         }
         self
@@ -290,16 +348,19 @@ impl RangeModel {
         self
     }
 
-    /// Linear or logarithmic value scale. [`Scale::Log`] with `min <= 0` is ignored; with a
-    /// `jump` set it drops the `jump`.
+    /// Linear or logarithmic value scale. [`Scale::Log`] with `min <= 0` is ignored; it drops a
+    /// `jump` and an `increment`.
     #[must_use]
     pub fn scale(mut self, scale: Scale) -> Self {
-        if let Err(e) = check_scale(scale, self.min, None) {
+        if let Err(e) = check_scale(scale, self.min) {
             crate::kit::sanitize::report(format_args!("{e}; scale ignored"));
             return self;
         }
-        if scale == Scale::Log && self.jump.take().is_some() {
-            crate::kit::sanitize::report(format_args!("RangeModel: log scale pages by track share; jump dropped"));
+        for (name, v) in [("jump", &mut self.jump), ("increment", &mut self.increment)] {
+            if let Err(e) = check_linear(scale, name, *v) {
+                crate::kit::sanitize::report(format_args!("{e}; dropped"));
+                *v = None;
+            }
         }
         self.scale = scale;
         self
@@ -323,6 +384,16 @@ impl RangeModel {
     /// See [`Self::significant`].
     pub fn significant_digits(&self) -> Option<u8> {
         self.significant
+    }
+
+    /// See [`Self::increment`].
+    pub fn increment_size(&self) -> Option<f64> {
+        self.increment
+    }
+
+    /// See [`Self::fraction_digits`].
+    pub fn fraction_digit_count(&self) -> Option<u8> {
+        self.fraction_digits
     }
 
     /// `max - min`; 0 for a degenerate range.
@@ -357,9 +428,10 @@ impl RangeModel {
         self.limit(v)
     }
 
-    /// Clamps into bounds, rounds to [`Self::significant`] digits, then to the nearest step from `min`.
+    /// Clamps into bounds, rounds to [`Self::significant`] digits and [`Self::fraction_digits`]
+    /// decimals, then to the nearest step from `min`.
     pub fn snap(&self, v: f64) -> f64 {
-        let v = self.round_significant(self.limit(v));
+        let v = self.round_fraction(self.round_significant(self.limit(v)));
         match self.step {
             Some(s) => self.grid(((v - self.min) / s).round(), s),
             None => v,
@@ -376,6 +448,14 @@ impl RangeModel {
                     .parse()
                     .unwrap_or(v)
             }
+            _ => v,
+        }
+    }
+
+    #[expect(clippy::float_cmp, reason = "exact bounds are exempt from rounding")]
+    fn round_fraction(&self, v: f64) -> f64 {
+        match self.fraction_digits {
+            Some(d) if v != self.min && v != self.max => round_places(v, i32::from(d)),
             _ => v,
         }
     }
@@ -403,9 +483,7 @@ impl RangeModel {
         else {
             return raw;
         };
-        let scale = 10f64.powi(places);
-        let rounded = (raw * scale).round() / scale;
-        if rounded.is_finite() { rounded } else { raw }
+        round_places(raw, places)
     }
 
     /// Track position of `v` in `0.0..=1.0`, through the [`Scale`].
@@ -455,7 +533,7 @@ impl RangeModel {
     }
 
     fn arrow_step(&self) -> f64 {
-        self.step.unwrap_or(self.span() / 100.0)
+        self.increment.or(self.step).unwrap_or(self.span() / 100.0)
     }
 
     fn shift(&self, v: f64, n: f64, page: bool) -> f64 {
@@ -466,7 +544,13 @@ impl RangeModel {
                 } else {
                     self.arrow_step()
                 };
-                let (from, next) = (self.snap(v), self.snap(v + n * unit));
+                let from = self.snap(v);
+                let raw = from + n * unit;
+                // Decimal sum, so 0.1 + 0.2 lands on 0.3.
+                let raw = decimal_places(from)
+                    .zip(decimal_places(unit))
+                    .map_or(raw, |(a, b)| round_places(raw, a.max(b)));
+                let next = self.snap(raw);
                 if self.step.is_none() && (next - from).abs() < f64::EPSILON && n.abs() > 0.0 {
                     self.significant_step(from, n > 0.0).unwrap_or(next)
                 } else {
@@ -492,7 +576,7 @@ impl RangeModel {
         }
     }
 
-    /// `v` moved by `n` arrow steps, snapped: `step` (else 1% of the span) on [`Scale::Linear`],
+    /// `v` moved by `n` arrow steps, snapped: `increment` (else `step`, else 1% of the span) on [`Scale::Linear`],
     /// [`Self::ratio`] (else 1% of the track) on [`Scale::Log`].
     pub fn step_by(&self, v: f64, n: i64) -> f64 {
         self.shift(v, n as f64, false)
@@ -592,6 +676,12 @@ pub fn nearest_thumb(values: &[f64], v: f64) -> Option<usize> {
         .map(|(i, _)| i)
 }
 
+fn round_places(v: f64, places: i32) -> f64 {
+    let scale = 10f64.powi(places);
+    let rounded = (v * scale).round() / scale;
+    if rounded.is_finite() { rounded } else { v }
+}
+
 // Fraction digits of the shortest decimal that reads back as `v`; `None` past f64 precision
 // (e.g. a step of 1/3).
 fn decimal_places(v: f64) -> Option<i32> {
@@ -650,6 +740,8 @@ mod tests {
             scale: Scale::Linear,
             ratio: None,
             significant,
+            increment: None,
+            fraction_digits: None,
         };
         let ok = RangeModel::try_from(raw(Some(3))).expect("3 digits");
         assert_eq!(ok.significant_digits(), Some(3));
@@ -800,5 +892,29 @@ mod tests {
         assert_eq!(RangeModel::new(0.0, 1.0).step(0.1).ticks(20)[3], 0.3);
         let thirds = RangeModel::new(0.0, 1.0).step(1.0 / 3.0);
         assert_eq!(thirds.snap(0.3), 1.0 / 3.0);
+    }
+
+    #[test]
+    fn increments_add_to_the_value_and_fraction_digits_round_from_zero() {
+        let angle = RangeModel::new(0.0, 360.0).increment(5.0).fraction_digits(1);
+        assert_eq!(angle.step_by(12.3, 1), 17.3);
+        assert_eq!(angle.snap(12.34), 12.3);
+        let tiny_min = RangeModel::new(1e-6, 10.0).increment(0.01);
+        assert_eq!(tiny_min.step_by(1.0, 1), 1.01);
+        let offset_min = RangeModel::new(0.01, 10.0).increment(1.0);
+        assert_eq!(offset_min.step_by(1.5, 1), 2.5);
+        assert_eq!(
+            offset_min.step_by(0.01, 1),
+            1.01,
+            "min stays reachable and steps from it"
+        );
+        assert_eq!(RangeModel::new(0.0, 1.0).increment(0.1).step_by(0.2, 1), 0.3);
+        let log = RangeModel::new(1.0, 10.0).increment(2.0).scale(Scale::Log);
+        assert_eq!(log.increment_size(), None, "log drops the increment");
+        assert_eq!(log.increment(2.0).increment_size(), None, "log ignores an increment");
+        assert_eq!(
+            RangeModel::new(0.0, 1.0).fraction_digits(16).fraction_digit_count(),
+            None
+        );
     }
 }

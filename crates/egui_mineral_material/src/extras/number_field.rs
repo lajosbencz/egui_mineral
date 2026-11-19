@@ -15,7 +15,6 @@ use egui_mineral::{
     layout::Constraints,
     number::{self, NumberEdit, NumberSource},
     range::{RangeModel, Track},
-    semantic::NumericRange,
     widget::{SizeExt, WidgetResponse},
 };
 
@@ -31,7 +30,7 @@ use crate::{icons, spec::defaults::text_field as tf, tr};
 const MIN_FIELD_W: f32 = 80.0;
 
 /// Numeric field with stepper, range and locale formatting over any [`Numeric`]; non-MD3. Integer
-/// values step by whole numbers (the range step is at least 1 and rounded) and round typed text.
+/// values step by whole numbers (the range step and increment are at least 1 and rounded) and round typed text.
 #[must_use = "show with ui.mineral(..)"]
 pub struct NumberField<'a, N: Numeric = f64> {
     salt: KeyedSalt,
@@ -83,6 +82,9 @@ impl<'a, N: Numeric> NumberField<'a, N> {
         if N::INTEGRAL {
             let step = range.step_size().unwrap_or(1.0);
             range = range.step(if step >= 1.0 { step.round() } else { 1.0 });
+            if let Some(i) = range.increment_size() {
+                range = range.increment(i.round().max(1.0));
+            }
         }
         Self {
             chrome: FieldChrome::default(),
@@ -109,7 +111,8 @@ impl<'a, N: Numeric> NumberField<'a, N> {
         self
     }
 
-    /// Display text of the value; default the locale number format at the step's fraction digits
+    /// Display text of the value; default the locale number format at the range's fraction digits
+    /// (else the step's or increment's decimals)
     /// (the value's own digits without [`Self::snap_typed`]).
     pub fn format(mut self, format: impl Fn(f64) -> String + 'a) -> Self {
         self.format = Some(Box::new(format));
@@ -185,12 +188,7 @@ impl<'a, N: Numeric> NumberField<'a, N> {
         if let Some(s) = &self.chrome.supporting {
             field = field.supporting(s.clone());
         }
-        field.spin = Some(NumericRange {
-            value: v,
-            min: self.range.min(),
-            max: self.range.max(),
-            step: self.range.step_size(),
-        });
+        field.spin = Some(self.range.numeric(v));
         field
     }
 

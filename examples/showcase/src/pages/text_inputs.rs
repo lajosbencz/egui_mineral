@@ -45,6 +45,7 @@ pub(crate) struct State {
     number_free: f64,
     number_int: f64,
     number_price: f64,
+    number_angle: f64,
     number_err: f64,
     number_freq: f64,
     buffered_name: String,
@@ -106,6 +107,7 @@ impl Default for State {
             number_free: 0.123,
             number_int: 3.0,
             number_price: 19.99,
+            number_angle: 12.3,
             number_err: 150.0,
             number_freq: 440.0,
             buffered_name: "Track 1".to_owned(),
@@ -302,6 +304,49 @@ fn buffered(ui: &mut Mui<'_>, s: &mut State) {
     ));
 }
 
+fn formatted_numbers(ui: &mut Mui<'_>, s: &mut State) {
+    super::top_row(ui, |row| {
+        row.add(|ui| {
+            ui.mineral(
+                NumberField::new(
+                    "ti-num-int",
+                    "Integer",
+                    RangeModel::new(1.0, 99.0).step(1.0),
+                    &mut s.number_int,
+                )
+                .variant(TextFieldVariant::Outlined)
+                .preferred_width(220.0),
+            )
+        });
+        row.add(|ui| {
+            ui.mineral(
+                NumberField::new(
+                    "ti-num-price",
+                    "Price",
+                    RangeModel::new(0.0, 1000.0).step(0.01),
+                    &mut s.number_price,
+                )
+                .variant(TextFieldVariant::Outlined)
+                .format(|v| format!("${v:.2}"))
+                .preferred_width(220.0),
+            )
+        });
+        row.add(|ui| {
+            ui.mineral(
+                NumberField::new(
+                    "ti-num-angle",
+                    "Angle",
+                    RangeModel::new(0.0, 360.0).increment(5.0).fraction_digits(1),
+                    &mut s.number_angle,
+                )
+                .variant(TextFieldVariant::Outlined)
+                .supporting("1 decimal, steps by 5 from any value")
+                .preferred_width(220.0),
+            )
+        });
+    });
+}
+
 fn numbers(ui: &mut Mui<'_>, s: &mut State) {
     super::section(ui, TOPICS[1], Some(<NumberField<'static>>::META), |ui| {
         super::top_row(ui, |row| {
@@ -366,36 +411,10 @@ fn numbers(ui: &mut Mui<'_>, s: &mut State) {
                 )
             });
         });
-        super::top_row(ui, |row| {
-            row.add(|ui| {
-                ui.mineral(
-                    NumberField::new(
-                        "ti-num-int",
-                        "Integer",
-                        RangeModel::new(1.0, 99.0).step(1.0),
-                        &mut s.number_int,
-                    )
-                    .variant(TextFieldVariant::Outlined)
-                    .preferred_width(220.0),
-                )
-            });
-            row.add(|ui| {
-                ui.mineral(
-                    NumberField::new(
-                        "ti-num-price",
-                        "Price",
-                        RangeModel::new(0.0, 1000.0).step(0.01),
-                        &mut s.number_price,
-                    )
-                    .variant(TextFieldVariant::Outlined)
-                    .format(|v| format!("${v:.2}"))
-                    .preferred_width(220.0),
-                )
-            });
-        });
+        formatted_numbers(ui, s);
         ui.label(format!(
-            "Values: {} / {} / {} / {} / {}",
-            s.number, s.number_int, s.number_price, s.number_err, s.number_freq
+            "Values: {} / {} / {} / {} / {} / {}",
+            s.number, s.number_int, s.number_price, s.number_err, s.number_freq, s.number_angle
         ));
         buffered(ui, s);
     });
