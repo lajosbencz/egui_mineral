@@ -75,7 +75,7 @@ impl<'a, T: AsIdSalt> ReorderableList<'a, T> {
                     .iter()
                     .enumerate()
                     .map(|(i, it)| {
-                        let row = item(i, it).drag_indicator().disabled(true);
+                        let row = item(i, it).drag_indicator(&rt.icons()).disabled(true);
                         ui.push_id(it, |ui| rt.ui(ui).mineral(row)).inner
                     })
                     .collect();
@@ -106,7 +106,7 @@ fn reorderable_list<T: AsIdSalt>(
     let mut rows = Vec::with_capacity(items.len());
     let t = rt.tokens();
     let res = dnd::reorder_list(ui, salt.clone(), items, |ui, i, it, view| {
-        let w = item(i, it).drag_indicator();
+        let w = item(i, it).drag_indicator(&rt.icons());
         match view {
             RowView::Idle => {
                 let r = rt.ui(ui).mineral(w);

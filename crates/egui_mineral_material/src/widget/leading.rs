@@ -2,7 +2,7 @@ use std::{fmt, sync::Arc};
 
 use egui::{Color32, Painter, Pos2, Rect, Vec2};
 
-use crate::MaterialIcon;
+use crate::Icon;
 use crate::widget::common;
 
 /// App-painted content of a leading icon slot (colour swatch, preview), for content an icon cannot
@@ -35,14 +35,20 @@ impl fmt::Debug for LeadingPaint {
 #[derive(Clone, Debug)]
 pub enum Leading {
     /// Material icon.
-    Icon(MaterialIcon),
+    Icon(Icon),
     /// App-painted content.
     Paint(LeadingPaint),
 }
 
-impl From<MaterialIcon> for Leading {
-    fn from(icon: MaterialIcon) -> Self {
+impl From<Icon> for Leading {
+    fn from(icon: Icon) -> Self {
         Self::Icon(icon)
+    }
+}
+
+impl From<crate::MaterialIcon> for Leading {
+    fn from(icon: crate::MaterialIcon) -> Self {
+        Self::from(Icon::from(icon))
     }
 }
 

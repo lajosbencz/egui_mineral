@@ -28,8 +28,7 @@ use egui_mineral::{
 use crate::widget::leading::Leading;
 use crate::widget::{indication, parts};
 use crate::{
-    MaterialIcon,
-    icons::{ICON_ARROW_LEFT, ICON_ARROW_RIGHT, ICON_CHECK},
+    Icon,
     spec::{
         ShapeRole, defaults,
         tokens::{divider, list, menu, segmented_menu, standard_menu, vibrant_menu},
@@ -187,14 +186,20 @@ fn vertical_radius(top: u8, bottom: u8) -> CornerRadius {
 #[derive(Clone, Copy, Debug)]
 pub enum MenuTrailing {
     /// Trailing icon.
-    Icon(MaterialIcon),
+    Icon(Icon),
     /// Shortcut label; bound to the item's [`MenuItem::command`] while the menu is shown.
     Shortcut(KeyboardShortcut),
 }
 
-impl From<MaterialIcon> for MenuTrailing {
-    fn from(icon: MaterialIcon) -> Self {
+impl From<Icon> for MenuTrailing {
+    fn from(icon: Icon) -> Self {
         Self::Icon(icon)
+    }
+}
+
+impl From<crate::MaterialIcon> for MenuTrailing {
+    fn from(icon: crate::MaterialIcon) -> Self {
+        Self::from(Icon::from(icon))
     }
 }
 
@@ -1363,7 +1368,7 @@ impl MineralWidget for MenuRow<'_> {
         let x = |from_start: f32, w: f32| dir.start_x(rect, Rangef::new(from_start, from_start + w));
         let cy = rect.center().y;
         let mut off = pad;
-        let check = Leading::Icon(ICON_CHECK);
+        let check = Leading::Icon(ui.icons().check);
         let leading = item
             .leading
             .as_ref()
@@ -1397,8 +1402,8 @@ impl MineralWidget for MenuRow<'_> {
             }
             Some(MenuTrailing::Icon(glyph)) => Some(glyph),
             None => item.has_submenu().then_some(match dir {
-                Direction::Ltr => ICON_ARROW_RIGHT,
-                Direction::Rtl => ICON_ARROW_LEFT,
+                Direction::Ltr => ui.icons().arrow_right,
+                Direction::Rtl => ui.icons().arrow_left,
             }),
         };
         if let Some(icon_id) = trailing_icon {

@@ -1,3 +1,4 @@
+use crate::IconSet;
 use crate::Material;
 use crate::MaterialExt;
 use crate::MaterialUiExt as _;
@@ -25,7 +26,7 @@ use crate::widget::{
     row_parts::{self, RowColors, RowState},
 };
 use crate::{
-    MaterialIcon,
+    Icon,
     spec::{defaults, tokens::list},
     tokens::Tokens,
 };
@@ -37,7 +38,7 @@ const REVEAL_W: f32 = 72.0;
 #[derive(Clone, Debug)]
 #[must_use]
 pub struct SwipeAction {
-    icon: MaterialIcon,
+    icon: Icon,
     label: String,
     removes_row: bool,
     destructive: bool,
@@ -45,9 +46,9 @@ pub struct SwipeAction {
 
 impl SwipeAction {
     /// `label` is the accessible name of the revealed action.
-    pub fn new(icon: MaterialIcon, label: impl Into<String>) -> Self {
+    pub fn new(icon: impl Into<Icon>, label: impl Into<String>) -> Self {
         Self {
-            icon,
+            icon: icon.into(),
             label: label.into(),
             removes_row: false,
             destructive: false,
@@ -235,8 +236,8 @@ impl ListItem {
     }
 
     // Drag indicator visual of a reorderable row; keeps an app trailing control.
-    pub(crate) fn drag_indicator(mut self) -> Self {
-        self.trailing = self.trailing.icon(crate::icons::ICON_DRAG_INDICATOR);
+    pub(crate) fn drag_indicator(mut self, icons: &IconSet) -> Self {
+        self.trailing = self.trailing.icon(icons.drag_indicator);
         self
     }
 

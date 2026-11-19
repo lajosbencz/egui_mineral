@@ -22,7 +22,7 @@ use crate::widget::{
     parts,
 };
 use crate::{
-    MaterialIcon,
+    Icon,
     spec::tokens::{
         filled_icon_button, filled_tonal_icon_button, floating_toolbar, large_icon_button, medium_icon_button,
         outlined_icon_button, small_icon_button, standard_icon_button, x_large_icon_button, x_small_icon_button,
@@ -216,7 +216,7 @@ fn style(variant: IconButtonVariant, checked: Option<bool>, enabled: bool, palet
 #[must_use = "show with ui.mineral(..)"]
 pub struct IconButton<'a> {
     salt: KeyedSalt,
-    icon: MaterialIcon,
+    icon: Icon,
     label: String,
     key: AgentKey,
     variant: IconButtonVariant,
@@ -233,12 +233,12 @@ pub struct IconButton<'a> {
 
 impl<'a> IconButton<'a> {
     /// `label` is the accessible name (icon only); agent key `<id_salt>-button`.
-    pub fn new(id_salt: impl Into<KeyedSalt>, icon: MaterialIcon, label: impl Into<String>) -> Self {
+    pub fn new(id_salt: impl Into<KeyedSalt>, icon: impl Into<Icon>, label: impl Into<String>) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
             key: AgentKey::Kind("button"),
             salt: id_salt,
-            icon,
+            icon: icon.into(),
             label: label.into(),
             variant: IconButtonVariant::default(),
             size: Size::Small,
@@ -285,7 +285,7 @@ impl<'a> IconButton<'a> {
     /// Compose `IconToggleButton`: a click flips `checked` and reports `changed`.
     pub fn toggle(
         id_salt: impl Into<KeyedSalt>,
-        icon: MaterialIcon,
+        icon: impl Into<Icon>,
         label: impl Into<String>,
         checked: &'a mut bool,
     ) -> Self {

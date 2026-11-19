@@ -1,4 +1,5 @@
 use crate::Material;
+use crate::MaterialExt;
 use crate::MaterialUiExt as _;
 use crate::Rt;
 use crate::adaptive::Density;
@@ -24,7 +25,7 @@ use crate::text_inputs::{
     TextField,
     text_field::{self, field_h},
 };
-use crate::{icons, spec::defaults::text_field as tf, tr};
+use crate::{spec::defaults::text_field as tf, tr};
 
 // No MD3 value; five bodyLarge digits
 const MIN_FIELD_W: f32 = 80.0;
@@ -162,14 +163,14 @@ impl<'a, N: Numeric> NumberField<'a, N> {
         (
             button(
                 "dec",
-                icons::ICON_REMOVE,
+                rt.icons().remove,
                 "mineral-number-decrement",
                 "decrement",
                 v <= self.range.min(),
             ),
             button(
                 "inc",
-                icons::ICON_ADD,
+                rt.icons().add,
                 "mineral-number-increment",
                 "increment",
                 v >= self.range.max(),

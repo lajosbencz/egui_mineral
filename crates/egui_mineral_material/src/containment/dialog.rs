@@ -19,7 +19,7 @@ use crate::actions::{ButtonVariant, PushButton};
 use crate::adaptive::MIN_INTERACTIVE_DP;
 use crate::widget::{common, modal_focus::ModalFocus, parts};
 use crate::{
-    MaterialIcon,
+    Icon,
     spec::{
         ColorRole, TypeScale, defaults,
         tokens::{app_bar, app_bar_small, dialog},
@@ -271,7 +271,7 @@ pub struct Dialog {
     salt: KeyedSalt,
     id: Id,
     headline: String,
-    icon: Option<MaterialIcon>,
+    icon: Option<Icon>,
     supporting: Option<String>,
     actions: Vec<DialogAction>,
     default_action: Option<usize>,
@@ -442,8 +442,8 @@ impl Dialog {
     }
 
     /// Hero icon above the headline.
-    pub fn icon(mut self, icon: MaterialIcon) -> Self {
-        self.icon = Some(icon);
+    pub fn icon(mut self, icon: impl Into<Icon>) -> Self {
+        self.icon = Some(icon.into());
         self
     }
 

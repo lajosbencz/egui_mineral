@@ -154,7 +154,7 @@ mod mirror {
                 .supporting("Help"),
         );
         ui.mineral(PushButton::new("b", "Button").icon(ICON_ADD));
-        ui.mineral(PushButton::new("bt", "Menu").icon(ButtonIcon::Trailing(ICON_ARROW_DROP_DOWN)));
+        ui.mineral(PushButton::new("bt", "Menu").icon(ButtonIcon::Trailing(ICON_ARROW_DROP_DOWN.into())));
         ui.mineral(Chip::input("chip", "Chip"));
         ui.mineral(CheckButton::new("cb", "Check", &mut on));
         ui.mineral(Switch::new("sw", "Switch", &mut on));

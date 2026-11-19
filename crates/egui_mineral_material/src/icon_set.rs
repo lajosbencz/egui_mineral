@@ -1,9 +1,5 @@
-use std::sync::Arc;
-
-use egui_material_icons::{MaterialIcon, icons};
+use egui_material_icons::icons;
 use egui_mineral::icon::Icon;
-
-use crate::fonts::icon_of;
 
 /// Glyphs the kit draws for its own parts (chevrons, close, check, ...), one field per role named after
 /// the Material Symbols icon it defaults to. [`Self::material`] is the default, other fonts fill the same fields
@@ -117,59 +113,58 @@ pub struct IconSet {
 impl IconSet {
     /// Material Symbols Rounded, the font of [`Material::new`](crate::Material::new).
     pub fn material() -> Self {
-        let m = |i: MaterialIcon| icon_of(i);
-        Self {
-            add: m(icons::ICON_ADD),
-            arrow_back: m(icons::ICON_ARROW_BACK),
-            arrow_downward: m(icons::ICON_ARROW_DOWNWARD),
-            arrow_drop_down: m(icons::ICON_ARROW_DROP_DOWN),
-            arrow_drop_up: m(icons::ICON_ARROW_DROP_UP),
-            arrow_forward: m(icons::ICON_ARROW_FORWARD),
-            arrow_left: m(icons::ICON_ARROW_LEFT),
-            arrow_right: m(icons::ICON_ARROW_RIGHT),
-            arrow_upward: m(icons::ICON_ARROW_UPWARD),
-            attach_file: m(icons::ICON_ATTACH_FILE),
-            calendar_month: m(icons::ICON_CALENDAR_MONTH),
-            check: m(icons::ICON_CHECK),
-            check_circle: m(icons::ICON_CHECK_CIRCLE),
-            chevron_left: m(icons::ICON_CHEVRON_LEFT),
-            chevron_right: m(icons::ICON_CHEVRON_RIGHT),
-            close: m(icons::ICON_CLOSE),
-            cloud_upload: m(icons::ICON_CLOUD_UPLOAD),
-            date_range: m(icons::ICON_DATE_RANGE),
-            drag_indicator: m(icons::ICON_DRAG_INDICATOR),
-            edit: m(icons::ICON_EDIT),
-            error: m(icons::ICON_ERROR),
-            expand_more: m(icons::ICON_EXPAND_MORE),
-            first_page: m(icons::ICON_FIRST_PAGE),
-            inbox: m(icons::ICON_INBOX),
-            info: m(icons::ICON_INFO),
-            keyboard: m(icons::ICON_KEYBOARD),
-            keyboard_arrow_down: m(icons::ICON_KEYBOARD_ARROW_DOWN),
-            keyboard_arrow_left: m(icons::ICON_KEYBOARD_ARROW_LEFT),
-            keyboard_arrow_right: m(icons::ICON_KEYBOARD_ARROW_RIGHT),
-            keyboard_double_arrow_left: m(icons::ICON_KEYBOARD_DOUBLE_ARROW_LEFT),
-            keyboard_double_arrow_right: m(icons::ICON_KEYBOARD_DOUBLE_ARROW_RIGHT),
-            last_page: m(icons::ICON_LAST_PAGE),
-            menu: m(icons::ICON_MENU),
-            menu_open: m(icons::ICON_MENU_OPEN),
-            more_horiz: m(icons::ICON_MORE_HORIZ),
-            more_vert: m(icons::ICON_MORE_VERT),
-            person: m(icons::ICON_PERSON),
-            priority_high: m(icons::ICON_PRIORITY_HIGH),
-            progress_activity: m(icons::ICON_PROGRESS_ACTIVITY),
-            remove: m(icons::ICON_REMOVE),
-            schedule: m(icons::ICON_SCHEDULE),
-            search: m(icons::ICON_SEARCH),
-            search_off: m(icons::ICON_SEARCH_OFF),
-            star: m(icons::ICON_STAR),
-            trending_down: m(icons::ICON_TRENDING_DOWN),
-            trending_flat: m(icons::ICON_TRENDING_FLAT),
-            trending_up: m(icons::ICON_TRENDING_UP),
-            upload_file: m(icons::ICON_UPLOAD_FILE),
-            visibility: m(icons::ICON_VISIBILITY),
-            visibility_off: m(icons::ICON_VISIBILITY_OFF),
-            warning: m(icons::ICON_WARNING),
+                Self {
+            add: Icon::from(icons::ICON_ADD),
+            arrow_back: Icon::from(icons::ICON_ARROW_BACK),
+            arrow_downward: Icon::from(icons::ICON_ARROW_DOWNWARD),
+            arrow_drop_down: Icon::from(icons::ICON_ARROW_DROP_DOWN),
+            arrow_drop_up: Icon::from(icons::ICON_ARROW_DROP_UP),
+            arrow_forward: Icon::from(icons::ICON_ARROW_FORWARD),
+            arrow_left: Icon::from(icons::ICON_ARROW_LEFT),
+            arrow_right: Icon::from(icons::ICON_ARROW_RIGHT),
+            arrow_upward: Icon::from(icons::ICON_ARROW_UPWARD),
+            attach_file: Icon::from(icons::ICON_ATTACH_FILE),
+            calendar_month: Icon::from(icons::ICON_CALENDAR_MONTH),
+            check: Icon::from(icons::ICON_CHECK),
+            check_circle: Icon::from(icons::ICON_CHECK_CIRCLE),
+            chevron_left: Icon::from(icons::ICON_CHEVRON_LEFT),
+            chevron_right: Icon::from(icons::ICON_CHEVRON_RIGHT),
+            close: Icon::from(icons::ICON_CLOSE),
+            cloud_upload: Icon::from(icons::ICON_CLOUD_UPLOAD),
+            date_range: Icon::from(icons::ICON_DATE_RANGE),
+            drag_indicator: Icon::from(icons::ICON_DRAG_INDICATOR),
+            edit: Icon::from(icons::ICON_EDIT),
+            error: Icon::from(icons::ICON_ERROR),
+            expand_more: Icon::from(icons::ICON_EXPAND_MORE),
+            first_page: Icon::from(icons::ICON_FIRST_PAGE),
+            inbox: Icon::from(icons::ICON_INBOX),
+            info: Icon::from(icons::ICON_INFO),
+            keyboard: Icon::from(icons::ICON_KEYBOARD),
+            keyboard_arrow_down: Icon::from(icons::ICON_KEYBOARD_ARROW_DOWN),
+            keyboard_arrow_left: Icon::from(icons::ICON_KEYBOARD_ARROW_LEFT),
+            keyboard_arrow_right: Icon::from(icons::ICON_KEYBOARD_ARROW_RIGHT),
+            keyboard_double_arrow_left: Icon::from(icons::ICON_KEYBOARD_DOUBLE_ARROW_LEFT),
+            keyboard_double_arrow_right: Icon::from(icons::ICON_KEYBOARD_DOUBLE_ARROW_RIGHT),
+            last_page: Icon::from(icons::ICON_LAST_PAGE),
+            menu: Icon::from(icons::ICON_MENU),
+            menu_open: Icon::from(icons::ICON_MENU_OPEN),
+            more_horiz: Icon::from(icons::ICON_MORE_HORIZ),
+            more_vert: Icon::from(icons::ICON_MORE_VERT),
+            person: Icon::from(icons::ICON_PERSON),
+            priority_high: Icon::from(icons::ICON_PRIORITY_HIGH),
+            progress_activity: Icon::from(icons::ICON_PROGRESS_ACTIVITY),
+            remove: Icon::from(icons::ICON_REMOVE),
+            schedule: Icon::from(icons::ICON_SCHEDULE),
+            search: Icon::from(icons::ICON_SEARCH),
+            search_off: Icon::from(icons::ICON_SEARCH_OFF),
+            star: Icon::from(icons::ICON_STAR),
+            trending_down: Icon::from(icons::ICON_TRENDING_DOWN),
+            trending_flat: Icon::from(icons::ICON_TRENDING_FLAT),
+            trending_up: Icon::from(icons::ICON_TRENDING_UP),
+            upload_file: Icon::from(icons::ICON_UPLOAD_FILE),
+            visibility: Icon::from(icons::ICON_VISIBILITY),
+            visibility_off: Icon::from(icons::ICON_VISIBILITY_OFF),
+            warning: Icon::from(icons::ICON_WARNING),
         }
     }
 }
@@ -179,5 +174,3 @@ impl Default for IconSet {
         Self::material()
     }
 }
-
-pub(crate) type SharedIcons = Arc<IconSet>;

@@ -14,7 +14,7 @@ use egui_mineral::{
 
 use crate::widget::{common, indication, parts};
 use crate::{
-    Material, MaterialExt, MaterialIcon, SelectionResponse, icons, motion,
+    Material, MaterialExt, Icon, SelectionResponse, motion,
     spec::{
         defaults::{button, segmented_button as sbx},
         tokens::outlined_segmented_button as sb,
@@ -27,7 +27,7 @@ use crate::{
 #[must_use]
 pub struct Segment {
     label: String,
-    icon: Option<MaterialIcon>,
+    icon: Option<Icon>,
     disabled: bool,
     salt: Option<egui_mineral::semantic::KeyedSalt>,
 }
@@ -49,8 +49,8 @@ impl Segment {
     }
 
     /// Shown while unselected; crossfades to the check mark on selection.
-    pub fn icon(mut self, icon: MaterialIcon) -> Self {
-        self.icon = Some(icon);
+    pub fn icon(mut self, icon: impl Into<Icon>) -> Self {
+        self.icon = Some(icon.into());
         self
     }
 
@@ -375,7 +375,7 @@ impl SegmentItem<'_> {
                 common::icon(
                     &p,
                     icon_rect.center(),
-                    icons::ICON_CHECK,
+                    ui.icons().check,
                     sb::ICON_SIZE,
                     common::with_alpha(content, fade),
                 );
@@ -396,7 +396,7 @@ impl SegmentItem<'_> {
             common::icon(
                 &p,
                 center,
-                icons::ICON_CHECK,
+                ui.icons().check,
                 sb::ICON_SIZE * scale,
                 common::with_alpha(content, fade),
             );

@@ -1,3 +1,4 @@
+use crate::IconSet;
 use crate::Material;
 use crate::MaterialExt;
 use crate::MaterialUiExt as _;
@@ -25,7 +26,7 @@ use crate::widget::{
     indication, parts,
 };
 use crate::{
-    MaterialIcon, icons,
+    Icon,
     spec::{
         ColorRole,
         defaults::chip::{CONTENT_SPACE, INPUT_EDGE_SPACE, SPACE},
@@ -59,7 +60,7 @@ struct Core<'a> {
     key: AgentKey,
     label: String,
     kind: ChipKind,
-    icon: Option<MaterialIcon>,
+    icon: Option<Icon>,
     selected: Option<bool>,
     checked: Option<&'a mut bool>,
     elevated: bool,
@@ -79,8 +80,8 @@ pub struct InputChipOutput {
 macro_rules! common_setters {
     () => {
         /// Leading icon.
-        pub fn icon(mut self, icon: MaterialIcon) -> Self {
-            self.0.icon = Some(icon);
+        pub fn icon(mut self, icon: impl Into<Icon>) -> Self {
+            self.0.icon = Some(icon.into());
             self
         }
 
@@ -228,9 +229,13 @@ impl Core<'_> {
         self.selected == Some(true)
     }
 
-    fn leading(&self) -> Option<MaterialIcon> {
+    fn has_leading(&self) -> bool {
+        self.icon.is_some() || (self.kind == ChipKind::Filter && self.is_selected())
+    }
+
+    fn leading(&self, icons: &IconSet) -> Option<Icon> {
         if self.kind == ChipKind::Filter && self.is_selected() {
-            Some(icons::ICON_CHECK)
+            Some(icons.check)
         } else {
             self.icon
         }
@@ -244,7 +249,7 @@ impl Core<'_> {
         if self.kind != ChipKind::Input {
             return (SPACE, SPACE);
         }
-        let start = if self.leading().is_some() {
+        let start = if self.has_leading() {
             SPACE
         } else {
             INPUT_EDGE_SPACE
@@ -278,7 +283,7 @@ impl Core<'_> {
 
     fn width(&self, label: f32) -> f32 {
         let (start, end) = self.padding();
-        let lead = self.leading().map_or(0.0, |_| self.icon_size());
+        let lead = if self.has_leading() { self.icon_size() } else { 0.0 };
         let trail = if self.has_remove() {
             input_chip::TRAILING_ICON_SIZE
         } else {
@@ -370,7 +375,7 @@ impl Core<'_> {
         let ctx = ui.ctx();
         // The largest chip slot (`AVATAR_SIZE`) bounds the remove target's state layer.
         let part = parts::IconPart {
-            icon: icons::ICON_CLOSE,
+            icon: ui.icons().close,
             icon_size: input_chip::TRAILING_ICON_SIZE,
             layer: egui::Vec2::splat(chips::AVATAR_SIZE),
             radius: CornerRadius::from(chips::AVATAR_SIZE / 2.0),
@@ -651,7 +656,7 @@ impl MineralWidget for Core<'_> {
         surface.paint_outline(p);
 
         let mut at = start;
-        if let Some(icon) = self.leading() {
+        if let Some(icon) = self.leading(&rt.icons()) {
             let size = self.icon_size();
             common::icon(p, pos2(x(at + size / 2.0), rect.center().y), icon, size, s.leading);
             at += size;

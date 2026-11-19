@@ -28,7 +28,7 @@ use egui_mineral::{
 };
 
 use crate::{
-    MaterialIcon,
+    Icon,
     color::ColorScheme,
     motion,
     spec::{
@@ -566,10 +566,10 @@ pub(crate) fn paint_switch(ui: &MineralUi<'_, Material>, id: Id, track: Rect, s:
     let thumb = Rect::from_center_size(center, Vec2::splat(size));
     p.rect_filled(thumb, sw::HANDLE_SHAPE.corner_radius(&t.shape, Direction::Ltr), c.thumb);
     if s.icons {
-        let (icon, size): (MaterialIcon, f32) = if s.on {
-            (crate::icons::ICON_CHECK, sw::SELECTED_ICON_SIZE)
+        let (icon, size): (Icon, f32) = if s.on {
+            (ui.icons().check, sw::SELECTED_ICON_SIZE)
         } else {
-            (crate::icons::ICON_CLOSE, sw::UNSELECTED_ICON_SIZE)
+            (ui.icons().close, sw::UNSELECTED_ICON_SIZE)
         };
         common::icon(p, center, icon, size, c.icon);
     }

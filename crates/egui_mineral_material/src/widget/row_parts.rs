@@ -385,7 +385,7 @@ pub(crate) fn marker(
     center: Pos2,
     diameter: f32,
     fill: Color32,
-    glyph: Option<(crate::MaterialIcon, Color32)>,
+    glyph: Option<(crate::Icon, Color32)>,
 ) {
     p.circle_filled(center, diameter / 2.0, fill);
     if let Some((icon, color)) = glyph {

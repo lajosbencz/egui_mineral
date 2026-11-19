@@ -29,7 +29,7 @@ use crate::widget::{
     indication, parts,
 };
 use crate::{
-    MaterialIcon, icons, motion,
+    Icon, motion,
     spec::{
         ColorRole,
         defaults::fab_menu as cx,
@@ -94,7 +94,7 @@ fn checked_roles(color: FabMenuColors) -> (ColorRole, ColorRole) {
 #[derive(Clone, Debug)]
 #[must_use]
 pub struct FabMenuItem {
-    icon: MaterialIcon,
+    icon: Icon,
     label: String,
     command: Option<ActionId>,
     disabled: bool,
@@ -108,9 +108,9 @@ impl FabMenuItem {
     }
 
     /// `label` is the visible text and accessible name.
-    pub fn new(icon: MaterialIcon, label: impl Into<String>) -> Self {
+    pub fn new(icon: impl Into<Icon>, label: impl Into<String>) -> Self {
         Self {
-            icon,
+            icon: icon.into(),
             label: label.into(),
             command: None,
             disabled: false,
@@ -161,7 +161,7 @@ pub struct FabMenuResponse {
 #[must_use = "call .show(..)"]
 pub struct FabMenu {
     salt: KeyedSalt,
-    icon: MaterialIcon,
+    icon: Icon,
     label: String,
     items: Vec<FabMenuItem>,
     size: FabMenuSize,
@@ -171,11 +171,11 @@ pub struct FabMenu {
 
 impl FabMenu {
     /// `icon` shows while closed, `label` is the toggle's accessible name; agent key prefix `<id_salt>`.
-    pub fn new(id_salt: impl Into<KeyedSalt>, icon: MaterialIcon, label: impl Into<String>) -> Self {
+    pub fn new(id_salt: impl Into<KeyedSalt>, icon: impl Into<Icon>, label: impl Into<String>) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
             salt: id_salt,
-            icon,
+            icon: icon.into(),
             label: label.into(),
             items: Vec::new(),
             size: FabMenuSize::default(),
@@ -364,7 +364,7 @@ struct Toggle {
     salt: KeyedSalt,
     key: StableId,
     label: String,
-    icon: MaterialIcon,
+    icon: Icon,
     size: FabSize,
     color: FabMenuColors,
     progress: f32,
@@ -420,7 +420,7 @@ impl MineralWidget for Toggle {
             outline: None,
         };
         surface.paint(ui, &frame.response, fg, i, &t);
-        let icon = if k > 0.5 { icons::ICON_CLOSE } else { self.icon };
+        let icon = if k > 0.5 { ui.icons().close } else { self.icon };
         let icon_size = egui::lerp(self.size.icon()..=m::CLOSE_BUTTON_ICON_SIZE, k);
         common::icon(ui.painter(), rect.center(), icon, icon_size, fg);
         WidgetResponse::new(frame.response.clone(), ())

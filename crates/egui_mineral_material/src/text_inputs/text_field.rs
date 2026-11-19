@@ -31,7 +31,7 @@ use egui_mineral::{
 use crate::widget::common;
 use crate::widget::parts;
 use crate::{
-    MaterialIcon, icons, motion,
+    Icon, motion,
     spec::{
         ColorRole, TypeScale,
         defaults::text_field as tf,
@@ -422,7 +422,7 @@ pub(crate) struct Decor<'a> {
     pub floated: bool,
     pub error: bool,
     pub disabled: bool,
-    pub leading: Option<MaterialIcon>,
+    pub leading: Option<Icon>,
     pub trailing: bool,
 }
 
@@ -596,7 +596,7 @@ pub(crate) fn trailing_button(
     ui: &mut MineralUi<'_, Material>,
     field: Rect,
     id: Id,
-    icon: MaterialIcon,
+    icon: Icon,
     color: Color32,
     disabled: bool,
 ) -> Response {
@@ -611,7 +611,7 @@ pub(crate) fn slot_button(
     ui: &mut MineralUi<'_, Material>,
     center: Pos2,
     id: Id,
-    icon: MaterialIcon,
+    icon: Icon,
     color: Color32,
     disabled: bool,
 ) -> Response {
@@ -695,7 +695,7 @@ pub(crate) struct FieldChrome {
     pub variant: TextFieldVariant,
     pub supporting: Option<String>,
     pub error: Option<String>,
-    pub leading: Option<MaterialIcon>,
+    pub leading: Option<Icon>,
 }
 
 /// `variant`, `supporting`, `error`, `maybe_error` and (unless `no_icon`) `icon` builders over a
@@ -705,8 +705,8 @@ macro_rules! field_chrome_setters {
         $crate::text_inputs::text_field::field_chrome_setters!(no_icon);
 
         /// Leading icon.
-        pub fn icon(mut self, icon: $crate::MaterialIcon) -> Self {
-            self.chrome.leading = Some(icon);
+        pub fn icon(mut self, icon: impl Into<$crate::Icon>) -> Self {
+            self.chrome.leading = Some(icon.into());
             self
         }
     };
@@ -746,7 +746,7 @@ pub struct TextField<'a> {
     label: String,
     value: &'a mut String,
     placeholder: Option<String>,
-    trailing: Option<(MaterialIcon, String)>,
+    trailing: Option<(Icon, String)>,
     prefix: Option<String>,
     suffix: Option<String>,
     password: bool,
@@ -840,8 +840,8 @@ impl<'a> TextField<'a> {
     }
 
     /// Trailing icon button named `label`; reports [`TextFieldOutput::trailing_clicked`].
-    pub fn trailing_icon(mut self, icon: MaterialIcon, label: impl Into<String>) -> Self {
-        self.trailing = Some((icon, label.into()));
+    pub fn trailing_icon(mut self, icon: impl Into<Icon>, label: impl Into<String>) -> Self {
+        self.trailing = Some((icon.into(), label.into()));
         self
     }
 
@@ -1233,9 +1233,9 @@ impl TextField<'_> {
         if self.has_toggle() {
             let revealed = self.revealed;
             let icon = if revealed {
-                icons::ICON_VISIBILITY_OFF
+                ui.icons().visibility_off
             } else {
-                icons::ICON_VISIBILITY
+                ui.icons().visibility
             };
             let r = trailing_button(ui, field, base.with("trailing"), icon, colors.trailing, self.disabled);
             let revealed = if r.clicked() {

@@ -13,7 +13,7 @@ use egui_mineral::{
 
 use crate::widget::{common, paint::paint_widget};
 use crate::{
-    MaterialIcon, icons,
+    Icon,
     spec::{
         ColorRole,
         tokens::{app_bar, chips, list, search_bar},
@@ -77,7 +77,7 @@ pub struct Avatar {
     key: AgentKey,
     name: String,
     image: Option<ImageSource<'static>>,
-    icon: MaterialIcon,
+    icon: Option<Icon>,
     size: AvatarSize,
 }
 
@@ -90,7 +90,7 @@ impl Avatar {
             salt: id_salt,
             name: name.into(),
             image: None,
-            icon: icons::ICON_PERSON,
+            icon: None,
             size: AvatarSize::default(),
         }
     }
@@ -99,9 +99,9 @@ impl Avatar {
         self.image = Some(source.into());
         self
     }
-    /// Fallback icon when `name` has no initials; default `ICON_PERSON`.
-    pub fn icon(mut self, icon: MaterialIcon) -> Self {
-        self.icon = icon;
+    /// Fallback icon when `name` has no initials; default [`IconSet::person`].
+    pub fn icon(mut self, icon: impl Into<Icon>) -> Self {
+        self.icon = Some(icon.into());
         self
     }
 
@@ -161,7 +161,7 @@ impl Avatar {
             let initials = Self::initials(&self.name);
             if initials.is_empty() {
                 let icon = list::ITEM_LEADING_ICON_SIZE * rect.width() / AVATAR_SIZE;
-                common::icon(p, center, self.icon, icon, fg);
+                common::icon(p, center, self.icon.unwrap_or(ui.icons().person), icon, fg);
             } else {
                 paint_label(p, center, initials, rect.width(), fg);
             }

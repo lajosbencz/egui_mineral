@@ -20,7 +20,6 @@ use egui_mineral::{
 use crate::actions::{ButtonVariant, PushButton};
 use crate::widget::{common, parts};
 use crate::{
-    icons,
     spec::{
         ColorRole, TypeScale,
         defaults::dialog as d,
@@ -263,9 +262,9 @@ impl MineralWidget for FileDropZone {
                 ui.painter(),
                 ir.center(),
                 if hovering {
-                    icons::ICON_CLOUD_UPLOAD
+                    ui.icons().cloud_upload
                 } else {
-                    icons::ICON_UPLOAD_FILE
+                    ui.icons().upload_file
                 },
                 dialog::ICON_SIZE,
                 icon,
@@ -280,7 +279,7 @@ impl MineralWidget for FileDropZone {
             ui.mineral(
                 PushButton::new(self.salt.child("browse"), tr(rt.i18n(), "mineral-file-browse"))
                     .variant(ButtonVariant::Tonal)
-                    .icon(icons::ICON_ATTACH_FILE)
+                    .icon(ui.icons().attach_file)
                     .disabled(self.disabled)
                     .agent_key(StableId::of(&self.salt, "browse-button")),
             )

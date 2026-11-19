@@ -13,7 +13,7 @@ use egui_mineral::{
 
 use crate::SelectionResponse;
 use crate::{
-    MaterialIcon, motion,
+    Icon, motion,
     spec::{
         defaults::button_group as group,
         tokens::{baseline_button, button_group_small, connected_button_group_small},
@@ -30,7 +30,7 @@ use crate::{
 pub struct ButtonGroupItem {
     label: String,
     label_visible: bool,
-    icon: Option<MaterialIcon>,
+    icon: Option<Icon>,
     disabled: bool,
     salt: Option<egui_mineral::semantic::KeyedSalt>,
 }
@@ -59,8 +59,8 @@ impl ButtonGroupItem {
         self
     }
     /// Leading icon.
-    pub fn icon(mut self, icon: MaterialIcon) -> Self {
-        self.icon = Some(icon);
+    pub fn icon(mut self, icon: impl Into<Icon>) -> Self {
+        self.icon = Some(icon.into());
         self
     }
     crate::widget::setters! {

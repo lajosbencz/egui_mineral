@@ -30,7 +30,6 @@ use crate::widget::{
     row_parts::{self, RowColors, RowState},
 };
 use crate::{
-    icons,
     spec::{
         TypeScale, defaults,
         tokens::{button_small, divider, filled_text_field, list},
@@ -472,8 +471,8 @@ impl<'a> DataTable<'a> {
         let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), row_h), Sense::hover());
         egui_mineral::layout::child(&mut rt.ui(ui), "footer", rect, layout, |ui| {
             ui.spacing_mut().item_spacing.x = crate::adaptive::grid(2);
-            let back = dir.pick(icons::ICON_CHEVRON_LEFT, icons::ICON_CHEVRON_RIGHT);
-            let fwd = dir.pick(icons::ICON_CHEVRON_RIGHT, icons::ICON_CHEVRON_LEFT);
+            let back = dir.pick(ui.icons().chevron_left, ui.icons().chevron_right);
+            let fwd = dir.pick(ui.icons().chevron_right, ui.icons().chevron_left);
             let last = paging.page_count(rows) - 1;
             if ui
                 .mineral(
@@ -519,7 +518,7 @@ impl<'a> DataTable<'a> {
                 let anchor = ui.mineral(
                     PushButton::new(salt.child("page-size"), fmt.count(paging.size()))
                         .variant(ButtonVariant::Text)
-                        .icon(ButtonIcon::Trailing(icons::ICON_ARROW_DROP_DOWN))
+                        .icon(ButtonIcon::Trailing(ui.icons().arrow_drop_down))
                         .disabled(disabled),
                 );
                 let mut menu = Menu::new(
@@ -1229,9 +1228,9 @@ fn paint_header(
     }
     let p = ui.painter();
     let arrow = match sort {
-        Some(SortOrder::Ascending) => Some((icons::ICON_ARROW_UPWARD, colors.label)),
-        Some(SortOrder::Descending) => Some((icons::ICON_ARROW_DOWNWARD, colors.label)),
-        None if col.sortable && r.hovered() => Some((icons::ICON_ARROW_UPWARD, colors.trailing)),
+        Some(SortOrder::Ascending) => Some((ui.icons().arrow_upward, colors.label)),
+        Some(SortOrder::Descending) => Some((ui.icons().arrow_downward, colors.label)),
+        None if col.sortable && r.hovered() => Some((ui.icons().arrow_upward, colors.trailing)),
         None => None,
     };
     let arrow_w = if col.sortable { SORT_ICON + SORT_ICON_GAP } else { 0.0 };

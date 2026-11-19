@@ -1,3 +1,4 @@
+use crate::IconSet;
 use crate::Material;
 use crate::MaterialExt;
 use crate::Rt;
@@ -13,9 +14,8 @@ use egui_mineral::{
 use crate::actions::{IconButton, PushButton};
 use crate::widget::parts;
 use crate::{
-    MaterialIcon,
+    Icon,
     adaptive::MIN_INTERACTIVE,
-    icons,
     spec::{
         ShapeRole, defaults,
         tokens::{divider, filled_card, list, outlined_card, rich_tooltip},
@@ -46,12 +46,12 @@ pub enum Severity {
 }
 
 impl Severity {
-    fn icon(self) -> MaterialIcon {
+    fn icon(self, icons: &IconSet) -> Icon {
         match self {
-            Self::Info => icons::ICON_INFO,
-            Self::Success => icons::ICON_CHECK_CIRCLE,
-            Self::Warning => icons::ICON_WARNING,
-            Self::Error => icons::ICON_ERROR,
+            Self::Info => icons.info,
+            Self::Success => icons.check_circle,
+            Self::Warning => icons.warning,
+            Self::Error => icons.error,
         }
     }
 
@@ -252,7 +252,7 @@ impl Alert {
                 ui.spacing_mut().item_spacing.x = gap;
                 let size = list::ITEM_LEADING_ICON_SIZE;
                 let (ir, _) = ui.allocate_exact_size(vec2(size, size), Sense::hover());
-                crate::widget::common::icon(ui.painter(), ir.center(), self.severity.icon(), size, icon_color);
+                crate::widget::common::icon(ui.painter(), ir.center(), self.severity.icon(&rt.icons()), size, icon_color);
                 let close_w = if self.dismissible {
                     MIN_INTERACTIVE.points(rt.core()) + gap
                 } else {
@@ -282,7 +282,7 @@ impl Alert {
                         .ui(ui)
                         .mineral(IconButton::new(
                             self.salt.child("dismiss"),
-                            icons::ICON_CLOSE,
+                            rt.icons().close,
                             crate::tr(rt.i18n(), "mineral-dismiss"),
                         ))
                         .clicked()

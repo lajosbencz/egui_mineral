@@ -45,7 +45,7 @@ use crate::{
     actions::{IconButtonWidth, icon_button},
 };
 use crate::{
-    icons, motion,
+    motion,
     spec::{
         defaults,
         tokens::{list, small_icon_button, standard_icon_button},
@@ -312,7 +312,7 @@ impl RowWidget<'_> {
                 .agent_key(self.key.sub("progress"))
                 .show_in(ui, Rect::from_center_size(chevron.center(), Vec2::splat(ICON)));
         } else if self.has_children {
-            let icon = dir.pick(icons::ICON_CHEVRON_RIGHT, icons::ICON_CHEVRON_LEFT);
+            let icon = dir.pick(ui.icons().chevron_right, ui.icons().chevron_left);
             let sign = dir.sign();
             let k = egui_mineral::motion::spring(
                 ui.core(),

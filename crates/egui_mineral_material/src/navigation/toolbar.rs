@@ -29,7 +29,7 @@ use crate::{
     },
 };
 use crate::{
-    MaterialIcon,
+    Icon,
     adaptive::MIN_INTERACTIVE,
     motion,
     spec::{
@@ -123,7 +123,7 @@ enum Kind {
 }
 
 struct PairedFab {
-    icon: MaterialIcon,
+    icon: Icon,
     label: String,
     position: Edge,
 }
@@ -321,9 +321,9 @@ impl FloatingToolbar {
 
     /// Pairs the toolbar with a FAB that grows as the toolbar collapses, at `position`
     /// (Compose `FloatingToolbarHorizontalFabPosition`, `FloatingToolbarVerticalFabPosition`).
-    pub fn fab(mut self, icon: MaterialIcon, label: impl Into<String>, position: Edge) -> Self {
+    pub fn fab(mut self, icon: impl Into<Icon>, label: impl Into<String>, position: Edge) -> Self {
         self.fab = Some(PairedFab {
-            icon,
+            icon: icon.into(),
             label: label.into(),
             position,
         });

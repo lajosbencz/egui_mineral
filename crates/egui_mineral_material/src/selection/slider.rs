@@ -16,7 +16,7 @@ use egui_mineral::{
 
 use crate::widget::parts;
 use crate::{
-    MaterialIcon,
+    Icon,
     spec::{
         defaults::slider as sx,
         tokens::{plain_tooltip as tip, slider as tok},
@@ -131,8 +131,8 @@ pub struct ValueSlider<'a> {
 
 #[derive(Clone, Copy, Debug, Default)]
 struct EndIcons {
-    min: Option<MaterialIcon>,
-    max: Option<MaterialIcon>,
+    min: Option<Icon>,
+    max: Option<Icon>,
 }
 
 egui_mineral::kit::opaque_debug!(ValueSlider<'_>);
@@ -250,14 +250,14 @@ impl<'a> ValueSlider<'a> {
     }
 
     /// Icon at the min end: inset in the track for sizes with a track icon, else beside it.
-    pub fn icon(mut self, icon: MaterialIcon) -> Self {
-        self.icons.min = Some(icon);
+    pub fn icon(mut self, icon: impl Into<Icon>) -> Self {
+        self.icons.min = Some(icon.into());
         self
     }
 
     /// Icon at the max end: inset in the track for sizes with a track icon, else beside it.
-    pub fn trailing_icon(mut self, trailing_icon: MaterialIcon) -> Self {
-        self.icons.max = Some(trailing_icon);
+    pub fn trailing_icon(mut self, trailing_icon: impl Into<Icon>) -> Self {
+        self.icons.max = Some(trailing_icon.into());
         self
     }
 

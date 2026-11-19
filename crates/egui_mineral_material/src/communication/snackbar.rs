@@ -23,7 +23,6 @@ use crate::widget::{
     indication, parts,
 };
 use crate::{
-    icons::ICON_CLOSE,
     spec::{
         defaults,
         tokens::{baseline_button, small_icon_button, snackbar},
@@ -396,7 +395,7 @@ fn close_button(ui: &mut Ui, rt: &Rt, row: &Row, color: Color32) -> Response {
     );
     let size = small_icon_button::CONTAINER_HEIGHT;
     let part = parts::IconPart {
-        icon: ICON_CLOSE,
+        icon: rt.icons().close,
         icon_size: snackbar::ICON_SIZE,
         layer: Vec2::splat(size),
         radius: CornerRadius::from(size / 2.0),

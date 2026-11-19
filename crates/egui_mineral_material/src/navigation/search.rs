@@ -28,8 +28,7 @@ use crate::widget::{
     row_parts::{self, OptionRow, RowMetrics},
 };
 use crate::{
-    MaterialIcon,
-    icons::{ICON_ARROW_BACK, ICON_ARROW_FORWARD, ICON_CLOSE, ICON_SEARCH},
+    Icon,
     spec::{
         ColorRole, ShapeRole,
         defaults::search_bar as sb,
@@ -125,7 +124,7 @@ pub struct SearchBar<'a> {
     label: Option<String>,
     placeholder: Option<String>,
     back: bool,
-    trailing: Option<(MaterialIcon, String)>,
+    trailing: Option<(Icon, String)>,
     joined: Option<Side>,
     disabled: bool,
 }
@@ -182,8 +181,8 @@ impl<'a> SearchBar<'a> {
     }
 
     /// Trailing icon button; `label` is its accessible name.
-    pub fn trailing_icon(mut self, icon: MaterialIcon, label: impl Into<String>) -> Self {
-        self.trailing = Some((icon, label.into()));
+    pub fn trailing_icon(mut self, icon: impl Into<Icon>, label: impl Into<String>) -> Self {
+        self.trailing = Some((icon.into(), label.into()));
         self
     }
 
@@ -256,13 +255,13 @@ impl MineralWidget for SearchBar<'_> {
                 ui,
                 lead,
                 base.with("leading"),
-                rt.i18n().direction().pick(ICON_ARROW_BACK, ICON_ARROW_FORWARD),
+                rt.i18n().direction().pick(ui.icons().arrow_back, ui.icons().arrow_forward),
                 c(search_bar::LEADING_ICON_COLOR),
                 node,
             );
         } else {
             let (_, size) = crate::widget::parts::small_icon_metrics();
-            common::icon(ui.painter(), lead, ICON_SEARCH, size, c(search_bar::LEADING_ICON_COLOR));
+            common::icon(ui.painter(), lead, ui.icons().search, size, c(search_bar::LEADING_ICON_COLOR));
         }
         let text_rect = input_rect(rt, rect, self.trailing.is_some());
         let te = SearchInput {
@@ -350,7 +349,7 @@ pub struct SearchSuggestions<'a> {
     label: Option<String>,
     placeholder: Option<String>,
     back: bool,
-    trailing: Option<(MaterialIcon, String)>,
+    trailing: Option<(Icon, String)>,
     max_items: usize,
     debounce: Option<(Debounce, DebounceCallback<'a>)>,
     disabled: bool,
@@ -409,8 +408,8 @@ impl<'a> SearchSuggestions<'a> {
     }
 
     /// Trailing icon button; `label` is its accessible name.
-    pub fn trailing_icon(mut self, icon: MaterialIcon, label: impl Into<String>) -> Self {
-        self.trailing = Some((icon, label.into()));
+    pub fn trailing_icon(mut self, icon: impl Into<Icon>, label: impl Into<String>) -> Self {
+        self.trailing = Some((icon.into(), label.into()));
         self
     }
 
@@ -635,7 +634,7 @@ fn suggestion_row(
     let row = OptionRow {
         label: text,
         hits,
-        leading: Some(ICON_SEARCH.into()),
+        leading: Some(ui.icons().search.into()),
         active,
         ..OptionRow::default()
     };
@@ -982,7 +981,7 @@ impl<'a> SearchView<'a> {
             ui,
             icon_center(ui.rt(), head, Edge::Start),
             vc.base.with("view-back"),
-            rt.i18n().direction().pick(ICON_ARROW_BACK, ICON_ARROW_FORWARD),
+            rt.i18n().direction().pick(ui.icons().arrow_back, ui.icons().arrow_forward),
             t.role(search_view::HEADER_LEADING_ICON_COLOR),
             enabled_button(&self.salt, "back-button", &back_label),
         );
@@ -996,7 +995,7 @@ impl<'a> SearchView<'a> {
                 ui,
                 icon_center(ui.rt(), head, Edge::End),
                 vc.base.with("view-clear"),
-                ICON_CLOSE,
+                ui.icons().close,
                 t.role(search_view::HEADER_TRAILING_ICON_COLOR),
                 enabled_button(&self.salt, "clear-button", &clear_label),
             ) {
@@ -1133,7 +1132,7 @@ fn slot_icon(
     ui: &mut MineralUi<'_, Material>,
     center: Pos2,
     id: Id,
-    icon: MaterialIcon,
+    icon: Icon,
     color: Color32,
     node: SemanticNode,
 ) -> bool {

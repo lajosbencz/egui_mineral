@@ -32,7 +32,6 @@ use crate::{
     selection::date_picker::DisplayMode,
 };
 use crate::{
-    icons::{ICON_KEYBOARD, ICON_SCHEDULE},
     motion,
     spec::{
         ColorRole, TypeScale,
@@ -391,9 +390,9 @@ impl Resolved {
     fn mode_toggle(&self, rt: &Rt, id: Id) -> IconButton<'static> {
         let ctx = rt.ctx();
         let (icon, msg) = if Self::state(ctx, id).keyboard {
-            (ICON_SCHEDULE, "mineral-time-to-dial")
+            (rt.icons().schedule, "mineral-time-to-dial")
         } else {
-            (ICON_KEYBOARD, "mineral-time-to-input")
+            (rt.icons().keyboard, "mineral-time-to-input")
         };
         IconButton::new(self.salt.child("mode"), icon, tr(rt.i18n(), msg)).disabled(self.disabled)
     }
