@@ -139,10 +139,8 @@ fn to_margin(points: f32) -> i8 {
     points.clamp(0.0, f32::from(i8::MAX)) as i8
 }
 
-/// Close control of an embedded window title bar; true when activated. Its hit target is `hit`, sized by
-/// the current pass's modality, and a tap is tested against it directly, not against the previous pass's rect
-/// like egui's click: the first touch of a session reaches this pass with the touch modality (and the
-/// touch-sized target) its own events established, while the previous pass still held the mouse size.
+// True when activated. Taps are tested against this pass's `hit`, not the previous pass's rect like egui's click:
+// the first touch reaches this pass with the touch modality (and target) its own events set, the previous held the mouse size.
 fn close_control<K: Stylekit>(rt: &Runtime<K>, ui: &mut Ui, salt: &KeyedSalt, visual: Rect, hit: Rect) -> bool {
     let id = ui.scope_id();
     let mut response = ui.interact(hit, id, Sense::click());
