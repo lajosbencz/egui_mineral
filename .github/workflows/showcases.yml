@@ -1,0 +1,64 @@
+name: Showcases
+
+# The Pages wasm builds (`just showcases`), verified on pull requests that touch them.
+# A push to master seeds the cache that pull requests restore.
+on:
+  pull_request:
+    paths:
+      - crates/**
+      - examples/**
+      - Cargo.toml
+      - Cargo.lock
+      - rust-toolchain.toml
+      - justfile
+      - tools/pins/**
+      - .github/workflows/showcases.yml
+  push:
+    branches: [master]
+    paths:
+      - crates/**
+      - examples/**
+      - Cargo.toml
+      - Cargo.lock
+      - rust-toolchain.toml
+      - justfile
+      - tools/pins/**
+      - .github/workflows/showcases.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: showcases-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  trunk:
+    name: Trunk build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install --profile minimal
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          shared-key: showcases
+          save-if: ${{ github.event_name == 'push' }}
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        with:
+          tool: just@1.59.0
+          fallback: none
+      - id: pins
+        run: echo "trunk=$(just --evaluate trunk_version)" >> "$GITHUB_OUTPUT"
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        with:
+          tool: trunk@${{ steps.pins.outputs.trunk }}
+          fallback: none
+      - run: just icu-datagen
+      - run: just showcases

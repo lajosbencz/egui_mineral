@@ -10,7 +10,8 @@ permissions: {}
 
 concurrency:
   group: pages
-  cancel-in-progress: false
+  # A multi-crate release publishes several releases in a row: the last one builds.
+  cancel-in-progress: true
 
 env:
   CARGO_TERM_COLOR: always
@@ -31,21 +32,16 @@ jobs:
         run: rustup toolchain install --profile minimal
       - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
         with:
-          tool: trunk@0.22.1
+          tool: just@1.59.0
           fallback: none
-      # ICU4X data for the showcases' locales only (pages::LOCALES of both).
-      # Datagen must match the locked ICU4X version.
-      - name: Trimmed ICU4X data
-        run: |
-          cargo install icu4x-datagen --locked --version "$(cargo pkgid icu_datetime | sed 's/.*@//')"
-          icu4x-datagen --format baked --markers all --locales en de hu ja ar --out "$RUNNER_TEMP/icu_data"
-          echo "ICU4X_DATA_DIR=$RUNNER_TEMP/icu_data" >> "$GITHUB_ENV"
-      - name: Build Fluent showcase
-        working-directory: examples/showcase-fluent
-        run: trunk build --release --public-url "${PUBLIC_URL}fluent/"
-      - name: Build Material showcase
-        working-directory: examples/showcase-material
-        run: trunk build --release --public-url "${PUBLIC_URL}material/"
+      - id: pins
+        run: echo "trunk=$(just --evaluate trunk_version)" >> "$GITHUB_OUTPUT"
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        with:
+          tool: trunk@${{ steps.pins.outputs.trunk }}
+          fallback: none
+      - run: just icu-datagen
+      - run: just showcases "$PUBLIC_URL"
       - name: Assemble site
         run: |
           mkdir site

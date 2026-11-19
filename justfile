@@ -16,6 +16,7 @@ cargo_edit_version := "0.13.14"
 zizmor_version := "1.32.0"
 ast_grep_version := "0.51.2"
 dx_version := "0.7.10"
+trunk_version := "0.22.1"
 # Release asset digests of the downloaded binaries, CI only.
 ast_grep_sha256 := "40604c21c38d4c7581c56bdddeef277c56bf3c0113620aa96e78ae87e82366df"
 actionlint_version := "1.7.12"
@@ -73,6 +74,18 @@ test *args:
 # icu4x-datagen matching the locked ICU4X version
 icu-datagen:
     cargo install icu4x-datagen --locked --version "$(cargo pkgid icu_datetime | sed 's/.*@//')"
+
+# Release wasm builds of both showcases (trunk) with ICU4X data for the showcases' locales only (pages::LOCALES of both); sites land in examples/*/dist
+showcases public_url="/":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    data=$(mktemp -d)
+    trap 'rm -rf "$data"' EXIT
+    icu4x-datagen --format baked --markers all --locales en de hu ja ar --out "$data/icu"
+    export ICU4X_DATA_DIR="$data/icu"
+    for s in fluent material; do
+        (cd "examples/showcase-$s" && trunk build --release --public-url "{{ public_url }}$s/")
+    done
 
 # Core tests on ICU4X data trimmed to en and ar
 icu-trimmed:
