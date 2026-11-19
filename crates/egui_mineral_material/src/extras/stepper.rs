@@ -386,9 +386,16 @@ impl<'a> Stepper<'a> {
             .collect();
         let gap = defaults::list::LEADING_CONTENT_END_PADDING;
         let full: f32 = label_ws.iter().map(|w| HEADER_BASE + gap + w).sum();
-        let compact = full + MIN_CONNECTOR * n.saturating_sub(1) as f32 > avail;
+        let connectors = MIN_CONNECTOR * n.saturating_sub(1) as f32;
+        let compact = full + connectors > avail;
+        // Compact keeps only the current label, elided into what markers and connectors leave.
+        let room = (avail - n as f32 * HEADER_BASE - gap - connectors).max(0.0);
         let header_ws: Vec<f32> = (0..n)
-            .map(|i| if compact && i != current { 0.0 } else { label_ws[i] })
+            .map(|i| match (compact, i == current) {
+                (false, _) => label_ws[i],
+                (true, true) => label_ws[i].min(room),
+                (true, false) => 0.0,
+            })
             .collect();
         let used: f32 = header_ws
             .iter()

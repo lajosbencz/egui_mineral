@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
 use egui::{Rect, Vec2, vec2};
-use egui_mineral::widget::SizeExt;
+use egui_mineral::{steps::Steps, widget::SizeExt};
 use egui_mineral_material::{
     actions::{IconButton, PushButton},
     adaptive,
     communication::{CircularProgressIndicator, LinearProgressIndicator},
-    extras::{DescriptionItem, DescriptionLayout, DescriptionList, Timeline, TimelineItem},
+    extras::{DescriptionItem, DescriptionLayout, DescriptionList, StepLabel, Stepper, Timeline, TimelineItem},
     icons::ICON_MAIL,
     scroll,
     spec::{defaults::text_field, tokens::linear_progress_indicator},
@@ -161,7 +161,18 @@ fn description_list(layout: DescriptionLayout, columns: usize) -> DescriptionLis
 #[test]
 fn full_width_composites_never_widen_their_page() {
     type Add = fn(&mut Mui<'_>);
-    let cases: [(&str, Add); 4] = [
+    let cases: [(&str, Add); 5] = [
+        ("stepper", |ui| {
+            let mut steps = Steps::new(4);
+            Stepper::new("st", &mut steps)
+                .step("Account")
+                .step(StepLabel::new("Profile").supporting("Name and photo"))
+                .step("Preferences")
+                .step("Review")
+                .show(ui, |ui, i| {
+                    ui.label(format!("Content of step {}", i + 1));
+                });
+        }),
         ("timeline", |ui| {
             ui.mineral(
                 Timeline::new("tl")
