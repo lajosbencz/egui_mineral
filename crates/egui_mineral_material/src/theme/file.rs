@@ -120,7 +120,7 @@ pub fn watch(rt: &Arc<Runtime<Material>>, path: impl Into<PathBuf>) -> Result<Th
     Ok(ThemeWatcher { _debouncer: debouncer })
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "bundled-icons"))]
 mod tests {
     use std::error::Error as _;
 

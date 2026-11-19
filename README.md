@@ -30,7 +30,7 @@ Savings over a default build, uncompressed WASM:
 
 How to opt-out:
 
-1. Disable `bundled-icons` and pass `Material::icon_fonts`. The showcase's [`build.rs`](examples/showcase/build.rs) subsets the fonts to the icons it uses.
+1. Disable `bundled-icons` and build with `Material::with_icon_fonts`. The showcase's [`build.rs`](examples/showcase/build.rs) subsets the fonts to the icons it uses.
 2. Disable eframe's `default_fonts` feature and install your own fonts with `egui::Context::set_fonts`.
 3. Set `ICU4X_DATA_DIR` to data for your locales ([`i18n`](https://docs.rs/egui_mineral/latest/egui_mineral/i18n/)), or disable `icu`.
 4. Build eframe without its default features and enable `glow`, as the [showcase](examples/showcase/) does.

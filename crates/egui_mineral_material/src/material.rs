@@ -26,25 +26,34 @@ use crate::{
 pub struct Material {
     tokens: Mutex<TokenStore>,
     density: AtomicI8,
-    icon_fonts: Option<IconFonts>,
+    icons: Icons,
+}
+
+#[derive(Debug)]
+enum Icons {
+    #[cfg(feature = "bundled-icons")]
+    Bundled,
+    Custom(IconFonts),
 }
 
 impl Material {
-    /// Baseline tokens of both brightnesses at `contrast`.
+    /// Baseline tokens of both brightnesses at `contrast`, with the bundled icon fonts (3 MB).
+    #[cfg(feature = "bundled-icons")]
     pub fn new(contrast: Contrast) -> Self {
+        Self::with_icons(contrast, Icons::Bundled)
+    }
+
+    /// [`Self::new`] with `icon_fonts` instead of the bundled ones.
+    pub fn with_icon_fonts(contrast: Contrast, icon_fonts: IconFonts) -> Self {
+        Self::with_icons(contrast, Icons::Custom(icon_fonts))
+    }
+
+    fn with_icons(contrast: Contrast, icons: Icons) -> Self {
         Self {
             tokens: Mutex::new(TokenStore::new(SchemeSpec::default().contrast(contrast))),
             density: AtomicI8::new(Density::DEFAULT.step()),
-            icon_fonts: None,
+            icons,
         }
-    }
-
-    /// Icon fonts instead of the bundled ones; required without the `bundled-icons` feature, which
-    /// otherwise links both bundled fonts (3 MB).
-    #[must_use]
-    pub fn icon_fonts(mut self, icon_fonts: IconFonts) -> Self {
-        self.icon_fonts = Some(icon_fonts);
-        self
     }
 
     /// Tokens of `theme`; widgets read `ui.tokens()` ([`MaterialExt`]).
@@ -94,6 +103,7 @@ fn repaint(ctx: &Context) {
     ctx.request_repaint();
 }
 
+#[cfg(feature = "bundled-icons")]
 impl Default for Material {
     /// [`Contrast::STANDARD`].
     fn default() -> Self {
@@ -111,13 +121,10 @@ impl Stylekit for Material {
     }
 
     fn setup(&self, ctx: &Context) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        if let Some(icon_fonts) = self.icon_fonts {
-            fonts::install_icons(ctx, icon_fonts);
-        } else {
+        match self.icons {
             #[cfg(feature = "bundled-icons")]
-            egui_material_icons::initialize(ctx);
-            #[cfg(not(feature = "bundled-icons"))]
-            return Err("no icon fonts: enable `bundled-icons` or set `Material::icon_fonts`".into());
+            Icons::Bundled => egui_material_icons::initialize(ctx),
+            Icons::Custom(icon_fonts) => fonts::install_icons(ctx, icon_fonts),
         }
         Ok(())
     }

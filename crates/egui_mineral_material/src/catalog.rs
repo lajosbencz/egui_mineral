@@ -793,7 +793,7 @@ pub const CATALOG: &[ComponentMeta] = &[
     <ImageList<'static>>::META,
 ];
 
-#[cfg(test)]
+#[cfg(all(test, feature = "bundled-icons"))]
 mod tests {
     use std::collections::BTreeMap;
 

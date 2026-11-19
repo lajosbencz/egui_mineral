@@ -20,7 +20,7 @@ targets = ["x86_64-unknown-linux-gnu", "wasm32-unknown-unknown"]
 
 [features]
 default = ["icu", "persist-fs", "bundled-icons"]
-# Material Symbols Rounded fonts (filled and outlined, 3 MB); without it, `Material::icon_fonts` is required.
+# Material Symbols Rounded fonts (filled and outlined, 3 MB); without it use `Material::with_icon_fonts`.
 bundled-icons = []
 # `egui_mineral/icu`: ICU4X locale formatting.
 icu = ["egui_mineral/icu"]
@@ -58,16 +58,16 @@ toml.workspace = true
 
 [[test]]
 name = "spec"
-required-features = ["unstable-spec", "icu"]
+required-features = ["unstable-spec", "icu", "bundled-icons"]
 
 # Asserts ICU4X locale output.
 [[test]]
 name = "behavior"
-required-features = ["icu"]
+required-features = ["icu", "bundled-icons"]
 
 [[test]]
 name = "agent"
-required-features = ["icu"]
+required-features = ["icu", "bundled-icons"]
 
 [lints]
 workspace = true

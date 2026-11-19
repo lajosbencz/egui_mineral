@@ -49,7 +49,7 @@ struct App {
 
 impl App {
     fn new(ctx: &egui::Context) -> Result<Self, InitError> {
-        let rt = Runtime::new(ctx, Material::default().icon_fonts(ICON_FONTS))?;
+        let rt = Runtime::new(ctx, Material::with_icon_fonts(Contrast::STANDARD, ICON_FONTS))?;
         // The navigation page binds Cmd+Q and Cmd+/- as menu commands.
         ctx.options_mut(|o| {
             o.zoom_with_keyboard = false;

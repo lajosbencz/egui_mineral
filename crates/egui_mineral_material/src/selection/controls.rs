@@ -1176,7 +1176,7 @@ impl MineralWidget for Switch<'_> {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "bundled-icons"))]
 mod tests {
     use super::*;
 

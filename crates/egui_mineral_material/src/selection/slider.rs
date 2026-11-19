@@ -878,7 +878,7 @@ impl Plan {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "bundled-icons"))]
 mod tests {
     use egui::{Context, Event, PointerButton, pos2, vec2};
     use egui_mineral::input::synth;

@@ -71,7 +71,7 @@
 //! | `persist-json` | | JSON persistence codec (`egui_mineral/persist-json`) |
 //! | `persist-toml` | | TOML persistence codec (`egui_mineral/persist-toml`) |
 //! | `persist-fs` | yes | Both codecs and native file-backed storage (`egui_mineral/persist-fs`) |
-//! | `bundled-icons` | yes | Material Symbols Rounded fonts, filled and outlined ([3 MB](https://github.com/lajosbencz/egui_mineral#release-size)); without it [`Material::icon_fonts`] is required |
+//! | `bundled-icons` | yes | Material Symbols Rounded fonts, filled and outlined ([3 MB](https://github.com/lajosbencz/egui_mineral#release-size)); without it [`Material::new`] and `Default` are absent: use [`Material::with_icon_fonts`] |
 //! | `theme-file` | | TOML theme files and live reload ([`theme::load_toml`], [`theme::watch`]); native only |
 //! | `unstable-catalog` | | [`catalog`]: each component's category and spec origin ([`catalog::CATALOG`]) |
 //! | `unstable-spec` | | Public [`spec::tokens`] and [`spec::defaults`]: the generated Compose Material3 values, changed by every re-pin of the Compose sources |
@@ -123,7 +123,7 @@ pub mod prelude;
 pub mod scroll;
 pub mod selection;
 pub mod spec;
-#[cfg(test)]
+#[cfg(all(test, feature = "bundled-icons"))]
 mod test_support;
 pub mod text_inputs;
 /// Theme engine: seeded or custom tokens per brightness and contrast; TOML files with feature `theme-file`.

@@ -146,7 +146,7 @@ fn apply_style(style: &mut Style, t: &Tokens) {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "bundled-icons"))]
 mod tests {
     use egui::{Context, ThemePreference};
 

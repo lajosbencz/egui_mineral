@@ -1248,7 +1248,7 @@ mod dial {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "bundled-icons"))]
 mod tests {
     use egui::{Event, Key, Modifiers, PointerButton};
     use egui_mineral::{input::synth, semantic::SemanticNode};

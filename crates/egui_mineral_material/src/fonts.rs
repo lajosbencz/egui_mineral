@@ -19,7 +19,7 @@ pub fn install_medium(ctx: &Context, name: &str, ttf: &'static [u8]) {
     ));
 }
 
-/// Material Symbols fonts the kit draws icons with ([`Material::icon_fonts`](crate::Material::icon_fonts)).
+/// Material Symbols fonts the kit draws icons with ([`Material::with_icon_fonts`](crate::Material::with_icon_fonts)).
 #[derive(Clone, Copy, Debug)]
 pub struct IconFonts {
     /// Font of filled icons, the default style.
