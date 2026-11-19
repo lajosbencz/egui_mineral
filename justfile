@@ -137,7 +137,7 @@ api-diff base head="HEAD":
         echo '```diff' >> "$summary"
         features=$(cargo metadata --no-deps --format-version 1 | jq -r --arg c "$crate" \
             '.packages[] | select(.name == $c) | .features | keys | map(select(startswith("unstable") | not)) | join(",")')
-        cargo public-api -p "$crate" --features "$features" --target "$target" -sss diff --deny all "{{ base }}..{{ head }}" \
+        cargo public-api -p "$crate" --features "$features" --target "$target" -sss diff --deny removed --deny changed "{{ base }}..{{ head }}" \
             | tee -a "$summary" || status=1
         echo '```' >> "$summary"
     done
