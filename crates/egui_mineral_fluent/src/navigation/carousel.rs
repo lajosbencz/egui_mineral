@@ -62,10 +62,23 @@ impl From<&str> for CarouselCard {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default)]
 struct Memo {
     height: f32,
     nav_width: f32,
+    width: f32,
+}
+
+impl Memo {
+    fn differs(&self, other: &Self) -> bool {
+        [
+            (self.height, other.height),
+            (self.nav_width, other.nav_width),
+            (self.width, other.width),
+        ]
+        .into_iter()
+        .any(|(a, b)| (a - b).abs() > 0.5)
+    }
 }
 
 impl TempState for Memo {}
@@ -323,7 +336,14 @@ impl<'a> Carousel<'a> {
         let before = *self.active;
         let mut labels = Vec::new();
         let mut next = before;
-        let mut height = memo.height;
+        let width = ui.available_width();
+        // The tallest slide seen at this width; a new width measures again.
+        let reserved = if (memo.width - width).abs() > 0.5 {
+            0.0
+        } else {
+            memo.height
+        };
+        let mut height = reserved;
         let mut nav_width = memo.nav_width;
         let group = ui
             .push_id(self.salt.id_salt(), |ui: &mut Ui| {
@@ -335,7 +355,7 @@ impl<'a> Carousel<'a> {
                         active: before,
                         appearance: self.appearance,
                         labels: Vec::new(),
-                        height: memo.height,
+                        height: reserved,
                     };
                     add(&mut cards);
                     labels = cards.labels;
@@ -346,9 +366,13 @@ impl<'a> Carousel<'a> {
                 })
             })
             .response;
-        let seen = Memo { height, nav_width };
+        let seen = Memo {
+            height,
+            nav_width,
+            width,
+        };
         seen.store(ctx, memo_id);
-        if seen != memo {
+        if seen.differs(&memo) && ctx.current_pass_index() == 0 {
             ctx.request_discard("mineral: carousel size");
         }
         let changed = next != before;
@@ -436,7 +460,7 @@ impl<'a> Carousel<'a> {
                         if now >= due {
                             picked = Some(self.step(*next, len, true));
                             auto.since = now;
-                        } else {
+                        } else if ui.is_rect_visible(ui.max_rect()) {
                             ctx.request_repaint_after(Duration::try_from_secs_f64(due - now).unwrap_or(interval));
                         }
                     }

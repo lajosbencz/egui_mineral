@@ -712,6 +712,8 @@ struct Pass {
     events: Vec<RowEvent>,
     header_check: Option<bool>,
     sort_click: Option<usize>,
+    // Cell responses of the row being painted, reused across rows.
+    cells: Vec<Response>,
 }
 
 struct TableView<'v, 'a> {
@@ -974,7 +976,8 @@ impl TableView<'_, '_> {
         let disabled = self.table.disabled;
         let (rect, _) = ui.allocate_exact_size(vec2(self.geo.table_w, self.row_h), Sense::hover());
         let selected = self.is_selected(d);
-        let (check, cells) = self.row_inputs(ui, st, pass, rect, RowAt { grid: i + 1, data: d });
+        let mut cells = std::mem::take(&mut pass.cells);
+        let check = self.row_inputs(ui, st, pass, &mut cells, rect, RowAt { grid: i + 1, data: d });
         let col = RowColors::of(
             RowState {
                 selected,
@@ -999,6 +1002,7 @@ impl TableView<'_, '_> {
         for (c, r) in cells.iter().enumerate() {
             self.paint_cell(ui, &col, r, Cell { row: d, column: c }, cell);
         }
+        pass.cells = cells;
     }
 
     fn row_inputs(
@@ -1006,9 +1010,10 @@ impl TableView<'_, '_> {
         ui: &mut MineralUi<'_, Material>,
         st: &mut TableState,
         pass: &mut Pass,
+        cells: &mut Vec<Response>,
         rect: Rect,
         at: RowAt,
-    ) -> (Option<Response>, Vec<Response>) {
+    ) -> Option<Response> {
         let RowAt {
             grid: grid_row,
             data: d,
@@ -1044,8 +1049,9 @@ impl TableView<'_, '_> {
             );
             r
         });
-        let cells = (0..self.table.columns.len())
-            .map(|c| {
+        cells.clear();
+        for c in 0..self.table.columns.len() {
+            {
                 let gc = c + usize::from(has_sel);
                 let r = kit::input::interact(
                     &rt.ui(ui),
@@ -1070,10 +1076,10 @@ impl TableView<'_, '_> {
                 if r.clicked() && !disabled {
                     pass.events.push(RowEvent::Click(d, ui.input(|i| i.modifiers)));
                 }
-                r
-            })
-            .collect();
-        (check, cells)
+                cells.push(r);
+            }
+        }
+        check
     }
 
     fn paint_row(

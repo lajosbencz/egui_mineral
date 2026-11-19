@@ -603,6 +603,8 @@ impl Order {
 
     fn selected(&self, selection: &Selection<usize>) -> usize {
         match &self.explicit {
+            // An order of every row is a permutation: count the selection, not the rows.
+            Some(o) if o.len() >= self.rows => selection.selected().filter(|r| **r < self.rows).count(),
             Some(_) => self.all().iter().filter(|r| selection.is_selected(r)).count(),
             None => selection.selected().filter(|r| **r < self.rows).count(),
         }

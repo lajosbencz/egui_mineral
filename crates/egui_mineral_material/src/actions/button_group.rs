@@ -274,15 +274,12 @@ impl<'a> ButtonGroup<'a> {
                 b.tab_stop = TabStop::at(i, stop);
             }
         }
+        let measure = |b: &PushButton| b.layout(ui, Constraints::loose(Vec2::INFINITY), &()).visual;
+        let mut first_height = None;
         if !self.connected {
-            let natural: Vec<f32> = buttons
-                .iter()
-                .map(|b| {
-                    b.layout(ui, Constraints::loose(Vec2::new(f32::INFINITY, f32::INFINITY)), &())
-                        .visual
-                        .x
-                })
-                .collect();
+            let sizes: Vec<Vec2> = buttons.iter().map(measure).collect();
+            first_height = sizes.first().map(|v| v.y);
+            let natural: Vec<f32> = sizes.iter().map(|v| v.x).collect();
             let widths = Self::widths(rt, id, &natural, last_pressed.filter(|k| *k < len));
             for (b, w) in buttons.iter_mut().zip(widths) {
                 b.width = Some(w);
@@ -298,9 +295,7 @@ impl<'a> ButtonGroup<'a> {
         let mut clicked = None;
         let mut pressed = None;
         let mut ids: Vec<Id> = Vec::with_capacity(len);
-        let height = buttons
-            .first()
-            .map_or(0.0, |b| b.layout(ui, Constraints::loose(Vec2::INFINITY), &()).visual.y);
+        let height = first_height.unwrap_or_else(|| buttons.first().map_or(0.0, |b| measure(b).y));
         let row = vec2(
             ui.available_width(),
             height.max(crate::adaptive::MIN_INTERACTIVE.points(rt.core())),
