@@ -111,8 +111,8 @@ impl StatusItem {
         self
     }
 
-    /// A start item that does not fit shrinks to the room left, ending in an ellipsis, instead of
-    /// being dropped; default `false`.
+    /// Start items only: the one that overflows ends in an ellipsis at the room left rather than
+    /// vanishing with the following items; default `false`.
     pub fn elide(mut self, elide: bool) -> Self {
         self.elide = elide;
         self

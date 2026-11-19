@@ -33,7 +33,7 @@ pub enum PlatformError {
     /// User or OS refused access (clipboard read, notifications).
     #[error("permission denied")]
     PermissionDenied,
-    /// The cargo feature (named) behind the call is disabled.
+    /// Holds the `platform-*` cargo feature that provides the call.
     #[error("platform feature `{0}` is not enabled")]
     Unsupported(&'static str),
     /// Backend failure; the cause is the [`source`](std::error::Error::source).
