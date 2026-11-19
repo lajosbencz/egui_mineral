@@ -29,6 +29,7 @@ mineral_inspector = { path = "tools/mineral_inspector" }
 
 egui = { version = "0.37.0", features = ["serde"] }
 eframe = "0.37.0"
+winit = "0.30.13"
 egui_kittest = "0.37.0"
 proptest = "1.12.0"
 tracing = "0.1.44"
