@@ -324,13 +324,13 @@ impl<N: Numeric> Composite for NumberField<'_, N> {
                 event = pass.commit();
             }
         }
-        let v = pass.value();
-        let source = pass.source();
-        edit.store(ctx, state_id);
-        EditId(out.response().id).store(ctx, edit_key);
+        let (v, source) = (pass.value(), pass.source());
         if !self.commit_on_submit || stepped || scrubbed || event.is_some() {
             *self.value = N::from_f64(if N::INTEGRAL { v.round() } else { v });
+            edit.wrote(self.value.to_f64());
         }
+        edit.store(ctx, state_id);
+        EditId(out.response().id).store(ctx, edit_key);
         // The row response: the field's own `changed` flag also fires on unparsed text.
         let after = self.value.to_f64();
         let changed = before.is_nan() != after.is_nan() || (before - after).abs() > f64::EPSILON;

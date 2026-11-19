@@ -1295,6 +1295,7 @@ impl TextField<'_> {
         let commit = out.edit == Some(EditEvent::Committed) && buffer.draft() != self.value;
         if commit {
             self.value.clone_from(buffer.draft());
+            buffer.wrote(self.value);
         }
         commit
     }

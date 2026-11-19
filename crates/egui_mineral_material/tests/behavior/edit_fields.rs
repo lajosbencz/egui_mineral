@@ -260,3 +260,23 @@ fn number_field_scrub_reports_its_start_and_one_edit() {
     assert_eq!(*starts, 1, "one start per drag");
     assert_eq!(edits, &[EditEvent::Committed], "one edit at release");
 }
+
+#[test]
+fn focused_number_field_shows_the_value_the_app_clamped() {
+    for submit in [true, false] {
+        let mut h = field(5.0, move |ui, v: &mut f64| {
+            let range = RangeModel::new(0.0, 10.0).step(0.5);
+            let r = ui.mineral(NumberField::new("n", "Gain", range, v).commit_on_submit(submit));
+            *v = v.max(0.5);
+            (r.rect, r.output().edit)
+        });
+        focus(&mut h);
+        retype(&mut h, "0");
+        if submit {
+            h.press(Key::ArrowDown);
+        }
+        h.run();
+        assert_eq!(h.state().value.value, 0.5, "submit {submit}");
+        assert_eq!(h.node("n-field").value.as_deref(), Some("0.5"), "submit {submit}");
+    }
+}

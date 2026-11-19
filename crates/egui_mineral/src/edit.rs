@@ -48,11 +48,14 @@ pub fn commit_pending(ctx: &Context) {
     ctx.data_mut(|d| *d.get_temp_mut_or_default::<u64>(id) += 1);
 }
 
-/// Draft of a bound value. Idle and unfocused, the draft follows the bound value.
+/// Draft of a bound value. Idle and unfocused, the draft follows the bound value; while editing,
+/// it adopts a bound value the app changed, told apart from the field's own writes by
+/// [`EditBuffer::wrote`].
 #[derive(Clone, Debug, Default)]
 pub struct EditBuffer<T> {
     draft: T,
     origin: Option<T>,
+    known: Option<T>,
     seen: u64,
 }
 
@@ -62,26 +65,42 @@ impl<T: Clone + PartialEq> EditBuffer<T> {
         Self {
             draft: value,
             origin: None,
+            known: None,
             seen: 0,
         }
     }
 
-    /// Start of a pass: while idle, `Unfocused` adopts `bound` and `Focused` starts an edit from it.
-    pub fn sync(&mut self, bound: &T, focus: FieldFocus) {
-        if self.editing() {
-            return;
+    /// Start of a pass: while idle, the draft adopts `bound` and `Focused` starts an edit from it;
+    /// while editing, it adopts `bound` when that differs from the last value the field wrote (or
+    /// started from). `true` when the draft changed, so derived text needs a refresh.
+    pub fn sync(&mut self, bound: &T, focus: FieldFocus) -> bool {
+        let adopt = if self.editing() {
+            self.known.as_ref() != Some(bound)
+        } else {
+            if focus == FieldFocus::Focused {
+                self.start(bound);
+            }
+            true
+        };
+        let changed = adopt && self.draft != *bound;
+        if adopt {
+            self.draft.clone_from(bound);
+            self.known = Some(bound.clone());
         }
-        match focus {
-            FieldFocus::Unfocused => self.draft.clone_from(bound),
-            FieldFocus::Focused => self.start(bound),
-        }
+        changed
     }
 
     /// Starts an edit from `bound` unless one is open; call before a change made without focus.
     pub fn start(&mut self, bound: &T) {
         if self.origin.is_none() {
             self.origin = Some(bound.clone());
+            self.known = Some(bound.clone());
         }
+    }
+
+    /// Records `value` as written to the bound value by the field itself; call after each write.
+    pub fn wrote(&mut self, value: &T) {
+        self.known = Some(value.clone());
     }
 
     /// Value shown and edited; the bound one while idle.
@@ -149,5 +168,21 @@ mod tests {
         b.sync(&String::from("z"), FieldFocus::Unfocused);
         assert!(!b.commit_requested(&ctx), "idle fields ignore requests");
         assert_eq!(b.draft(), "z");
+    }
+
+    #[test]
+    fn editing_adopts_bound_changes_the_field_did_not_write() {
+        let mut b = EditBuffer::new(5.0);
+        assert!(!b.sync(&5.0, FieldFocus::Focused));
+        *b.draft_mut() = 0.0;
+        b.wrote(&0.0);
+        assert!(!b.sync(&0.0, FieldFocus::Focused), "its own write keeps the draft");
+        *b.draft_mut() = 0.25;
+        assert!(!b.sync(&0.0, FieldFocus::Focused), "an unwritten draft stays");
+        assert_eq!(*b.draft(), 0.25);
+        assert!(b.sync(&0.5, FieldFocus::Focused), "the app clamped the bound value");
+        assert_eq!((*b.draft(), b.editing()), (0.5, true));
+        assert_eq!(b.cancel(), Some(EditEvent::Cancelled));
+        assert_eq!(*b.draft(), 5.0);
     }
 }

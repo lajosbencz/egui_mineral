@@ -79,8 +79,8 @@ impl NumberEdit {
         if self.snap { range.snap(v) } else { range.clamp(v) }
     }
 
-    /// Start of a pass: adopts the bound `value` and `focus` (see [`EditBuffer::sync`]); idle,
-    /// the buffer shows the formatted value. `fmt` formats the buffer for the rest of the pass.
+    /// Start of a pass: adopts the bound `value` and `focus` (see [`EditBuffer::sync`]); idle, or
+    /// when the app changed the value during an edit, the buffer shows the formatted value. `fmt` formats the buffer for the rest of the pass.
     pub fn begin<'a>(
         &'a mut self,
         range: RangeModel,
@@ -93,11 +93,15 @@ impl NumberEdit {
         if !self.value.editing() {
             self.source = None;
         }
-        self.value.sync(&bound, focus);
-        if !self.value.editing() {
+        if self.value.sync(&bound, focus) || !self.value.editing() {
             self.text = fmt(*self.value.draft());
         }
         NumberPass { edit: self, bound, fmt }
+    }
+
+    /// Records `value` as written to the bound value (see [`EditBuffer::wrote`]).
+    pub fn wrote(&mut self, value: f64) {
+        self.value.wrote(&value);
     }
 
     /// Draft value, the bound one unless an edit is pending.
