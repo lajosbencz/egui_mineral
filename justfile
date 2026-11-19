@@ -155,6 +155,8 @@ hygiene: typos deny rules machete workflows
 # Native showcase under `dx` subsecond hot-patching (dioxus-cli `dx_version`)
 hotpatch:
     @dx --version | grep -q ' {{ dx_version }}' || { echo "needs dioxus-cli {{ dx_version }}: cargo install dioxus-cli --version {{ dx_version }} --locked"; exit 1; }
+    # dx 0.7.10 misses cargo's build-dir fingerprints (docs/blockers.md): force the relink it captures.
+    touch examples/showcase/src/main.rs
     dx serve --hotpatch --platform linux --package showcase --features egui_mineral/unstable-hotpatch
 
 # CI runs crate-ci/typos

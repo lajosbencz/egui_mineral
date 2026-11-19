@@ -58,7 +58,7 @@
 //! | `persist-fs` | yes | File-backed [`persist`] stores |
 //! | `platform-native` | | Native file dialogs, clipboard and notifications for [`platform`] |
 //! | `web-save-stream` | | Chromium streams [`FileWriter`](platform::FileWriter) to disk; other browsers buffer |
-//! | `unstable-hotpatch` | | Native only: Dioxus `subsecond` hot-patching of [`Runtime::pass`](runtime::Runtime::pass); the `dx` CLI must match `subsecond` 0.7.10; enable it from the command line only (`dx serve --hotpatch --features egui_mineral/unstable-hotpatch`), never in a manifest, since feature unification would ship it |
+//! | `unstable-hotpatch` | | Native only: Dioxus `subsecond` hot-patching of [`Runtime::pass`](runtime::Runtime::pass); the `dx` CLI must match `subsecond` 0.7.10; enable it from the command line only (`dx serve --hotpatch --features egui_mineral/unstable-hotpatch`), never in a manifest, since feature unification would ship it; touch the app's `main.rs` before each `dx serve` (see `docs/blockers.md`) |
 //!
 //! # App state
 //!
