@@ -694,8 +694,8 @@ fn color(ui: &mut Mui<'_>, s: &mut State) {
             Color32::from_rgb(33, 150, 243),
             Color32::from_rgb(156, 39, 176),
         ];
-        ui.horizontal_top(|ui| {
-            ui.vertical(|ui| {
+        super::top_row(ui, |row| {
+            row.add(|ui| {
                 caption(
                     &mut rt.ui(ui),
                     TypeScale::LabelMedium,
@@ -709,7 +709,7 @@ fn color(ui: &mut Mui<'_>, s: &mut State) {
                         .fixed_width(300.0),
                 );
             });
-            ui.vertical(|ui| {
+            row.add(|ui| {
                 caption(&mut rt.ui(ui), TypeScale::LabelMedium, "HCT (perceptual)");
                 rt.ui(ui).mineral(
                     ColorPicker::new("sel-color-hct", "HCT color", &mut s.color_hct)
@@ -717,7 +717,7 @@ fn color(ui: &mut Mui<'_>, s: &mut State) {
                         .fixed_width(300.0),
                 );
             });
-            ui.vertical(|ui| {
+            row.add(|ui| {
                 caption(&mut rt.ui(ui), TypeScale::LabelMedium, "Disabled");
                 let mut c = Color32::from_rgb(0, 100, 200);
                 rt.ui(ui).mineral(
@@ -792,13 +792,13 @@ fn dates(ui: &mut Mui<'_>, s: &mut State) {
             fmt_date(s.date_range.start()),
             fmt_date(s.date_range.end())
         ));
-        ui.horizontal_top(|ui| {
-            ui.vertical(|ui| {
+        super::top_row(ui, |row| {
+            row.add(|ui| {
                 caption(&mut rt.ui(ui), TypeScale::LabelMedium, "Inline month grid");
                 DatePicker::new("sel-date-inline", &mut s.date_inline).show(&mut rt.ui(ui));
                 ui.label(fmt_date(s.date_inline));
             });
-            ui.vertical(|ui| {
+            row.add(|ui| {
                 caption(
                     &mut rt.ui(ui),
                     TypeScale::LabelMedium,
@@ -818,13 +818,13 @@ fn dates(ui: &mut Mui<'_>, s: &mut State) {
 fn times(ui: &mut Mui<'_>, s: &mut State) {
     let rt = ui.rt();
     super::section(ui, TOPICS[11], Some(<TimePicker<'static>>::META), |ui| {
-        ui.horizontal_top(|ui| {
-            ui.vertical(|ui| {
+        super::top_row(ui, |row| {
+            row.add(|ui| {
                 caption(&mut rt.ui(ui), TypeScale::LabelMedium, "Inline, locale clock");
                 TimePicker::new("sel-time", &mut s.time_inline).show(&mut rt.ui(ui));
                 ui.label(s.time_inline.to_string());
             });
-            ui.vertical(|ui| {
+            row.add(|ui| {
                 caption(&mut rt.ui(ui), TypeScale::LabelMedium, "Inline, 24-hour");
                 TimePicker::new("sel-time-24", &mut s.time_24)
                     .hour_cycle(HourCycle::H23)
@@ -832,14 +832,14 @@ fn times(ui: &mut Mui<'_>, s: &mut State) {
                 ui.label(s.time_24.to_string());
             });
         });
-        ui.horizontal_top(|ui| {
-            ui.vertical(|ui| {
+        super::top_row(ui, |row| {
+            row.add(|ui| {
                 caption(&mut rt.ui(ui), TypeScale::LabelMedium, "Horizontal layout");
                 TimePicker::new("sel-time-h", &mut s.time_h)
                     .axis(Axis::Horizontal)
                     .show(&mut rt.ui(ui));
             });
-            ui.vertical(|ui| {
+            row.add(|ui| {
                 caption(&mut rt.ui(ui), TypeScale::LabelMedium, "Time input");
                 TimePicker::new("sel-time-in", &mut s.time_input)
                     .input_mode(DisplayMode::Input)
