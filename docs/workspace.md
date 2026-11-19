@@ -37,7 +37,7 @@ Module map, config, commands and release. Overview: [WORKSPACE.md](../WORKSPACE.
 
 ## Commands
 
-[`ci.yml`](../.github/workflows/ci.yml) (clippy matrix, nextest, doctests, docs, ICU4X trimmed data, ast-grep. Non-blocking: `Generated spec`, `Public API diff`) and [`hygiene.yml`](../.github/workflows/hygiene.yml) (deny, machete, typos) are the single source of the checks.
+[`ci.yml`](../.github/workflows/ci.yml) (clippy matrix, nextest, doctests, docs, ICU4X trimmed data, ast-grep. Non-blocking: `Generated spec`, `Public API diff`) and [`hygiene.yml`](../.github/workflows/hygiene.yml) (deny, machete, typos) are the single source of the checks. CI verifies pull requests; on master it only builds, when manifests, lockfile, toolchain or workflow change, to refresh the caches pull requests restore.
 Run the steps of the jobs you need the same way.
 
 Not in CI: `cargo bench -p egui_mineral`, `cargo run -p showcase` (F12: inspector).

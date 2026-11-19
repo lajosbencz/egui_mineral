@@ -1,9 +1,16 @@
 name: CI
 
+# Pull requests verify; the ruleset keeps them up to date with master, so merges are not verified again.
+# A push to master that changes what the caches are keyed on only builds, saving the caches pull requests restore.
 on:
   pull_request:
   push:
     branches: [master]
+    paths:
+      - "**/Cargo.toml"
+      - Cargo.lock
+      - rust-toolchain.toml
+      - .github/workflows/ci.yml
   workflow_dispatch:
 
 permissions:
@@ -36,7 +43,8 @@ jobs:
         with:
           tool: cargo-nextest
           fallback: none
-      - run: cargo fmt --all --check
+      - if: ${{ github.event_name != 'push' }}
+        run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets --all-features -- -D warnings
       - run: cargo clippy -p egui_mineral_material --all-targets -- -D warnings
       - run: cargo clippy -p egui_mineral -p egui_mineral_material --all-targets --no-default-features -- -D warnings
@@ -45,32 +53,43 @@ jobs:
       - run: cargo clippy -p egui_mineral_material --target wasm32-unknown-unknown --no-default-features -- -D warnings
       - run: cargo clippy -p egui_mineral_material --target wasm32-unknown-unknown --all-features -- -D warnings
       - run: cargo clippy -p showcase --target wasm32-unknown-unknown -- -D warnings
-      - run: cargo nextest run --workspace --all-features --profile ci
-      - run: cargo nextest run -p egui_mineral -p egui_mineral_material --no-default-features --features egui_mineral_material/bundled-icons --profile ci
-      # datagen must match the locked ICU4X version
-      - name: Trimmed ICU4X data
+      - name: Tests
         run: |
-          cargo install icu4x-datagen --locked --version "$(cargo pkgid icu_datetime | sed 's/.*@//')"
+          args=(--profile ci)
+          [ "$GITHUB_EVENT_NAME" = push ] && args+=(--no-run)
+          cargo nextest run --workspace --all-features "${args[@]}"
+          cargo nextest run -p egui_mineral -p egui_mineral_material --no-default-features --features egui_mineral_material/bundled-icons "${args[@]}"
+      # datagen must match the locked ICU4X version; installed on push too, for the cache.
+      - run: cargo install icu4x-datagen --locked --version "$(cargo pkgid icu_datetime | sed 's/.*@//')"
+      - name: Trimmed ICU4X data
+        if: ${{ github.event_name != 'push' }}
+        run: |
           icu4x-datagen --format baked --markers all --locales en ar --out "$RUNNER_TEMP/icu_en_ar"
           ICU4X_DATA_DIR="$RUNNER_TEMP/icu_en_ar" cargo nextest run -p egui_mineral --test icu_trimmed --run-ignored only --profile ci
-      - run: cargo test --doc --workspace --all-features
-      - run: cargo doc --workspace --no-deps --all-features
+      - if: ${{ github.event_name != 'push' }}
+        run: cargo test --doc --workspace --all-features
+      - if: ${{ github.event_name != 'push' }}
+        run: cargo doc --workspace --no-deps --all-features
         env:
           RUSTDOCFLAGS: -D warnings
-      - run: cargo doc -p egui_mineral -p egui_mineral_material --no-deps --no-default-features
+      - if: ${{ github.event_name != 'push' }}
+        run: cargo doc -p egui_mineral -p egui_mineral_material --no-deps --no-default-features
         env:
           RUSTDOCFLAGS: -D warnings
       - name: docs.rs build
+        if: ${{ github.event_name != 'push' }}
         run: |
           rustup toolchain install nightly --profile minimal
           cargo +nightly doc -p egui_mineral -p egui_mineral_material --all-features --no-deps
         env:
           RUSTDOCFLAGS: --cfg docsrs -D warnings
-      - run: cargo package -p egui_mineral -p egui_mineral_macros -p egui_mineral_material
+      - if: ${{ github.event_name != 'push' }}
+        run: cargo package -p egui_mineral -p egui_mineral_macros -p egui_mineral_material
 
   # Fails when specs change, never blocks merging
   spec:
     name: Generated spec
+    if: ${{ github.event_name != 'push' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
