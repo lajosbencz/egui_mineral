@@ -594,10 +594,11 @@ impl MineralWidget for Core<'_> {
     }
 
     fn layout(&self, ui: &MineralUi<'_, Material>, c: Constraints, (): &Self::State) -> Measure {
-        let label = self.galley(ui, Color32::PLACEHOLDER).size().x;
+        let label = self.galley(ui, Color32::PLACEHOLDER).size();
         c.constrain(vec2(
-            self.width(label),
-            ui.dense(chips::HEIGHT, crate::adaptive::Density::new(-2)),
+            self.width(label.x),
+            ui.density()
+                .dense_to(chips::HEIGHT, label.y + crate::adaptive::CONTENT_PAD),
         ))
         .into()
     }

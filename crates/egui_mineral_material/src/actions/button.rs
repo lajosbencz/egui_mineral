@@ -651,7 +651,12 @@ impl PushButton<'_> {
         let m = self.sized().map_or(BASELINE, Size::metrics);
         Metrics {
             height: if self.size.is_none() {
-                density.dense(m.height, Density::COMPACT_FLOOR)
+                let glyph = if self.icon.is_some() || self.icon_only {
+                    m.icon
+                } else {
+                    0.0
+                };
+                density.dense_to(m.height, m.font.line_height().max(glyph) + crate::adaptive::CONTENT_PAD)
             } else {
                 m.height
             },

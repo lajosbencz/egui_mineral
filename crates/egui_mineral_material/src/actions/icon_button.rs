@@ -337,7 +337,7 @@ impl<'a> IconButton<'a> {
         if self.size != Size::Small {
             return g.container;
         }
-        let shrink = g.container.y - density.dense(g.container.y, Density::COMPACT_FLOOR);
+        let shrink = g.container.y - density.dense_to(g.container.y, g.icon + crate::adaptive::CONTENT_PAD);
         vec2((g.container.x - shrink).max(g.icon), g.container.y - shrink)
     }
 }

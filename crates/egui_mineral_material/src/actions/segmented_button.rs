@@ -210,7 +210,10 @@ impl<'a> SegmentedButton<'a> {
             .collect();
         let overlap = sb::OUTLINE_WIDTH * len.saturating_sub(1) as f32;
         let widths = segment_widths(&labels, self.equal_width, ui.available_width() + overlap);
-        let height = ui.dense(sb::CONTAINER_HEIGHT, crate::adaptive::Density::COMPACT_FLOOR);
+        let height = ui.density().dense_to(
+            sb::CONTAINER_HEIGHT,
+            labels.iter().map(|l| l.size().y).fold(0.0, f32::max) + crate::adaptive::CONTENT_PAD,
+        );
         let row = vec2(
             (widths.iter().sum::<f32>() - overlap).max(0.0),
             height.max(crate::adaptive::MIN_INTERACTIVE.points(rt.core())),

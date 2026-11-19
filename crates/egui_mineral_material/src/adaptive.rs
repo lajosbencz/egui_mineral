@@ -103,6 +103,9 @@ pub(crate) fn policies(os: egui::os::OperatingSystem) -> Policies {
     p
 }
 
+/// Vertical padding kept around a component's glyph or label at the densest step, in dp.
+pub(crate) const CONTENT_PAD: f32 = 4.0;
+
 /// Compose `VisualDensity` step: 0 or negative, 4dp per step.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Density(i8);
@@ -112,8 +115,6 @@ impl Density {
     pub const DEFAULT: Self = Self(0);
     /// Densest step, -24dp; components clamp at their content minimum before it.
     pub const MIN: Self = Self(-6);
-    // Compose VisualDensity.Compact: where fixed-size components stop shrinking
-    pub(crate) const COMPACT_FLOOR: Self = Self(-3);
     /// Least dense step; equals [`Self::DEFAULT`].
     pub const MAX: Self = Self::DEFAULT;
 
