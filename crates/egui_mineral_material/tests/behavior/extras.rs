@@ -7,6 +7,7 @@ use egui_mineral_material::{
         DateField, DescriptionItem, DescriptionList, Pagination, Popover, StatusBar, StatusItem, StatusTone, TextLink,
         Timeline, TimelineItem,
     },
+    selection::{Menu, MenuItem},
 };
 
 use crate::support::{MineralHarness, SCREEN, dismissals, harness, render, render_directed};
@@ -360,4 +361,66 @@ fn popover_show_at_follows_the_app_flag_and_ignores_anchor_clicks() {
         crate::support::flag_dismissals(h, outside),
         [Some(Dismiss::Escape), Some(Dismiss::Outside)]
     );
+}
+
+#[test]
+fn popover_opened_by_a_menu_pick_survives_the_picking_press() {
+    let mut h = harness(SCREEN, (false, false), |ui, (menu, pop)| {
+        let more = ui.mineral(PushButton::new("more", "More")).into_response();
+        if more.clicked() {
+            *menu = !*menu;
+        }
+        let picked = Menu::new("m", "More")
+            .item(MenuItem::new("Rename"))
+            .show_at(ui, more.rect, menu)
+            .clicked;
+        *pop |= picked.is_some();
+        ui.add_space(200.0);
+        let target = ui.mineral(PushButton::new("target", "Target")).response().rect;
+        Popover::new("pop", "Details").show_at(ui, target, pop, |ui| ui.label("Details"));
+    });
+    h.click("more-button");
+    h.click("m-0-menu-item");
+    assert!(h.state().value.1, "still open after the picking pass");
+    h.run();
+    assert!(h.tree().find_key("pop-popover").is_some());
+}
+
+#[test]
+fn popover_show_at_focuses_the_first_focusable_of_its_content() {
+    let mut h = harness(SCREEN, false, |ui, open| {
+        let anchor = ui.mineral(PushButton::new("trigger", "Open")).response().rect;
+        Popover::new("pop", "Details").show_at(ui, anchor, open, |ui| {
+            ui.mineral(PushButton::new("first", "First"));
+            ui.mineral(PushButton::new("second", "Second"));
+        });
+    });
+    h.run();
+    h.state_mut().value = true;
+    h.run();
+    h.run();
+    assert!(h.focused("first-button"));
+}
+
+#[test]
+fn menu_opened_by_a_menu_pick_survives_the_picking_press() {
+    let mut h = harness(SCREEN, (false, false), |ui, (first, second)| {
+        let more = ui.mineral(PushButton::new("more", "More")).into_response();
+        if more.clicked() {
+            *first = !*first;
+        }
+        let picked = Menu::new("a", "More")
+            .item(MenuItem::new("Rename"))
+            .show_at(ui, more.rect, first)
+            .clicked;
+        *second |= picked.is_some();
+        ui.add_space(200.0);
+        let target = ui.mineral(PushButton::new("target", "Target")).response().rect;
+        Menu::new("b", "Target")
+            .item(MenuItem::new("Copy"))
+            .show_at(ui, target, second);
+    });
+    h.click("more-button");
+    h.click("a-0-menu-item");
+    assert!(h.state().value.1, "still open after the picking pass");
 }

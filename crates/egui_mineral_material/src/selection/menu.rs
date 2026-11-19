@@ -389,6 +389,8 @@ pub(crate) struct MenuState {
     pub(crate) pending: HoverIntent<(usize, Option<usize>)>,
     pub(crate) focus: Option<(usize, FocusTarget)>,
     pub(crate) focused: bool,
+    // Frame the menu opened in: its presses are not outside presses.
+    pub(crate) opened_frame: Option<u64>,
 }
 
 impl TempState for MenuState {}
@@ -402,6 +404,7 @@ impl Default for MenuState {
             pending: HoverIntent::default(),
             focus: None,
             focused: false,
+            opened_frame: None,
         }
     }
 }
@@ -762,6 +765,7 @@ impl Menu {
         }
         if *open && !st.open {
             Self::open(&mut st, anchor, open_focus(&ctx));
+            st.opened_frame = Some(ctx.cumulative_frame_nr());
         }
         st.open = *open;
         if st.open {
@@ -925,7 +929,7 @@ impl Menu {
         }
 
         // Outside press closes everything.
-        if st.open && overlay::outside_press(rt.core(), panels) {
+        if st.open && st.opened_frame != Some(ctx.cumulative_frame_nr()) && overlay::outside_press(rt.core(), panels) {
             st.open = false;
             out.dismissed = Some(Dismiss::Outside);
         }

@@ -72,6 +72,7 @@ pub struct Popup {
     role: Option<Role>,
     name: Option<String>,
     focus: Option<Id>,
+    focus_first: bool,
     return_focus: Option<Id>,
     size: Option<Vec2>,
     anchor_rect: Option<Rect>,
@@ -129,6 +130,10 @@ impl<R> OverlayResponse<R> {
 #[derive(Clone, Copy, Default)]
 struct PopupState {
     shown: Option<u64>,
+    // Frame of the opening pass: its presses are not outside presses.
+    opened_frame: Option<u64>,
+    // Pass whose content is the first settled one: the opening pass sizes the area with disabled widgets.
+    settle: Option<u64>,
 }
 
 impl TempState for PopupState {}
@@ -142,6 +147,7 @@ impl Popup {
             role: None,
             name: None,
             focus: None,
+            focus_first: false,
             return_focus: None,
             size: None,
             anchor_rect: None,
@@ -164,6 +170,13 @@ impl Popup {
     /// Widget focused when the popup opens; the content creates it.
     pub fn focus(mut self, id: Id) -> Self {
         self.focus = Some(id);
+        self
+    }
+
+    /// On opening, focus the first enabled focusable widget the content shows, if any, else [`focus`](Self::focus);
+    /// default `false`.
+    pub fn focus_first(mut self, focus_first: bool) -> Self {
+        self.focus_first = focus_first;
         self
     }
 
@@ -274,20 +287,38 @@ impl Popup {
         };
         if *open {
             let pass = ctx.cumulative_pass_nr();
-            let st = PopupState::load(ctx, state_id);
+            let frame = ctx.cumulative_frame_nr();
+            let mut st = PopupState::load(ctx, state_id);
             let opened = st.shown.is_none_or(|p| p + 1 < pass);
+            if opened {
+                st.opened_frame = Some(frame);
+                st.settle = self.focus_first.then_some(pass + 1);
+            }
             let area = self.place(rt, id, anchor_rect, parent, add);
-            if opened && let Some(f) = self.focus {
+            let mut request = opened.then_some(self.focus).flatten();
+            if st.settle == Some(pass) {
+                st.settle = None;
+                let kept = self.focus.is_none_or(|f| ctx.memory(|m| m.has_focus(f)));
+                if let Some(first) = first_focusable(ctx, area.response.layer_id, self.focus).filter(|_| kept) {
+                    request = Some(first);
+                }
+            }
+            if let Some(f) = request {
                 ctx.memory_mut(|m| m.request_focus(f));
             }
-            out.dismissed = dismissal(
+            out.dismissed = dismissal_of(
                 rt.core(),
                 area.response.layer_id,
                 &[area.response.rect, anchor_rect],
                 return_focus,
+                st.opened_frame == Some(frame),
             );
             *open = out.dismissed.is_none();
-            PopupState { shown: Some(pass) }.store(ctx, state_id);
+            PopupState {
+                shown: Some(pass),
+                ..st
+            }
+            .store(ctx, state_id);
             out.response = Some(area.response);
             out.inner = Some(area.inner);
         }
@@ -329,6 +360,27 @@ impl Popup {
 /// Escape is left to a modal above `layer`.
 /// On Escape, focus held outside `layer` last pass stays there; otherwise it goes to `return_focus`.
 pub fn dismissal(core: &Core, layer: LayerId, inside: &[Rect], return_focus: Option<Id>) -> Option<Dismiss> {
+    dismissal_of(core, layer, inside, return_focus, false)
+}
+
+// First enabled focusable widget of `layer` this pass, other than `skip`.
+fn first_focusable(ctx: &Context, layer: LayerId, skip: Option<Id>) -> Option<Id> {
+    ctx.viewport(|v| {
+        v.this_pass
+            .widgets
+            .get_layer(layer)
+            .find(|w| w.enabled && w.sense.is_focusable() && Some(w.id) != skip)
+            .map(|w| w.id)
+    })
+}
+
+fn dismissal_of(
+    core: &Core,
+    layer: LayerId,
+    inside: &[Rect],
+    return_focus: Option<Id>,
+    ignore_press: bool,
+) -> Option<Dismiss> {
     let ctx = core.ctx();
     let last_key = layer.id.with("dismissal-focus");
     // egui clears focus on Escape before any widget runs.
@@ -342,7 +394,7 @@ pub fn dismissal(core: &Core, layer: LayerId, inside: &[Rect], return_focus: Opt
             ctx.memory_mut(|m| m.request_focus(id));
         }
         Some(Dismiss::Escape)
-    } else if outside_press(core, inside) {
+    } else if !ignore_press && outside_press(core, inside) {
         Some(Dismiss::Outside)
     } else {
         None

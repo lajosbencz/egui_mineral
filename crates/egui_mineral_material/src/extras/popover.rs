@@ -243,7 +243,8 @@ impl Popover {
 impl Popover {
     /// Shown while `open`, anchored to `anchor`, like [`Menu::show_at`](crate::selection::Menu::show_at): nothing
     /// toggles it, so an anchor that opens it from code (a menu item) is not a trigger. An outside press other than
-    /// on `anchor`, or Escape, clears `open`.
+    /// on `anchor`, or Escape, clears `open`. Presses of the opening pass are ignored, and opening focuses the first
+    /// focusable widget of the content, if any.
     pub fn show_at<R>(
         self,
         ui: &MineralUi<'_, Material>,
@@ -262,6 +263,7 @@ impl Popover {
         let out = popup(&self.base.salt, self.base.anchor(), self.arrow)
             .role(Role::Dialog)
             .focus(focus_id)
+            .focus_first(true)
             .show_open_at(rt, anchor, open, |ui, placement| {
                 frame(ui, placement, chrome, Some(focus_id), add)
             });
