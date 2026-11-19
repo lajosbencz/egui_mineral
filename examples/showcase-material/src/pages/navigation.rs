@@ -182,6 +182,8 @@ fn status_bar(ui: &mut Mui<'_>, s: &mut State) {
             .item(StatusItem::new("main").icon(ICON_CALL_SPLIT).clickable(true))
             .item(StatusItem::new("Indexing").progress(None).tooltip("Background task"))
             .trailing(StatusItem::new(format!("Zoom {}%", s.zoom)).clickable(true))
+            .item(StatusItem::new("Uploading").linear_progress(Some(0.4)))
+            .item(StatusItem::new("Syncing").linear_progress(None))
             .item(
                 StatusItem::new("Build failed: a long message that elides when the window narrows")
                     .elide(true)

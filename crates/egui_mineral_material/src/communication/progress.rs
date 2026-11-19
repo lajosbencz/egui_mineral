@@ -175,6 +175,15 @@ pub struct LinearProgressIndicator {
 impl LinearProgressIndicator {
     indicator_setters!("Animated", "LinearWavyProgressIndicator");
 
+    // Fills `rect`, e.g. a slot of a painted row, in a child `Ui`.
+    pub(crate) fn show_in(self, ui: &mut MineralUi<'_, Material>, rect: Rect) {
+        use egui_mineral::widget::SizeExt as _;
+        let layout = egui::Layout::centered_and_justified(egui::Direction::TopDown);
+        egui_mineral::layout::child(ui, self.salt.clone(), rect, layout, |ui| {
+            ui.mineral(self.preferred_size(rect.size()))
+        });
+    }
+
     // Compose LinearIndicatorWidth
     fn extent(&self, _: &Ui, c: Constraints) -> Vec2 {
         c.constrain(vec2(

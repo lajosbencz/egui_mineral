@@ -9,7 +9,7 @@ use egui_mineral::{
     semantic::{self, Role, SemanticNode, StableId},
 };
 
-use crate::communication::{CircularProgressIndicator, PlainTooltip};
+use crate::communication::{CircularProgressIndicator, LinearProgressIndicator, PlainTooltip};
 use crate::spec::{ColorRole, TypeScale, tokens::divider};
 use crate::widget::{
     common::{self, Interaction},
@@ -20,6 +20,8 @@ use crate::widget::{
 const HEIGHT: f32 = 24.0;
 const PAD_X: f32 = 8.0;
 const ICON: f32 = 16.0;
+const LINEAR: f32 = 48.0;
+const LINEAR_HEIGHT: f32 = 4.0;
 const ICON_GAP: f32 = 4.0;
 const CONTAINER: ColorRole = ColorRole::SurfaceContainer;
 const CONTENT: ColorRole = ColorRole::OnSurfaceVariant;
@@ -30,6 +32,16 @@ enum Lead {
     Icon(MaterialIcon),
     // `None`: indeterminate
     Progress(Option<f32>),
+    Linear(Option<f32>),
+}
+
+impl Lead {
+    fn width(self) -> f32 {
+        match self {
+            Self::Icon(_) | Self::Progress(_) => ICON,
+            Self::Linear(_) => LINEAR,
+        }
+    }
 }
 
 /// Color treatment of a [`StatusItem`]; MD3 has no warning role, so there is none.
@@ -81,6 +93,13 @@ impl StatusItem {
     /// `<id_salt>-<index>-progress`.
     pub fn progress(mut self, value: Option<f32>) -> Self {
         self.lead = Some(Lead::Progress(value));
+        self
+    }
+
+    /// Linear progress before the text, fixed at 48dp wide: the fraction done, `None` for indeterminate; replaces an
+    /// [`icon`](Self::icon) or [`progress`](Self::progress). Named and keyed like [`progress`](Self::progress).
+    pub fn linear_progress(mut self, value: Option<f32>) -> Self {
+        self.lead = Some(Lead::Linear(value));
         self
     }
 
@@ -200,7 +219,7 @@ impl StatusBar {
             .iter()
             .map(|(it, _)| parts::type_galley(rt.core(), ui.painter(), &it.text, TEXT, content_of(it), None))
             .collect();
-        let chrome = |i: usize| 2.0 * PAD_X + self.items[i].0.lead.map_or(0.0, |_| ICON + ICON_GAP);
+        let chrome = |i: usize| 2.0 * PAD_X + self.items[i].0.lead.map_or(0.0, |l| l.width() + ICON_GAP);
         let width = |i: usize, galleys: &[std::sync::Arc<egui::Galley>]| chrome(i) + galleys[i].size().x;
         // Logical offsets from each edge; the end group claims its space first.
         let mut slots: Vec<Option<Rect>> = vec![None; self.items.len()];
@@ -251,12 +270,13 @@ impl StatusBar {
             let inner = Rect::from_x_y_ranges(r.left() + PAD_X..=r.right() - PAD_X, r.y_range());
             let mut x = dir.start_x(inner, Rangef::point(0.0));
             if let Some(lead) = item.lead {
-                let c = pos2(dir.start_x(inner, Rangef::point(ICON / 2.0)), r.center().y);
+                let c = pos2(dir.start_x(inner, Rangef::point(lead.width() / 2.0)), r.center().y);
                 match lead {
                     Lead::Icon(icon) => common::icon(ui.painter(), c, icon, ICON, content),
                     Lead::Progress(value) => self.progress(ui, i, &item.text, value, c),
+                    Lead::Linear(value) => self.linear(ui, i, &item.text, value, c),
                 }
-                x = dir.start_x(inner, Rangef::point(ICON + ICON_GAP));
+                x = dir.start_x(inner, Rangef::point(lead.width() + ICON_GAP));
             }
             let gx = if dir == Direction::Rtl { x - galley.size().x } else { x };
             ui.painter()
@@ -286,6 +306,19 @@ impl StatusBar {
         .label(text)
         .agent_key(StableId::of(&self.salt, (i, "progress")))
         .show_in(ui, Rect::from_center_size(center, Vec2::splat(ICON)));
+    }
+}
+
+impl StatusBar {
+    fn linear(&self, ui: &mut MineralUi<'_, Material>, i: usize, text: &str, value: Option<f32>, center: Pos2) {
+        let salt = self.salt.child((i, "progress"));
+        match value {
+            Some(v) => LinearProgressIndicator::determinate(salt, v),
+            None => LinearProgressIndicator::indeterminate(salt),
+        }
+        .label(text)
+        .agent_key(StableId::of(&self.salt, (i, "progress")))
+        .show_in(ui, Rect::from_center_size(center, vec2(LINEAR, LINEAR_HEIGHT)));
     }
 }
 

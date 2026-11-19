@@ -424,3 +424,24 @@ fn menu_opened_by_a_menu_pick_survives_the_picking_press() {
     h.click("a-0-menu-item");
     assert!(h.state().value.1, "still open after the picking pass");
 }
+
+#[test]
+fn status_item_linear_progress_paints_a_status_line_bar_inside_its_item() {
+    let mut h = harness(SCREEN, (), |ui, ()| {
+        StatusBar::new("s", "Status")
+            .item(StatusItem::new("Upload").linear_progress(Some(0.5)))
+            .item(StatusItem::new("Sync").linear_progress(None))
+            .show(ui);
+    });
+    h.step();
+    h.step();
+    for i in 0..2 {
+        let (item, bar) = (
+            h.rect(&format!("s-{i}-status-item")),
+            h.rect(&format!("s-{i}-progress")),
+        );
+        assert!(item.contains_rect(bar), "bar {i} inside its item");
+        assert!(bar.width() > 4.0 * bar.height(), "bar {i} is linear: {bar:?}");
+        assert!(bar.height() < item.height(), "bar {i} fits the status line");
+    }
+}
