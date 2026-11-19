@@ -32,6 +32,10 @@ impl WindowSpec {
         if !*open {
             return;
         }
+        if ctx.embed_viewports() {
+            self.show_embedded(rt, open, add_contents);
+            return;
+        }
         let mut close = false;
         ctx.show_viewport_immediate(self.id, self.builder, |ui, _| {
             if ui.ctx().input(|i| i.viewport().close_requested()) {
@@ -42,6 +46,26 @@ impl WindowSpec {
         if close {
             *open = false;
         }
+    }
+}
+
+impl WindowSpec {
+    // egui's own embedded viewport window has no close button, so build it here with one. The button's
+    // hit box is the style's `icon_width`, raised to the pointer target for this pass.
+    fn show_embedded<K>(self, rt: &Runtime<K>, open: &mut bool, mut add_contents: impl FnMut(&mut MineralUi<'_, K>)) {
+        let ctx = rt.ctx();
+        let target = crate::layout::MinTarget::Auto.points(rt.core());
+        let outer = ctx.global_style();
+        if outer.spacing.icon_width < target {
+            let mut style = (*outer).clone();
+            style.spacing.icon_width = target;
+            ctx.set_global_style(style);
+        }
+        egui::Window::from_viewport(self.id, self.builder)
+            .open(open)
+            .collapsible(false)
+            .show(ctx, |ui| rt.pass(ui, |ui| add_contents(ui)));
+        ctx.set_global_style(outer);
     }
 }
 

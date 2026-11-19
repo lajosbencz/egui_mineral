@@ -217,3 +217,49 @@ fn embedded_window_runtimes_keep_their_trees() {
     assert_eq!(keys(&two.a), ["a-first-button", "a-last-button"]);
     assert_eq!(keys(&two.b), ["b-only-button"]);
 }
+
+#[test]
+fn embedded_window_closes_on_a_touch_tap() {
+    use crate::support::MineralHarness;
+    use egui::{Event, PointerButton, TouchPhase};
+    use egui_kittest::kittest::Queryable;
+    use egui_mineral::input::synth;
+
+    let mut h = crate::support::still(SCREEN, true, |ui, open| {
+        let rt = ui.rt();
+        WindowSpec::new("w", "Window")
+            .size(egui::vec2(320.0, 140.0))
+            .show(rt, open, |ui| {
+                ui.label("body");
+            });
+    });
+    h.run();
+    // Modality is known from the first touch on.
+    let far = egui::pos2(5.0, 5.0);
+    h.input_mut().events.push(synth::touch(far, TouchPhase::Start));
+    h.step();
+    h.input_mut().events.push(synth::touch(far, TouchPhase::End));
+    h.run();
+    let rect = h.get_by_label("Close window").rect();
+    let touch_target = h.rt().core().policies().target.touch;
+    assert!(
+        rect.width() >= touch_target && rect.height() >= touch_target,
+        "close hit target {rect:?} below {touch_target}"
+    );
+    let at = rect.center();
+    h.input_mut()
+        .events
+        .push(synth::pointer_down(at, PointerButton::Primary));
+    h.step();
+    h.input_mut()
+        .events
+        .extend([synth::touch(at, TouchPhase::Start), Event::PointerMoved(at)]);
+    h.step();
+    h.input_mut().events.extend([
+        synth::pointer_up(at, PointerButton::Primary),
+        Event::PointerGone,
+        synth::touch(at, TouchPhase::End),
+    ]);
+    h.run();
+    assert!(!h.state().value, "window closed");
+}
