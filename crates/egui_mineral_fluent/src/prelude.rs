@@ -48,6 +48,6 @@ pub use crate::surfaces::{
     TooltipResponse,
 };
 pub use crate::{
-    BrandRamp, ColorToken, Fluent, FluentExt, FluentIcon, IconPosition, Rt, Size, icons, typography::TypeRamp,
+    BrandRamp, ColorToken, Fluent, FluentExt, FluentIcon, IconPosition, IconSet, Rt, Size, icons, typography::TypeRamp,
 };
 pub use egui_mineral::prelude::*;

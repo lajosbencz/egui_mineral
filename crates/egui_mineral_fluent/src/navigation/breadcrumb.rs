@@ -13,9 +13,8 @@ use super::{
 };
 use crate::{
     ColorToken::ColorNeutralForeground1,
-    Fluent, FluentExt, FluentIcon, Rt, Size,
+    Fluent, FluentExt, Icon, Rt, Size,
     actions::{ButtonAppearance, PushButton, button::Metrics},
-    icons::{ICON_CHEVRON_LEFT, ICON_CHEVRON_RIGHT},
     spec::{defaults::breadcrumb as d, tokens::geometry as g},
     typography::TypeRamp,
     widget::paint,
@@ -26,7 +25,7 @@ use crate::{
 #[must_use]
 pub struct BreadcrumbButton {
     label: String,
-    icon: Option<FluentIcon>,
+    icon: Option<Icon>,
     current: bool,
     disabled: bool,
 }
@@ -43,8 +42,8 @@ impl BreadcrumbButton {
     }
 
     /// `icon` slot before the label.
-    pub fn icon(mut self, icon: FluentIcon) -> Self {
-        self.icon = Some(icon);
+    pub fn icon(mut self, icon: impl Into<Icon>) -> Self {
+        self.icon = Some(icon.into());
         self
     }
 
@@ -105,7 +104,7 @@ impl<T: Into<BreadcrumbButton>> From<T> for BreadcrumbItem {
 #[derive(Clone, Copy, Debug, Default)]
 #[must_use]
 pub struct BreadcrumbDivider {
-    icon: Option<FluentIcon>,
+    icon: Option<Icon>,
 }
 
 impl BreadcrumbDivider {
@@ -115,14 +114,14 @@ impl BreadcrumbDivider {
     }
 
     /// Replaces the chevron.
-    pub fn icon(mut self, icon: FluentIcon) -> Self {
-        self.icon = Some(icon);
+    pub fn icon(mut self, icon: impl Into<Icon>) -> Self {
+        self.icon = Some(icon.into());
         self
     }
 
-    fn glyph(self, dir: Direction) -> FluentIcon {
+    fn glyph(self, dir: Direction, icons: &crate::IconSet) -> Icon {
         self.icon
-            .unwrap_or_else(|| dir.pick(ICON_CHEVRON_RIGHT, ICON_CHEVRON_LEFT))
+            .unwrap_or_else(|| dir.pick(icons.chevron_right, icons.chevron_left))
     }
 }
 
@@ -285,7 +284,7 @@ impl Breadcrumb {
             items,
         } = self;
         let dir = rt.i18n().direction();
-        let glyph = divider.glyph(dir);
+        let glyph = divider.glyph(dir, &rt.icons());
         let button = |i: usize| make_button(&items, &salt, size, i);
         let shown = fit(ui, overflow.as_ref(), (&items, &salt, size));
         let at_start = overflow.as_ref().is_some_and(Overflow::at_start);
@@ -310,7 +309,7 @@ impl Breadcrumb {
                     Part::Item(i) => button(*i),
                     Part::More => overflow
                         .as_ref()
-                        .map(|o| menu_button(overflow::trigger(salt.child("overflow"), o.label()), size)),
+                        .map(|o| menu_button(overflow::trigger(salt.child("overflow"), o.label(), &rt.icons()), size)),
                 };
                 let Some(mut b) = b else { continue };
                 if focus == BreadcrumbFocus::Arrow {
@@ -373,7 +372,7 @@ fn menu_button(mut b: PushButton<'static>, size: Size) -> PushButton<'static> {
     b
 }
 
-fn show_divider(rt: &Rt, ui: &mut egui::Ui, icon: FluentIcon, size: Size) {
+fn show_divider(rt: &Rt, ui: &mut egui::Ui, icon: Icon, size: Size) {
     let extent = icon_size(size);
     let (rect, _) = ui.allocate_exact_size(vec2(extent, extent), Sense::hover());
     if ui.is_rect_visible(rect) {
@@ -413,7 +412,7 @@ fn fit(
             OverflowItem::new(w + if i > 0 { icon_size(size) } else { 0.0 })
         })
         .collect();
-    let menu = menu_button(overflow::trigger(salt.child("overflow"), o.label()), size)
+    let menu = menu_button(overflow::trigger(salt.child("overflow"), o.label(), &ui.icons()), size)
         .natural(ui)
         .x;
     o.fit(&widths, ui.available_width(), menu)

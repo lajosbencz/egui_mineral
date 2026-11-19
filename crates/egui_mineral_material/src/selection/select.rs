@@ -28,20 +28,17 @@ use egui_mineral::{
 };
 
 use crate::selection::{Chip, InputChip};
+use crate::spec::{
+    TypeScale,
+    defaults::{menu as menu_defaults, text_field as tf},
+    tokens::menu,
+};
 use crate::text_inputs::text_field::{self, Decor, INPUT_FONT, TextFieldVariant, content_inset, field_h, line_galley};
 use crate::widget::{
     common::{self},
     leading::Leading,
     parts,
     row_parts::{OptionRow, RowMetrics},
-};
-use crate::{
-    icons,
-    spec::{
-        TypeScale,
-        defaults::{menu as menu_defaults, text_field as tf},
-        tokens::menu,
-    },
 };
 
 pub(crate) const CHIP_GAP: f32 = 8.0;
@@ -634,7 +631,7 @@ impl Select<'_> {
         parts::icon_rotated(
             ui.painter(),
             pos2(ax, field.center().y),
-            icons::ICON_ARROW_DROP_DOWN,
+            ui.icons().arrow_drop_down,
             text_field::trailing_icon_size(self.chrome.variant),
             colors.trailing,
             turn,

@@ -21,8 +21,7 @@ use crate::ColorToken::{
     ColorSubtleBackgroundPressed,
 };
 use crate::{
-    Fluent, FluentExt, FluentIcon, Size,
-    icons::{ICON_CHEVRON_DOWN, ICON_CHEVRON_UP},
+    Fluent, FluentExt, Icon, Size,
     spec::{
         defaults::{input as inp, spin_button as sp},
         tokens::geometry as g,
@@ -48,8 +47,8 @@ pub struct SpinButton<'a> {
     invalid: bool,
     disabled: bool,
     placeholder: Option<String>,
-    before: Option<FluentIcon>,
-    after: Option<FluentIcon>,
+    before: Option<egui_mineral::icon::Icon>,
+    after: Option<egui_mineral::icon::Icon>,
     unit: Option<String>,
 }
 
@@ -86,14 +85,14 @@ impl<'a> SpinButton<'a> {
     }
 
     /// `contentBefore`: icon leading the text.
-    pub fn content_before(mut self, icon: FluentIcon) -> Self {
-        self.before = Some(icon);
+    pub fn content_before(mut self, icon: impl Into<egui_mineral::icon::Icon>) -> Self {
+        self.before = Some(icon.into());
         self
     }
 
     /// `contentAfter`: icon trailing the text, before the step buttons.
-    pub fn content_after(mut self, icon: FluentIcon) -> Self {
-        self.after = Some(icon);
+    pub fn content_after(mut self, icon: impl Into<egui_mineral::icon::Icon>) -> Self {
+        self.after = Some(icon.into());
         self
     }
 
@@ -171,7 +170,11 @@ impl<'a> SpinButton<'a> {
                 Availability::disabled_if(self.disabled),
             ));
             ui.painter().rect_filled(rect, corner(up, dir), fill.pick(s, t));
-            let icon: FluentIcon = if up { ICON_CHEVRON_UP } else { ICON_CHEVRON_DOWN };
+            let icon: Icon = if up {
+                ui.icons().chevron_up
+            } else {
+                ui.icons().chevron_down
+            };
             paint::icon(ui.painter(), rect.center(), icon, false, self.glyph(), fore.pick(s, t));
             if r.clicked() {
                 steps += if up { 1 } else { -1 };

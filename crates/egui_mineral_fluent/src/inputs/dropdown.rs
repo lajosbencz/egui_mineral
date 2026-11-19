@@ -15,7 +15,6 @@ use super::value::{self, ListState, Value};
 use crate::ColorToken::{ColorNeutralForegroundDisabled, ColorNeutralStrokeAccessible};
 use crate::{
     Fluent, FluentExt, Size,
-    icons::ICON_CHEVRON_DOWN,
     spec::{
         defaults::{combobox as cb, select as sel},
         tokens::geometry as g,
@@ -42,7 +41,7 @@ pub struct Dropdown<'a> {
     appearance: InputAppearance,
     size: Size,
     placeholder: Option<String>,
-    before: Option<crate::FluentIcon>,
+    before: Option<egui_mineral::icon::Icon>,
     invalid: bool,
     disabled: bool,
 }
@@ -103,8 +102,8 @@ impl<'a> Dropdown<'a> {
     }
 
     /// `contentBefore`: icon leading the text.
-    pub fn content_before(mut self, icon: crate::FluentIcon) -> Self {
-        self.before = Some(icon);
+    pub fn content_before(mut self, icon: impl Into<egui_mineral::icon::Icon>) -> Self {
+        self.before = Some(icon.into());
         self
     }
 
@@ -167,7 +166,7 @@ impl Dropdown<'_> {
         paint::icon(
             ui.painter(),
             Pos2::new(icon_x + m.icon / 2.0, inner.center().y),
-            ICON_CHEVRON_DOWN,
+            ui.icons().chevron_down,
             false,
             m.icon,
             icon_color,

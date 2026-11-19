@@ -37,7 +37,7 @@ pub struct TimePicker<'a> {
     appearance: InputAppearance,
     size: Size,
     placeholder: Option<String>,
-    before: Option<crate::FluentIcon>,
+    before: Option<egui_mineral::icon::Icon>,
     invalid: bool,
     disabled: bool,
 }
@@ -113,8 +113,8 @@ impl<'a> TimePicker<'a> {
     }
 
     /// `contentBefore`: icon leading the text.
-    pub fn content_before(mut self, icon: crate::FluentIcon) -> Self {
-        self.before = Some(icon);
+    pub fn content_before(mut self, icon: impl Into<egui_mineral::icon::Icon>) -> Self {
+        self.before = Some(icon.into());
         self
     }
 

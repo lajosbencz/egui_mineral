@@ -7,7 +7,7 @@ use egui_mineral::{
 };
 
 use super::textbox::{self, Chrome, Content, FieldOutput, Fill, InputAppearance};
-use crate::{Fluent, FluentIcon, Size, spec::defaults::input as inp};
+use crate::{Fluent, Icon, Size, spec::defaults::input as inp};
 
 /// Fluent `Input`: single-line text bound to `value`; typing reports `changed`.
 #[derive(Debug)]
@@ -20,8 +20,8 @@ pub struct Input<'a> {
     appearance: InputAppearance,
     size: Size,
     placeholder: Option<String>,
-    before: Option<FluentIcon>,
-    after: Option<FluentIcon>,
+    before: Option<Icon>,
+    after: Option<Icon>,
     password: bool,
     invalid: bool,
     disabled: bool,
@@ -65,14 +65,14 @@ impl<'a> Input<'a> {
     }
 
     /// `contentBefore`: icon leading the text.
-    pub fn content_before(mut self, icon: FluentIcon) -> Self {
-        self.before = Some(icon);
+    pub fn content_before(mut self, icon: impl Into<Icon>) -> Self {
+        self.before = Some(icon.into());
         self
     }
 
     /// `contentAfter`: icon trailing the text.
-    pub fn content_after(mut self, icon: FluentIcon) -> Self {
-        self.after = Some(icon);
+    pub fn content_after(mut self, icon: impl Into<Icon>) -> Self {
+        self.after = Some(icon.into());
         self
     }
 

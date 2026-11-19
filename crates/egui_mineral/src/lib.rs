@@ -208,6 +208,8 @@ pub mod form;
 #[cfg(all(feature = "unstable-hotpatch", not(target_arch = "wasm32")))]
 mod hotpatch;
 pub mod i18n;
+/// Icon glyphs, two-form icons and the icon font installer shared by the stylekits.
+pub mod icon;
 /// Input abstraction layer: unified events, gestures, key repeat, debounce.
 pub mod input;
 #[cfg(target_arch = "wasm32")]
@@ -270,6 +272,7 @@ pub mod prelude {
         edit::EditEvent,
         expand::Expansion,
         form::{Form, FormState},
+        icon::Icon,
         layout::{Axis, Edge},
         mask::Charset,
         nav::{Route, Router},

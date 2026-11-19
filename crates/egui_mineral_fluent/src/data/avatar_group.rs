@@ -14,7 +14,6 @@ use crate::ColorToken::{
 };
 use crate::{
     Fluent, FluentExt, Rt,
-    icons::ICON_MORE_HORIZONTAL,
     navigation::overflow,
     spec::{
         defaults::avatar as d,
@@ -228,7 +227,7 @@ impl MineralWidget for Trigger {
                     paint::icon(
                         p,
                         rect.center(),
-                        ICON_MORE_HORIZONTAL,
+                        ui.icons().more_horizontal,
                         false,
                         d::icon_size(size),
                         t.color(fg),

@@ -10,7 +10,7 @@ use egui_mineral::{
 use crate::selection::controls::{self, Control, SwitchLook};
 use crate::spec::tokens::list;
 use crate::widget::{common, parts, row_parts};
-use crate::{Leading, LeadingPaint, Material, MaterialIcon, Rt, tokens::Tokens};
+use crate::{Icon, Leading, LeadingPaint, Material, Rt, tokens::Tokens};
 
 /// Toggle control in a [`ListSlot`]; the row reports its toggles and Space on the focused row
 /// toggles the leading one first.
@@ -151,8 +151,8 @@ impl ListSlot {
     }
 
     /// [`ListVisual::Leading`] icon.
-    pub fn icon(self, icon: MaterialIcon) -> Self {
-        self.visual(ListVisual::Leading(icon.into()))
+    pub fn icon(self, icon: impl Into<Icon>) -> Self {
+        self.visual(ListVisual::Leading(Leading::from(icon.into())))
     }
 
     /// [`ListVisual::Avatar`].
@@ -232,9 +232,15 @@ impl From<ListVisual> for ListSlot {
     }
 }
 
-impl From<MaterialIcon> for ListSlot {
-    fn from(icon: MaterialIcon) -> Self {
+impl From<Icon> for ListSlot {
+    fn from(icon: Icon) -> Self {
         Self::new().icon(icon)
+    }
+}
+
+impl From<crate::MaterialIcon> for ListSlot {
+    fn from(icon: crate::MaterialIcon) -> Self {
+        Self::from(Icon::from(icon))
     }
 }
 

@@ -27,7 +27,6 @@ use crate::widget::{
     row_parts::{self, RowColors, RowState},
 };
 use crate::{
-    icons,
     spec::{defaults, tokens::list},
     tr,
 };
@@ -333,14 +332,15 @@ impl Composite for TransferList<'_> {
         let src_title = title(&self.source_title, "mineral-transfer-source");
         let dst_title = title(&self.target_title, "mineral-transfer-target");
         let dir = rt.i18n().direction();
+        let icons = rt.icons();
         let icon = |m: Move| {
             let forward = matches!(m, Move::AllToTarget | Move::ToTarget);
             let right = dir.pick(forward, !forward);
             match (matches!(m, Move::AllToTarget | Move::AllToSource), right) {
-                (false, true) => icons::ICON_CHEVRON_RIGHT,
-                (false, false) => icons::ICON_CHEVRON_LEFT,
-                (true, true) => icons::ICON_KEYBOARD_DOUBLE_ARROW_RIGHT,
-                (true, false) => icons::ICON_KEYBOARD_DOUBLE_ARROW_LEFT,
+                (false, true) => icons.chevron_right,
+                (false, false) => icons.chevron_left,
+                (true, true) => icons.keyboard_double_arrow_right,
+                (true, false) => icons.keyboard_double_arrow_left,
             }
         };
         let src_any = source.iter().any(|i| st.source.is_selected(i));

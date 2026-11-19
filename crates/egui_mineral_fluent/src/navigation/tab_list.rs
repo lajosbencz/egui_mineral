@@ -23,7 +23,7 @@ use crate::ColorToken::{
     ColorTransparentBackgroundPressed, ColorTransparentStroke,
 };
 use crate::{
-    Fluent, FluentExt, FluentIcon, Size,
+    Fluent, FluentExt, Icon, Size,
     spec::{
         defaults::tab as d,
         tokens::{geometry as g, motion as mo},
@@ -70,7 +70,7 @@ impl TabAppearance {
 #[must_use]
 pub struct Tab {
     label: String,
-    icon: Option<FluentIcon>,
+    icon: Option<Icon>,
     disabled: bool,
     salt: Option<KeyedSalt>,
 }
@@ -87,8 +87,8 @@ impl Tab {
     }
 
     /// `icon` slot before the label; the filled glyph shows while selected.
-    pub fn icon(mut self, icon: FluentIcon) -> Self {
-        self.icon = Some(icon);
+    pub fn icon(mut self, icon: impl Into<Icon>) -> Self {
+        self.icon = Some(icon.into());
         self
     }
 

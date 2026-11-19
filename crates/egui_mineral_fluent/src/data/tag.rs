@@ -23,8 +23,7 @@ use crate::ColorToken::{
     ColorSubtleBackgroundPressed, ColorTransparentStrokeDisabled,
 };
 use crate::{
-    ColorToken, Fluent, FluentExt, FluentIcon, Rt,
-    icons::ICON_DISMISS,
+    ColorToken, Fluent, FluentExt, Icon, Rt,
     spec::{
         defaults::tag as d,
         tokens::geometry::{BORDER_RADIUS_MEDIUM, STROKE_WIDTH_THICK, STROKE_WIDTH_THIN},
@@ -260,7 +259,7 @@ impl Kind {
 #[derive(Clone, Debug)]
 struct Content<'a> {
     media: Option<Avatar<'a>>,
-    icon: Option<FluentIcon>,
+    icon: Option<Icon>,
     primary: String,
     secondary: Option<String>,
 }
@@ -385,7 +384,7 @@ impl Part<'_> {
             paint::icon(
                 p,
                 pos2(x_of(x, m.icon) + m.icon / 2.0, mid),
-                ICON_DISMISS,
+                ui.icons().dismiss,
                 false,
                 m.icon,
                 fg,
@@ -441,7 +440,7 @@ impl Part<'_> {
             paint::icon(
                 p,
                 pos2(x_of(x, m.icon) + m.icon / 2.0, mid),
-                ICON_DISMISS,
+                ui.icons().dismiss,
                 false,
                 m.icon,
                 color,
@@ -536,8 +535,8 @@ macro_rules! look_setters {
         }
 
         /// `icon` slot before the text; ignored with `media`.
-        pub fn icon(mut self, icon: FluentIcon) -> Self {
-            self.icon = Some(icon);
+        pub fn icon(mut self, icon: impl Into<Icon>) -> Self {
+            self.icon = Some(icon.into());
             self
         }
 
@@ -567,7 +566,7 @@ pub struct Tag<'a> {
     shape: TagShape,
     size: Option<TagSize>,
     media: Option<Avatar<'a>>,
-    icon: Option<FluentIcon>,
+    icon: Option<Icon>,
     secondary: Option<String>,
     dismissible: Option<bool>,
     selected: bool,
@@ -679,7 +678,7 @@ pub struct InteractionTag<'a> {
     shape: TagShape,
     size: Option<TagSize>,
     media: Option<Avatar<'a>>,
-    icon: Option<FluentIcon>,
+    icon: Option<Icon>,
     secondary: Option<String>,
     dismissible: Option<bool>,
     disabled: bool,

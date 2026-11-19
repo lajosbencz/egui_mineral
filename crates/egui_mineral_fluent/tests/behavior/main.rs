@@ -9,6 +9,7 @@ mod alignment;
 mod collections;
 mod feedback;
 mod i18n;
+mod icons;
 mod inputs;
 mod menu;
 mod navigation;

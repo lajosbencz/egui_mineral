@@ -6,6 +6,7 @@ use std::sync::{
 use egui::{Context, Style, Theme};
 use egui_mineral::{
     i18n::Catalog,
+    icon::IconFont,
     kit::state::PassCache,
     policy::Policies,
     runtime::{Runtime, Stylekit},
@@ -16,7 +17,8 @@ use parking_lot::Mutex;
 use crate::{
     adaptive::{self, Density},
     color::{Contrast, SchemeSpec},
-    fonts::{self, IconFonts},
+    fonts::IconFonts,
+    icon_set::IconSet,
     theme::{TokenStore, Tokens},
 };
 
@@ -29,34 +31,42 @@ pub struct Material {
     // Tokens frozen for one egui pass: setters apply from the next pass, no frame mixes two token sets.
     pass: PassCache<Theme, (Arc<Tokens>, Arc<Style>)>,
     density: AtomicI8,
-    icons: Icons,
+    icons: Arc<IconSet>,
+    fonts: Fonts,
 }
 
 #[derive(Debug)]
-enum Icons {
+enum Fonts {
     #[cfg(feature = "bundled-icons")]
     Bundled,
-    Custom(IconFonts),
+    Custom(Vec<IconFont>),
 }
 
 impl Material {
     /// Baseline tokens of both brightnesses at `contrast`, with the bundled icon fonts (3 MB).
     #[cfg(feature = "bundled-icons")]
     pub fn new(contrast: Contrast) -> Self {
-        Self::with_icons(contrast, Icons::Bundled)
+        Self::build(contrast, Arc::new(IconSet::material()), Fonts::Bundled)
     }
 
     /// `Self::new` with `icon_fonts` instead of the bundled ones.
     pub fn with_icon_fonts(contrast: Contrast, icon_fonts: IconFonts) -> Self {
-        Self::with_icons(contrast, Icons::Custom(icon_fonts))
+        Self::with_icons(contrast, &IconSet::material(), &icon_fonts.fonts())
     }
 
-    fn with_icons(contrast: Contrast, icons: Icons) -> Self {
+    /// `Self::new` drawing the kit's own icons from `icons`, installing `fonts` instead of the bundled ones: Material
+    /// Symbols fonts ([`IconFonts::fonts`]) or the icon font of another kit.
+    pub fn with_icons(contrast: Contrast, icons: &IconSet, fonts: &[IconFont]) -> Self {
+        Self::build(contrast, Arc::new(*icons), Fonts::Custom(fonts.to_vec()))
+    }
+
+    fn build(contrast: Contrast, icons: Arc<IconSet>, fonts: Fonts) -> Self {
         Self {
             tokens: Mutex::new(TokenStore::new(SchemeSpec::default().contrast(contrast))),
             pass: PassCache::default(),
             density: AtomicI8::new(Density::DEFAULT.step()),
             icons,
+            fonts,
         }
     }
 
@@ -133,10 +143,10 @@ impl Stylekit for Material {
     }
 
     fn setup(&self, ctx: &Context) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        match self.icons {
+        match &self.fonts {
             #[cfg(feature = "bundled-icons")]
-            Icons::Bundled => egui_material_icons::initialize(ctx),
-            Icons::Custom(icon_fonts) => fonts::install_icons(ctx, icon_fonts),
+            Fonts::Bundled => egui_material_icons::initialize(ctx),
+            Fonts::Custom(fonts) => fonts.iter().for_each(|f| f.install(ctx)),
         }
         Ok(())
     }
@@ -169,6 +179,8 @@ pub type Rt = Runtime<Material>;
 pub trait MaterialExt {
     /// Tokens of the current theme, frozen for the egui pass: [`Material`] setters apply from the next pass.
     fn tokens(&self) -> Arc<Tokens>;
+    /// Glyphs of the kit's own parts.
+    fn icons(&self) -> Arc<IconSet>;
 }
 
 impl MaterialExt for Rt {
@@ -177,11 +189,19 @@ impl MaterialExt for Rt {
             .pass_snapshot(self.ctx().cumulative_pass_nr(), self.theme())
             .0
     }
+
+    fn icons(&self) -> Arc<IconSet> {
+        Arc::clone(&self.kit().icons)
+    }
 }
 
 impl MaterialExt for MineralUi<'_, Material> {
     fn tokens(&self) -> Arc<Tokens> {
         self.rt().tokens()
+    }
+
+    fn icons(&self) -> Arc<IconSet> {
+        self.rt().icons()
     }
 }
 

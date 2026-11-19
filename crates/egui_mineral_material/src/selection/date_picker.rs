@@ -33,10 +33,6 @@ use crate::widget::{
 use crate::{Size, actions::IconButton};
 use crate::{
     adaptive::MIN_INTERACTIVE,
-    icons::{
-        ICON_ARROW_DROP_DOWN, ICON_CALENDAR_MONTH, ICON_DATE_RANGE, ICON_EDIT, ICON_KEYBOARD_ARROW_LEFT,
-        ICON_KEYBOARD_ARROW_RIGHT,
-    },
     motion,
     spec::{
         ShapeRole,
@@ -453,7 +449,10 @@ impl Config {
         let hint = input_hint(rt, loc);
         let field = TextField::new(field_salt, label, &mut text)
             .with_chrome(self.field_chrome(TextFieldVariant::Filled))
-            .trailing_icon(ICON_CALENDAR_MONTH, crate::tr(rt.i18n(), "mineral-date-picker-open"))
+            .trailing_icon(
+                ui.icons().calendar_month,
+                crate::tr(rt.i18n(), "mineral-date-picker-open"),
+            )
             .placeholder_or(hint)
             .maybe_error(error)
             .disabled(self.disabled);
@@ -665,9 +664,9 @@ impl Config {
             )
         };
         let (icon, msg) = if h.input {
-            (ICON_DATE_RANGE, "mineral-date-to-calendar")
+            (ui.icons().date_range, "mineral-date-to-calendar")
         } else {
-            (ICON_EDIT, "mineral-date-to-input")
+            (ui.icons().edit, "mineral-date-to-input")
         };
         let toggle = IconButton::new(self.salt.child("mode"), icon, tr(rt.i18n(), msg));
         let toggle_size = toggle.footprint(rt, ui.density());
@@ -867,8 +866,8 @@ impl Config {
         let next = add_months(first, 1);
         let prev_disabled = self.disabled || first <= limits.min;
         let next_disabled = self.disabled || next > limits.max;
-        let prev_icon = dir.pick(ICON_KEYBOARD_ARROW_LEFT, ICON_KEYBOARD_ARROW_RIGHT);
-        let next_icon = dir.pick(ICON_KEYBOARD_ARROW_RIGHT, ICON_KEYBOARD_ARROW_LEFT);
+        let prev_icon = dir.pick(ui.icons().keyboard_arrow_left, ui.icons().keyboard_arrow_right);
+        let next_icon = dir.pick(ui.icons().keyboard_arrow_right, ui.icons().keyboard_arrow_left);
         let density = ui.density();
         let arrow = |ui: &mut Ui, from_end: usize, which: &'static str, icon, msg: &str, disabled: bool| {
             let b = IconButton::new(self.salt.child((which, "month")), icon, tr(rt.i18n(), msg)).disabled(disabled);
@@ -949,7 +948,7 @@ impl Config {
         parts::icon_rotated(
             p,
             pos2(icon_x, visual.center().y),
-            ICON_ARROW_DROP_DOWN,
+            ui.icons().arrow_drop_down,
             dp::YEAR_MENU_ICON_SIZE,
             content,
             angle,

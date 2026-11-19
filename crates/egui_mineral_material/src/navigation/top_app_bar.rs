@@ -14,11 +14,9 @@ use egui_mineral::{
 
 use crate::selection::{Menu, MenuItem};
 use crate::widget::parts;
-use crate::{IconAction, actions::IconButton};
 use crate::{
-    MaterialIcon,
+    Icon,
     adaptive::WindowClass,
-    icons::ICON_MORE_VERT,
     motion,
     spec::{
         ColorRole, TypeScale, defaults,
@@ -29,6 +27,7 @@ use crate::{
     },
     tokens::Tokens,
 };
+use crate::{IconAction, actions::IconButton};
 
 /// Compose `TopAppBar`, `CenterAlignedTopAppBar`, `MediumTopAppBar` and `LargeTopAppBar` styles.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
@@ -65,7 +64,7 @@ pub struct TopAppBar<'a> {
     variant: TopAppBarVariant,
     flexible: bool,
     centered: bool,
-    navigation: Option<(MaterialIcon, String)>,
+    navigation: Option<(Icon, String)>,
     actions: Vec<IconAction>,
     disabled: bool,
     scrolled: bool,
@@ -143,8 +142,8 @@ impl<'a> TopAppBar<'a> {
     }
 
     /// Leading icon button; `label` is its accessible name.
-    pub fn navigation(mut self, icon: MaterialIcon, label: impl Into<String>) -> Self {
-        self.navigation = Some((icon, label.into()));
+    pub fn navigation(mut self, icon: impl Into<Icon>, label: impl Into<String>) -> Self {
+        self.navigation = Some((icon.into(), label.into()));
         self
     }
 
@@ -338,7 +337,8 @@ impl<'a> TopAppBar<'a> {
                 *ui.layout(),
                 |ui| {
                     ui.mineral(
-                        IconButton::new(self.salt.child("overflow"), ICON_MORE_VERT, &label).disabled(self.disabled),
+                        IconButton::new(self.salt.child("overflow"), ui.icons().more_vert, &label)
+                            .disabled(self.disabled),
                     )
                     .into_response()
                 },

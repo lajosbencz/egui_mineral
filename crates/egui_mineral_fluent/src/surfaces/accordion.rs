@@ -14,8 +14,7 @@ use egui_mineral::{
 
 use crate::ColorToken::{ColorNeutralForeground1, ColorNeutralForegroundDisabled};
 use crate::{
-    Fluent, FluentExt, FluentIcon, Rt,
-    icons::ICON_CHEVRON_RIGHT,
+    Fluent, FluentExt, Icon, Rt,
     spec::{
         defaults::accordion as d,
         tokens::{motion as mo, typography as ty},
@@ -84,7 +83,7 @@ pub enum AccordionNavigation {
 #[must_use]
 pub struct AccordionItem {
     title: String,
-    icon: Option<FluentIcon>,
+    icon: Option<Icon>,
     disabled: bool,
     salt: Option<KeyedSalt>,
 }
@@ -105,8 +104,8 @@ impl AccordionItem {
     }
 
     /// `icon` slot before the text.
-    pub fn icon(mut self, icon: FluentIcon) -> Self {
-        self.icon = Some(icon);
+    pub fn icon(mut self, icon: impl Into<Icon>) -> Self {
+        self.icon = Some(icon.into());
         self
     }
 
@@ -223,11 +222,8 @@ impl MineralWidget for Header<'_> {
             start += d::ICON_SIZE + d::ICON_GAP;
         }
         let p = ui.painter();
-        let glyph = p.layout_no_wrap(
-            ICON_CHEVRON_RIGHT.regular().to_string(),
-            egui::FontId::new(d::ICON_SIZE, crate::fonts::icon_family()),
-            color,
-        );
+        let chevron = ui.icons().chevron_right.regular;
+        let glyph = p.layout_no_wrap(chevron.ch.to_string(), chevron.font_id(d::ICON_SIZE), color);
         let at = pos2(chevron_x, cy) - glyph.size() / 2.0;
         p.add(TextShape::new(at, glyph, color).with_angle_and_anchor(degrees.to_radians(), Align2::CENTER_CENTER));
         if let Some(icon) = self.item.icon {

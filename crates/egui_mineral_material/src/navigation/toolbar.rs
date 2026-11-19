@@ -21,21 +21,21 @@ use egui_mineral::{
 
 use crate::actions::icon_button::{IconButton, Palette};
 use crate::{
-    IconAction,
-    widget::item_salt,
-    widget::{
-        common::{self},
-        parts,
-    },
-};
-use crate::{
-    MaterialIcon,
+    Icon,
     adaptive::MIN_INTERACTIVE,
     motion,
     spec::{
         ColorRole,
         defaults::toolbar as cx,
         tokens::{docked_toolbar as docked, fab_baseline, fab_medium, floating_toolbar as floating},
+    },
+};
+use crate::{
+    IconAction,
+    widget::item_salt,
+    widget::{
+        common::{self},
+        parts,
     },
 };
 
@@ -201,7 +201,7 @@ enum Kind {
 }
 
 struct PairedFab {
-    icon: MaterialIcon,
+    icon: Icon,
     label: String,
     position: Edge,
 }
@@ -432,9 +432,9 @@ impl<'a> FloatingToolbar<'a> {
 
     /// Pairs the toolbar with a FAB that grows as the toolbar collapses, at `position`
     /// (Compose `FloatingToolbarHorizontalFabPosition`, `FloatingToolbarVerticalFabPosition`).
-    pub fn fab(mut self, icon: MaterialIcon, label: impl Into<String>, position: Edge) -> Self {
+    pub fn fab(mut self, icon: impl Into<Icon>, label: impl Into<String>, position: Edge) -> Self {
         self.fab = Some(PairedFab {
-            icon,
+            icon: icon.into(),
             label: label.into(),
             position,
         });

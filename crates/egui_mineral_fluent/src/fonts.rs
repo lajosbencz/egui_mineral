@@ -1,4 +1,5 @@
 use egui::{Context, FontData, FontFamily, FontInsert, FontPriority, InsertFontFamily};
+use egui_mineral::icon::IconFont;
 
 pub(crate) const SEMIBOLD: &str = "mineral::semibold";
 pub(crate) const ICONS: &str = "mineral::fluent-icons";
@@ -26,24 +27,15 @@ pub fn install_semibold(ctx: &Context, name: &str, ttf: &'static [u8]) {
     ));
 }
 
-/// Family the kit draws [`FluentIcon`](crate::FluentIcon)s with.
-pub fn icon_family() -> FontFamily {
-    FontFamily::Name(ICONS.into())
-}
+/// Family of [`FluentIcon`](crate::FluentIcon) glyphs.
+pub const ICON_FAMILY: &str = ICONS;
 
-pub(crate) fn install_icons(ctx: &Context, ttf: &'static [u8]) {
-    ctx.add_font(FontInsert::new(
-        "FluentSystemIcons-Resizable",
-        FontData::from_static(ttf),
-        vec![
-            InsertFontFamily {
-                family: FontFamily::Proportional,
-                priority: FontPriority::Lowest,
-            },
-            InsertFontFamily {
-                family: icon_family(),
-                priority: FontPriority::Highest,
-            },
-        ],
-    ));
+/// Fluent UI System Icons resizable font `ttf` (or a subset of it) as an installable [`IconFont`].
+pub const fn icon_font(ttf: &'static [u8]) -> IconFont {
+    IconFont {
+        name: "FluentSystemIcons-Resizable",
+        ttf,
+        family: ICON_FAMILY,
+        y_offset_factor: 0.0,
+    }
 }

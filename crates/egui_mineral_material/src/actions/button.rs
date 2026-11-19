@@ -26,7 +26,7 @@ use crate::widget::{
     indication, parts,
 };
 use crate::{
-    MaterialIcon, motion,
+    Icon, motion,
     spec::{
         ColorRole, ElevationLevel, ShapeRole, ShapeScale, TypeScale, defaults,
         tokens::{
@@ -82,17 +82,17 @@ impl From<ContainerVariant> for ButtonVariant {
     }
 }
 
-/// Placement of a [`PushButton`]'s one icon; a bare [`MaterialIcon`] is leading.
+/// Placement of a [`PushButton`]'s one icon; a bare [`Icon`] is leading.
 #[derive(Clone, Copy, Debug)]
 pub enum ButtonIcon {
     /// Before the label.
-    Leading(MaterialIcon),
+    Leading(Icon),
     /// After the label, e.g. a drop-down arrow on a menu trigger.
-    Trailing(MaterialIcon),
+    Trailing(Icon),
 }
 
 impl ButtonIcon {
-    pub(crate) const fn icon(self) -> MaterialIcon {
+    pub(crate) const fn icon(self) -> Icon {
         match self {
             Self::Leading(icon) | Self::Trailing(icon) => icon,
         }
@@ -103,9 +103,15 @@ impl ButtonIcon {
     }
 }
 
-impl From<MaterialIcon> for ButtonIcon {
-    fn from(icon: MaterialIcon) -> Self {
+impl From<Icon> for ButtonIcon {
+    fn from(icon: Icon) -> Self {
         Self::Leading(icon)
+    }
+}
+
+impl From<crate::MaterialIcon> for ButtonIcon {
+    fn from(icon: crate::MaterialIcon) -> Self {
+        Self::from(Icon::from(icon))
     }
 }
 

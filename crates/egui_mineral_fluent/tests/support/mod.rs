@@ -18,9 +18,13 @@ pub(crate) const SCREEN: Vec2 = vec2(600.0, 600.0);
 pub(crate) type Fui<'a> = MineralUi<'a, Fluent>;
 
 pub(crate) fn runtime(ctx: &egui::Context, theme: egui::Theme) -> Arc<Rt> {
+    runtime_with(ctx, theme, Fluent::default())
+}
+
+pub(crate) fn runtime_with(ctx: &egui::Context, theme: egui::Theme, kit: Fluent) -> Arc<Rt> {
     let format = IcuFormat::new("en-US").expect("en-US ICU data");
     let i18n = I18n::with_format(ctx, "en-US".into(), format, &[]).expect("i18n");
-    let rt = Runtime::with_i18n(ctx, Fluent::default(), i18n).expect("fluent runtime");
+    let rt = Runtime::with_i18n(ctx, kit, i18n).expect("fluent runtime");
     rt.core().set_preference(theme.into());
     rt.set_collect_semantics(true);
     rt.core().motion().set_reduced(true);
@@ -155,6 +159,15 @@ impl Pass {
             .unwrap_or_else(|| panic!("no text starting {prefix:?}"))
     }
 
+    pub(crate) fn text_family(&self, text: &str) -> Option<egui::FontFamily> {
+        self.flat().into_iter().find_map(|s| match s {
+            Shape::Text(t) if t.galley.text() == text => {
+                t.galley.job.sections.first().map(|s| s.format.font_id.family.clone())
+            }
+            _ => None,
+        })
+    }
+
     pub(crate) fn text_color(&self, text: &str) -> Color32 {
         self.flat()
             .into_iter()
@@ -182,9 +195,13 @@ pub(crate) fn render(add: impl FnMut(&mut Fui<'_>)) -> Pass {
     render_in(egui::Theme::Light, add)
 }
 
-pub(crate) fn render_in(theme: egui::Theme, mut add: impl FnMut(&mut Fui<'_>)) -> Pass {
+pub(crate) fn render_in(theme: egui::Theme, add: impl FnMut(&mut Fui<'_>)) -> Pass {
+    render_with(theme, Fluent::default(), add)
+}
+
+pub(crate) fn render_with(theme: egui::Theme, kit: Fluent, mut add: impl FnMut(&mut Fui<'_>)) -> Pass {
     let ctx = egui::Context::default();
-    let rt = runtime(&ctx, theme);
+    let rt = runtime_with(&ctx, theme, kit);
     let raw = || RawInput {
         screen_rect: Some(Rect::from_min_size(Pos2::ZERO, SCREEN)),
         ..RawInput::default()

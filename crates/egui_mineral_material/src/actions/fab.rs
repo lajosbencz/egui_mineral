@@ -21,7 +21,7 @@ use crate::widget::{
     parts,
 };
 use crate::{
-    MaterialIcon, motion,
+    Icon, motion,
     spec::{
         ColorRole, ShapeScale, TypeScale, defaults,
         tokens::{
@@ -240,7 +240,7 @@ fn surface(rect: Rect, radius: CornerRadius, fill: Color32, e: FabElevation) -> 
 struct FabCore {
     salt: KeyedSalt,
     key: AgentKey,
-    icon: MaterialIcon,
+    icon: Icon,
     label: String,
     color: FabColors,
     disabled: bool,
@@ -249,7 +249,7 @@ struct FabCore {
 }
 
 impl FabCore {
-    fn new(salt: KeyedSalt, icon: MaterialIcon, label: String) -> Self {
+    fn new(salt: KeyedSalt, icon: Icon, label: String) -> Self {
         Self {
             key: AgentKey::Kind("fab"),
             salt,
@@ -348,9 +348,9 @@ pub struct Fab {
 
 impl Fab {
     /// `label` is the accessible name (icon only); agent key `<id_salt>-fab`.
-    pub fn new(id_salt: impl Into<KeyedSalt>, icon: MaterialIcon, label: impl Into<String>) -> Self {
+    pub fn new(id_salt: impl Into<KeyedSalt>, icon: impl Into<Icon>, label: impl Into<String>) -> Self {
         Self {
-            core: FabCore::new(id_salt.into(), icon, label.into()),
+            core: FabCore::new(id_salt.into(), icon.into(), label.into()),
             size: FabSize::default(),
         }
     }
@@ -394,9 +394,9 @@ pub struct ExtendedFab {
 
 impl ExtendedFab {
     /// `label` is the visible text and accessible name; agent key `<id_salt>-fab`.
-    pub fn new(id_salt: impl Into<KeyedSalt>, icon: MaterialIcon, label: impl Into<String>) -> Self {
+    pub fn new(id_salt: impl Into<KeyedSalt>, icon: impl Into<Icon>, label: impl Into<String>) -> Self {
         Self {
-            core: FabCore::new(id_salt.into(), icon, label.into()),
+            core: FabCore::new(id_salt.into(), icon.into(), label.into()),
             size: ExtendedFabSize::default(),
             expanded: true,
         }

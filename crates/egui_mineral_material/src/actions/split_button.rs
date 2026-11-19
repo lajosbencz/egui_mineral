@@ -20,7 +20,7 @@ use crate::widget::{
     parts,
 };
 use crate::{
-    MaterialIcon, icons, motion,
+    Icon, motion,
     spec::{
         ShapeScale, defaults,
         tokens::{
@@ -96,7 +96,7 @@ pub struct SplitButtonResponse {
 pub struct SplitButton {
     salt: KeyedSalt,
     label: String,
-    icon: Option<MaterialIcon>,
+    icon: Option<Icon>,
     menu: Menu,
     menu_label: Option<String>,
     variant: ContainerVariant,
@@ -136,8 +136,8 @@ impl SplitButton {
     }
 
     /// Leading icon of the main button.
-    pub fn icon(mut self, icon: MaterialIcon) -> Self {
-        self.icon = Some(icon);
+    pub fn icon(mut self, icon: impl Into<Icon>) -> Self {
+        self.icon = Some(icon.into());
         self
     }
 
@@ -297,7 +297,7 @@ impl MineralWidget for Trailing {
         p.add(common::icon_shape(
             p,
             center,
-            icons::ICON_KEYBOARD_ARROW_DOWN,
+            ui.icons().keyboard_arrow_down,
             m.trail_icon,
             s.content,
             turn * PI,

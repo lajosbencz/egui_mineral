@@ -1384,6 +1384,7 @@ dependencies = [
  "dirs",
  "egui",
  "egui_kittest",
+ "egui_material_icons",
  "egui_mineral_macros",
  "egui_taffy",
  "fixed_decimal",
@@ -1430,6 +1431,7 @@ version = "0.0.0"
 dependencies = [
  "egui",
  "egui_kittest",
+ "egui_material_icons",
  "egui_mineral",
  "futures-executor",
  "parking_lot",
@@ -4430,6 +4432,7 @@ version = "0.0.0"
 dependencies = [
  "eframe",
  "egui",
+ "egui_material_icons",
  "egui_mineral_fluent",
  "mineral_inspector",
  "tracing",

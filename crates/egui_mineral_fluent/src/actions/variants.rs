@@ -8,7 +8,7 @@ use egui_mineral::{
     widget::{MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
 };
 
-use crate::{Fluent, FluentIcon, IconPosition, Size, actions::PushButton};
+use crate::{Fluent, Icon, IconPosition, Size, actions::PushButton};
 
 // Setters every wrapper forwards to its `PushButton`.
 macro_rules! forward {
@@ -31,7 +31,7 @@ macro_rules! common {
             /// Default [`ButtonShape::Rounded`].
             shape(shape: ButtonShape);
             /// Leading icon; filled while hovered (subtle, transparent) or checked.
-            icon(icon: FluentIcon);
+            icon(icon: impl Into<Icon>);
             /// `false` with an icon is the icon-only button; the label stays the accessible name.
             label_visible(visible: bool);
             /// Greys out the button and ignores input.

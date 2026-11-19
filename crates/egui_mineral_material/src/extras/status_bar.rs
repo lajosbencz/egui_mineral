@@ -1,7 +1,7 @@
 use crate::Material;
 use crate::MaterialExt;
 use egui::{Color32, Pos2, Rangef, Rect, Response, Sense, Stroke, Vec2, pos2, vec2};
-use egui_material_icons::MaterialIcon;
+use egui_mineral::icon::Icon;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::{Availability, MineralUi};
 use egui_mineral::{
@@ -38,7 +38,7 @@ pub enum StatusProgress {
 
 #[derive(Clone, Copy, Debug)]
 enum Lead {
-    Icon(MaterialIcon),
+    Icon(Icon),
     Progress(StatusProgress),
 }
 
@@ -90,8 +90,8 @@ impl StatusItem {
     }
 
     /// Icon before the text; replaces a [`progress`](Self::progress) indicator.
-    pub fn icon(mut self, icon: MaterialIcon) -> Self {
-        self.lead = Some(Lead::Icon(icon));
+    pub fn icon(mut self, icon: impl Into<Icon>) -> Self {
+        self.lead = Some(Lead::Icon(icon.into()));
         self
     }
 

@@ -15,7 +15,6 @@ use crate::ColorToken::{
 use crate::{
     Fluent, FluentExt, Rt, Size,
     actions::PushButton,
-    icons::ICON_DISMISS,
     spec::{
         defaults::teaching_popover as d,
         tokens::{geometry as g, typography as ty},
@@ -278,7 +277,7 @@ impl TeachingPopover {
                     let mut dismiss_button = PushButton::new(self.salt.child("dismiss"), &dismiss)
                         .appearance(ButtonAppearance::Subtle)
                         .size(Size::Small)
-                        .icon(ICON_DISMISS)
+                        .icon(rt.icons().dismiss)
                         .label_visible(false);
                     if self.brand {
                         dismiss_button = dismiss_button.appearance(ButtonAppearance::Transparent);

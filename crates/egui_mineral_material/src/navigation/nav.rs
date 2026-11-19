@@ -26,7 +26,7 @@ use crate::widget::{
     parts,
 };
 use crate::{
-    MaterialIcon,
+    Icon,
     adaptive::WindowClass,
     motion,
     spec::{
@@ -50,7 +50,7 @@ type FabFn<'a> = Box<dyn FnOnce(&mut MineralUi<'_, Material>) + 'a>;
 #[derive(Clone, Debug)]
 #[must_use]
 pub struct NavDestination {
-    icon: MaterialIcon,
+    icon: Icon,
     label: String,
     badge: Option<Badge>,
     disabled: bool,
@@ -65,9 +65,9 @@ impl NavDestination {
     }
 
     /// `label` is the visible text and accessible name.
-    pub fn new(icon: MaterialIcon, label: impl Into<String>) -> Self {
+    pub fn new(icon: impl Into<Icon>, label: impl Into<String>) -> Self {
         Self {
-            icon,
+            icon: icon.into(),
             label: label.into(),
             badge: None,
             disabled: false,
@@ -1042,9 +1042,9 @@ impl<'a> NavigationRail<'a> {
             let header = self.menu || self.fab.is_some();
             if self.menu {
                 let (icon, label) = if expanded == Some(true) {
-                    (crate::icons::ICON_MENU_OPEN, "mineral-menu-close")
+                    (ui.icons().menu_open, "mineral-menu-close")
                 } else {
-                    (crate::icons::ICON_MENU, "mineral-menu")
+                    (ui.icons().menu, "mineral-menu")
                 };
                 let r = ui.mineral(IconButton::new(
                     self.group.salt.child("menu"),

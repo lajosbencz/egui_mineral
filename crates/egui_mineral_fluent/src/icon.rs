@@ -1,3 +1,5 @@
+use egui_mineral::icon::{Glyph, Icon};
+
 /// Fluent UI System Icon: the regular and filled glyph of the resizable font ([`crate::icons`]).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct FluentIcon {
@@ -24,5 +26,12 @@ impl FluentIcon {
     /// [`Self::filled`] when `filled`, else [`Self::regular`].
     pub const fn glyph(self, filled: bool) -> char {
         if filled { self.filled } else { self.regular }
+    }
+}
+
+impl From<FluentIcon> for Icon {
+    fn from(icon: FluentIcon) -> Self {
+        let glyph = |ch| Glyph::new(crate::fonts::ICON_FAMILY, ch);
+        Self::new(glyph(icon.regular), glyph(icon.filled))
     }
 }

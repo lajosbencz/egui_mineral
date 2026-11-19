@@ -25,7 +25,6 @@ use crate::widget::{
 };
 use crate::{SelectionResponse, containment::ListLines};
 use crate::{
-    icons,
     spec::{
         defaults,
         tokens::{divider, filled_icon_button, filled_tonal_button, list, outlined_icon_button, x_small_icon_button},
@@ -102,8 +101,8 @@ fn paint_marker(ui: &MineralUi<'_, Material>, center: Pos2, status: StepStatus, 
         ),
     };
     let glyph = match status {
-        StepStatus::Complete => Some((icons::ICON_CHECK, fg)),
-        StepStatus::Error => Some((icons::ICON_PRIORITY_HIGH, fg)),
+        StepStatus::Complete => Some((ui.icons().check, fg)),
+        StepStatus::Error => Some((ui.icons().priority_high, fg)),
         _ => None,
     };
     row_parts::marker(p, center, MARKER, fill, glyph);

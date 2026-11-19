@@ -12,7 +12,7 @@ use egui_mineral::{
 };
 
 use crate::{
-    ColorToken, Fluent, FluentExt, FluentIcon, IconPosition, Size,
+    ColorToken, Fluent, FluentExt, Icon, IconPosition, Size,
     spec::{
         defaults::{button as d, compound_button as cd, menu_button as md},
         tokens::{geometry as g, typography as ty},
@@ -487,7 +487,7 @@ pub struct PushButton<'a> {
     salt: KeyedSalt,
     pub(crate) key: AgentKey,
     label: String,
-    icon: Option<FluentIcon>,
+    icon: Option<Icon>,
     icon_position: IconPosition,
     appearance: ButtonAppearance,
     size: Size,
@@ -560,8 +560,8 @@ impl<'a> PushButton<'a> {
     }
 
     /// Icon at [`Self::icon_position`]; filled while hovered (subtle, transparent) or checked.
-    pub fn icon(mut self, icon: FluentIcon) -> Self {
-        self.icon = Some(icon);
+    pub fn icon(mut self, icon: impl Into<Icon>) -> Self {
+        self.icon = Some(icon.into());
         self
     }
 
@@ -785,7 +785,7 @@ impl MineralWidget for PushButton<'_> {
         let m = self.metrics();
         let menu = Metrics::menu_icon(self.size);
         if self.icon_only() {
-            self.paint_icon_only(p, rect, &m, menu, look, dir);
+            self.paint_icon_only(ui, rect, &m, menu, look, dir);
         } else {
             self.paint_content(ui, rect, &m, look, dir);
         }
@@ -818,7 +818,17 @@ impl MineralWidget for PushButton<'_> {
 }
 
 impl PushButton<'_> {
-    fn paint_icon_only(&self, p: &egui::Painter, rect: Rect, m: &Metrics, menu: f32, look: Look, dir: Direction) {
+    fn paint_icon_only(
+        &self,
+        ui: &MineralUi<'_, Fluent>,
+        rect: Rect,
+        m: &Metrics,
+        menu: f32,
+        look: Look,
+        dir: Direction,
+    ) {
+        let p = ui.painter();
+        let icons = ui.icons();
         let icon_w = if self.icon.is_some() { m.icon } else { 0.0 };
         let gap = if self.icon.is_some() && self.menu_icon {
             g::SPACING_HORIZONTAL_XS
@@ -846,7 +856,7 @@ impl PushButton<'_> {
             paint::icon(
                 p,
                 pos2(x, rect.center().y),
-                crate::icons::ICON_CHEVRON_DOWN,
+                icons.chevron_down,
                 false,
                 menu,
                 look.content,
@@ -926,7 +936,7 @@ impl PushButton<'_> {
             paint::icon(
                 p,
                 pos2(mirror(x), inner.center().y),
-                crate::icons::ICON_CHEVRON_DOWN,
+                ui.icons().chevron_down,
                 false,
                 size,
                 look.content,

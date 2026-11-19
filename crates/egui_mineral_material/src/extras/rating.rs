@@ -21,7 +21,7 @@ use crate::widget::{
     indication,
 };
 use crate::{
-    MaterialIcon, icons,
+    Icon,
     spec::{ShapeRole, tokens::standard_icon_button as m},
 };
 use crate::{
@@ -42,7 +42,7 @@ pub struct Rating<'a> {
     max: NonZeroU8,
     half: bool,
     size: Size,
-    icon: MaterialIcon,
+    icon: Option<Icon>,
     clearable: bool,
     read_only: bool,
     disabled: bool,
@@ -60,7 +60,7 @@ impl<'a> Rating<'a> {
             max: NonZeroU8::MIN.saturating_add(4),
             half: false,
             size: Size::Small,
-            icon: icons::ICON_STAR,
+            icon: None,
             clearable: true,
             read_only: false,
             disabled: false,
@@ -89,9 +89,9 @@ impl<'a> Rating<'a> {
         icon_button::metrics(self.size, IconButtonWidth::Narrow)
     }
 
-    /// Star icon; default `ICON_STAR`.
-    pub fn icon(mut self, icon: MaterialIcon) -> Self {
-        self.icon = icon;
+    /// Star icon; default [`crate::IconSet::star`].
+    pub fn icon(mut self, icon: impl Into<Icon>) -> Self {
+        self.icon = Some(icon.into());
         self
     }
 
@@ -223,12 +223,13 @@ impl MineralWidget for Rating<'_> {
             Interaction::of(r, Availability::enabled_if(self.interactive())),
             &t,
         );
+        let icon = self.icon.unwrap_or(ui.icons().star);
         let p = ui.painter();
         for i in 0..self.max.get() {
             let star = Rect::from_center_size(star(i).center(), Vec2::splat(size));
             let part = (shown - f32::from(i)).clamp(0.0, 1.0);
             if part < 1.0 {
-                common::icon(p, star.center(), self.icon.outlined(), size, empty);
+                common::icon(p, star.center(), Icon::single(icon.regular), size, empty);
             }
             if part > 0.0 {
                 let w = star.width() * part;
@@ -236,7 +237,13 @@ impl MineralWidget for Rating<'_> {
                     pos2(dir.start_x(star, Rangef::new(0.0, 0.0 + w)), star.top()),
                     vec2(w, star.height()),
                 );
-                common::icon(&p.with_clip_rect(clip), star.center(), self.icon.filled(), size, full);
+                common::icon(
+                    &p.with_clip_rect(clip),
+                    star.center(),
+                    Icon::single(icon.filled),
+                    size,
+                    full,
+                );
             }
         }
         WidgetResponse::new(r.clone(), ()).with_changed((before - *self.value).abs() > f64::EPSILON)

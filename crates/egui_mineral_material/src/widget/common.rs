@@ -1,11 +1,9 @@
-use egui::{
-    Color32, CornerRadius, FontId, Painter, Pos2, Rect, Shape, Stroke, StrokeKind, emath::Rot2, epaint::TextShape, vec2,
-};
+use egui::{Color32, CornerRadius, Painter, Pos2, Rect, Shape, Stroke, StrokeKind, epaint::TextShape};
 
 use egui_mineral::anchor::{Align, Anchor, Side};
 use egui_mineral::widget::InteractionKind;
 
-use crate::{MaterialIcon, spec::ElevationLevel, tokens::Tokens};
+use crate::{Icon, spec::ElevationLevel, tokens::Tokens};
 
 pub(crate) use egui_mineral::widget::Interaction;
 
@@ -155,39 +153,17 @@ pub(crate) fn elevation(p: &Painter, rect: Rect, r: impl Into<CornerRadius>, lev
     }
 }
 
-pub(crate) fn selection_icon(icon: MaterialIcon, selected: bool) -> MaterialIcon {
-    if selected { icon.filled() } else { icon.outlined() }
+pub(crate) fn selection_icon(icon: Icon, selected: bool) -> Icon {
+    Icon::single(icon.glyph(selected))
 }
 
-pub(crate) fn icon(p: &Painter, center: Pos2, icon: MaterialIcon, size: f32, color: Color32) {
+// Filled form: the Material default.
+pub(crate) fn icon(p: &Painter, center: Pos2, icon: Icon, size: f32, color: Color32) {
     p.add(icon_shape(p, center, icon, size, color, 0.0));
 }
 
-pub(crate) fn icon_shape(
-    p: &Painter,
-    center: Pos2,
-    icon: MaterialIcon,
-    size: f32,
-    color: Color32,
-    angle: f32,
-) -> TextShape {
-    let galley = p.layout_no_wrap(
-        <&str>::from(icon).to_owned(),
-        FontId::new(size, icon.font_family()),
-        color,
-    );
-    let mid_y = galley
-        .rows
-        .iter()
-        .flat_map(|row| {
-            row.glyphs
-                .iter()
-                .map(move |g| row.pos.y + g.pos.y + g.uv_rect.offset.y + g.uv_rect.size.y / 2.0)
-        })
-        .next()
-        .unwrap_or_else(|| galley.size().y / 2.0);
-    let anchor = vec2(galley.size().x / 2.0, mid_y);
-    TextShape::new(center - Rot2::from_angle(angle) * anchor, galley, color).with_angle(angle)
+pub(crate) fn icon_shape(p: &Painter, center: Pos2, icon: Icon, size: f32, color: Color32, angle: f32) -> TextShape {
+    egui_mineral::kit::icon::shape(p.ctx(), center, icon.filled, size, color, angle)
 }
 
 const FOCUS_RING_OFFSET: f32 = 2.0;

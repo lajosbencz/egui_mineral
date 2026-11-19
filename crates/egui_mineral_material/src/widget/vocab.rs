@@ -1,6 +1,6 @@
 use egui_mineral::{semantic::KeyedSalt, shortcut::ActionId};
 
-use crate::MaterialIcon;
+use crate::Icon;
 
 /// M3 Expressive size scale (Compose `*XSmall*`..`*XLarge*` tokens) of buttons, icon buttons,
 /// split buttons, button groups, sliders and ratings.
@@ -23,7 +23,7 @@ pub enum Size {
 #[derive(Clone, Debug)]
 #[must_use]
 pub struct IconAction {
-    pub(crate) icon: MaterialIcon,
+    pub(crate) icon: Icon,
     pub(crate) label: String,
     pub(crate) command: Option<ActionId>,
     pub(crate) selected: Option<bool>,
@@ -33,9 +33,9 @@ pub struct IconAction {
 
 impl IconAction {
     /// `label` is the accessible name.
-    pub fn new(icon: MaterialIcon, label: impl Into<String>) -> Self {
+    pub fn new(icon: impl Into<Icon>, label: impl Into<String>) -> Self {
         Self {
-            icon,
+            icon: icon.into(),
             label: label.into(),
             command: None,
             selected: None,

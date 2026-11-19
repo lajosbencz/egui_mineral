@@ -6,6 +6,7 @@ use std::sync::{
 use egui::{Context, Style, Theme};
 use egui_mineral::{
     i18n::Catalog,
+    icon::IconFont,
     kit::state::PassCache,
     policy::Policies,
     runtime::{Runtime, Stylekit},
@@ -14,7 +15,7 @@ use egui_mineral::{
 use parking_lot::Mutex;
 
 use crate::{
-    BrandRamp,
+    BrandRamp, IconSet,
     spec::tokens::brand::BRAND_WEB,
     theme::{Scheme, TokenStore, Tokens},
 };
@@ -28,7 +29,8 @@ pub struct Fluent {
     tokens: Mutex<TokenStore>,
     // Scheme and tokens frozen for one egui pass: setters apply from the next pass, no frame mixes two schemes.
     pass: PassCache<Theme, PassState>,
-    icon_font: &'static [u8],
+    icons: Arc<IconSet>,
+    fonts: Vec<IconFont>,
 }
 
 impl Fluent {
@@ -41,11 +43,18 @@ impl Fluent {
     /// `Self::new` with `ttf` instead of the bundled icon font: a Fluent UI System Icons resizable font (or a
     /// subset of it).
     pub fn with_icon_font(ttf: &'static [u8]) -> Self {
+        Self::with_icons(&IconSet::fluent(), &[crate::fonts::icon_font(ttf)])
+    }
+
+    /// `Self::new` drawing the kit's own icons from `icons`, installing `fonts` instead of the Fluent icon font: Fluent
+    /// icons ([`fonts::icon_font`](crate::fonts::icon_font)) or the icon font of another kit.
+    pub fn with_icons(icons: &IconSet, fonts: &[IconFont]) -> Self {
         Self {
             high_contrast: AtomicBool::new(false),
             tokens: Mutex::new(TokenStore::new(BRAND_WEB)),
             pass: PassCache::default(),
-            icon_font: ttf,
+            icons: Arc::new(*icons),
+            fonts: fonts.to_vec(),
         }
     }
 
@@ -126,7 +135,7 @@ impl Stylekit for Fluent {
     }
 
     fn setup(&self, ctx: &Context) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        crate::fonts::install_icons(ctx, self.icon_font);
+        self.fonts.iter().for_each(|f| f.install(ctx));
         Ok(())
     }
 
@@ -158,6 +167,8 @@ pub type Rt = Runtime<Fluent>;
 pub trait FluentExt {
     /// Tokens of the current scheme, frozen for the egui pass: [`Fluent`] setters apply from the next pass.
     fn tokens(&self) -> Arc<Tokens>;
+    /// Glyphs of the kit's own parts.
+    fn icons(&self) -> Arc<IconSet>;
 }
 
 impl FluentExt for Rt {
@@ -166,10 +177,18 @@ impl FluentExt for Rt {
             .pass_state(self.ctx().cumulative_pass_nr(), self.theme())
             .tokens
     }
+
+    fn icons(&self) -> Arc<IconSet> {
+        Arc::clone(&self.kit().icons)
+    }
 }
 
 impl FluentExt for MineralUi<'_, Fluent> {
     fn tokens(&self) -> Arc<Tokens> {
         self.rt().tokens()
+    }
+
+    fn icons(&self) -> Arc<IconSet> {
+        self.rt().icons()
     }
 }

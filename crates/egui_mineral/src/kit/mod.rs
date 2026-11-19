@@ -4,6 +4,7 @@
 pub mod edit;
 pub mod focus;
 pub mod i18n;
+pub mod icon;
 pub mod input;
 pub mod overlay;
 pub mod rating;

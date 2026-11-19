@@ -29,7 +29,6 @@ use crate::{
     },
 };
 use crate::{
-    icons,
     spec::{
         ColorRole,
         tokens::{small_icon_button, standard_icon_button},
@@ -221,10 +220,10 @@ impl Composite for Pagination<'_> {
             n.state.disabled = self.disabled;
             n
         });
-        let back = dir.pick(icons::ICON_CHEVRON_LEFT, icons::ICON_CHEVRON_RIGHT);
-        let fwd = dir.pick(icons::ICON_CHEVRON_RIGHT, icons::ICON_CHEVRON_LEFT);
-        let first = dir.pick(icons::ICON_FIRST_PAGE, icons::ICON_LAST_PAGE);
-        let last = dir.pick(icons::ICON_LAST_PAGE, icons::ICON_FIRST_PAGE);
+        let back = dir.pick(ui.icons().chevron_left, ui.icons().chevron_right);
+        let fwd = dir.pick(ui.icons().chevron_right, ui.icons().chevron_left);
+        let first = dir.pick(ui.icons().first_page, ui.icons().last_page);
+        let last = dir.pick(ui.icons().last_page, ui.icons().first_page);
         let nav = |ui: &mut Ui, salt: &'static str, icon, msg: &str, enabled: bool| {
             rt.ui(ui)
                 .mineral(
@@ -268,7 +267,7 @@ impl Composite for Pagination<'_> {
                         common::icon(
                             ui.painter(),
                             r.center(),
-                            icons::ICON_MORE_HORIZ,
+                            rt.icons().more_horiz,
                             small_icon_button::ICON_SIZE,
                             t.role(standard_icon_button::COLOR),
                         );
@@ -477,7 +476,7 @@ impl Breadcrumbs {
         });
         let n = self.items.len();
         let collapse = self.collapse(ui);
-        let sep = dir.pick(icons::ICON_CHEVRON_RIGHT, icons::ICON_CHEVRON_LEFT);
+        let sep = dir.pick(ui.icons().chevron_right, ui.icons().chevron_left);
         let mut out = None;
         let sep_size = CRUMB.metrics().icon;
         let r = parts::row(ui, dir, min_interactive(rt), |ui| {
@@ -520,7 +519,7 @@ impl Breadcrumbs {
                     let hidden = before..n - after;
                     let label = crate::tr(rt.i18n(), "mineral-breadcrumbs-more");
                     let anchor = rt.ui(ui).mineral(
-                        IconButton::new(self.salt.child("more-button"), icons::ICON_MORE_HORIZ, &label)
+                        IconButton::new(self.salt.child("more-button"), rt.icons().more_horiz, &label)
                             .disabled(self.disabled)
                             .agent_key(StableId::of(&self.salt, "more-button")),
                     );

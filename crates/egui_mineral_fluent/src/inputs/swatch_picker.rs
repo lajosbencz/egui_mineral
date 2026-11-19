@@ -14,7 +14,6 @@ use crate::ColorToken::{
 };
 use crate::{
     ColorToken, Fluent, FluentExt,
-    icons::ICON_PROHIBITED,
     spec::{
         defaults::swatch_picker as sp,
         tokens::geometry::{
@@ -477,7 +476,7 @@ impl MineralWidget for Cell<'_> {
             paint::icon(
                 ui.painter(),
                 rect.center(),
-                ICON_PROHIBITED,
+                ui.icons().prohibited,
                 false,
                 self.size.icon(),
                 t.color(ColorNeutralForegroundInverted),

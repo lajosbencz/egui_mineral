@@ -17,7 +17,6 @@ use crate::ColorToken::{
 use crate::{
     Fluent, FluentExt,
     actions::PushButton,
-    icons::{ICON_CHEVRON_LEFT, ICON_CHEVRON_RIGHT, ICON_PAUSE, ICON_PLAY},
     spec::{defaults::carousel as d, tokens::geometry as g},
     theme::{Elevation, Radius},
     widget::{
@@ -449,7 +448,11 @@ impl<'a> Carousel<'a> {
                         .clicked()
                 };
                 if let Some(interval) = self.autoplay {
-                    let icon = if auto.playing { ICON_PAUSE } else { ICON_PLAY };
+                    let icon = if auto.playing {
+                        rt.icons().pause
+                    } else {
+                        rt.icons().play
+                    };
                     if button(ui, "autoplay", &label(2, "mineral-carousel-autoplay"), icon, reduced) {
                         auto.playing = !auto.playing;
                         auto.since = ctx.input(|i| i.time);
@@ -466,8 +469,8 @@ impl<'a> Carousel<'a> {
                     }
                 }
                 let (prev, following) = match dir {
-                    egui_mineral::i18n::Direction::Ltr => (ICON_CHEVRON_LEFT, ICON_CHEVRON_RIGHT),
-                    egui_mineral::i18n::Direction::Rtl => (ICON_CHEVRON_RIGHT, ICON_CHEVRON_LEFT),
+                    egui_mineral::i18n::Direction::Ltr => (rt.icons().chevron_left, rt.icons().chevron_right),
+                    egui_mineral::i18n::Direction::Rtl => (rt.icons().chevron_right, rt.icons().chevron_left),
                 };
                 let at_start = !self.circular && *next == 0;
                 if button(ui, "previous", &label(0, "mineral-carousel-previous"), prev, at_start) {

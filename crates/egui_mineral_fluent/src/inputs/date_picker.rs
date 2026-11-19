@@ -15,7 +15,6 @@ use super::calendar::Calendar;
 use super::input::Input;
 use super::textbox::{FieldOutput, InputAppearance};
 use crate::ColorToken::{ColorNeutralBackground1, ColorTransparentStroke};
-use crate::icons::ICON_CALENDAR_MONTH;
 use crate::{
     Fluent, FluentExt, Size,
     spec::{defaults::date_picker as dp, tokens::geometry as g},
@@ -49,7 +48,7 @@ pub struct DatePicker<'a> {
     appearance: InputAppearance,
     size: Size,
     placeholder: Option<String>,
-    before: Option<crate::FluentIcon>,
+    before: Option<egui_mineral::icon::Icon>,
     invalid: bool,
     disabled: bool,
 }
@@ -132,8 +131,8 @@ impl<'a> DatePicker<'a> {
     }
 
     /// `contentBefore`: icon leading the text.
-    pub fn content_before(mut self, icon: crate::FluentIcon) -> Self {
-        self.before = Some(icon);
+    pub fn content_before(mut self, icon: impl Into<egui_mineral::icon::Icon>) -> Self {
+        self.before = Some(icon.into());
         self
     }
 
@@ -199,7 +198,7 @@ impl Composite for DatePicker<'_> {
         let mut input = Input::new(input_salt, self.label.clone(), &mut st.text)
             .appearance(self.appearance)
             .size(self.size)
-            .content_after(ICON_CALENDAR_MONTH)
+            .content_after(ui.icons().calendar_month)
             .invalid(self.invalid)
             .disabled(self.disabled)
             .agent_key(self.key.id(&self.salt));

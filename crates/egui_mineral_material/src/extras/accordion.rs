@@ -25,7 +25,7 @@ use crate::widget::{
     row_parts::{self, RowColors, RowState},
 };
 use crate::{
-    MaterialIcon, icons, motion,
+    Icon, motion,
     spec::{
         defaults,
         tokens::{divider, expanded_list, list, outlined_card, small_icon_button},
@@ -44,7 +44,7 @@ pub struct AccordionPanel {
     title: String,
     title_style: TypeScale,
     subtitle: Option<String>,
-    icon: Option<MaterialIcon>,
+    icon: Option<Icon>,
     disabled: bool,
 }
 
@@ -71,8 +71,8 @@ impl AccordionPanel {
         self
     }
     /// Leading header icon.
-    pub fn icon(mut self, icon: MaterialIcon) -> Self {
-        self.icon = Some(icon);
+    pub fn icon(mut self, icon: impl Into<Icon>) -> Self {
+        self.icon = Some(icon.into());
         self
     }
     crate::widget::setters! {
@@ -179,7 +179,7 @@ impl MineralWidget for Header<'_> {
         parts::icon_rotated(
             p,
             trailing,
-            icons::ICON_EXPAND_MORE,
+            ui.icons().expand_more,
             list::ITEM_TRAILING_ICON_SIZE,
             fg,
             PI * self.turn,

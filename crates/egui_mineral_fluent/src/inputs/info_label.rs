@@ -18,7 +18,6 @@ use crate::ColorToken::{
 };
 use crate::{
     Fluent, FluentExt, Size,
-    icons::ICON_INFO,
     spec::{
         defaults::info_label as il,
         tokens::{geometry as g, typography as ty},
@@ -202,7 +201,7 @@ impl MineralWidget for InfoButton {
             p.rect_filled(rect, radius, t.color(fill));
         }
         let filled = i.pressed || i.hovered || self.expanded;
-        paint::icon(p, rect.center(), ICON_INFO, filled, self.icon(), t.color(color));
+        paint::icon(p, rect.center(), ui.icons().info, filled, self.icon(), t.color(color));
         if i.focused {
             focus::outline(p, rect, radius, &t);
         }

@@ -18,7 +18,7 @@ use egui_mineral::{
 use crate::actions::{ButtonVariant, PushButton};
 use crate::widget::{common, parts, row_parts};
 use crate::{
-    MaterialIcon, icons,
+    Icon,
     spec::{
         ColorRole, TypeScale, defaults,
         tokens::{button_small, dialog, divider, filled_icon_button, filled_tonal_icon_button, list},
@@ -50,7 +50,7 @@ const EMPTY_ACTION: ButtonVariant = ButtonVariant::Tonal;
 #[must_use = "call .show(..)"]
 pub struct EmptyPlaceholder {
     salt: KeyedSalt,
-    icon: MaterialIcon,
+    icon: Option<Icon>,
     title: String,
     description: Option<String>,
     action: Option<String>,
@@ -67,12 +67,12 @@ pub struct EmptyPlaceholderResponse {
 }
 
 impl EmptyPlaceholder {
-    /// `title` is the headline and accessible name; default icon `ICON_INBOX`. Agent key prefix `<id_salt>`.
+    /// `title` is the headline and accessible name; default icon [`crate::IconSet::inbox`]. Agent key prefix `<id_salt>`.
     pub fn new(id_salt: impl Into<KeyedSalt>, title: impl Into<String>) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
             salt: id_salt,
-            icon: icons::ICON_INBOX,
+            icon: None,
             title: title.into(),
             description: None,
             action: None,
@@ -84,9 +84,9 @@ impl EmptyPlaceholder {
         agent_key(salt)
     }
 
-    /// Large icon above the title; default `ICON_INBOX`.
-    pub fn icon(mut self, icon: MaterialIcon) -> Self {
-        self.icon = icon;
+    /// Large icon above the title; default [`crate::IconSet::inbox`].
+    pub fn icon(mut self, icon: impl Into<Icon>) -> Self {
+        self.icon = Some(icon.into());
         self
     }
 
@@ -122,7 +122,7 @@ impl EmptyPlaceholder {
             common::icon(
                 ui.painter(),
                 ir.center(),
-                self.icon,
+                self.icon.unwrap_or(rt.icons().inbox),
                 dialog::ICON_SIZE,
                 t.role(dialog::ICON_COLOR),
             );
@@ -280,9 +280,9 @@ impl Statistic {
                 Trend::Absolute(_) => fmt.number_lossy(v.abs(), digits),
             };
             let (icon, msg) = match v.partial_cmp(&0.0) {
-                Some(std::cmp::Ordering::Greater) => (icons::ICON_TRENDING_UP, "mineral-stat-increase"),
-                Some(std::cmp::Ordering::Less) => (icons::ICON_TRENDING_DOWN, "mineral-stat-decrease"),
-                _ => (icons::ICON_TRENDING_FLAT, "mineral-stat-unchanged"),
+                Some(std::cmp::Ordering::Greater) => (ui.icons().trending_up, "mineral-stat-increase"),
+                Some(std::cmp::Ordering::Less) => (ui.icons().trending_down, "mineral-stat-decrease"),
+                _ => (ui.icons().trending_flat, "mineral-stat-unchanged"),
             };
             let good = (v > 0.0) != self.inverted;
             let color = if v == 0.0 {
@@ -612,7 +612,7 @@ pub struct TimelineItem {
     title: String,
     time: Option<String>,
     description: Option<String>,
-    icon: Option<MaterialIcon>,
+    icon: Option<Icon>,
     active: bool,
 }
 
@@ -638,8 +638,8 @@ impl TimelineItem {
         self
     }
     /// Marker icon; without it the marker is a dot.
-    pub fn icon(mut self, icon: MaterialIcon) -> Self {
-        self.icon = Some(icon);
+    pub fn icon(mut self, icon: impl Into<Icon>) -> Self {
+        self.icon = Some(icon.into());
         self
     }
     /// Highlights the marker as current.

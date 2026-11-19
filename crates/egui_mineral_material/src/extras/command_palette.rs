@@ -27,8 +27,7 @@ use crate::widget::{
     row_parts::{self, OptionRow, RowMetrics},
 };
 use crate::{
-    MaterialIcon,
-    icons::ICON_SEARCH,
+    Icon,
     spec::{
         ColorRole, defaults,
         tokens::{list, search_view},
@@ -49,7 +48,7 @@ pub struct PaletteCommand {
     group: Option<String>,
     id: Option<ActionId>,
     shortcut: Option<KeyboardShortcut>,
-    icon: Option<MaterialIcon>,
+    icon: Option<Icon>,
     disabled: bool,
     salt: Option<egui_mineral::semantic::KeyedSalt>,
 }
@@ -87,8 +86,8 @@ impl PaletteCommand {
         self
     }
     /// Leading icon.
-    pub fn icon(mut self, icon: MaterialIcon) -> Self {
-        self.icon = Some(icon);
+    pub fn icon(mut self, icon: impl Into<Icon>) -> Self {
+        self.icon = Some(icon.into());
         self
     }
     crate::widget::setters! {
@@ -277,7 +276,7 @@ impl<'a> CommandPalette<'a> {
         common::icon(
             ui.painter(),
             search::icon_center(ui.rt(), ui.density(), head, Edge::Start),
-            ICON_SEARCH,
+            ui.icons().search,
             list::ITEM_LEADING_ICON_SIZE,
             col(search_view::HEADER_LEADING_ICON_COLOR),
         );

@@ -16,7 +16,7 @@ use crate::ColorToken::{
     ColorTransparentStroke,
 };
 use crate::{
-    ColorToken, Fluent, FluentExt, FluentIcon, Rt, Size,
+    ColorToken, Fluent, FluentExt, Icon, Rt, Size,
     data::Text,
     inputs::Checkbox,
     spec::{defaults::card as d, tokens::geometry},
@@ -60,7 +60,7 @@ pub enum CardOrientation {
 pub struct CardHeader {
     title: String,
     description: Option<String>,
-    image: Option<FluentIcon>,
+    image: Option<Icon>,
 }
 
 impl CardHeader {
@@ -80,8 +80,8 @@ impl CardHeader {
     }
 
     /// `image` before the text.
-    pub fn image(mut self, image: FluentIcon) -> Self {
-        self.image = Some(image);
+    pub fn image(mut self, image: impl Into<Icon>) -> Self {
+        self.image = Some(image.into());
         self
     }
 }

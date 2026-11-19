@@ -20,7 +20,7 @@ use egui_mineral::{
 
 use crate::widget::{indication, parts};
 use crate::{
-    MaterialIcon, motion,
+    Icon, motion,
     spec::{
         defaults::tab as tx,
         tokens::{divider, primary_navigation_tab as primary, secondary_navigation_tab as secondary},
@@ -46,7 +46,7 @@ pub enum TabsVariant {
 #[derive(Clone, Debug)]
 #[must_use]
 pub struct Tab {
-    icon: Option<MaterialIcon>,
+    icon: Option<Icon>,
     label: String,
     disabled: bool,
     mnemonic: Option<Mnemonic>,
@@ -71,8 +71,8 @@ impl Tab {
     }
 
     /// Stacked above the label.
-    pub fn icon(mut self, icon: MaterialIcon) -> Self {
-        self.icon = Some(icon);
+    pub fn icon(mut self, icon: impl Into<Icon>) -> Self {
+        self.icon = Some(icon.into());
         self
     }
     crate::widget::setters! {
@@ -363,7 +363,7 @@ impl Indicator {
 // Compose TabBaselineLayout
 struct TabContent {
     label: Arc<Galley>,
-    icon: Option<MaterialIcon>,
+    icon: Option<Icon>,
 }
 
 impl TabContent {

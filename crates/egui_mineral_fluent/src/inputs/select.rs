@@ -54,7 +54,7 @@ impl<'a> Select<'a> {
     }
 
     /// `contentBefore`: icon leading the text.
-    pub fn content_before(mut self, icon: crate::FluentIcon) -> Self {
+    pub fn content_before(mut self, icon: impl Into<egui_mineral::icon::Icon>) -> Self {
         self.0 = self.0.content_before(icon);
         self
     }

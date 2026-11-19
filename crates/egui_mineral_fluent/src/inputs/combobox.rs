@@ -17,7 +17,6 @@ use super::value::{self, ListState, Value, selected_text};
 use crate::ColorToken::{ColorNeutralForegroundDisabled, ColorNeutralStrokeAccessible};
 use crate::{
     Fluent, FluentExt, Size,
-    icons::ICON_CHEVRON_DOWN,
     spec::{defaults::combobox as cb, tokens::geometry as g},
     widget::paint,
 };
@@ -36,7 +35,7 @@ pub struct Combobox<'a> {
     appearance: InputAppearance,
     size: Size,
     placeholder: Option<String>,
-    before: Option<crate::FluentIcon>,
+    before: Option<egui_mineral::icon::Icon>,
     freeform: bool,
     filter: bool,
     list_max: Option<f32>,
@@ -91,8 +90,8 @@ impl<'a> Combobox<'a> {
     }
 
     /// `contentBefore`: icon leading the text.
-    pub fn content_before(mut self, icon: crate::FluentIcon) -> Self {
-        self.before = Some(icon);
+    pub fn content_before(mut self, icon: impl Into<egui_mineral::icon::Icon>) -> Self {
+        self.before = Some(icon.into());
         self
     }
 
@@ -177,7 +176,7 @@ impl Combobox<'_> {
         paint::icon(
             ui.painter(),
             icon_rect.center(),
-            ICON_CHEVRON_DOWN,
+            ui.icons().chevron_down,
             false,
             m.icon,
             t.color(if self.disabled {

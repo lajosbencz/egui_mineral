@@ -1,4 +1,5 @@
 use crate::Material;
+use crate::MaterialExt;
 use crate::Rt;
 use crate::text_inputs::text_field::FieldChrome;
 use egui_mineral::kit::state::TempState;
@@ -12,12 +13,12 @@ use egui_mineral::{
     widget::{SizeExt, WidgetResponse},
 };
 
+use crate::Icon;
 use crate::text_inputs::{
     TextField,
     text_field::{self},
 };
 use crate::widget::leading::Leading;
-use crate::{MaterialIcon, icons};
 use crate::{
     selection::select::{self, Listbox},
     widget::row_parts::{self, OptionRow},
@@ -104,7 +105,7 @@ impl<'a> Combobox<'a> {
         agent_key(key)
     }
 
-    fn field(&mut self, rt: &crate::Rt, arrow: MaterialIcon) -> TextField<'_> {
+    fn field(&mut self, rt: &crate::Rt, arrow: Icon) -> TextField<'_> {
         TextField::new(self.salt.clone(), self.label.clone(), &mut *self.text)
             .with_chrome(std::mem::take(&mut self.chrome))
             .event_filter(text_field::editor_keys(false))
@@ -142,9 +143,9 @@ impl Composite for Combobox<'_> {
         let (pick, moved, enter_free) = self.editor_keys(ctx, &mut st.combo, edit_id, items_before.len());
 
         let arrow = if st.combo.is_open() {
-            icons::ICON_ARROW_DROP_UP
+            ui.icons().arrow_drop_up
         } else {
-            icons::ICON_ARROW_DROP_DOWN
+            ui.icons().arrow_drop_down
         };
         let mut field = self.field(rt, arrow);
         field.combo = Some(if st.combo.is_open() {
@@ -205,7 +206,8 @@ impl Composite for Combobox<'_> {
                 .i18n()
                 .tr("mineral-combobox-create", &[("query", text.trim().into())]);
             let status = status_row(rt, loading, items.is_empty());
-            let row = |i: usize| option_row(items, options, &create_label, status.as_ref(), i);
+            let add = rt.icons().add;
+            let row = |i: usize| option_row(items, options, &create_label, status.as_ref(), add, i);
             let key = key.id(salt);
             let list = Listbox {
                 popup: salt.child("popup"),
@@ -261,14 +263,14 @@ impl Combobox<'_> {
     }
 }
 
-fn status_row(rt: &Rt, loading: bool, empty: bool) -> Option<(String, MaterialIcon)> {
+fn status_row(rt: &Rt, loading: bool, empty: bool) -> Option<(String, Icon)> {
     if loading {
         Some((
             crate::tr(rt.i18n(), "mineral-combobox-loading"),
-            icons::ICON_PROGRESS_ACTIVITY,
+            rt.icons().progress_activity,
         ))
     } else if empty {
-        Some((crate::tr(rt.i18n(), "mineral-combobox-empty"), icons::ICON_SEARCH_OFF))
+        Some((crate::tr(rt.i18n(), "mineral-combobox-empty"), rt.icons().search_off))
     } else {
         None
     }
@@ -279,7 +281,8 @@ fn option_row<'a>(
     items: &'a [ComboItem],
     options: &'a [String],
     create_label: &'a str,
-    status: Option<&'a (String, MaterialIcon)>,
+    status: Option<&'a (String, Icon)>,
+    add: Icon,
     i: usize,
 ) -> OptionRow<'a> {
     match items.get(i) {
@@ -290,7 +293,7 @@ fn option_row<'a>(
         },
         Some(ComboItem::Create) => OptionRow {
             label: create_label,
-            leading: Some(Leading::Icon(icons::ICON_ADD)),
+            leading: Some(Leading::Icon(add)),
             ..OptionRow::default()
         },
         None => status.map_or_default(|(s, icon)| OptionRow {

@@ -18,7 +18,6 @@ use crate::ColorToken::{
 };
 use crate::{
     Fluent, FluentExt,
-    icons::ICON_CHECKMARK,
     spec::{
         defaults::combobox as cb,
         tokens::{geometry as g, typography as ty},
@@ -254,6 +253,7 @@ pub(crate) fn show(
         .min(view.max_height)
         .max(OPTION_H);
     let height = (view.content_height() + frame_pad).min(max_h);
+    let icons = rt.icons();
     let mut clicked = None;
     let mut active_id = None;
     let mut open = true;
@@ -284,6 +284,7 @@ pub(crate) fn show(
                                 dir,
                                 key,
                                 t: &t,
+                                icons: &icons,
                             };
                             (clicked, active_id) = rows.draw(ui);
                         });
@@ -308,11 +309,12 @@ struct Rows<'a, 'b> {
     dir: egui_mineral::i18n::Direction,
     key: &'a StableId,
     t: &'b crate::theme::Tokens,
+    icons: &'b crate::IconSet,
 }
 
 impl Rows<'_, '_> {
     fn draw(&self, ui: &mut egui::Ui) -> (Option<usize>, Option<Id>) {
-        let (view, t, dir) = (self.view, self.t, self.dir);
+        let (view, t, dir, icons) = (self.view, self.t, self.dir, self.icons);
         let ctx = ui.ctx().clone();
         let inner_w = ui.available_width();
         let mut clicked = None;
@@ -342,7 +344,7 @@ impl Rows<'_, '_> {
                     };
                     let part = opt.salt.as_ref().map(KeyedSalt::id_salt);
                     let id = part.map_or_else(|| self.base.with(i), |salt| self.base.with(salt));
-                    let r = option_row(ui, id, opt, look, inner_w, dir, t);
+                    let r = option_row(ui, id, opt, look, inner_w, dir, (t, icons));
                     if active && view.scroll_to_active {
                         ui.scroll_to_rect(r.rect, None);
                     }
@@ -426,7 +428,7 @@ fn option_row(
     look: OptionLook,
     width: f32,
     dir: egui_mineral::i18n::Direction,
-    t: &crate::theme::Tokens,
+    (t, icons): (&crate::theme::Tokens, &crate::IconSet),
 ) -> Response {
     let sense = if opt.disabled {
         Sense::hover()
@@ -460,7 +462,7 @@ fn option_row(
         ),
         vec2(check_box, check_box),
     );
-    paint_check(p, check, opt.disabled, look, fore, t);
+    paint_check(p, icons, check, opt.disabled, look, fore, t);
     let text_off = check_x + check_box + g::SPACING_HORIZONTAL_XXS + g::SPACING_HORIZONTAL_XS;
     let format = crate::typography::format(
         ui.ctx(),
@@ -492,6 +494,7 @@ fn option_row(
 
 fn paint_check(
     p: &egui::Painter,
+    icons: &crate::IconSet,
     check: Rect,
     disabled: bool,
     look: OptionLook,
@@ -524,7 +527,7 @@ fn paint_check(
             paint::icon(
                 p,
                 check.center(),
-                ICON_CHECKMARK,
+                icons.checkmark,
                 false,
                 cb::OPTION_CHECK_MARK,
                 t.color(mark),
@@ -534,7 +537,7 @@ fn paint_check(
         paint::icon(
             p,
             check.center(),
-            ICON_CHECKMARK,
+            icons.checkmark,
             false,
             cb::OPTION_CHECK_ICON,
             t.color(fore),

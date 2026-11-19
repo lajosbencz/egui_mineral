@@ -17,7 +17,7 @@ use egui_mineral::{
 
 use crate::tokens::Tokens;
 use crate::widget::{common, indication};
-use crate::{MaterialIcon, spec::TypeScale};
+use crate::{Icon, spec::TypeScale};
 
 pub(crate) fn label_job(
     core: &Core,
@@ -86,7 +86,7 @@ pub(crate) fn action_slot(dir: egui_mineral::i18n::Direction, bar: Rect, from_st
 
 pub(crate) fn close_button(ui: &mut MineralUi<'_, Material>, salt: egui_mineral::semantic::KeyedSalt) -> bool {
     let label = crate::tr(ui.i18n(), "mineral-close");
-    ui.mineral(crate::actions::IconButton::new(salt, crate::icons::ICON_CLOSE, label))
+    ui.mineral(crate::actions::IconButton::new(salt, ui.icons().close, label))
         .clicked()
 }
 
@@ -95,7 +95,7 @@ pub(crate) fn small_icon_metrics() -> (Vec2, f32) {
 }
 
 pub(crate) struct IconPart {
-    pub icon: MaterialIcon,
+    pub icon: Icon,
     pub icon_size: f32,
     pub layer: Vec2,
     pub radius: CornerRadius,
@@ -104,7 +104,7 @@ pub(crate) struct IconPart {
 }
 
 impl IconPart {
-    pub(crate) fn small(icon: MaterialIcon, color: Color32, availability: Availability) -> Self {
+    pub(crate) fn small(icon: Icon, color: Color32, availability: Availability) -> Self {
         let (layer, icon_size) = small_icon_metrics();
         Self {
             icon,
@@ -143,7 +143,7 @@ pub(crate) fn icon_part(
     r
 }
 
-pub(crate) fn icon_rotated(p: &Painter, center: Pos2, icon: MaterialIcon, size: f32, color: egui::Color32, angle: f32) {
+pub(crate) fn icon_rotated(p: &Painter, center: Pos2, icon: Icon, size: f32, color: egui::Color32, angle: f32) {
     p.add(crate::widget::common::icon_shape(p, center, icon, size, color, angle));
 }
 

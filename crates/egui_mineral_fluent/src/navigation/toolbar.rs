@@ -6,8 +6,9 @@ use egui_mineral::{
     widget::MineralUi,
 };
 
+use crate::FluentExt as _;
 use crate::{
-    Fluent, FluentIcon, Rt, Size,
+    Fluent, Icon, Rt, Size,
     actions::{
         ButtonAppearance, PushButton,
         button::{Metrics, Mode},
@@ -24,7 +25,7 @@ use super::{
 #[derive(Clone, Debug)]
 struct Base {
     label: String,
-    icon: Option<FluentIcon>,
+    icon: Option<Icon>,
     label_visible: bool,
     appearance: ButtonAppearance,
     disabled: bool,
@@ -48,8 +49,8 @@ macro_rules! item_setters {
     ($ty:ty) => {
         impl $ty {
             /// `icon` slot before the label; filled while hovered or checked.
-            pub fn icon(mut self, icon: FluentIcon) -> Self {
-                self.0.icon = Some(icon);
+            pub fn icon(mut self, icon: impl Into<Icon>) -> Self {
+                self.0.icon = Some(icon.into());
                 self
             }
 
@@ -119,8 +120,8 @@ impl<'a> ToolbarToggleButton<'a> {
     }
 
     /// `icon` slot before the label; filled while hovered or checked.
-    pub fn icon(mut self, icon: FluentIcon) -> Self {
-        self.base.icon = Some(icon);
+    pub fn icon(mut self, icon: impl Into<Icon>) -> Self {
+        self.base.icon = Some(icon.into());
         self
     }
 
@@ -259,14 +260,14 @@ enum Kind<'a> {
 
 enum Slot<'a> {
     Divider,
-    Item(Base, Kind<'a>, usize),
+    Item(Box<Base>, Kind<'a>, usize),
 }
 
 fn flatten<'a>(entries: Vec<Entry<'a>>, slots: &mut Vec<Slot<'a>>, groups: &mut Vec<&'a mut usize>) {
     for entry in entries {
         match entry {
-            Entry::Button(b) => slots.push(Slot::Item(b.0, Kind::Plain, 0)),
-            Entry::Toggle(t) => slots.push(Slot::Item(t.base, Kind::Toggle(t.checked), 0)),
+            Entry::Button(b) => slots.push(Slot::Item(Box::new(b.0), Kind::Plain, 0)),
+            Entry::Toggle(t) => slots.push(Slot::Item(Box::new(t.base), Kind::Toggle(t.checked), 0)),
             Entry::Radio(g) => {
                 let group = groups.len();
                 groups.push(g.selected);
@@ -274,7 +275,7 @@ fn flatten<'a>(entries: Vec<Entry<'a>>, slots: &mut Vec<Slot<'a>>, groups: &mut 
                     g.buttons
                         .into_iter()
                         .enumerate()
-                        .map(|(value, b)| Slot::Item(b.0, Kind::Radio { group, value }, 0)),
+                        .map(|(value, b)| Slot::Item(Box::new(b.0), Kind::Radio { group, value }, 0)),
                 );
             }
             Entry::Divider => slots.push(Slot::Divider),
@@ -368,7 +369,7 @@ impl Run {
             for slot in hidden {
                 match slot {
                     Slot::Divider => m.divider(),
-                    Slot::Item(base, kind, n) => self.row(m, (base, kind, n), groups),
+                    Slot::Item(base, kind, n) => self.row(m, (*base, kind, n), groups),
                 }
             }
         });
@@ -523,11 +524,11 @@ impl<'a> Toolbar<'a> {
             for (at, slot) in shown.into_iter().enumerate() {
                 match slot {
                     Slot::Divider => show_divider(rt, ui, salt.child(("divider", at)), vertical),
-                    Slot::Item(base, kind, n) => run.item(rt, ui, &salt, (base, kind, n), &mut groups),
+                    Slot::Item(base, kind, n) => run.item(rt, ui, &salt, (*base, kind, n), &mut groups),
                 }
             }
             if let Some(o) = overflow.as_ref().filter(|_| more) {
-                let mut b = overflow::trigger(salt.child("overflow"), o.label());
+                let mut b = overflow::trigger(salt.child("overflow"), o.label(), &rt.icons());
                 b.tab_stop = Some(roving::TabStop::at(run.ids.len(), stop));
                 let r = rt.ui(ui).mineral(b);
                 run.ids.push(r.id);
@@ -594,10 +595,10 @@ fn plan<'s>(
         .iter()
         .map(|s| match s {
             Slot::Divider => OverflowItem::new(DIVIDER_WIDTH),
-            Slot::Item(b, ..) => OverflowItem::new(button(b.clone(), salt.clone()).natural(ui).x),
+            Slot::Item(b, ..) => OverflowItem::new(button(b.as_ref().clone(), salt.clone()).natural(ui).x),
         })
         .collect();
-    let menu = overflow::trigger(salt.clone(), o.label()).natural(ui).x;
+    let menu = overflow::trigger(salt.clone(), o.label(), &ui.icons()).natural(ui).x;
     let fit = o.fit(&items, ui.available_width() - 2.0 * inline, menu);
     let (mut shown, mut hidden) = (Vec::new(), Vec::new());
     for (slot, visible) in slots.into_iter().zip(fit) {

@@ -1,5 +1,6 @@
 use egui::{Context, FontData, FontFamily, FontInsert, FontPriority, InsertFontFamily};
 use egui_material_icons::{FONT_FAMILY, FONT_FAMILY_OUTLINED};
+use egui_mineral::icon::IconFont;
 
 pub(crate) const MEDIUM: &str = "mineral::medium";
 
@@ -28,24 +29,24 @@ pub struct IconFonts {
     pub outlined: &'static [u8],
 }
 
-pub(crate) fn install_icons(ctx: &Context, fonts: IconFonts) {
-    for (family, ttf) in [(FONT_FAMILY, fonts.filled), (FONT_FAMILY_OUTLINED, fonts.outlined)] {
-        let mut data = FontData::from_static(ttf);
+impl IconFonts {
+    /// Fonts under the families `MaterialIcon` names, with the baseline offset of `egui_material_icons`.
+    pub const fn fonts(self) -> [IconFont; 2] {
         // egui_material_icons' baseline tweak
-        data.tweak.y_offset_factor = 0.05;
-        ctx.add_font(FontInsert::new(
-            family,
-            data,
-            vec![
-                InsertFontFamily {
-                    family: FontFamily::Proportional,
-                    priority: FontPriority::Lowest,
-                },
-                InsertFontFamily {
-                    family: FontFamily::Name(family.into()),
-                    priority: FontPriority::Highest,
-                },
-            ],
-        ));
+        const Y_OFFSET: f32 = 0.05;
+        [
+            IconFont {
+                name: FONT_FAMILY,
+                ttf: self.filled,
+                family: FONT_FAMILY,
+                y_offset_factor: Y_OFFSET,
+            },
+            IconFont {
+                name: FONT_FAMILY_OUTLINED,
+                ttf: self.outlined,
+                family: FONT_FAMILY_OUTLINED,
+                y_offset_factor: Y_OFFSET,
+            },
+        ]
     }
 }

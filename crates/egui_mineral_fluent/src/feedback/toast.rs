@@ -17,10 +17,9 @@ use crate::ColorToken::{
     ColorStatusWarningForegroundInverted, ColorTransparentStroke,
 };
 use crate::{
-    ColorToken, FluentExt, FluentIcon, Rt,
+    ColorToken, FluentExt, Icon, Rt,
     actions::TextLink,
     feedback::MessageBarIntent,
-    icons::{ICON_CHECKMARK_CIRCLE, ICON_ERROR_CIRCLE, ICON_INFO, ICON_WARNING},
     spec::{
         defaults::toast as d,
         tokens::{geometry as g, typography as ty},
@@ -319,16 +318,16 @@ impl<'a> Toaster<'a> {
 }
 
 // react-toast useToastTitleStyles.styles.ts useIntentIconStyles and useIntentIconStylesInverted
-const fn media(intent: ToastIntent, inverted: bool) -> (FluentIcon, ColorToken) {
+fn media(icons: &crate::IconSet, intent: ToastIntent, inverted: bool) -> (Icon, ColorToken) {
     match (intent, inverted) {
-        (ToastIntent::Info, false) => (ICON_INFO, ColorNeutralForeground2),
-        (ToastIntent::Info, true) => (ICON_INFO, ColorNeutralForegroundInverted2),
-        (ToastIntent::Success, false) => (ICON_CHECKMARK_CIRCLE, ColorStatusSuccessForeground1),
-        (ToastIntent::Success, true) => (ICON_CHECKMARK_CIRCLE, ColorStatusSuccessForegroundInverted),
-        (ToastIntent::Warning, false) => (ICON_WARNING, ColorStatusWarningForeground1),
-        (ToastIntent::Warning, true) => (ICON_WARNING, ColorStatusWarningForegroundInverted),
-        (ToastIntent::Error, false) => (ICON_ERROR_CIRCLE, ColorStatusDangerForeground1),
-        (ToastIntent::Error, true) => (ICON_ERROR_CIRCLE, ColorStatusDangerForegroundInverted),
+        (ToastIntent::Info, false) => (icons.info, ColorNeutralForeground2),
+        (ToastIntent::Info, true) => (icons.info, ColorNeutralForegroundInverted2),
+        (ToastIntent::Success, false) => (icons.checkmark_circle, ColorStatusSuccessForeground1),
+        (ToastIntent::Success, true) => (icons.checkmark_circle, ColorStatusSuccessForegroundInverted),
+        (ToastIntent::Warning, false) => (icons.warning, ColorStatusWarningForeground1),
+        (ToastIntent::Warning, true) => (icons.warning, ColorStatusWarningForegroundInverted),
+        (ToastIntent::Error, false) => (icons.error_circle, ColorStatusDangerForeground1),
+        (ToastIntent::Error, true) => (icons.error_circle, ColorStatusDangerForegroundInverted),
     }
 }
 
@@ -370,7 +369,7 @@ fn content(ui: &mut egui::Ui, rt: &Rt, toast: &Toast, palette: &Palette, slot: u
     let t = rt.tokens();
     let dir = rt.i18n().direction();
     if let Some(intent) = toast.intent {
-        let (icon, color) = media(intent, toast.inverted);
+        let (icon, color) = media(&rt.icons(), intent, toast.inverted);
         let (rect, _) = ui.allocate_exact_size(
             vec2(d::MEDIA_SIZE, d::MEDIA_SIZE + d::MEDIA_PADDING_TOP),
             Sense::hover(),

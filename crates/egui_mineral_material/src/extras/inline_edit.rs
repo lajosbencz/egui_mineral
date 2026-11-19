@@ -22,7 +22,6 @@ use crate::actions::IconButton;
 use crate::text_inputs::text_field::{self, FieldChrome, FieldState, line_galley};
 use crate::widget::common;
 use crate::{
-    icons,
     spec::{
         TypeScale,
         defaults::{button, text_field as tf},
@@ -137,12 +136,12 @@ impl InlineEdit<'_> {
         let row = ui.allocate_ui_with_layout(size, rt.i18n().direction().row(), |ui| {
             let submit = IconButton::new(
                 self.salt.child("submit"),
-                icons::ICON_CHECK,
+                rt.icons().check,
                 tr(rt.i18n(), "mineral-inline-submit"),
             );
             let cancel = IconButton::new(
                 self.salt.child("cancel"),
-                icons::ICON_CLOSE,
+                rt.icons().close,
                 tr(rt.i18n(), "mineral-inline-cancel"),
             );
             let button = submit.footprint(rt, density);
@@ -352,7 +351,7 @@ impl MineralWidget for Preview<'_> {
             common::icon(
                 p,
                 pos2(ix, rect.center().y),
-                icons::ICON_EDIT,
+                ui.icons().edit,
                 EDIT_ICON,
                 c.on_surface_variant,
             );
