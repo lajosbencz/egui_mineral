@@ -80,8 +80,8 @@ docsrs_material := "icu,persist-fs,bundled-icons,theme-file,unstable-catalog,uns
 
 # Doctests, rustdoc and the docs.rs build
 doc:
-    cargo test --doc --workspace --all-features
-    RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --all-features
+    cargo test --doc --workspace --features {{ test_features }}
+    RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --features {{ test_features }}
     RUSTDOCFLAGS="-D warnings" cargo doc -p egui_mineral -p egui_mineral_material --no-deps --no-default-features
     for t in x86_64-unknown-linux-gnu wasm32-unknown-unknown; do \
         RUSTDOCFLAGS="--cfg docsrs -D warnings" cargo +nightly doc -p egui_mineral --no-deps --target "$t" --features {{ docsrs_core }}; \
