@@ -1,6 +1,7 @@
 use egui::Key;
+use egui_mineral_fluent::actions::PushButton;
 use egui_mineral_fluent::extras::{
-    CommandPalette, Pagination, PaletteCommand, SplitPane, StatusBar, StatusItem, StatusProgress,
+    BarMenu, CommandPalette, MenuBar, Pagination, PaletteCommand, SplitPane, StatusBar, StatusItem, StatusProgress,
 };
 
 use crate::support::{FluentHarness, Fui, harness};
@@ -156,6 +157,67 @@ fn command_palette_keys_skip_disabled_entries() {
     h.press(Key::ArrowDown);
     h.press(Key::Enter);
     assert_eq!((h.state().value.0, h.state().value.2), (false, Some(2)));
+}
+
+fn menu_bar() -> crate::support::Harness<'static, Vec<&'static str>> {
+    harness(Vec::new(), |ui, log| {
+        let (file, edit) = (&mut *log, Vec::<&str>::new());
+        let _ = edit;
+        let mut clicked = Vec::new();
+        MenuBar::new("bar")
+            .menu(BarMenu::new("File", |m| {
+                if m.item("Open").clicked {
+                    clicked.push("open");
+                }
+            }))
+            .menu(BarMenu::new("Edit", |m| {
+                m.item("Copy");
+            }))
+            .menu(
+                BarMenu::new("Off", |m| {
+                    m.item("Never");
+                })
+                .disabled(true),
+            )
+            .show(ui);
+        file.extend(clicked);
+        ui.mineral(PushButton::new("other", "Other"));
+    })
+}
+
+#[test]
+fn menu_bar_click_opens_its_menu_and_a_row_pick_closes_it() {
+    let mut h = menu_bar();
+    h.run();
+    assert_eq!(h.node("bar-menubar").role, egui_mineral::semantic::Role::MenuBar);
+    h.click("bar-0-menubar-item");
+    h.run();
+    assert_eq!(h.node("bar-popup-0-menu").role, egui_mineral::semantic::Role::Menu);
+    h.click("bar-popup-0-0-menuitem");
+    assert_eq!(h.state().value, ["open"]);
+    assert!(
+        h.tree().find_key("bar-popup-0-menu").is_none(),
+        "picking closes the menu"
+    );
+}
+
+#[test]
+fn menu_bar_keys_open_move_between_menus_and_escape_returns_focus() {
+    let mut h = menu_bar();
+    h.click("other-button");
+    h.press(Key::F10);
+    assert!(h.focused("bar-0-menubar-item"), "F10 focuses the first title");
+    h.press(Key::ArrowRight);
+    assert!(h.focused("bar-1-menubar-item"), "Right roves to the next title");
+    h.press(Key::ArrowDown);
+    h.run();
+    assert!(h.tree().find_key("bar-popup-1-menu").is_some(), "Down opens the menu");
+    h.press(Key::ArrowLeft);
+    h.run();
+    assert!(
+        h.tree().find_key("bar-popup-0-menu").is_some(),
+        "Left moves to the previous menu"
+    );
 }
 
 #[test]

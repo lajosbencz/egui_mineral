@@ -15,8 +15,8 @@ pub use crate::data::{
 };
 #[cfg(feature = "extras")]
 pub use crate::extras::{
-    CommandPalette, CommandPaletteResponse, Pagination, PaletteCommand, SplitPane, StatusBar, StatusItem,
-    StatusProgress, StatusTone,
+    BarMenu, CommandPalette, CommandPaletteResponse, MenuBar, Pagination, PaletteCommand, SplitPane, StatusBar,
+    StatusItem, StatusProgress, StatusTone,
 };
 pub use crate::feedback::{
     Badge, BadgeAppearance, BadgeColor, BadgeShape, BadgeSize, CounterBadge, CounterBadgeAppearance, CounterBadgeColor,

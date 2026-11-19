@@ -11,11 +11,13 @@
 )]
 
 pub(crate) mod command_palette;
+pub(crate) mod menu_bar;
 pub(crate) mod pagination;
 pub(crate) mod split_pane;
 pub(crate) mod status_bar;
 
 pub use command_palette::{CommandPalette, CommandPaletteResponse, PaletteCommand};
+pub use menu_bar::{BarMenu, MenuBar, MenuBarResponse};
 pub use pagination::Pagination;
 pub use split_pane::SplitPane;
 pub use status_bar::{StatusBar, StatusBarResponse, StatusItem, StatusProgress, StatusTone};
