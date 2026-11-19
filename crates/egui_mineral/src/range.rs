@@ -146,7 +146,6 @@ impl TryFrom<RawRange> for RangeModel {
             }
         }
         check_scale(r.scale, r.min)?;
-        check_linear(r.scale, "jump", r.jump)?;
         check_linear(r.scale, "increment", r.increment)?;
         if let Some(v) = r.ratio {
             check_ratio(v)?;
@@ -289,11 +288,11 @@ impl RangeModel {
         self
     }
 
-    /// PageUp/PageDown distance on [`Scale::Linear`]. Ignored when not finite and > 0, or on
-    /// [`Scale::Log`].
+    /// PageUp/PageDown distance on [`Scale::Linear`]; on [`Scale::Log`] the least a page moves
+    /// (the ratio page applies when it moves further). Ignored when not finite and > 0.
     #[must_use]
     pub fn jump(mut self, jump: f64) -> Self {
-        match check_size("jump", jump).and_then(|()| check_linear(self.scale, "jump", Some(jump))) {
+        match check_size("jump", jump) {
             Ok(()) => self.jump = Some(jump),
             Err(e) => crate::kit::sanitize::report(format_args!("{e}; ignored")),
         }
@@ -348,19 +347,17 @@ impl RangeModel {
         self
     }
 
-    /// Linear or logarithmic value scale. [`Scale::Log`] with `min <= 0` is ignored; it drops a
-    /// `jump` and an `increment`.
+    /// Linear or logarithmic value scale. [`Scale::Log`] with `min <= 0` is ignored; it drops an
+    /// `increment`.
     #[must_use]
     pub fn scale(mut self, scale: Scale) -> Self {
         if let Err(e) = check_scale(scale, self.min) {
             crate::kit::sanitize::report(format_args!("{e}; scale ignored"));
             return self;
         }
-        for (name, v) in [("jump", &mut self.jump), ("increment", &mut self.increment)] {
-            if let Err(e) = check_linear(scale, name, *v) {
-                crate::kit::sanitize::report(format_args!("{e}; dropped"));
-                *v = None;
-            }
+        if let Err(e) = check_linear(scale, "increment", self.increment) {
+            crate::kit::sanitize::report(format_args!("{e}; dropped"));
+            self.increment = None;
         }
         self.scale = scale;
         self
@@ -443,10 +440,7 @@ impl RangeModel {
     fn round_significant(&self, v: f64) -> f64 {
         match self.significant {
             Some(d) if v.is_finite() && v != 0.0 && v != self.min && v != self.max => {
-                // Decimal rounding through the shortest scientific form, as `grid` rounds decimals.
-                format!("{v:.prec$e}", prec = usize::from(d.saturating_sub(1)))
-                    .parse()
-                    .unwrap_or(v)
+                round_decimal_digits(v, usize::from(d)).unwrap_or(v)
             }
             _ => v,
         }
@@ -558,19 +552,29 @@ impl RangeModel {
                 }
             }
             Scale::Log => {
-                let from = self.snap(v);
-                let unit = match self.ratio {
+                let from = self.limit(v);
+                let base = self.snap(from);
+                let ln_ratio = match self.ratio {
                     // A zero log span divides to inf; a whole track is the most a step can move.
-                    Some(r) => (r.ln() / self.log_span() * if page { 10.0 } else { 1.0 }).min(1.0),
-                    None if page => LOG_PAGE,
-                    None => LOG_ARROW,
+                    Some(r) => r.ln().min(self.log_span()) * if page { 10.0 } else { 1.0 },
+                    None if page => LOG_PAGE * self.log_span(),
+                    None => LOG_ARROW * self.log_span(),
                 };
-                let next = self.from_fraction(self.fraction(from) + n * unit);
-                let stalled = (next - from).abs() < f64::EPSILON && n.abs() > 0.0;
+                let ln_ratio = if ln_ratio.is_finite() { ln_ratio.min(self.log_span()) } else { 0.0 };
+                let one = self.snap(from * (n.signum() * ln_ratio).exp());
+                let mut next = self.snap(from * (n * ln_ratio).exp());
+                if page && let Some(j) = self.jump {
+                    let floor = self.snap(base + n.signum() * j);
+                    next = if n > 0.0 { next.max(floor) } else { next.min(floor) };
+                }
+                if (one - base).abs() >= f64::EPSILON || n == 0.0 || !n.is_finite() {
+                    return next;
+                }
                 match self.step {
-                    Some(s) if stalled => self.snap(from + n.signum() * s),
-                    None if stalled => self.significant_step(from, n > 0.0).unwrap_or(next),
-                    _ => next,
+                    Some(s) => self.snap(base + n * s),
+                    None => stall_steps(n).fold(base, |acc, _| {
+                        self.significant_step(acc, n > 0.0).unwrap_or(acc)
+                    }),
                 }
             }
         }
@@ -680,6 +684,45 @@ fn round_places(v: f64, places: i32) -> f64 {
     let scale = 10f64.powi(places);
     let rounded = (v * scale).round() / scale;
     if rounded.is_finite() { rounded } else { v }
+}
+
+const MAX_STALLED_STEPS: u32 = 1000;
+
+fn stall_steps(n: f64) -> impl Iterator<Item = u32> {
+    (0..MAX_STALLED_STEPS).take_while(move |i| f64::from(*i) + 0.5 < n.abs())
+}
+
+// `v` rounded to `digits` significant digits, ties away from zero on the decimal value: 15 digits
+// first, so a binary product like 2804.9999999999995 reads as the tie it stands for.
+fn round_decimal_digits(v: f64, digits: usize) -> Option<f64> {
+    let precision = digits.saturating_sub(1).max(14);
+    let text = format!("{:.precision$e}", v.abs());
+    let (mantissa, exp) = text.split_once('e')?;
+    let mut exp: i32 = exp.parse().ok()?;
+    let mut ds: Vec<u8> = mantissa.bytes().filter(u8::is_ascii_digit).filter_map(|b| char::from(b).to_digit(10)).map(|d| d as u8).collect();
+    if digits < ds.len() {
+        let up = ds.get(digits).is_some_and(|d| *d >= 5);
+        ds.truncate(digits);
+        if up {
+            let carried = ds.iter_mut().rev().try_for_each(|d| {
+                if *d == 9 {
+                    *d = 0;
+                    Some(())
+                } else {
+                    *d = d.saturating_add(1);
+                    None
+                }
+            });
+            if carried.is_some() {
+                ds.insert(0, 1);
+                ds.pop();
+                exp = exp.checked_add(1)?;
+            }
+        }
+    }
+    let digit_text: String = ds.iter().filter_map(|d| char::from_digit(u32::from(*d), 10)).collect();
+    let out: f64 = format!("0.{digit_text}e{}", exp.checked_add(1)?).parse().ok()?;
+    Some(out.copysign(v))
 }
 
 // Fraction digits of the shortest decimal that reads back as `v`; `None` past f64 precision
@@ -858,14 +901,42 @@ mod tests {
         assert_eq!(RangeModel::new(0.0, 10.0).step(f64::NAN).step_size(), None);
         let log = RangeModel::new(0.0, 10.0).scale(Scale::Log);
         assert_eq!(log, RangeModel::new(0.0, 10.0), "log needs min > 0");
-        let log = RangeModel::new(1.0, 10.0).jump(2.0).scale(Scale::Log);
-        assert_eq!(log, RangeModel::new(1.0, 10.0).scale(Scale::Log), "log drops the jump");
-        let linear = RangeModel::new(1.0, 10.0).scale(Scale::Log).jump(2.0);
-        assert_eq!(
-            linear,
-            RangeModel::new(1.0, 10.0).scale(Scale::Log),
-            "log ignores a jump"
-        );
+        let log = RangeModel::new(1.0, 10.0).increment(2.0).scale(Scale::Log);
+        assert_eq!(log, RangeModel::new(1.0, 10.0).scale(Scale::Log), "log drops the increment");
+        let log = RangeModel::new(1.0, 10.0).scale(Scale::Log).increment(2.0);
+        assert_eq!(log, RangeModel::new(1.0, 10.0).scale(Scale::Log), "log ignores an increment");
+    }
+
+    #[test]
+    fn log_steps_start_from_the_current_value_and_round_once() {
+        let r = RangeModel::new(0.1, 100_000.0)
+            .scale(Scale::Log)
+            .ratio(1.02)
+            .significant(3);
+        assert_eq!(r.step_by(1.234, 1), 1.26, "off-grid value is not snapped first");
+        assert_eq!(r.step_by(2750.0, 1), 2810.0, "decimal tie rounds away from zero");
+        assert_eq!(r.step_by(-0.0 + 2750.0, -1), 2700.0);
+        assert_eq!(round_decimal_digits(9.995, 3), Some(10.0), "carry crosses a decade");
+        assert_eq!(round_decimal_digits(-2805.0, 3), Some(-2810.0));
+    }
+
+    #[test]
+    fn log_pages_honor_jump_and_stalled_steps_add_up() {
+        let r = RangeModel::new(1.0, 1000.0)
+            .scale(Scale::Log)
+            .ratio(1.02)
+            .step(1.0)
+            .jump(10.0);
+        assert_eq!(r.on_key(10.0, Key::PageUp, Track::vertical()), Some(20.0));
+        assert_eq!(r.on_key(20.0, Key::PageDown, Track::vertical()), Some(10.0));
+        let no_jump = RangeModel::new(1.0, 1000.0).scale(Scale::Log).ratio(1.02).step(1.0);
+        assert_eq!(no_jump.on_key(10.0, Key::PageUp, Track::vertical()), Some(12.0), "ratio page only");
+        for n in 1..=5 {
+            assert_eq!(no_jump.step_by(10.0, n), 10.0 + n as f64, "{n} stalled steps");
+            assert_eq!(no_jump.step_by(10.0, -n), 10.0 - n as f64);
+        }
+        let sig = RangeModel::new(0.1, 100.0).scale(Scale::Log).ratio(1.001).significant(2);
+        assert_eq!(sig.step_by(1.0, 3), 1.3, "stalled significant steps repeat");
     }
 
     #[test]
