@@ -404,7 +404,15 @@ mod web {
     }
 }
 
-#[cfg(all(test, not(target_arch = "wasm32")))]
+#[cfg(all(
+    test,
+    not(target_arch = "wasm32"),
+    not(all(
+        feature = "platform-pickers",
+        feature = "platform-clipboard",
+        feature = "platform-notify"
+    ))
+))]
 mod tests {
     use futures_util::FutureExt;
 
