@@ -14,7 +14,7 @@ pub use accordion::{
     Accordion, AccordionItem, AccordionItemResponse, AccordionNavigation, AccordionResponse, AccordionSize,
     AccordionUi, ExpandIconPosition,
 };
-pub use card::{Card, CardAppearance, CardHeader, CardOrientation, CardResponse, CardUi};
+pub use card::{Card, CardAppearance, CardHeader, CardResponse, CardUi};
 pub use dialog::{Dialog, DialogAction, DialogActionsPosition, DialogKind, DialogResponse};
 pub use divider::{Divider, DividerAlign, DividerAppearance};
 pub use drawer::{Drawer, DrawerPosition, DrawerResponse, DrawerSize};

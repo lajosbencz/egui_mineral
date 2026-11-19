@@ -11,7 +11,7 @@ use egui_mineral_fluent::{
         InfoLabel, Input, InputAppearance, ListOption, OptionGroup, RadioGroup, RadioLayout, RadioOption, RangeSlider,
         RangeValue, Rating, RatingAppearance, RatingColor, RatingDisplay, RatingSize, SearchBox, Select, Slider,
         SpinButton, Swatch, SwatchLayout, SwatchPicker, SwatchShape, SwatchSize, Switch, SwitchLabelPosition,
-        TagPicker, TagPickerSize, TagPickerVariant, Textarea, TimePicker, Validation,
+        TagPicker, TagPickerControl, TagPickerSize, Textarea, TimePicker, Validation,
     },
 };
 
@@ -192,7 +192,7 @@ fn sliders(ui: &mut Fui<'_>, s: &mut State) {
 
 fn fields(ui: &mut Fui<'_>, s: &mut State) {
     heading(ui, "h-input", "Input, Textarea and SearchBox");
-    for (i, a) in InputAppearance::ALL.into_iter().enumerate() {
+    for (i, a) in InputAppearance::ALL.iter().copied().enumerate() {
         ui.mineral(
             Input::new(("in", i), format!("{a:?}"), &mut s.text[0])
                 .appearance(a)
@@ -201,8 +201,8 @@ fn fields(ui: &mut Fui<'_>, s: &mut State) {
     }
     ui.mineral(
         Input::new("in-icons", "With content", &mut s.text[1])
-            .content_before(ICON_PERSON)
-            .content_after(ICON_MAIL)
+            .icon_before(ICON_PERSON)
+            .icon_after(ICON_MAIL)
             .size(Size::Large),
     );
     ui.mineral(
@@ -212,7 +212,7 @@ fn fields(ui: &mut Fui<'_>, s: &mut State) {
     );
     ui.mineral(Input::new("in-password", "Password", &mut s.password).password(true));
     let mut text = String::from("Invalid");
-    ui.mineral(Input::new("in-invalid", "Invalid", &mut text).invalid(true));
+    ui.mineral(Input::new("in-invalid", "Invalid", &mut text).validation(Some(Validation::Error)));
     let mut off = String::from("Disabled");
     ui.mineral(Input::new("in-disabled", "Disabled", &mut off).disabled(true));
     ui.mineral(Textarea::new("ta-1", "Notes", &mut s.area).placeholder("Notes"));
@@ -226,20 +226,20 @@ fn composed(ui: &mut Fui<'_>, s: &mut State) {
         .required(true)
         .hint("As on your passport")
         .show(ui, |ui, cx| {
-            ui.mineral(Input::new("fd-1-in", "Name", &mut s.text[0]).invalid(cx.invalid))
+            ui.mineral(Input::new("fd-1-in", "Name", &mut s.text[0]).validation(cx.validation))
         });
     Field::new("fd-2")
         .label("Email")
         .validation(Validation::Error, "Enter a valid email")
         .show(ui, |ui, cx| {
-            ui.mineral(Input::new("fd-2-in", "Email", &mut s.text[1]).invalid(cx.invalid))
+            ui.mineral(Input::new("fd-2-in", "Email", &mut s.text[1]).validation(cx.validation))
         });
     Field::new("fd-3")
         .label("Code")
         .validation(Validation::Success, "Looks good")
-        .orientation(Axis::Horizontal)
+        .axis(Axis::Horizontal)
         .show(ui, |ui, cx| {
-            ui.mineral(Input::new("fd-3-in", "Code", &mut s.text[2]).invalid(cx.invalid))
+            ui.mineral(Input::new("fd-3-in", "Code", &mut s.text[2]).validation(cx.validation))
         });
     ui.mineral(InfoLabel::new(
         "il-1",
@@ -297,7 +297,7 @@ fn tags_and_dates(ui: &mut Fui<'_>, s: &mut State) {
             &mut s.tag_button,
             &mut s.tag_button_text,
         )
-        .variant(TagPickerVariant::Button)
+        .control(TagPickerControl::Button)
         .size(TagPickerSize::Large)
         .placeholder("Pick pets"),
     );

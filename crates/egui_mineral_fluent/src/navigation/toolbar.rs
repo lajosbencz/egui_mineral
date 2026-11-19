@@ -19,7 +19,7 @@ use crate::{
 
 use super::{
     Menu, MenuItem, MenuUi,
-    overflow::{self, Overflow, OverflowItem},
+    overflow::{self, Overflow, OverflowItem, OverflowSpace},
 };
 
 #[derive(Clone, Debug)]
@@ -466,9 +466,9 @@ impl<'a> Toolbar<'a> {
         self
     }
 
-    /// Stacks the items in a column; a vertical toolbar does not overflow.
-    pub fn vertical(mut self, vertical: bool) -> Self {
-        self.vertical = vertical;
+    /// Default [`Axis::Horizontal`]; [`Axis::Vertical`] stacks the items in a column and does not overflow.
+    pub fn axis(mut self, axis: Axis) -> Self {
+        self.vertical = axis == Axis::Vertical;
         self
     }
 
@@ -599,7 +599,13 @@ fn plan<'s>(
         })
         .collect();
     let menu = overflow::trigger(salt.clone(), o.label(), &ui.icons()).natural(ui).x;
-    let fit = o.fit(&items, ui.available_width() - 2.0 * inline, menu);
+    let fit = o.fit(
+        &items,
+        OverflowSpace {
+            available: ui.available_width() - 2.0 * inline,
+            menu,
+        },
+    );
     let (mut shown, mut hidden) = (Vec::new(), Vec::new());
     for (slot, visible) in slots.into_iter().zip(fit) {
         if visible { &mut shown } else { &mut hidden }.push(slot);

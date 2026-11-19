@@ -5,6 +5,7 @@ use crate::actions::PushButton;
 
 /// Which end of a row [`Overflow::fit`] hides first (`overflowDirection`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum OverflowDirection {
     /// Trailing items hide first.
     #[default]
@@ -27,6 +28,15 @@ impl OverflowItem {
     pub const fn new(width: f32) -> Self {
         Self { width, priority: 0 }
     }
+}
+
+/// Main-axis space of an [`Overflow`] row ([`Overflow::fit`]).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct OverflowSpace {
+    /// Space for the items.
+    pub available: f32,
+    /// Size of the overflow button, reserved only when something hides.
+    pub menu: f32,
 }
 
 /// Fluent `Overflow`: decides which items of a row fit; the rest go into an overflow [`Menu`](super::Menu)
@@ -64,8 +74,9 @@ impl Overflow {
     }
 
     /// Main-axis space kept free beside the items; default 0.
+    #[track_caller]
     pub fn padding(mut self, padding: f32) -> Self {
-        self.padding = padding.max(0.0);
+        self.padding = egui_mineral::kit::sanitize::at_least(padding, 0.0.., "Overflow padding");
         self
     }
 
@@ -77,11 +88,11 @@ impl Overflow {
         matches!(self.direction, OverflowDirection::Start)
     }
 
-    /// Which `items` stay visible in `available` space; `menu` is the overflow button's size, reserved only
-    /// when something hides. Items hide by ascending priority, from the configured end, until the rest fit
-    /// or `min_visible` remain.
+    /// Which `items` stay visible in `space`. Items hide by ascending priority, from the configured end, until
+    /// the rest fit or `min_visible` remain.
     #[must_use]
-    pub fn fit(&self, items: &[OverflowItem], available: f32, menu: f32) -> Vec<bool> {
+    pub fn fit(&self, items: &[OverflowItem], space: OverflowSpace) -> Vec<bool> {
+        let OverflowSpace { available, menu } = space;
         let total: f32 = items.iter().map(|i| i.width).sum();
         let mut visible = vec![true; items.len()];
         if total <= available {
@@ -129,6 +140,10 @@ pub(crate) fn set_open(ctx: &Context, id: Id, open: bool) {
 mod tests {
     use super::*;
 
+    const fn space(available: f32) -> OverflowSpace {
+        OverflowSpace { available, menu: 32.0 }
+    }
+
     fn row(widths: &[f32]) -> Vec<OverflowItem> {
         widths.iter().copied().map(OverflowItem::new).collect()
     }
@@ -136,20 +151,20 @@ mod tests {
     #[test]
     fn everything_fits_without_the_menu() {
         let o = Overflow::new("More");
-        assert_eq!(o.fit(&row(&[40.0, 40.0]), 80.0, 32.0), [true, true]);
+        assert_eq!(o.fit(&row(&[40.0, 40.0]), space(80.0)), [true, true]);
     }
 
     #[test]
     fn trailing_items_hide_first_and_leave_room_for_the_menu() {
         let o = Overflow::new("More");
-        assert_eq!(o.fit(&row(&[40.0, 40.0, 40.0]), 100.0, 32.0), [true, false, false]);
-        assert_eq!(o.fit(&row(&[40.0, 40.0, 40.0]), 112.0, 32.0), [true, true, false]);
+        assert_eq!(o.fit(&row(&[40.0, 40.0, 40.0]), space(100.0)), [true, false, false]);
+        assert_eq!(o.fit(&row(&[40.0, 40.0, 40.0]), space(112.0)), [true, true, false]);
     }
 
     #[test]
     fn start_direction_hides_leading_items() {
         let o = Overflow::new("More").direction(OverflowDirection::Start);
-        assert_eq!(o.fit(&row(&[40.0, 40.0, 40.0]), 112.0, 32.0), [false, true, true]);
+        assert_eq!(o.fit(&row(&[40.0, 40.0, 40.0]), space(112.0)), [false, true, true]);
     }
 
     #[test]
@@ -157,12 +172,12 @@ mod tests {
         let o = Overflow::new("More");
         let mut items = row(&[40.0, 40.0, 40.0]);
         items[0].priority = -1;
-        assert_eq!(o.fit(&items, 112.0, 32.0), [false, true, true]);
+        assert_eq!(o.fit(&items, space(112.0)), [false, true, true]);
     }
 
     #[test]
     fn min_visible_items_stay() {
         let o = Overflow::new("More").min_visible(2);
-        assert_eq!(o.fit(&row(&[40.0, 40.0, 40.0]), 10.0, 32.0), [true, true, false]);
+        assert_eq!(o.fit(&row(&[40.0, 40.0, 40.0]), space(10.0)), [true, true, false]);
     }
 }

@@ -22,6 +22,7 @@ use crate::{
 
 /// `modalType` of a [`Dialog`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum DialogKind {
     /// `modal`: backdrop, focus trapped, Escape and backdrop presses dismiss.
     #[default]
@@ -34,11 +35,12 @@ pub enum DialogKind {
 
 impl DialogKind {
     /// Every variant.
-    pub const ALL: [Self; 3] = [Self::Modal, Self::NonModal, Self::Alert];
+    pub const ALL: &'static [Self] = &[Self::Modal, Self::NonModal, Self::Alert];
 }
 
 /// Where the actions sit (`DialogActions` `position`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum DialogActionsPosition {
     /// `end`: after the reading direction's end edge.
     #[default]
@@ -96,7 +98,7 @@ impl From<String> for DialogAction {
     }
 }
 
-/// Result of [`Dialog::show`].
+/// Result of [`Dialog::show_modal`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub struct DialogResponse<R> {
@@ -128,7 +130,7 @@ impl TempState for ActionsWidth {}
 
 /// Fluent `Dialog`: surface with title, content and actions over a backdrop.
 #[derive(Clone, Debug)]
-#[must_use = "call .show(..)"]
+#[must_use = "call .show_modal(..)"]
 pub struct Dialog {
     salt: KeyedSalt,
     key: AgentKey,
@@ -202,7 +204,7 @@ impl Dialog {
 
     /// Shown while `open`; an action click or a dismissal clears it. Opening focuses the close button, else the
     /// first action; closing returns focus to the widget focused before opening.
-    pub fn show<R>(
+    pub fn show_modal<R>(
         mut self,
         rt: &Rt,
         open: &mut bool,

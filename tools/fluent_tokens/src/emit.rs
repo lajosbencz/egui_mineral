@@ -122,10 +122,11 @@ fn brand(h: &str, ramp: &[Rgba; BRAND_STEPS]) -> String {
     }
     out.push_str(
         "}\n\n/// Brand color ramp (`BrandVariants`); alias color tokens resolve their brand steps against it.\n\
-         #[derive(Clone, Copy, Debug, PartialEq, Eq)]\npub struct BrandRamp(pub [Color32; 16]);\n\n\
-         impl BrandRamp {\n    /// Color at `step`.\n    pub const fn step(&self, step: BrandStep) -> Color32 {\n        \
+         #[derive(Clone, Copy, Debug, PartialEq, Eq)]\npub struct BrandRamp([Color32; 16]);\n\n\
+         impl BrandRamp {\n    /// Ramp of `steps`, from 10 (darkest) to 160 (lightest).\n    \
+         pub const fn new(steps: [Color32; 16]) -> Self {\n        Self(steps)\n    }\n\n    /// Color at `step`.\n    pub const fn step(&self, step: BrandStep) -> Color32 {\n        \
          self.0[step as usize]\n    }\n}\n\n\
-         /// `brandWeb`, the Fluent web brand.\npub const BRAND_WEB: BrandRamp = BrandRamp([\n",
+         /// `brandWeb`, the Fluent web brand.\npub const BRAND_WEB: BrandRamp = BrandRamp::new([\n",
     );
     for c in ramp {
         out.push_str(&format!("    {},\n", color(*c)));
@@ -176,9 +177,9 @@ fn shadow(h: &str, m: &Model) -> String {
          //! The layers are colored by [`ColorNeutralShadowAmbient`](super::color::ColorToken::ColorNeutralShadowAmbient) and\n\
          //! [`ColorNeutralShadowKey`](super::color::ColorToken::ColorNeutralShadowKey), or the `ColorBrandShadow*` pair for\n\
          //! brand shadows.\n\n\
-         /// One shadow layer in points.\n#[derive(Clone, Copy, Debug, PartialEq)]\npub struct ShadowLayer {{\n    \
+         /// One shadow layer in points.\n#[derive(Clone, Copy, Debug, PartialEq)]\n#[non_exhaustive]\npub struct ShadowLayer {{\n    \
          /// Horizontal offset.\n    pub x: f32,\n    /// Vertical offset.\n    pub y: f32,\n    /// Blur radius.\n    pub blur: f32,\n}}\n\n\
-         /// Ambient and key layer of one elevation level.\n#[derive(Clone, Copy, Debug, PartialEq)]\npub struct Shadow {{\n    \
+         /// Ambient and key layer of one elevation level.\n#[derive(Clone, Copy, Debug, PartialEq)]\n#[non_exhaustive]\npub struct Shadow {{\n    \
          /// Wide, faint layer.\n    pub ambient: ShadowLayer,\n    /// Offset layer.\n    pub key: ShadowLayer,\n}}\n"
     );
     for (name, [ambient, key]) in &m.shadows {
@@ -220,7 +221,7 @@ fn alias(h: &str, tokens: &[AliasToken]) -> String {
          use egui::Color32;\n\n\
          use super::{{\n    brand::{{BrandRamp, BrandStep}},\n    palette,\n}};\n\n\
          /// Alias color token (`colorNeutralForeground1`, ...), resolved per theme.\n\
-         #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]\npub enum ColorToken {{\n"
+         #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]\n#[non_exhaustive]\npub enum ColorToken {{\n"
     );
     for t in tokens {
         out.push_str(&format!("    /// `{}`.\n    {},\n", t.name, variant_name(&t.name)));
@@ -248,9 +249,9 @@ fn alias(h: &str, tokens: &[AliasToken]) -> String {
         out.push_str(&format!("    {},\n", fixed(&t.high_contrast)));
     }
     out.push_str("];\n\n");
-    out.push_str(&format!(
-        "impl ColorToken {{\n    /// Every token, in declaration order.\n    pub const ALL: [Self; {n}] = [\n"
-    ));
+    out.push_str(
+        "impl ColorToken {\n    /// Every token, in declaration order.\n    pub const ALL: &'static [Self] = &[\n",
+    );
     for t in tokens {
         out.push_str(&format!("        Self::{},\n", variant_name(&t.name)));
     }

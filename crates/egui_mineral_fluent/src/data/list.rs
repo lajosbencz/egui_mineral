@@ -18,6 +18,7 @@ use crate::{
 
 /// Arrow key navigation of a [`List`] (`navigationMode`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum ListNavigation {
     /// `items`: arrow keys move between the items, one tab stop.
     Items,

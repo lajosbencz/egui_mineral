@@ -250,7 +250,7 @@ mod tag_group {
             }
             g = g.tag(Tag::new("t", "Static").dismissible(false));
             let out = g.show(ui);
-            if let Some(gone) = out.dismissed {
+            if let Some(gone) = out.removed {
                 values.retain(|v| *v != gone);
             }
         })
@@ -583,6 +583,6 @@ fn image_with_an_unloadable_uri_shows_the_failed_state() {
                 .size(egui::vec2(40.0, 40.0)),
         );
     });
-    let icon = egui_mineral_fluent::icons::ICON_IMAGE_OFF.glyph(false).to_string();
+    let icon = egui_mineral_fluent::icons::ICON_IMAGE_OFF.regular().to_string();
     pass.text(&icon);
 }

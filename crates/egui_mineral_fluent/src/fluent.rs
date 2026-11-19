@@ -3,6 +3,10 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 
+mod sealed {
+    pub trait Sealed {}
+}
+
 use egui::{Context, Style, Theme};
 use egui_mineral::{
     i18n::Catalog,
@@ -17,7 +21,7 @@ use parking_lot::Mutex;
 use crate::{
     BrandRamp, IconSet,
     spec::tokens::brand::BRAND_WEB,
-    theme::{Scheme, TokenStore, Tokens},
+    theme::{ContrastMode, Scheme, TokenStore, Tokens},
 };
 
 /// Fluent 2 [`Stylekit`]: high contrast, brand ramp and the tokens and styles of each [`Scheme`]. Pass it to
@@ -58,14 +62,18 @@ impl Fluent {
         }
     }
 
-    /// High contrast replaces the light and dark schemes.
-    pub fn high_contrast(&self) -> bool {
-        self.high_contrast.load(Ordering::Relaxed)
+    /// [`ContrastMode::High`] replaces the light and dark schemes with [`Scheme::HighContrast`].
+    pub fn contrast_mode(&self) -> ContrastMode {
+        if self.high_contrast.load(Ordering::Relaxed) {
+            ContrastMode::High
+        } else {
+            ContrastMode::Standard
+        }
     }
 
     /// Switches to or from the high contrast scheme.
-    pub fn set_high_contrast(&self, ctx: &Context, high_contrast: bool) {
-        self.high_contrast.store(high_contrast, Ordering::Relaxed);
+    pub fn set_contrast_mode(&self, ctx: &Context, mode: ContrastMode) {
+        self.high_contrast.store(mode == ContrastMode::High, Ordering::Relaxed);
         repaint(ctx);
     }
 
@@ -83,10 +91,9 @@ impl Fluent {
     /// Scheme shown at `theme` ([`Core::theme`](egui_mineral::runtime::Core::theme)): [`Scheme::HighContrast`]
     /// when set, else that brightness.
     pub fn scheme(&self, theme: Theme) -> Scheme {
-        if self.high_contrast() {
-            Scheme::HighContrast
-        } else {
-            theme.into()
+        match self.contrast_mode() {
+            ContrastMode::High => Scheme::HighContrast,
+            ContrastMode::Standard => theme.into(),
         }
     }
 
@@ -148,13 +155,16 @@ impl Stylekit for Fluent {
 /// Runtime of a Fluent app.
 pub type Rt = Runtime<Fluent>;
 
-/// Fluent state on a [`Rt`] or Fluent [`MineralUi`].
-pub trait FluentExt {
+/// Fluent state on a [`Rt`] or Fluent [`MineralUi`]; sealed.
+pub trait FluentExt: sealed::Sealed {
     /// Tokens of the current scheme, frozen for the egui pass: [`Fluent`] setters apply from the next pass.
     fn tokens(&self) -> Arc<Tokens>;
     /// Glyphs of the kit's own parts.
     fn icons(&self) -> Arc<IconSet>;
 }
+
+impl sealed::Sealed for Rt {}
+impl sealed::Sealed for MineralUi<'_, Fluent> {}
 
 impl FluentExt for Rt {
     fn tokens(&self) -> Arc<Tokens> {

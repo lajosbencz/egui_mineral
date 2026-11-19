@@ -154,7 +154,7 @@ fn dialog_harness(kind: DialogKind) -> Harness<'static, DialogState> {
             .kind(kind)
             .action("Cancel")
             .action("Delete")
-            .show(rt, open, |ui| {
+            .show_modal(rt, open, |ui| {
                 ui.label("Sure?");
             });
         *clicked = clicked.or(r.clicked);
@@ -197,7 +197,7 @@ fn drawer_overlay_closes_on_escape() {
             .title("Menu")
             .close_button(true)
             .footer_action("Save")
-            .show_overlay(rt, open, |ui| {
+            .show_modal(rt, open, |ui| {
                 ui.label("Body");
             });
     });
@@ -216,7 +216,7 @@ fn inline_drawer_close_button_closes_it() {
             .close_button(true)
             .position(DrawerPosition::Start)
             .size(DrawerSize::Small)
-            .show_inline(ui, open, |ui| {
+            .show(ui, open, |ui| {
                 ui.label("Body");
             });
     });

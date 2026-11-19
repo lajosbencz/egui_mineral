@@ -23,11 +23,9 @@ pub use nav::{
     Nav, NavCategory, NavDensity, NavDivider, NavDrawer, NavItem, NavItemResponse, NavResponse, NavSectionHeader,
     NavSubItem, NavUi,
 };
-pub use overflow::{Overflow, OverflowDirection, OverflowItem};
+pub use overflow::{Overflow, OverflowDirection, OverflowItem, OverflowSpace};
 pub use tab_list::{Tab, TabAppearance, TabList};
 pub use toolbar::{
     Toolbar, ToolbarButton, ToolbarGroup, ToolbarRadioButton, ToolbarRadioGroup, ToolbarResponse, ToolbarToggleButton,
 };
-pub use tree::{
-    ItemLayout, Tree, TreeAppearance, TreeItem, TreeItemLayout, TreeItemPersonaLayout, TreeResponse, TreeSelection,
-};
+pub use tree::{ItemLayout, Tree, TreeAppearance, TreeItem, TreeItemLayout, TreeItemPersonaLayout, TreeResponse};

@@ -15,7 +15,7 @@ const TILE: egui::Vec2 = vec2(96.0, 64.0);
 pub(crate) fn show(ui: &mut Fui<'_>) {
     let t = ui.tokens();
     heading(ui, "h-ramp", "Type ramp");
-    for (i, ramp) in TypeRamp::ALL.into_iter().enumerate() {
+    for (i, ramp) in TypeRamp::ALL.iter().copied().enumerate() {
         ui.mineral(
             Text::new(("ramp", i), format!("{ramp:?}"))
                 .ramp(ramp)
@@ -28,10 +28,10 @@ pub(crate) fn show(ui: &mut Fui<'_>) {
     ui.horizontal_wrapped(|ui| {
         let ui = &mut rt.ui(ui);
         ui.spacing_mut().item_spacing = vec2(24.0, 24.0);
-        for level in Elevation::ALL {
+        for &level in Elevation::ALL {
             let (rect, _) = ui.allocate_exact_size(TILE, Sense::hover());
             let r = Radius::Medium.on(rect);
-            for layer in t.shadow(level, ShadowTint::Neutral) {
+            for layer in t.shadow(level, ShadowTint::Neutral).layers() {
                 ui.painter().add(layer.as_shape(rect, r));
             }
             ui.painter()
@@ -48,7 +48,7 @@ pub(crate) fn show(ui: &mut Fui<'_>) {
     let rt = ui.rt();
     ui.horizontal_wrapped(|ui| {
         let ui = &mut rt.ui(ui);
-        for radius in Radius::ALL {
+        for &radius in Radius::ALL {
             let (rect, _) = ui.allocate_exact_size(TILE, Sense::hover());
             ui.painter().rect(
                 rect,
@@ -70,7 +70,7 @@ pub(crate) fn show(ui: &mut Fui<'_>) {
     ui.horizontal_wrapped(|ui| {
         let ui = &mut rt.ui(ui);
         ui.spacing_mut().item_spacing = vec2(4.0, 4.0);
-        for token in ColorToken::ALL {
+        for &token in ColorToken::ALL {
             let (rect, _) = ui.allocate_exact_size(SWATCH, Sense::hover());
             if !ui.is_rect_visible(rect) {
                 continue;

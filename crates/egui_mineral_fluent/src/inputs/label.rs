@@ -93,7 +93,15 @@ impl FieldLabel {
             weight
         };
         let (text, mark) = colors.unwrap_or((egui::Color32::PLACEHOLDER, egui::Color32::PLACEHOLDER));
-        let format = crate::typography::format(ui.ctx(), size, line_height, weight, text);
+        let format = crate::typography::format(
+            ui.ctx(),
+            crate::typography::TypeSpec {
+                size,
+                line_height,
+                weight,
+            },
+            text,
+        );
         let mut job = LayoutJob::default();
         job.append(&self.text, 0.0, format.clone());
         if self.required {

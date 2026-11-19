@@ -4,8 +4,9 @@ use crate::icons;
 
 /// Glyphs the kit draws for its own parts (chevrons, dismiss, checkmark, ...), one field per role named after
 /// the Fluent UI System Icon it defaults to. [`Self::fluent`] is the default, other fonts fill the same fields
-/// ([`Fluent::with_icons`](crate::Fluent::with_icons)).
+/// ([`Fluent::with_icons`](crate::Fluent::with_icons)): start from it and assign the fields to replace.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub struct IconSet {
     /// `arrow_down`.
     pub arrow_down: Icon,

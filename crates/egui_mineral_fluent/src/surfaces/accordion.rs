@@ -25,6 +25,7 @@ use crate::{
 
 /// Accordion header `size`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum AccordionSize {
     /// `small`: 32pt minimum height, 12pt text.
     Small,
@@ -39,7 +40,7 @@ pub enum AccordionSize {
 
 impl AccordionSize {
     /// Every variant, smallest first.
-    pub const ALL: [Self; 4] = [Self::Small, Self::Medium, Self::Large, Self::ExtraLarge];
+    pub const ALL: &'static [Self] = &[Self::Small, Self::Medium, Self::Large, Self::ExtraLarge];
 
     // useAccordionHeaderStyles.styles.ts buttonSmall, buttonLarge, buttonExtraLarge
     const fn text(self) -> (f32, f32) {
@@ -61,6 +62,7 @@ impl AccordionSize {
 
 /// Side of the header text the expand icon sits on (`expandIconPosition`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum ExpandIconPosition {
     /// `start`.
     #[default]
@@ -71,6 +73,7 @@ pub enum ExpandIconPosition {
 
 /// Arrow key navigation between headers (`navigation`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum AccordionNavigation {
     /// `linear`: stops at the first and last header.
     Linear,
@@ -142,7 +145,15 @@ impl Header<'_> {
         let (size, line) = self.size.text();
         let mut job = LayoutJob::single_section(
             self.item.title.clone(),
-            typography::format(ui.ctx(), size, line, ty::FONT_WEIGHT_REGULAR, color),
+            typography::format(
+                ui.ctx(),
+                crate::typography::TypeSpec {
+                    size,
+                    line_height: line,
+                    weight: ty::FONT_WEIGHT_REGULAR,
+                },
+                color,
+            ),
         );
         job.wrap.max_width = wrap;
         ui.painter().layout_job(job)

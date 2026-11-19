@@ -7,6 +7,7 @@ use egui_mineral::{
 };
 
 use super::dropdown::{Dropdown, Kind};
+use super::field::Validation;
 use super::listbox::{self, ListEntry};
 use super::textbox::InputAppearance;
 use super::value::{ListState, Value};
@@ -54,14 +55,15 @@ impl<'a> Select<'a> {
     }
 
     /// `contentBefore`: icon leading the text.
-    pub fn content_before(mut self, icon: impl Into<egui_mineral::icon::Icon>) -> Self {
-        self.0 = self.0.content_before(icon);
+    pub fn icon_before(mut self, icon: impl Into<egui_mineral::icon::Icon>) -> Self {
+        self.0 = self.0.icon_before(icon);
         self
     }
 
-    /// `aria-invalid`: red border until focused.
-    pub fn invalid(mut self, invalid: bool) -> Self {
-        self.0 = self.0.invalid(invalid);
+    /// Validation state, as [`FieldContext::validation`](super::FieldContext::validation) hands it over;
+    /// [`Validation::Error`] is `aria-invalid`: red border until focused.
+    pub fn validation(mut self, validation: Option<Validation>) -> Self {
+        self.0 = self.0.validation(validation);
         self
     }
 

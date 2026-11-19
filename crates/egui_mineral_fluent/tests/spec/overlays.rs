@@ -107,7 +107,9 @@ fn dialog_is_the_max_width_with_the_surface_padding_around_the_title() {
     let p = render(|ui| {
         let rt = ui.rt();
         let mut open = true;
-        Dialog::new("dlg", "Title").action("Ok").show(rt, &mut open, |_| {});
+        Dialog::new("dlg", "Title")
+            .action("Ok")
+            .show_modal(rt, &mut open, |_| {});
     });
     let surface = rect(&p, "dlg-dialog");
     assert_eq!(surface.width(), dialog::MAX_WIDTH.min(SCREEN.x));
@@ -124,7 +126,7 @@ fn dialog_actions_keep_their_width_and_end_align_inside_a_flow() {
             Dialog::new("dlg", "Delete file")
                 .action("Cancel")
                 .action("Delete")
-                .show(rt, open, |_| {});
+                .show_modal(rt, open, |_| {});
         });
     });
     h.run();
@@ -151,7 +153,7 @@ fn overlay_drawer_width_follows_the_size() {
             Drawer::new("dr", "Menu")
                 .size(size)
                 .position(DrawerPosition::End)
-                .show_overlay(rt, &mut open, |_| {});
+                .show_modal(rt, &mut open, |_| {});
         });
         let r = rect(&p, "dr-drawer");
         assert_eq!(
@@ -170,7 +172,7 @@ fn bottom_drawer_height_follows_the_size() {
         Drawer::new("dr", "Menu")
             .size(DrawerSize::Small)
             .position(DrawerPosition::Bottom)
-            .show_overlay(rt, &mut open, |_| {});
+            .show_modal(rt, &mut open, |_| {});
     });
     let r = rect(&p, "dr-drawer");
     assert_eq!(

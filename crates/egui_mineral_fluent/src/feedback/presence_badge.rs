@@ -15,6 +15,7 @@ use crate::{ColorToken, Fluent, FluentExt, feedback::BadgeSize, spec::defaults::
 
 /// Presence `status`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum PresenceStatus {
     /// `available`: green with a check.
     #[default]
@@ -37,7 +38,7 @@ pub enum PresenceStatus {
 
 impl PresenceStatus {
     /// Every variant.
-    pub const ALL: [Self; 8] = [
+    pub const ALL: &'static [Self] = &[
         Self::Available,
         Self::Away,
         Self::Busy,

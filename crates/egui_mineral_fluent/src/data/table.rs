@@ -29,6 +29,7 @@ use super::{Avatar, AvatarSize};
 
 /// Table `size`: the row height.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum TableSize {
     /// `medium`: 44 high rows.
     #[default]
@@ -41,7 +42,7 @@ pub enum TableSize {
 
 impl TableSize {
     /// Every variant, largest first.
-    pub const ALL: [Self; 3] = [Self::Medium, Self::Small, Self::ExtraSmall];
+    pub const ALL: &'static [Self] = &[Self::Medium, Self::Small, Self::ExtraSmall];
 
     fn index(self) -> usize {
         self as usize
@@ -58,6 +59,7 @@ impl TableSize {
 
 /// Selected row `appearance`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum TableRowAppearance {
     /// `neutral`: `colorSubtleBackgroundSelected`.
     #[default]
@@ -70,7 +72,7 @@ pub enum TableRowAppearance {
 
 impl TableRowAppearance {
     /// Every variant.
-    pub const ALL: [Self; 3] = [Self::Neutral, Self::Brand, Self::None];
+    pub const ALL: &'static [Self] = &[Self::Neutral, Self::Brand, Self::None];
 }
 
 /// Fluent `TableHeaderCell`: a column's header, with a sort button when sortable.
@@ -99,6 +101,7 @@ impl TableColumn {
     }
 
     /// Fixed width in points instead of an equal share; ignored with [`Table::resizable`].
+    #[track_caller]
     pub fn width(mut self, width: f32) -> Self {
         self.width = Some(egui_mineral::kit::sanitize::at_least(width, 0.0.., "TableColumn width"));
         self
@@ -145,7 +148,7 @@ impl<'a> TableCellLayout<'a> {
     }
 
     /// `description` slot below the text.
-    pub fn description(mut self, text: impl Into<String>) -> Self {
+    pub fn secondary_text(mut self, text: impl Into<String>) -> Self {
         self.description = Some(text.into());
         self
     }

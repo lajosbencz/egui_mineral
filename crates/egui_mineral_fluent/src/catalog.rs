@@ -21,7 +21,7 @@ pub enum Category {
 impl Category {
     /// Every variant.
     #[cfg(feature = "extras")]
-    pub const ALL: [Self; 7] = [
+    pub const ALL: &'static [Self] = &[
         Self::Actions,
         Self::Inputs,
         Self::Feedback,
@@ -33,7 +33,7 @@ impl Category {
 
     /// Every variant.
     #[cfg(not(feature = "extras"))]
-    pub const ALL: [Self; 6] = [
+    pub const ALL: &'static [Self] = &[
         Self::Actions,
         Self::Inputs,
         Self::Feedback,

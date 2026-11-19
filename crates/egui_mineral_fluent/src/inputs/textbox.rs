@@ -29,6 +29,7 @@ use crate::{
 /// Input `appearance` of [`Input`](super::Input), [`Textarea`](super::Textarea), [`SearchBox`](super::SearchBox)
 /// and [`SpinButton`](super::SpinButton).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum InputAppearance {
     /// `outline`: stroked box on `colorNeutralBackground1`.
     #[default]
@@ -43,7 +44,7 @@ pub enum InputAppearance {
 
 impl InputAppearance {
     /// Every variant.
-    pub const ALL: [Self; 4] = [Self::Outline, Self::Underline, Self::FilledDarker, Self::FilledLighter];
+    pub const ALL: &'static [Self] = &[Self::Outline, Self::Underline, Self::FilledDarker, Self::FilledLighter];
 
     const fn filled(self) -> bool {
         matches!(self, Self::FilledDarker | Self::FilledLighter)
@@ -131,7 +132,15 @@ impl Chrome {
         } else {
             ColorNeutralForeground1
         };
-        crate::typography::format(ctx, m.font, m.line, ty::FONT_WEIGHT_REGULAR, t.color(color))
+        crate::typography::format(
+            ctx,
+            crate::typography::TypeSpec {
+                size: m.font,
+                line_height: m.line,
+                weight: ty::FONT_WEIGHT_REGULAR,
+            },
+            t.color(color),
+        )
     }
 
     pub(crate) fn placeholder_color(self, t: &Tokens) -> Color32 {

@@ -61,7 +61,7 @@ impl MenuItem {
     }
 
     /// `secondaryContent` slot: trailing caption text such as a shortcut.
-    pub fn secondary_content(mut self, text: impl Into<String>) -> Self {
+    pub fn secondary_text(mut self, text: impl Into<String>) -> Self {
         self.secondary = Some(text.into());
         self
     }
@@ -210,9 +210,11 @@ impl Row<'_> {
                 text.clone(),
                 typography::format(
                     ui.ctx(),
-                    ty::FONT_SIZE_BASE_200,
-                    ty::LINE_HEIGHT_BASE_300,
-                    ty::FONT_WEIGHT_REGULAR,
+                    crate::typography::TypeSpec {
+                        size: ty::FONT_SIZE_BASE_200,
+                        line_height: ty::LINE_HEIGHT_BASE_300,
+                        weight: ty::FONT_WEIGHT_REGULAR,
+                    },
                     secondary.pick(s, t),
                 ),
             ));
@@ -708,9 +710,11 @@ impl MenuUi<'_, '_> {
             header.clone(),
             typography::format(
                 self.ui.ctx(),
-                ty::FONT_SIZE_BASE_200,
-                ty::LINE_HEIGHT_BASE_200,
-                ty::FONT_WEIGHT_SEMIBOLD,
+                crate::typography::TypeSpec {
+                    size: ty::FONT_SIZE_BASE_200,
+                    line_height: ty::LINE_HEIGHT_BASE_200,
+                    weight: ty::FONT_WEIGHT_SEMIBOLD,
+                },
                 color,
             ),
         ));

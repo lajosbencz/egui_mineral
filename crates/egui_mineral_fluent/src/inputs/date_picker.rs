@@ -12,6 +12,7 @@ use egui_mineral::{
 };
 
 use super::calendar::Calendar;
+use super::field::Validation;
 use super::input::Input;
 use super::textbox::{FieldOutput, InputAppearance};
 use crate::ColorToken::{ColorNeutralBackground1, ColorTransparentStroke};
@@ -49,7 +50,7 @@ pub struct DatePicker<'a> {
     size: Size,
     placeholder: Option<String>,
     before: Option<egui_mineral::icon::Icon>,
-    invalid: bool,
+    validation: Option<Validation>,
     disabled: bool,
 }
 
@@ -71,7 +72,7 @@ impl<'a> DatePicker<'a> {
             size: Size::Medium,
             placeholder: None,
             before: None,
-            invalid: false,
+            validation: None,
             disabled: false,
         }
     }
@@ -131,14 +132,15 @@ impl<'a> DatePicker<'a> {
     }
 
     /// `contentBefore`: icon leading the text.
-    pub fn content_before(mut self, icon: impl Into<egui_mineral::icon::Icon>) -> Self {
+    pub fn icon_before(mut self, icon: impl Into<egui_mineral::icon::Icon>) -> Self {
         self.before = Some(icon.into());
         self
     }
 
-    /// `aria-invalid`: red border until focused.
-    pub fn invalid(mut self, invalid: bool) -> Self {
-        self.invalid = invalid;
+    /// Validation state, as [`FieldContext::validation`](super::FieldContext::validation) hands it over;
+    /// [`Validation::Error`] is `aria-invalid`: red border until focused.
+    pub fn validation(mut self, validation: Option<Validation>) -> Self {
+        self.validation = validation;
         self
     }
 
@@ -198,15 +200,15 @@ impl Composite for DatePicker<'_> {
         let mut input = Input::new(input_salt, self.label.clone(), &mut st.text)
             .appearance(self.appearance)
             .size(self.size)
-            .content_after(ui.icons().calendar_month)
-            .invalid(self.invalid)
+            .icon_after(ui.icons().calendar_month)
+            .validation(self.validation)
             .disabled(self.disabled)
             .agent_key(self.key.id(&self.salt));
         if let Some(p) = &self.placeholder {
             input = input.placeholder(p.clone());
         }
         if let Some(i) = self.before {
-            input = input.content_before(i);
+            input = input.icon_before(i);
         }
         let out = ui.mineral(input.constrain(constraints));
         let output = *out.output();
@@ -247,7 +249,7 @@ impl Composite for DatePicker<'_> {
                         .stroke(Stroke::new(dp::POPUP_BORDER, t.color(ColorTransparentStroke)))
                         .corner_radius(CornerRadius::from(g::BORDER_RADIUS_MEDIUM))
                         .inner_margin(Margin::ZERO)
-                        .shadow(t.shadow(Elevation::E16, ShadowTint::Neutral)[0])
+                        .shadow(t.shadow(Elevation::E16, ShadowTint::Neutral).ambient)
                         .show(ui, |ui| rt.ui(ui).mineral(self.calendar(&mut picked)).changed())
                         .inner
                 });

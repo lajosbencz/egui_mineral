@@ -19,6 +19,7 @@ use crate::{
 
 /// Divider `appearance`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum DividerAppearance {
     /// `colorNeutralStroke2` line.
     #[default]
@@ -33,6 +34,7 @@ pub enum DividerAppearance {
 
 /// Placement of a divider's content along its line (`alignContent`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum DividerAlign {
     /// Near the start, after an 8pt line.
     Start,

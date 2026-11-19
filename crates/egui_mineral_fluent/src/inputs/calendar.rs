@@ -243,7 +243,15 @@ fn item(ui: &mut MineralUi<'_, Fluent>, cx: &Cx<'_>, i: &Item<'_>) -> Response {
         );
     }
     let color = cx.t.color(text_color(i.look, hot, off));
-    let format = crate::typography::format(ui.ctx(), i.size, i.size + 4.0, i.weight, color);
+    let format = crate::typography::format(
+        ui.ctx(),
+        crate::typography::TypeSpec {
+            size: i.size,
+            line_height: i.size + 4.0,
+            weight: i.weight,
+        },
+        color,
+    );
     let galley = p.layout_no_wrap(i.text.to_owned(), format.font_id, color);
     p.galley(i.rect.center() - galley.size() / 2.0, galley, color);
     if hot.focused && !off {
@@ -320,14 +328,8 @@ impl Run<'_> {
         } else {
             ColorNeutralForeground1
         });
-        let format = crate::typography::format(
-            ui.ctx(),
-            ty::FONT_SIZE_BASE_300,
-            cal::HEADER_HEIGHT,
-            ty::FONT_WEIGHT_SEMIBOLD,
-            color,
-        );
-        let galley = p.layout_no_wrap(title.to_owned(), format.font_id, color);
+        let font = crate::typography::font(ui.ctx(), ty::FONT_SIZE_BASE_300, ty::FONT_WEIGHT_SEMIBOLD);
+        let galley = p.layout_no_wrap(title.to_owned(), font, color);
         let x = cx.dir.start_x(
             tr,
             Rangef::new(cal::HEADER_TEXT_PAD_START, cal::HEADER_TEXT_PAD_START + galley.size().x),
@@ -422,9 +424,11 @@ impl Run<'_> {
         let color = self.cx.t.color(color);
         let format = crate::typography::format(
             ui.ctx(),
-            ty::FONT_SIZE_BASE_200,
-            ty::LINE_HEIGHT_BASE_200,
-            ty::FONT_WEIGHT_REGULAR,
+            crate::typography::TypeSpec {
+                size: ty::FONT_SIZE_BASE_200,
+                line_height: ty::LINE_HEIGHT_BASE_200,
+                weight: ty::FONT_WEIGHT_REGULAR,
+            },
             color,
         );
         let galley = ui.painter().layout_no_wrap(text, format.font_id, color);
@@ -664,9 +668,11 @@ impl Run<'_> {
         let p = ui.painter().clone();
         let format = crate::typography::format(
             ui.ctx(),
-            ty::FONT_SIZE_BASE_200,
-            cal::GO_TODAY_HEIGHT,
-            ty::FONT_WEIGHT_REGULAR,
+            crate::typography::TypeSpec {
+                size: ty::FONT_SIZE_BASE_200,
+                line_height: cal::GO_TODAY_HEIGHT,
+                weight: ty::FONT_WEIGHT_REGULAR,
+            },
             Color32::WHITE,
         );
         let w = p

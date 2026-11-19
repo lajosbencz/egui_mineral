@@ -34,7 +34,7 @@ pub(crate) enum Page {
 
 impl Page {
     pub(crate) fn all() -> impl Iterator<Item = Self> {
-        std::iter::once(Self::Foundations).chain(Category::ALL.into_iter().map(Self::Category))
+        std::iter::once(Self::Foundations).chain(Category::ALL.iter().copied().map(Self::Category))
     }
 
     pub(crate) fn key(self) -> &'static str {

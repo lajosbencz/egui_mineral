@@ -48,8 +48,8 @@ fn options() -> Vec<ListOption> {
 
 fn sized() -> Vec<(String, Add)> {
     Size::ALL
-        .into_iter()
-        .flat_map(|size| [actions(size), choices(size), fields(size)])
+        .iter()
+        .flat_map(|&size| [actions(size), choices(size), fields(size)])
         .flatten()
         .collect()
 }
@@ -216,7 +216,7 @@ fn singles() -> Vec<(String, Add)> {
 
 fn families() -> Vec<(String, Add)> {
     let mut out = singles();
-    for size in BadgeSize::ALL {
+    for &size in BadgeSize::ALL {
         out.push(leaf(format!("Badge {size:?}"), move |ui| {
             ui.mineral(Badge::new("c", "1").size(size)).zones()
         }));
@@ -225,7 +225,7 @@ fn families() -> Vec<(String, Add)> {
                 .zones()
         }));
     }
-    for size in SpinnerSize::ALL {
+    for &size in SpinnerSize::ALL {
         out.push(leaf(format!("Spinner {size:?}"), move |ui| {
             ui.mineral(Spinner::new("c").size(size)).zones()
         }));
@@ -233,7 +233,7 @@ fn families() -> Vec<(String, Add)> {
             ui.mineral(Spinner::new("c").size(size).label("Busy")).zones()
         }));
     }
-    for size in RatingSize::ALL {
+    for &size in RatingSize::ALL {
         out.push(leaf(format!("Rating {size:?}"), move |ui| {
             ui.mineral(Rating::new("c", "Rating", &mut 3.0).size(size)).zones()
         }));
@@ -242,35 +242,35 @@ fn families() -> Vec<(String, Add)> {
                 .zones()
         }));
     }
-    for size in TextSize::ALL {
+    for &size in TextSize::ALL {
         out.push(leaf(format!("Text {size:?}"), move |ui| {
             ui.mineral(Text::new("c", "Text").size(size)).zones()
         }));
     }
-    for size in AvatarSize::ALL {
+    for &size in AvatarSize::ALL {
         out.push(leaf(format!("Avatar {size:?}"), move |ui| {
             ui.mineral(Avatar::new("c", "Ada Lovelace").size(size)).zones()
         }));
     }
-    for size in PersonaSize::ALL {
+    for &size in PersonaSize::ALL {
         out.push(leaf(format!("Persona {size:?}"), move |ui| {
             ui.mineral(Persona::new("c", "Ada Lovelace").secondary_text("Engineer").size(size))
                 .zones()
         }));
     }
-    for size in TagSize::ALL {
+    for &size in TagSize::ALL {
         out.push(leaf(format!("Tag {size:?}"), move |ui| {
             ui.mineral(Tag::new("c", "Tag").size(size).dismissible(true)).zones()
         }));
     }
-    for size in TagPickerSize::ALL {
+    for &size in TagPickerSize::ALL {
         out.push(leaf(format!("TagPicker {size:?}"), move |ui| {
             let (mut picked, mut text) = (Selection::multiple(), String::new());
             ui.mineral(TagPicker::new("c", "Pets", options(), &mut picked, &mut text).size(size))
                 .zones()
         }));
     }
-    for size in SwatchSize::ALL {
+    for &size in SwatchSize::ALL {
         out.push(group(format!("SwatchPicker {size:?}"), move |ui| {
             let swatches = [
                 Swatch::color("red", "Red", egui::Color32::RED),

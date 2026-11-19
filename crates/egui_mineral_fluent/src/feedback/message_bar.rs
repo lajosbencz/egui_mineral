@@ -28,6 +28,7 @@ use crate::{
 
 /// `MessageBar` `intent`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum MessageBarIntent {
     /// `info`: neutral.
     #[default]
@@ -42,7 +43,7 @@ pub enum MessageBarIntent {
 
 impl MessageBarIntent {
     /// Every variant.
-    pub const ALL: [Self; 4] = [Self::Info, Self::Success, Self::Warning, Self::Error];
+    pub const ALL: &'static [Self] = &[Self::Info, Self::Success, Self::Warning, Self::Error];
 
     // react-message-bar useMessageBarStyles.styles.ts useRootIntentStyles and useIconIntentStyles
     fn palette(self, icons: &crate::IconSet) -> (ColorToken, ColorToken, ColorToken, Icon) {
@@ -77,6 +78,7 @@ impl MessageBarIntent {
 
 /// `MessageBar` `layout`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum MessageBarLayout {
     /// `singleline`: one row, the text truncated.
     #[default]
@@ -87,11 +89,12 @@ pub enum MessageBarLayout {
 
 impl MessageBarLayout {
     /// Every variant.
-    pub const ALL: [Self; 2] = [Self::Singleline, Self::Multiline];
+    pub const ALL: &'static [Self] = &[Self::Singleline, Self::Multiline];
 }
 
 /// `MessageBar` `shape`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum MessageBarShape {
     /// `rounded`: `borderRadiusMedium`.
     #[default]
@@ -102,7 +105,7 @@ pub enum MessageBarShape {
 
 impl MessageBarShape {
     /// Every variant.
-    pub const ALL: [Self; 2] = [Self::Rounded, Self::Square];
+    pub const ALL: &'static [Self] = &[Self::Rounded, Self::Square];
 }
 
 /// Result of [`MessageBar::show`].
@@ -112,7 +115,7 @@ pub struct MessageBarResponse<R> {
     /// Response of the bar, sensing hover only.
     pub response: egui::Response,
     /// True on the frame the dismiss button is pressed; the app then stops showing the bar.
-    pub dismissed: bool,
+    pub dismiss_clicked: bool,
     /// What the actions closure returned; `None` for [`MessageBar::show`].
     pub inner: Option<R>,
 }
@@ -170,7 +173,7 @@ impl MessageBar {
         self
     }
 
-    /// Shows the dismiss button, reported by [`MessageBarResponse::dismissed`].
+    /// Shows the dismiss button, reported by [`MessageBarResponse::dismiss_clicked`].
     pub fn dismissible(mut self, dismissible: bool) -> Self {
         self.dismissible = dismissible;
         self
@@ -333,7 +336,7 @@ impl MessageBar {
         });
         MessageBarResponse {
             response,
-            dismissed,
+            dismiss_clicked: dismissed,
             inner,
         }
     }

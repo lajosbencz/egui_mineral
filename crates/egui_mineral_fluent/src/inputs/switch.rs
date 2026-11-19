@@ -32,6 +32,7 @@ use crate::{
 
 /// Side of the label a [`Switch`] puts it on (`labelPosition`); mirrored in right-to-left locales.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum SwitchLabelPosition {
     /// `before`: leading the track.
     Before,
@@ -138,7 +139,15 @@ impl<'a> Switch<'a> {
         let spec = self.spec();
         let label = self.label_visible.then(|| {
             let (size, line) = self.font();
-            let format = crate::typography::format(ui.ctx(), size, line, ty::FONT_WEIGHT_REGULAR, Color32::PLACEHOLDER);
+            let format = crate::typography::format(
+                ui.ctx(),
+                crate::typography::TypeSpec {
+                    size,
+                    line_height: line,
+                    weight: ty::FONT_WEIGHT_REGULAR,
+                },
+                Color32::PLACEHOLDER,
+            );
             spec.label(ui.core(), ui.painter(), &self.label, &format, self.mnemonic, max)
         });
         spec.plan(label)

@@ -116,14 +116,16 @@ impl Composite for InfoLabel {
                 .stroke(Stroke::new(g::STROKE_WIDTH_THIN, t.color(ColorNeutralStroke1)))
                 .corner_radius(CornerRadius::from(g::BORDER_RADIUS_MEDIUM))
                 .inner_margin(Margin::same(pad as i8))
-                .shadow(t.shadow(Elevation::E16, ShadowTint::Neutral)[0])
+                .shadow(t.shadow(Elevation::E16, ShadowTint::Neutral).ambient)
                 .show(ui, |ui| {
                     ui.set_max_width(il::POPOVER_MAX_WIDTH - 2.0 * pad);
                     let format = crate::typography::format(
                         ui.ctx(),
-                        text_size,
-                        line,
-                        ty::FONT_WEIGHT_REGULAR,
+                        crate::typography::TypeSpec {
+                            size: text_size,
+                            line_height: line,
+                            weight: ty::FONT_WEIGHT_REGULAR,
+                        },
                         t.color(ColorNeutralForeground1),
                     );
                     ui.label(egui::text::LayoutJob::single_section(self.info.clone(), format));

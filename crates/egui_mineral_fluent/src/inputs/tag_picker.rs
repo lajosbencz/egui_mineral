@@ -12,6 +12,7 @@ use egui_mineral::{
 };
 
 use super::combobox::{Click, toggle};
+use super::field::Validation;
 use super::listbox::{self, Flat, ListEntry, ListOption, View};
 use super::textbox::{Chrome, Edit, InputAppearance, Live, paint_frame};
 use super::value::{self, ListState, Value};
@@ -31,7 +32,8 @@ use crate::{
 
 /// Control of a [`TagPicker`] next to its tags.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
-pub enum TagPickerVariant {
+#[non_exhaustive]
+pub enum TagPickerControl {
     /// `TagPickerInput`: a text input filtering the list.
     #[default]
     Input,
@@ -41,6 +43,7 @@ pub enum TagPickerVariant {
 
 /// `size` of a [`TagPicker`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum TagPickerSize {
     /// `medium`, 32pt tall.
     #[default]
@@ -53,7 +56,7 @@ pub enum TagPickerSize {
 
 impl TagPickerSize {
     /// Every variant, smallest first.
-    pub const ALL: [Self; 3] = [Self::Medium, Self::Large, Self::ExtraLarge];
+    pub const ALL: &'static [Self] = &[Self::Medium, Self::Large, Self::ExtraLarge];
 
     const fn min_height(self) -> f32 {
         match self {
@@ -167,7 +170,7 @@ impl TagSize {
 }
 
 /// Fluent `TagPicker`: selected options as dismissible tags in front of a filtering input, with the unselected
-/// options listed in a popup. [`Self::variant`] swaps the input for a `TagPickerButton`.
+/// options listed in a popup. [`Self::control`] swaps the input for a `TagPickerButton`.
 #[derive(Debug)]
 #[must_use = "show with ui.mineral(..)"]
 pub struct TagPicker<'a> {
@@ -228,15 +231,16 @@ impl<'a> TagPicker<'a> {
         self
     }
 
-    /// Default [`TagPickerVariant::Input`].
-    pub fn variant(mut self, variant: TagPickerVariant) -> Self {
-        self.button = variant == TagPickerVariant::Button;
+    /// Default [`TagPickerControl::Input`].
+    pub fn control(mut self, control: TagPickerControl) -> Self {
+        self.button = control == TagPickerControl::Button;
         self
     }
 
-    /// `aria-invalid`: red border until focused.
-    pub fn invalid(mut self, invalid: bool) -> Self {
-        self.invalid = invalid;
+    /// Validation state, as [`FieldContext::validation`](super::FieldContext::validation) hands it over;
+    /// [`Validation::Error`] is `aria-invalid`: red border until focused.
+    pub fn validation(mut self, validation: Option<Validation>) -> Self {
+        self.invalid = validation == Some(Validation::Error);
         self
     }
 
@@ -289,7 +293,15 @@ impl<'a> TagPicker<'a> {
 
     fn tag_format(&self, ui: &MineralUi<'_, Fluent>, color: egui::Color32) -> TextFormat {
         let (font, line) = self.size.tag().text();
-        crate::typography::format(ui.ctx(), font, line, ty::FONT_WEIGHT_REGULAR, color)
+        crate::typography::format(
+            ui.ctx(),
+            crate::typography::TypeSpec {
+                size: font,
+                line_height: line,
+                weight: ty::FONT_WEIGHT_REGULAR,
+            },
+            color,
+        )
     }
 
     fn widths(&self, ui: &MineralUi<'_, Fluent>, tags: &[(String, String)]) -> Vec<f32> {
@@ -699,7 +711,15 @@ impl TagPicker<'_> {
         if empty && let Some(hint) = self.placeholder.as_deref() {
             let (font, height) = self.input_font();
             let color = chrome.placeholder_color(&t);
-            let format = crate::typography::format(&ctx, font, height, ty::FONT_WEIGHT_REGULAR, color);
+            let format = crate::typography::format(
+                &ctx,
+                crate::typography::TypeSpec {
+                    size: font,
+                    line_height: height,
+                    weight: ty::FONT_WEIGHT_REGULAR,
+                },
+                color,
+            );
             let galley = ui.painter().layout_no_wrap(hint.to_owned(), format.font_id, color);
             let hx = dir.start_x(slot, Rangef::new(0.0, galley.size().x));
             let at = Pos2::new(hx, slot.center().y - galley.size().y / 2.0);

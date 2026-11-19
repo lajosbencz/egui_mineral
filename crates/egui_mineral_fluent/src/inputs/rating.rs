@@ -26,6 +26,7 @@ use crate::{
 
 /// Icon size of a [`Rating`] or [`RatingDisplay`] (`size`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum RatingSize {
     /// `small`: 12.
     Small,
@@ -40,7 +41,7 @@ pub enum RatingSize {
 
 impl RatingSize {
     /// Every variant, smallest first.
-    pub const ALL: [Self; 4] = [Self::Small, Self::Medium, Self::Large, Self::ExtraLarge];
+    pub const ALL: &'static [Self] = &[Self::Small, Self::Medium, Self::Large, Self::ExtraLarge];
 
     const fn icon(self) -> f32 {
         match self {
@@ -54,6 +55,7 @@ impl RatingSize {
 
 /// Icon `color` of a [`Rating`] or [`RatingDisplay`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum RatingColor {
     /// `neutral`: `colorNeutralForeground1`.
     #[default]
@@ -66,6 +68,7 @@ pub enum RatingColor {
 
 /// `appearance` of the unselected icons.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum RatingAppearance {
     /// `outline`: outlined glyph.
     #[default]
@@ -394,7 +397,15 @@ impl RatingDisplay {
         let (size, line, margin) = self.text_metrics();
         let f = ui.i18n().format();
         let make = |text: String, weight: u16| {
-            let format = crate::typography::format(ui.ctx(), size, line, weight, Color32::PLACEHOLDER);
+            let format = crate::typography::format(
+                ui.ctx(),
+                crate::typography::TypeSpec {
+                    size,
+                    line_height: line,
+                    weight,
+                },
+                Color32::PLACEHOLDER,
+            );
             ui.painter()
                 .layout_job(egui::text::LayoutJob::single_section(text, format))
         };

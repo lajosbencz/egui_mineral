@@ -66,7 +66,7 @@ const PEOPLE: [&str; 7] = [
 fn avatars(ui: &mut Fui<'_>) {
     heading(ui, "h-avatar", "Avatars");
     row(ui, |ui| {
-        for (i, size) in AvatarSize::ALL.into_iter().enumerate() {
+        for (i, size) in AvatarSize::ALL.iter().copied().enumerate() {
             ui.mineral(Avatar::new(("size", i), PEOPLE[0]).size(size));
         }
     });
@@ -92,7 +92,7 @@ fn avatars(ui: &mut Fui<'_>) {
         }
     });
     row_spaced(ui, 16.0, |ui| {
-        for (i, status) in PresenceStatus::ALL.into_iter().enumerate() {
+        for (i, status) in PresenceStatus::ALL.iter().copied().enumerate() {
             ui.mineral(
                 Avatar::new(("presence", i), PEOPLE[2])
                     .color(AvatarColor::Colorful)
@@ -101,7 +101,7 @@ fn avatars(ui: &mut Fui<'_>) {
             );
         }
         for (i, active) in [AvatarActive::Active, AvatarActive::Inactive].into_iter().enumerate() {
-            for (j, appearance) in AvatarActiveAppearance::ALL.into_iter().enumerate() {
+            for (j, appearance) in AvatarActiveAppearance::ALL.iter().copied().enumerate() {
                 ui.mineral(
                     Avatar::new(("active", i * 3 + j), PEOPLE[3])
                         .color(AvatarColor::Brand)
@@ -112,7 +112,7 @@ fn avatars(ui: &mut Fui<'_>) {
             }
         }
     });
-    for (i, layout) in AvatarGroupLayout::ALL.into_iter().enumerate() {
+    for (i, layout) in AvatarGroupLayout::ALL.iter().copied().enumerate() {
         ui.add_space(8.0);
         let mut group = AvatarGroup::new(("group", i), format!("{layout:?} group"))
             .layout(layout)
@@ -128,7 +128,7 @@ fn avatars(ui: &mut Fui<'_>) {
 fn personas(ui: &mut Fui<'_>) {
     heading(ui, "h-persona", "Personas");
     row_spaced(ui, 24.0, |ui| {
-        for (i, size) in PersonaSize::ALL.into_iter().enumerate() {
+        for (i, size) in PersonaSize::ALL.iter().copied().enumerate() {
             ui.mineral(
                 Persona::new(("size", i), PEOPLE[i])
                     .size(size)
@@ -139,8 +139,8 @@ fn personas(ui: &mut Fui<'_>) {
         }
     });
     row_spaced(ui, 24.0, |ui| {
-        for (i, position) in PersonaTextPosition::ALL.into_iter().enumerate() {
-            for (j, alignment) in PersonaTextAlignment::ALL.into_iter().enumerate() {
+        for (i, position) in PersonaTextPosition::ALL.iter().copied().enumerate() {
+            for (j, alignment) in PersonaTextAlignment::ALL.iter().copied().enumerate() {
                 ui.mineral(
                     Persona::new(("pos", i * 2 + j), PEOPLE[3])
                         .text_position(position)
@@ -162,9 +162,9 @@ fn personas(ui: &mut Fui<'_>) {
 
 fn tags(ui: &mut Fui<'_>, s: &mut State) {
     heading(ui, "h-tag", "Tags");
-    for (i, appearance) in TagAppearance::ALL.into_iter().enumerate() {
+    for (i, appearance) in TagAppearance::ALL.iter().copied().enumerate() {
         row(ui, |ui| {
-            for (j, size) in TagSize::ALL.into_iter().enumerate() {
+            for (j, size) in TagSize::ALL.iter().copied().enumerate() {
                 let shape = if j == 1 { TagShape::Circular } else { TagShape::Rounded };
                 ui.mineral(
                     Tag::new(format!("tag-{i}-{j}"), "Tag")
@@ -211,7 +211,7 @@ fn tags(ui: &mut Fui<'_>, s: &mut State) {
         .id_salt("tag-group-scroll")
         .show(ui, |ui| group.show(&mut rt.ui(ui)))
         .inner;
-    if let Some(gone) = shown.dismissed {
+    if let Some(gone) = shown.removed {
         values.retain(|v| *v != gone);
     }
 }
@@ -241,7 +241,7 @@ fn tables(ui: &mut Fui<'_>, s: &mut State) {
                         TableCellLayout::new((("person", row), size as usize), name)
                             .size(size)
                             .media(Avatar::new((("p", row), size as usize), name).color(AvatarColor::Colorful))
-                            .description(role),
+                            .secondary_text(role),
                     );
                 }
                 1 => {
@@ -293,7 +293,7 @@ fn images(ui: &mut Fui<'_>, s: &mut State) {
         })
         .clone();
     row(ui, |ui| {
-        for (i, fit) in ImageFit::ALL.into_iter().enumerate() {
+        for (i, fit) in ImageFit::ALL.iter().copied().enumerate() {
             ui.mineral(
                 Image::new(("fit", i), &texture)
                     .alt(format!("{fit:?}"))
@@ -302,7 +302,7 @@ fn images(ui: &mut Fui<'_>, s: &mut State) {
                     .bordered(true),
             );
         }
-        for (i, shape) in ImageShape::ALL.into_iter().enumerate() {
+        for (i, shape) in ImageShape::ALL.iter().copied().enumerate() {
             ui.mineral(
                 Image::new(("shape", i), &texture)
                     .alt(format!("{shape:?}"))

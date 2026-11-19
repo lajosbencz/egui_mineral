@@ -18,6 +18,7 @@ use super::{
 
 /// Alias color token (`colorNeutralForeground1`, ...), resolved per theme.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum ColorToken {
     /// `colorNeutralForeground1`.
     ColorNeutralForeground1,
@@ -1877,7 +1878,7 @@ static HIGH_CONTRAST: [Color32; 366] = [
 
 impl ColorToken {
     /// Every token, in declaration order.
-    pub const ALL: [Self; 366] = [
+    pub const ALL: &'static [Self] = &[
         Self::ColorNeutralForeground1,
         Self::ColorNeutralForeground1Hover,
         Self::ColorNeutralForeground1Pressed,

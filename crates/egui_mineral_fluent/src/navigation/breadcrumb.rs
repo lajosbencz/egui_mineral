@@ -9,7 +9,7 @@ use egui_mineral::{
 
 use super::{
     Menu, MenuItem, MenuUi,
-    overflow::{self, Overflow, OverflowItem},
+    overflow::{self, Overflow, OverflowItem, OverflowSpace},
 };
 use crate::{
     ColorToken::ColorNeutralForeground1,
@@ -127,6 +127,7 @@ impl BreadcrumbDivider {
 
 /// Keyboard model of a [`Breadcrumb`] (`focusMode`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum BreadcrumbFocus {
     /// Every button is a Tab stop.
     #[default]
@@ -415,7 +416,13 @@ fn fit(
     let menu = menu_button(overflow::trigger(salt.child("overflow"), o.label(), &ui.icons()), size)
         .natural(ui)
         .x;
-    o.fit(&widths, ui.available_width(), menu)
+    o.fit(
+        &widths,
+        OverflowSpace {
+            available: ui.available_width(),
+            menu,
+        },
+    )
 }
 
 fn parts(shown: &[bool], at_start: bool) -> Vec<Part> {

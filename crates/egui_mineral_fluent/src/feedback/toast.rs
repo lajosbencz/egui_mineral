@@ -19,7 +19,6 @@ use crate::ColorToken::{
 use crate::{
     ColorToken, FluentExt, Icon, Rt,
     actions::TextLink,
-    feedback::MessageBarIntent,
     spec::{
         defaults::toast as d,
         tokens::{geometry as g, typography as ty},
@@ -30,6 +29,7 @@ use crate::{
 
 /// Where a toast stacks on screen (`position`); start and end follow the text direction.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum ToastPosition {
     /// `top-start`.
     TopStart,
@@ -48,7 +48,7 @@ pub enum ToastPosition {
 
 impl ToastPosition {
     /// Every variant.
-    pub const ALL: [Self; 6] = [
+    pub const ALL: &'static [Self] = &[
         Self::TopStart,
         Self::Top,
         Self::TopEnd,
@@ -89,13 +89,40 @@ impl ToastPosition {
     }
 }
 
-/// Intent icon of a toast (`ToastTitle` `media`); the message bar intents.
-pub type ToastIntent = MessageBarIntent;
+/// Intent icon of a toast (`ToastTitle` `media`).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum ToastIntent {
+    /// `info`.
+    #[default]
+    Info,
+    /// `success`.
+    Success,
+    /// `warning`.
+    Warning,
+    /// `error`.
+    Error,
+}
+
+impl ToastIntent {
+    /// Every variant.
+    pub const ALL: &'static [Self] = &[Self::Info, Self::Success, Self::Warning, Self::Error];
+}
 
 #[derive(Clone, Debug)]
-struct ToastAction {
+struct ActionLink {
     label: String,
     footer: bool,
+}
+
+/// Action of a toast pressed this frame ([`ToasterResponse::action_clicked`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub struct ToastAction {
+    /// Toast the action belongs to.
+    pub toast: ToastId,
+    /// Index of the action, in the order added.
+    pub action: usize,
 }
 
 /// Payload of a queued toast: intent icon, title, body, subtitle, actions and dismiss link.
@@ -108,7 +135,7 @@ pub struct Toast {
     intent: Option<ToastIntent>,
     inverted: bool,
     position: ToastPosition,
-    actions: Vec<ToastAction>,
+    actions: Vec<ActionLink>,
     dismissible: bool,
 }
 
@@ -134,8 +161,8 @@ impl Toast {
     }
 
     /// `ToastBody` `subtitle` text.
-    pub fn subtitle(mut self, subtitle: impl Into<String>) -> Self {
-        self.subtitle = Some(subtitle.into());
+    pub fn secondary_text(mut self, text: impl Into<String>) -> Self {
+        self.subtitle = Some(text.into());
         self
     }
 
@@ -159,7 +186,7 @@ impl Toast {
 
     /// Link at the end of the title row; reported by [`ToasterResponse::action_clicked`].
     pub fn action(mut self, label: impl Into<String>) -> Self {
-        self.actions.push(ToastAction {
+        self.actions.push(ActionLink {
             label: label.into(),
             footer: false,
         });
@@ -168,7 +195,7 @@ impl Toast {
 
     /// Link in the `ToastFooter`; reported by [`ToasterResponse::action_clicked`].
     pub fn footer_action(mut self, label: impl Into<String>) -> Self {
-        self.actions.push(ToastAction {
+        self.actions.push(ActionLink {
             label: label.into(),
             footer: true,
         });
@@ -198,8 +225,8 @@ struct Shown {
 #[derive(Clone, Debug, Default)]
 #[non_exhaustive]
 pub struct ToasterResponse {
-    /// Toast and index (in the order added) of the action pressed this frame.
-    pub action_clicked: Option<(ToastId, usize)>,
+    /// Action pressed this frame.
+    pub action_clicked: Option<ToastAction>,
     /// Toast closed by its dismiss link this frame; it is dismissed.
     pub dismissed: Option<ToastId>,
 }
@@ -303,7 +330,7 @@ impl<'a> Toaster<'a> {
                     }
                 }
                 if let Some(i) = painted.clicked {
-                    out.action_clicked = Some((s.id, i));
+                    out.action_clicked = Some(ToastAction { toast: s.id, action: i });
                 }
                 if painted.dismissed {
                     queue.dismiss(s.id);
@@ -332,7 +359,15 @@ fn media(icons: &crate::IconSet, intent: ToastIntent, inverted: bool) -> (Icon, 
 }
 
 fn text(ui: &mut egui::Ui, rt: &Rt, s: &str, (size, line, weight): (f32, f32, u16), color: Color32) {
-    let format = crate::typography::format(rt.ctx(), size, line, weight, color);
+    let format = crate::typography::format(
+        rt.ctx(),
+        crate::typography::TypeSpec {
+            size,
+            line_height: line,
+            weight,
+        },
+        color,
+    );
     let mut job = egui::text::LayoutJob::single_section(s.to_owned(), format);
     job.wrap.max_width = ui.available_width();
     let galley = ui.painter().layout_job(job);
@@ -395,7 +430,7 @@ fn content(ui: &mut egui::Ui, rt: &Rt, toast: &Toast, palette: &Palette, slot: u
             let small = (ty::FONT_SIZE_BASE_200, ty::FONT_SIZE_BASE_200, ty::FONT_WEIGHT_REGULAR);
             text(ui, rt, subtitle, small, palette.fg2);
         }
-        let footer: Vec<(usize, &ToastAction)> = toast.actions.iter().enumerate().filter(|(_, a)| a.footer).collect();
+        let footer: Vec<(usize, &ActionLink)> = toast.actions.iter().enumerate().filter(|(_, a)| a.footer).collect();
         if !footer.is_empty() {
             ui.add_space(d::FOOTER_PADDING_TOP);
             ui.scope_builder(UiBuilder::new().layout(dir.row()), |ui| {
@@ -477,6 +512,7 @@ fn paint_toast(rt: &Rt, s: &Shown, at: &Placement<'_>) -> Painted {
         let rect = framed.response.rect;
         let mut shapes: Vec<egui::Shape> = t
             .shadow(Elevation::E8, ShadowTint::Neutral)
+            .layers()
             .into_iter()
             .map(|layer| egui::Shape::from(layer.as_shape(rect, radius)))
             .collect();

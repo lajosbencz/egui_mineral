@@ -18,6 +18,7 @@ use crate::{
 
 /// Avatar `size`: the side in pixels.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[non_exhaustive]
 pub enum AvatarSize {
     /// `16`.
     S16,
@@ -52,7 +53,7 @@ pub enum AvatarSize {
 
 impl AvatarSize {
     /// Every variant, smallest first.
-    pub const ALL: [Self; 14] = [
+    pub const ALL: &'static [Self] = &[
         Self::S16,
         Self::S20,
         Self::S24,
@@ -92,6 +93,7 @@ impl AvatarSize {
 
 /// Avatar `shape`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum AvatarShape {
     /// `circular`.
     #[default]
@@ -102,11 +104,12 @@ pub enum AvatarShape {
 
 impl AvatarShape {
     /// Every variant.
-    pub const ALL: [Self; 2] = [Self::Circular, Self::Square];
+    pub const ALL: &'static [Self] = &[Self::Circular, Self::Square];
 }
 
 /// Avatar `active`: the highlighted state of an avatar among others.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum AvatarActive {
     /// `unset`: plain.
     #[default]
@@ -119,11 +122,12 @@ pub enum AvatarActive {
 
 impl AvatarActive {
     /// Every variant.
-    pub const ALL: [Self; 3] = [Self::Unset, Self::Active, Self::Inactive];
+    pub const ALL: &'static [Self] = &[Self::Unset, Self::Active, Self::Inactive];
 }
 
 /// Avatar `activeAppearance`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum AvatarActiveAppearance {
     /// `ring`.
     #[default]
@@ -136,7 +140,7 @@ pub enum AvatarActiveAppearance {
 
 impl AvatarActiveAppearance {
     /// Every variant.
-    pub const ALL: [Self; 3] = [Self::Ring, Self::Shadow, Self::RingShadow];
+    pub const ALL: &'static [Self] = &[Self::Ring, Self::Shadow, Self::RingShadow];
 
     const fn ring(self) -> bool {
         matches!(self, Self::Ring | Self::RingShadow)
@@ -149,6 +153,7 @@ impl AvatarActiveAppearance {
 
 /// Named color of [`AvatarColor::Named`] and of the `colorful` hash.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum AvatarNamedColor {
     /// `dark-red`.
     DarkRed,
@@ -214,7 +219,7 @@ pub enum AvatarNamedColor {
 
 impl AvatarNamedColor {
     /// Every name, in the order the `colorful` hash indexes.
-    pub const ALL: [Self; 30] = [
+    pub const ALL: &'static [Self] = &[
         Self::DarkRed,
         Self::Cranberry,
         Self::Red,
@@ -416,6 +421,7 @@ const PALETTES: [Palette; 30] = [
 
 /// Avatar `color`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum AvatarColor {
     /// `neutral`.
     #[default]

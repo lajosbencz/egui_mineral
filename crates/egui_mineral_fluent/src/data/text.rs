@@ -17,6 +17,7 @@ use crate::{
 
 /// Text `size`: the `fontSizeBase*` / `fontSizeHero*` step with its line height.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[non_exhaustive]
 pub enum TextSize {
     /// `100`.
     S100,
@@ -61,6 +62,7 @@ impl TextSize {
 
 /// Text `weight`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum TextWeight {
     /// `fontWeightRegular`.
     #[default]
@@ -87,6 +89,7 @@ impl TextWeight {
 
 /// Text `font`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum TextFont {
     /// `fontFamilyBase`.
     #[default]
@@ -99,6 +102,7 @@ pub enum TextFont {
 
 /// Text `align`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum TextAlign {
     /// `start`.
     #[default]
@@ -271,7 +275,7 @@ impl Text {
 
 impl TextSize {
     /// Every variant, smallest first.
-    pub const ALL: [Self; 10] = [
+    pub const ALL: &'static [Self] = &[
         Self::S100,
         Self::S200,
         Self::S300,

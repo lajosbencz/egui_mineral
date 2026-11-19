@@ -15,7 +15,7 @@ use egui_mineral_fluent::{
         date::{Date, Weekday},
         semantic::Role,
     },
-    inputs::{Calendar, DatePicker, TagPicker, TagPickerVariant},
+    inputs::{Calendar, DatePicker, TagPicker, TagPickerControl},
 };
 
 use crate::support::{FluentHarness, harness};
@@ -178,7 +178,7 @@ fn field_hands_its_state_to_the_control_and_names_its_messages() {
             .hint("Work address")
             .validation(Validation::Error, "Invalid")
             .show(ui, |ui, cx| {
-                ui.mineral(Input::new("f-in", "Email", text).invalid(cx.invalid))
+                ui.mineral(Input::new("f-in", "Email", text).validation(cx.validation))
             });
     });
     assert!(h.node("f-in-input").state.invalid);
@@ -501,7 +501,7 @@ fn tag_picker_button_variant_opens_the_list_without_an_input() {
     let mut h = harness(
         (Selection::<String>::multiple(), String::new()),
         move |ui, (sel, text)| {
-            ui.mineral(TagPicker::new("t", "Pets", animals(), sel, text).variant(TagPickerVariant::Button));
+            ui.mineral(TagPicker::new("t", "Pets", animals(), sel, text).control(TagPickerControl::Button));
         },
     );
     h.run();

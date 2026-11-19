@@ -1,6 +1,7 @@
 use crate::tokens::ShadowTint;
 use egui::{Align, Frame, Margin, Rect, Response, Sense, Shape, Stroke, StrokeKind, Ui, UiBuilder, pos2, vec2};
 use egui_mineral::{
+    layout::Axis,
     semantic::{self, AgentKey, KeyedSalt, Role, SemanticNode},
     widget::{Availability, Interaction, MineralUi},
 };
@@ -27,6 +28,7 @@ use crate::{
 
 /// Card `appearance`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum CardAppearance {
     /// `filled`.
     #[default]
@@ -41,17 +43,7 @@ pub enum CardAppearance {
 
 impl CardAppearance {
     /// Every variant.
-    pub const ALL: [Self; 4] = [Self::Filled, Self::FilledAlternative, Self::Outline, Self::Subtle];
-}
-
-/// Card `orientation`.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
-pub enum CardOrientation {
-    /// `vertical`: parts stack.
-    #[default]
-    Vertical,
-    /// `horizontal`: parts sit in a row.
-    Horizontal,
+    pub const ALL: &'static [Self] = &[Self::Filled, Self::FilledAlternative, Self::Outline, Self::Subtle];
 }
 
 /// Content of a Fluent `CardHeader`.
@@ -74,8 +66,8 @@ impl CardHeader {
     }
 
     /// `description` under the title.
-    pub fn description(mut self, description: impl Into<String>) -> Self {
-        self.description = Some(description.into());
+    pub fn secondary_text(mut self, text: impl Into<String>) -> Self {
+        self.description = Some(text.into());
         self
     }
 
@@ -108,7 +100,7 @@ pub struct Card<'a> {
     key: AgentKey,
     label: Option<String>,
     appearance: CardAppearance,
-    orientation: CardOrientation,
+    orientation: Axis,
     size: Size,
     interactive: bool,
     selected: Option<&'a mut bool>,
@@ -124,7 +116,7 @@ impl<'a> Card<'a> {
             key: AgentKey::Kind("card"),
             label: None,
             appearance: CardAppearance::Filled,
-            orientation: CardOrientation::Vertical,
+            orientation: Axis::Vertical,
             size: Size::Medium,
             interactive: false,
             selected: None,
@@ -145,9 +137,9 @@ impl<'a> Card<'a> {
         self
     }
 
-    /// Default [`CardOrientation::Vertical`].
-    pub fn orientation(mut self, orientation: CardOrientation) -> Self {
-        self.orientation = orientation;
+    /// `orientation`: [`Axis::Vertical`] (default) stacks the parts, [`Axis::Horizontal`] puts them in a row.
+    pub fn axis(mut self, axis: Axis) -> Self {
+        self.orientation = axis;
         self
     }
 
@@ -313,6 +305,7 @@ impl<'a> Card<'a> {
         if let Some(e) = elevation {
             shapes.extend(
                 t.shadow(e, ShadowTint::Neutral)
+                    .layers()
                     .into_iter()
                     .map(|l| Shape::from(l.as_shape(rect, radius))),
             );
@@ -347,7 +340,7 @@ impl<'a> Card<'a> {
         let height_id = id.with("height");
         let known: Option<f32> = ui.ctx().data(|d| d.get_temp(height_id));
         let bg = ui.painter().add(Shape::Noop);
-        let horizontal = self.orientation == CardOrientation::Horizontal;
+        let horizontal = self.orientation == Axis::Horizontal;
         let layout = if horizontal {
             dir.row()
                 .with_cross_align(if known.is_some() { Align::Center } else { Align::Min })

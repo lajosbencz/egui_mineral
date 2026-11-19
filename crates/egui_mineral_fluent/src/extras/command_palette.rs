@@ -229,9 +229,11 @@ impl<'a> CommandPalette<'a> {
         if f.rows.is_empty() {
             let format = crate::typography::format(
                 ui.ctx(),
-                ty::FONT_SIZE_BASE_300,
-                ty::LINE_HEIGHT_BASE_300,
-                ty::FONT_WEIGHT_REGULAR,
+                crate::typography::TypeSpec {
+                    size: ty::FONT_SIZE_BASE_300,
+                    line_height: ty::LINE_HEIGHT_BASE_300,
+                    weight: ty::FONT_WEIGHT_REGULAR,
+                },
                 t.color(ColorNeutralForeground3),
             );
             let text = crate::tr(rt.i18n(), "mineral-command-empty");
@@ -314,9 +316,11 @@ impl<'a> CommandPalette<'a> {
         let hint_galley = hint.map(|h| {
             let format = crate::typography::format(
                 ui.ctx(),
-                ty::FONT_SIZE_BASE_200,
-                ty::LINE_HEIGHT_BASE_200,
-                ty::FONT_WEIGHT_REGULAR,
+                crate::typography::TypeSpec {
+                    size: ty::FONT_SIZE_BASE_200,
+                    line_height: ty::LINE_HEIGHT_BASE_200,
+                    weight: ty::FONT_WEIGHT_REGULAR,
+                },
                 t.color(ColorNeutralForeground3),
             );
             ui.painter().layout_job(LayoutJob::single_section(h, format))
@@ -331,9 +335,11 @@ impl<'a> CommandPalette<'a> {
             };
             let format = crate::typography::format(
                 ui.ctx(),
-                ty::FONT_SIZE_BASE_300,
-                ty::LINE_HEIGHT_BASE_300,
-                weight,
+                crate::typography::TypeSpec {
+                    size: ty::FONT_SIZE_BASE_300,
+                    line_height: ty::LINE_HEIGHT_BASE_300,
+                    weight,
+                },
                 t.color(fore),
             );
             job.append(&c.to_string(), 0.0, format);
@@ -388,9 +394,11 @@ fn group_header(ui: &mut Ui, name: &str, width: f32, dir: Direction, t: &Tokens)
     let (rect, _) = ui.allocate_exact_size(vec2(width, GROUP_H), Sense::hover());
     let format = crate::typography::format(
         ui.ctx(),
-        ty::FONT_SIZE_BASE_200,
-        ty::LINE_HEIGHT_BASE_200,
-        ty::FONT_WEIGHT_SEMIBOLD,
+        crate::typography::TypeSpec {
+            size: ty::FONT_SIZE_BASE_200,
+            line_height: ty::LINE_HEIGHT_BASE_200,
+            weight: ty::FONT_WEIGHT_SEMIBOLD,
+        },
         t.color(ColorNeutralForeground3),
     );
     let galley = ui
