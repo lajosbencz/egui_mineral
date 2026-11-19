@@ -42,6 +42,7 @@ pub struct Dropdown<'a> {
     appearance: InputAppearance,
     size: Size,
     placeholder: Option<String>,
+    before: Option<crate::FluentIcon>,
     invalid: bool,
     disabled: bool,
 }
@@ -77,6 +78,7 @@ impl<'a> Dropdown<'a> {
             appearance: InputAppearance::Outline,
             size: Size::Medium,
             placeholder: None,
+            before: None,
             invalid: false,
             disabled: false,
         }
@@ -99,6 +101,14 @@ impl<'a> Dropdown<'a> {
         self.placeholder = Some(placeholder.into());
         self
     }
+
+    /// `contentBefore`: icon leading the text.
+    pub fn content_before(mut self, icon: crate::FluentIcon) -> Self {
+        self.before = Some(icon);
+        self
+    }
+
+
 
     /// `aria-invalid`: red border until focused.
     pub fn invalid(mut self, invalid: bool) -> Self {
@@ -170,7 +180,18 @@ impl Dropdown<'_> {
             (true, Some(p)) => (p.to_owned(), chrome.placeholder_color(&t)),
             _ => (text, format.color),
         };
-        let pads = textbox::pads(&m, false, false);
+        let pads = textbox::pads(&m, self.before.is_some(), false);
+        if let Some(icon) = self.before {
+            let x = dir.start_x(inner, Rangef::new(m.root, m.root + m.icon));
+            paint::icon(
+                ui.painter(),
+                Pos2::new(x + m.icon / 2.0, inner.center().y),
+                icon,
+                false,
+                m.icon,
+                chrome.icon_color(&t),
+            );
+        }
         let text_w = (inner.width() - pads.start - m.root - m.icon - m.gap).max(1.0);
         let mut job = egui::text::LayoutJob::single_section(shown_text, format);
         job.wrap = egui::text::TextWrapping::truncate_at_width(text_w);

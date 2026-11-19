@@ -49,6 +49,7 @@ pub struct DatePicker<'a> {
     appearance: InputAppearance,
     size: Size,
     placeholder: Option<String>,
+    before: Option<crate::FluentIcon>,
     invalid: bool,
     disabled: bool,
 }
@@ -70,6 +71,7 @@ impl<'a> DatePicker<'a> {
             appearance: InputAppearance::Outline,
             size: Size::Medium,
             placeholder: None,
+            before: None,
             invalid: false,
             disabled: false,
         }
@@ -128,6 +130,14 @@ impl<'a> DatePicker<'a> {
         self.placeholder = Some(placeholder.into());
         self
     }
+
+    /// `contentBefore`: icon leading the text.
+    pub fn content_before(mut self, icon: crate::FluentIcon) -> Self {
+        self.before = Some(icon);
+        self
+    }
+
+
 
     /// `aria-invalid`: red border until focused.
     pub fn invalid(mut self, invalid: bool) -> Self {
@@ -197,6 +207,9 @@ impl Composite for DatePicker<'_> {
             .agent_key(self.key.id(&self.salt));
         if let Some(p) = &self.placeholder {
             input = input.placeholder(p.clone());
+        }
+        if let Some(i) = self.before {
+            input = input.content_before(i);
         }
         let out = ui.mineral(input.constrain(constraints));
         let output = *out.output();

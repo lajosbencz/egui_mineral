@@ -53,6 +53,12 @@ impl<'a> Select<'a> {
         self
     }
 
+    /// `contentBefore`: icon leading the text.
+    pub fn content_before(mut self, icon: crate::FluentIcon) -> Self {
+        self.0 = self.0.content_before(icon);
+        self
+    }
+
     /// `aria-invalid`: red border until focused.
     pub fn invalid(mut self, invalid: bool) -> Self {
         self.0 = self.0.invalid(invalid);

@@ -37,6 +37,7 @@ pub struct TimePicker<'a> {
     appearance: InputAppearance,
     size: Size,
     placeholder: Option<String>,
+    before: Option<crate::FluentIcon>,
     invalid: bool,
     disabled: bool,
 }
@@ -57,6 +58,7 @@ impl<'a> TimePicker<'a> {
             appearance: InputAppearance::Outline,
             size: Size::Medium,
             placeholder: None,
+            before: None,
             invalid: false,
             disabled: false,
         }
@@ -109,6 +111,14 @@ impl<'a> TimePicker<'a> {
         self.placeholder = Some(placeholder.into());
         self
     }
+
+    /// `contentBefore`: icon leading the text.
+    pub fn content_before(mut self, icon: crate::FluentIcon) -> Self {
+        self.before = Some(icon);
+        self
+    }
+
+
 
     /// `aria-invalid`: red border until focused.
     pub fn invalid(mut self, invalid: bool) -> Self {
@@ -206,6 +216,9 @@ impl Composite for TimePicker<'_> {
         .agent_key(self.key.id(&self.salt));
         if let Some(p) = &self.placeholder {
             combo = combo.placeholder(p.clone());
+        }
+        if let Some(i) = self.before {
+            combo = combo.content_before(i);
         }
         let out = ui.mineral(combo.constrain(constraints));
         let output = *out.output();

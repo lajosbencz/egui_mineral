@@ -36,6 +36,7 @@ pub struct Combobox<'a> {
     appearance: InputAppearance,
     size: Size,
     placeholder: Option<String>,
+    before: Option<crate::FluentIcon>,
     freeform: bool,
     filter: bool,
     list_max: Option<f32>,
@@ -62,6 +63,7 @@ impl<'a> Combobox<'a> {
             appearance: InputAppearance::Outline,
             size: Size::Medium,
             placeholder: None,
+            before: None,
             freeform: false,
             filter: true,
             list_max: None,
@@ -87,6 +89,14 @@ impl<'a> Combobox<'a> {
         self.placeholder = Some(placeholder.into());
         self
     }
+
+    /// `contentBefore`: icon leading the text.
+    pub fn content_before(mut self, icon: crate::FluentIcon) -> Self {
+        self.before = Some(icon);
+        self
+    }
+
+
 
     /// `freeform`: typed text that matches no option stays after focus leaves.
     pub fn freeform(mut self, freeform: bool) -> Self {
@@ -354,7 +364,7 @@ impl MineralWidget for Combobox<'_> {
                 frame: visual,
                 chrome,
                 content: Content {
-                    before: None,
+                    before: self.before,
                     after: None,
                 },
                 placeholder: self.placeholder.as_deref(),

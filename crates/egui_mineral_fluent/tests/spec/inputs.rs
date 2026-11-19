@@ -302,3 +302,26 @@ fn date_picker_field_is_an_input_and_the_calendar_stays_closed() {
     assert_eq!(h.rect("d-date-picker").height(), input::HEIGHT_MEDIUM);
     assert!(h.tree().nodes.iter().all(|n| n.role != Role::GridCell));
 }
+
+#[test]
+fn spin_button_paints_its_unit_after_the_value() {
+    let p = render(|ui| {
+        let mut v = 12.0;
+        ui.mineral(SpinButton::new("s", "X", RangeModel::new(0.0, 99.0).step(1.0), &mut v).suffix("mm"));
+    });
+    let (unit, value) = (p.text("mm"), p.text("12"));
+    assert!(unit.left() >= value.right(), "{unit:?} {value:?}");
+}
+
+#[test]
+fn field_label_width_sets_the_horizontal_label_column() {
+    use egui_mineral_fluent::{egui_mineral::layout::Axis, inputs::Field};
+    let h = harness(String::new(), |ui, text| {
+        Field::new("f")
+            .label("Name")
+            .orientation(Axis::Horizontal)
+            .label_width(100.0)
+            .show(ui, |ui, _| ui.mineral(Input::new("f-in", "Name", text)));
+    });
+    assert_eq!(h.rect("f-in-input").left() - h.rect("f-label").left(), 100.0);
+}

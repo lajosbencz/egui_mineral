@@ -80,6 +80,7 @@ pub struct Field {
     size: Size,
     required: bool,
     disabled: bool,
+    label_width: Option<f32>,
 }
 
 impl Field {
@@ -94,7 +95,14 @@ impl Field {
             size: Size::Medium,
             required: false,
             disabled: false,
+            label_width: None,
         }
+    }
+
+    /// Width of the label column of a horizontal field, label gap included; default 33% of the available width.
+    pub fn label_width(mut self, label_width: f32) -> Self {
+        self.label_width = Some(label_width);
+        self
     }
 
     /// Label above, or in the 33% column when horizontal; node key `<id_salt>-label`.
@@ -257,13 +265,15 @@ impl Field {
         let out = ui
             .push_id(self.salt.id_salt(), |ui| match self.orientation {
                 Axis::Horizontal => {
-                    let share = total * fd::HORIZONTAL_LABEL_SHARE;
+                    let share = self.label_width.unwrap_or(total * fd::HORIZONTAL_LABEL_SHARE).clamp(0.0, total);
                     ui.scope_builder(UiBuilder::new().layout(dir.row().with_cross_align(Align::Min)), |ui| {
                         if let Some(label) = &self.label {
+                            let column = (share - g::SPACING_HORIZONTAL_M - ui.spacing().item_spacing.x).max(0.0);
                             ui.allocate_ui_with_layout(
-                                vec2((share - g::SPACING_HORIZONTAL_M).max(0.0), 0.0),
+                                vec2(column, 0.0),
                                 dir.column(),
                                 |ui| {
+                                    ui.set_min_width(column);
                                     self.show_label(&mut rt.ui(ui), label);
                                 },
                             );
