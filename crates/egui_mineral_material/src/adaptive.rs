@@ -16,10 +16,7 @@ pub(crate) const WINDOW_CLASS_BREAKPOINTS: [f32; 4] = [600.0, 840.0, 1200.0, 160
 // Density-independent, like `MIN_INTERACTIVE`.
 pub(crate) const MIN_INTERACTIVE_DP: f32 = 48.0;
 
-pub(crate) const TARGETS: TargetPolicy = TargetPolicy {
-    mouse: 24.0,
-    touch: MIN_INTERACTIVE_DP,
-};
+pub(crate) const TARGETS: TargetPolicy = TargetPolicy::baseline().mouse(24.0).touch(MIN_INTERACTIVE_DP);
 
 /// Compose `Modifier.minimumInteractiveComponentSize` at the default
 /// `LocalMinimumInteractiveComponentSize` (48dp): reserved on every platform by the interactive
@@ -44,11 +41,10 @@ const REPEAT: Repeat = Repeat {
     delay: Duration::from_millis(400),
     interval: Duration::from_millis(50),
 };
-const GESTURES: GestureConfig = GestureConfig {
-    slop: 8.0,
-    long_press: Duration::from_millis(500),
-    swipe_min_velocity: 600.0,
-};
+const GESTURES: GestureConfig = GestureConfig::baseline()
+    .slop(8.0)
+    .long_press(Duration::from_millis(500))
+    .swipe_min_velocity(600.0);
 // No MD3 or Compose value
 const TYPEAHEAD_TIMEOUT: Duration = Duration::from_secs(1);
 
@@ -96,10 +92,9 @@ pub(crate) fn policies(os: egui::os::OperatingSystem) -> Policies {
     p.readline = os.is_mac();
     // No mnemonic convention on Apple platforms.
     p.mnemonics = !os.is_mac();
-    p.cursors = Cursors {
-        enabled: Some(CursorIcon::PointingHand),
-        disabled: Some(CursorIcon::NotAllowed),
-    };
+    p.cursors = Cursors::default()
+        .enabled(CursorIcon::PointingHand)
+        .disabled(CursorIcon::NotAllowed);
     p
 }
 

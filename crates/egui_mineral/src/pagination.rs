@@ -85,6 +85,7 @@ impl Paging {
 
 /// Slot of a pagination control: a page or an ellipsis gap.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum PageItem {
     /// 1-based page number.
     Page(usize),

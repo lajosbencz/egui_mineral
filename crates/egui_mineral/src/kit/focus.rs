@@ -24,6 +24,7 @@ pub fn follow_press(response: &egui::Response) -> bool {
 
 /// Arrow keys a focused widget keeps from egui's focus navigation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum Arrows {
     /// Arrows along one axis only.
     Axis(Axis),

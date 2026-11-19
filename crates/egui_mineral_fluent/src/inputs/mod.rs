@@ -39,16 +39,14 @@ pub use info_label::InfoLabel;
 pub use input::Input;
 pub use label::FieldLabel;
 pub use listbox::{ListEntry, ListOption, OptionGroup};
-pub use radio::{Radio, RadioGroup, RadioGroupResponse, RadioLabelPosition, RadioLayout, RadioOption};
+pub use radio::{Radio, RadioGroup, RadioLabelPosition, RadioLayout, RadioOption};
 pub use range_slider::{RangeSlider, RangeValue};
 pub use rating::{Rating, RatingAppearance, RatingColor, RatingDisplay, RatingSize};
 pub use search_box::SearchBox;
 pub use select::Select;
 pub use slider::Slider;
 pub use spin_button::SpinButton;
-pub use swatch_picker::{
-    Swatch, SwatchLayout, SwatchPicker, SwatchPickerResponse, SwatchShape, SwatchSize, SwatchSpacing,
-};
+pub use swatch_picker::{Swatch, SwatchLayout, SwatchPicker, SwatchShape, SwatchSize, SwatchSpacing};
 pub use switch::{Switch, SwitchLabelPosition};
 pub use tag_picker::{TagPicker, TagPickerSize, TagPickerVariant};
 pub use textarea::Textarea;

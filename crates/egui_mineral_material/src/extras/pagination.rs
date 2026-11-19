@@ -272,6 +272,7 @@ impl Composite for Pagination<'_> {
                             t.role(standard_icon_button::COLOR),
                         );
                     }
+                    _ => {}
                 }
             }
             if nav(ui, "next", fwd, "mineral-pagination-next", cur < total) {

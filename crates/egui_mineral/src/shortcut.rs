@@ -165,6 +165,7 @@ const MAX_ANCESTORS: usize = 1000;
 
 /// Where a shortcut is active.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum Scope {
     /// Active while no modal is on top ([`crate::overlay::top_modal`] is `None`).
     Global,
@@ -193,6 +194,7 @@ pub enum MnemonicMark {
 
 /// Modifier a mnemonic needs.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum Trigger {
     /// Alt+letter: menu bars, dialogs.
     Alt,

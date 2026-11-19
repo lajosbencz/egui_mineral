@@ -14,10 +14,10 @@ use egui_mineral::{
     i18n::Direction,
     kit,
     layout::Edge,
-    overlay::{self, Dismiss},
+    overlay,
     perf::VirtualList,
     semantic::{self, Role, SemanticNode, StableId},
-    shortcut::{self, ActionId},
+    shortcut,
 };
 
 use crate::navigation::search;
@@ -26,7 +26,6 @@ use crate::widget::{
     row_parts::{self, OptionRow, RowMetrics},
 };
 use crate::{
-    Icon,
     spec::{
         ColorRole, defaults,
         tokens::{list, search_view},
@@ -39,79 +38,7 @@ use crate::{
 // MD3 compact window margin
 const WINDOW_MARGIN: f32 = 16.0;
 
-/// Entry of a [`CommandPalette`].
-#[derive(Clone, Debug)]
-#[must_use]
-pub struct PaletteCommand {
-    label: String,
-    group: Option<String>,
-    id: Option<ActionId>,
-    shortcut: Option<KeyboardShortcut>,
-    icon: Option<Icon>,
-    disabled: bool,
-    salt: Option<egui_mineral::semantic::KeyedSalt>,
-}
-
-impl PaletteCommand {
-    crate::widget::setters! {
-        /// Default the [`Self::command`] action, else the index.
-        item_salt
-    }
-
-    /// `label` is the visible text and accessible name; also matched by the query.
-    pub fn new(label: impl Into<String>) -> Self {
-        Self {
-            label: label.into(),
-            group: None,
-            id: None,
-            shortcut: None,
-            icon: None,
-            disabled: false,
-            salt: None,
-        }
-    }
-    /// Overline header the entry is listed under.
-    pub fn group(mut self, group: impl Into<String>) -> Self {
-        self.group = Some(group.into());
-        self
-    }
-
-    /// Makes the entry a view of the app command `id`: running it fires the command
-    /// ([`shortcut::fire`]) instead of reporting the entry as clicked. `shortcut` is bound to `id`
-    /// while the palette is shown, open or not; other views of `id` may bind the same shortcut.
-    pub fn command(mut self, id: impl Into<ActionId>, shortcut: impl Into<Option<KeyboardShortcut>>) -> Self {
-        self.id = Some(id.into());
-        self.shortcut = shortcut.into();
-        self
-    }
-    /// Leading icon.
-    pub fn icon(mut self, icon: impl Into<Icon>) -> Self {
-        self.icon = Some(icon.into());
-        self
-    }
-    crate::widget::setters! {
-        /// Greys out the entry; it cannot run.
-        disabled
-    }
-}
-
-impl Entry for PaletteCommand {
-    fn label(&self) -> &str {
-        &self.label
-    }
-    fn heading(&self) -> Option<&str> {
-        self.group.as_deref()
-    }
-    fn is_disabled(&self) -> bool {
-        self.disabled
-    }
-    fn action(&self) -> Option<&ActionId> {
-        self.id.as_ref()
-    }
-    fn accelerator(&self) -> Option<KeyboardShortcut> {
-        self.shortcut
-    }
-}
+pub use egui_mineral::palette::{CommandPaletteResponse, PaletteCommand};
 
 /// Modal fuzzy-filtered command list; non-MD3 (shadcn `Command` pattern).
 #[derive(Debug)]
@@ -122,18 +49,6 @@ pub struct CommandPalette<'a> {
     commands: Vec<PaletteCommand>,
     placeholder: Option<String>,
     shortcut: Option<KeyboardShortcut>,
-}
-
-/// Result of [`CommandPalette::show_modal`].
-#[derive(Clone, Debug, Default)]
-#[non_exhaustive]
-pub struct CommandPaletteResponse {
-    /// Palette surface; `None` while closed.
-    pub response: Option<egui::Response>,
-    /// Run entry without a [`PaletteCommand::command`]; command entries fire their command instead.
-    pub clicked: Option<usize>,
-    /// Why it closed without running an entry.
-    pub dismissed: Option<Dismiss>,
 }
 
 impl<'a> CommandPalette<'a> {
@@ -267,14 +182,14 @@ impl<'a> CommandPalette<'a> {
         ui.allocate_ui(vec2(width, list_h), |ui| {
             VirtualList::variable(salt.child("list"), row_h).show(ui, rows.len(), |ui, r| match &rows[r] {
                 Row::Header(name) => group_header(&mut rt.ui(ui), name, width, dir, t),
-                Row::Item { index, hits } => {
+                Row::Item { index, hits, .. } => {
                     let cmd = &commands[*index];
                     let active = active_row == Some(r);
                     let resp = command_row(&mut rt.ui(ui), &cx, *index, cmd, hits, active);
                     if active && st.reveal {
                         resp.scroll_to_me(None);
                     }
-                    if !cmd.disabled {
+                    if !cmd.is_disabled() {
                         if resp.hovered()
                             && ui.input(|i| i.pointer.delta() != egui::Vec2::ZERO)
                             && let Some(a) = items.iter().position(|x| *x == r)
@@ -286,6 +201,7 @@ impl<'a> CommandPalette<'a> {
                         }
                     }
                 }
+                _ => {}
             });
         });
         semantic::emit(
@@ -358,6 +274,7 @@ impl<'a> CommandPalette<'a> {
             .map(|r| match r {
                 Row::Header(_) => GROUP_HEIGHT,
                 Row::Item { .. } => row_h,
+                _ => 0.0,
             })
             .sum::<f32>()
             .clamp(row_h, (max_h - header_h).max(row_h));
@@ -394,14 +311,10 @@ impl<'a> CommandPalette<'a> {
             ctx.memory_mut(|m| m.request_focus(edit_id));
         }
         let dismissed = overlay::modal(&modal);
-        palette::finish(ctx, &self.commands, &mut run, dismissed.is_some(), open);
+        palette::finish(ctx, &self.commands, &mut run, dismissed, open);
         st.was_open = *open;
         st.store(ctx, id);
-        CommandPaletteResponse {
-            response: Some(modal.response),
-            clicked: run,
-            dismissed,
-        }
+        CommandPaletteResponse::new(modal.response, run, dismissed)
     }
 }
 
@@ -467,17 +380,17 @@ fn command_row(
     active: bool,
 ) -> egui::Response {
     let Commands { id, salt, width, t, .. } = *cx;
-    let shortcut_label = cmd.shortcut.map(|s| shortcut::label(ui.ctx(), &s));
+    let shortcut_label = cmd.accelerator().map(|s| shortcut::label(ui.ctx(), &s));
     let row = OptionRow {
-        label: &cmd.label,
+        label: cmd.label(),
         hits,
-        leading: cmd.icon.map(crate::Leading::Icon),
+        leading: cmd.leading_icon().map(crate::Leading::Icon),
         trailing: shortcut_label.as_deref(),
         active,
-        disabled: cmd.disabled,
+        disabled: cmd.is_disabled(),
         ..OptionRow::default()
     };
-    let own = crate::widget::item_salt(salt, cmd.salt.as_ref(), cmd.id.as_ref(), index);
+    let own = crate::widget::item_salt(salt, cmd.item_salt(), cmd.action(), index);
     let resp = row.show(ui, id.with(own.id_salt()), width, &cx.metrics, t);
     semantic::emit(ui.ctx(), Some(resp.id), resp.rect, || {
         row.pick_node(StableId::of(&own, "command"))

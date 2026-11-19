@@ -406,10 +406,7 @@ impl MineralWidget for RowWidget<'_> {
             // A hovered control is still over its row (Compose hover reaches both).
             let on_control = control.iter().map(|c| &c.target).chain(&actions).any(Response::hovered);
             let i = Interaction::of(r, Availability::Enabled);
-            let i = Interaction {
-                hovered: i.hovered || on_control,
-                ..i
-            };
+            let i = i.with_hovered(i.hovered || on_control);
             indication::paint(ui, r, rect, shape, col.label, i, &t);
         }
         self.paint_chevron(ui, r, chevron, dir, col.leading);

@@ -36,6 +36,7 @@ impl MinTarget {
 
 /// Minimum target edge per input modality, in points.
 #[derive(Clone, Copy, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct TargetPolicy {
     /// Mouse and synthetic pointers.
     pub mouse: f32,
@@ -44,6 +45,26 @@ pub struct TargetPolicy {
 }
 
 impl TargetPolicy {
+    /// Neutral desktop values, as in [`Policies::baseline`](crate::policy::Policies::baseline).
+    pub const fn baseline() -> Self {
+        Self {
+            mouse: 24.0,
+            touch: 48.0,
+        }
+    }
+
+    /// Edge for mouse and synthetic pointers.
+    #[must_use]
+    pub const fn mouse(self, mouse: f32) -> Self {
+        Self { mouse, ..self }
+    }
+
+    /// Edge for touch pointers.
+    #[must_use]
+    pub const fn touch(self, touch: f32) -> Self {
+        Self { touch, ..self }
+    }
+
     /// Edge for `kind`; synthetic input uses the mouse value.
     pub fn for_pointer(&self, kind: PointerKind) -> f32 {
         match kind {

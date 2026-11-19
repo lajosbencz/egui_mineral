@@ -576,7 +576,7 @@ fn virtual_list(ui: &mut Mui<'_>, s: &mut State) {
             s.vl_scroll = Some(s.vl_target);
         }
     });
-    let scroll = s.vl_scroll.take().map(|r| (r, Some(Align::Min)));
+    let scroll = s.vl_scroll.take();
     let tint = rt.tokens().color.on_surface_variant;
     boxed(ui, 260.0, |ui| {
         let list = if s.vl_variable {
@@ -585,7 +585,7 @@ fn virtual_list(ui: &mut Mui<'_>, s: &mut State) {
             VirtualList::uniform("vl-uni", 24.0)
         };
         let list = match scroll {
-            Some((row, a)) => list.scroll_to(row, a),
+            Some(row) => list.scroll_to(row).scroll_align(Align::Min),
             None => list,
         };
         let variable = s.vl_variable;

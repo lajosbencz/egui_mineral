@@ -28,7 +28,8 @@
 //!         Policies::baseline()
 //!     }
 //!     fn catalogs(&self) -> &'static [Catalog] {
-//!         &[("en", "hello = Hello")]
+//!         static CATALOGS: [Catalog; 1] = [Catalog::new("en", "hello = Hello")];
+//!         &CATALOGS
 //!     }
 //!     fn setup(&self, _: &egui::Context) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 //!         Ok(())
@@ -36,7 +37,6 @@
 //!     fn style(&self, ctx: &egui::Context, theme: egui::Theme) -> std::sync::Arc<egui::Style> {
 //!         ctx.style_of(theme)
 //!     }
-//!     fn paint_window_close(&self, _: &egui::Ui, _: egui::Rect, _: &egui::Response) {}
 //! }
 //!
 //! let ctx = egui::Context::default();
@@ -227,6 +227,7 @@ pub mod number;
 pub mod overlay;
 /// Paging and page-item windows.
 pub mod pagination;
+pub mod palette;
 /// Virtualized lists, shape caching and size memoization.
 pub mod perf;
 /// Storage and codecs for app state.
@@ -243,6 +244,7 @@ pub mod semantic;
 mod setting;
 pub mod shortcut;
 pub mod splitter;
+pub mod status;
 /// Step flow model.
 pub mod steps;
 /// Table sort and column-width models.
@@ -278,12 +280,14 @@ pub mod prelude {
         nav::{Route, Router},
         number::NumberSource,
         overlay::Dismiss,
+        palette::{CommandPaletteResponse, PaletteCommand},
         platform::{FileFilter, FileType},
         range::{RangeModel, Scale},
         runtime::Runtime,
-        select::Selection,
+        select::{Selection, SelectionResponse},
         semantic::{KeySalt, KeyedSalt},
         shortcut::ActionId,
+        status::{StatusItem, StatusProgress, StatusTone},
         steps::Steps,
         toast::ToastQueue,
         tree::{TreeData, TreeDataMut},

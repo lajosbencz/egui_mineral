@@ -4,6 +4,7 @@ use egui_mineral::{
     i18n::I18n,
     kit,
     layout::{Axis, Constraints, Measure, MinTarget},
+    select::SelectionResponse,
     semantic::{self, AgentKey, KeyedSalt, Role, SemanticNode},
     widget::{Availability, Interaction, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
 };
@@ -585,18 +586,6 @@ impl Indicator {
     }
 }
 
-/// Result of showing a [`TabList`].
-#[derive(Clone, Debug)]
-#[non_exhaustive]
-pub struct TabListResponse {
-    /// Spans every tab; `mark_changed` when `changed`.
-    pub response: egui::Response,
-    /// Agrees with `response.changed()`; `selected` is `Some`.
-    pub changed: bool,
-    /// Index picked this frame.
-    pub selected: Option<usize>,
-}
-
 /// Fluent `TabList`: a row or column of [`Tab`]s with an animated selection indicator. Arrow keys
 /// move focus (wrapping) and Enter or Space selects; [`Self::select_on_focus`] selects on focus.
 #[derive(Debug)]
@@ -679,7 +668,7 @@ impl<'a> TabList<'a> {
 
     /// Shows the list; a pick writes `selected` and reports `changed`. A `selected` past the last tab is
     /// moved onto it.
-    pub fn show(self, ui: &mut MineralUi<'_, Fluent>) -> TabListResponse {
+    pub fn show(self, ui: &mut MineralUi<'_, Fluent>) -> SelectionResponse {
         let rt = ui.rt();
         let Self {
             salt,
@@ -766,14 +755,7 @@ impl<'a> TabList<'a> {
             n.state.disabled = disabled;
             n
         });
-        let mut response = group;
-        if changed {
-            response.mark_changed();
-        }
-        TabListResponse {
-            response,
-            changed,
-            selected: picked.filter(|_| changed),
-        }
+        let response = group;
+        SelectionResponse::new(response, picked.filter(|_| changed), changed)
     }
 }

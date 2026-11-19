@@ -1096,10 +1096,7 @@ impl TableView<'_, '_> {
             // One state layer for the row; each cell keeps its own ripple across the row.
             let hovered = ui.rect_contains_pointer(rect);
             for (k, r) in cells.iter().enumerate() {
-                let i = Interaction {
-                    hovered: k == 0 && hovered,
-                    ..Interaction::default()
-                };
+                let i = Interaction::default().with_hovered(k == 0 && hovered);
                 indication::paint(&rt.ui(ui), r, rect, self.cell_shape, col.label, i, self.t);
             }
         }
@@ -1137,10 +1134,7 @@ impl TableView<'_, '_> {
         };
         let x = side.start_x(cr, Rangef::new(pad, pad + g.size().x));
         p.galley(pos2(x, cr.center().y - g.size().y / 2.0), g, Color32::PLACEHOLDER);
-        let focus = Interaction {
-            focused: focus::visible(&r.ctx, r.id),
-            ..Interaction::default()
-        };
+        let focus = Interaction::default().with_focused(focus::visible(&r.ctx, r.id));
         common::state_layer(p, cr, self.cell_shape, col.label, focus, self.t);
         semantic::emit(self.ctx, Some(r.id), cr, || {
             let mut n = SemanticNode::new(
@@ -1220,10 +1214,7 @@ fn paint_header(
             t,
         );
     } else {
-        let focus = Interaction {
-            focused: focus::visible(&r.ctx, r.id),
-            ..Interaction::default()
-        };
+        let focus = Interaction::default().with_focused(focus::visible(&r.ctx, r.id));
         common::state_layer(ui.painter(), rect, shape, colors.label, focus, t);
     }
     let p = ui.painter();

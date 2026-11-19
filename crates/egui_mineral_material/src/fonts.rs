@@ -43,18 +43,8 @@ impl IconFonts {
         // egui_material_icons' baseline tweak
         const Y_OFFSET: f32 = 0.05;
         [
-            IconFont {
-                name: FONT_FAMILY_FILLED,
-                ttf: self.filled,
-                family: FONT_FAMILY_FILLED,
-                y_offset_factor: Y_OFFSET,
-            },
-            IconFont {
-                name: FONT_FAMILY_OUTLINED,
-                ttf: self.outlined,
-                family: FONT_FAMILY_OUTLINED,
-                y_offset_factor: Y_OFFSET,
-            },
+            IconFont::new(FONT_FAMILY_FILLED, self.filled).y_offset_factor(Y_OFFSET),
+            IconFont::new(FONT_FAMILY_OUTLINED, self.outlined).y_offset_factor(Y_OFFSET),
         ]
     }
 }

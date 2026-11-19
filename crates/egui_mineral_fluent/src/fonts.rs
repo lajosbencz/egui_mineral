@@ -32,10 +32,5 @@ pub const ICON_FAMILY: &str = ICONS;
 
 /// Fluent UI System Icons resizable font `ttf` (or a subset of it) as an installable [`IconFont`].
 pub const fn icon_font(ttf: &'static [u8]) -> IconFont {
-    IconFont {
-        name: "FluentSystemIcons-Resizable",
-        ttf,
-        family: ICON_FAMILY,
-        y_offset_factor: 0.0,
-    }
+    IconFont::new(ICON_FAMILY, ttf).name("FluentSystemIcons-Resizable")
 }

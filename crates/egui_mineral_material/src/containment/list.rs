@@ -597,10 +597,7 @@ impl MineralWidget for ListItem {
         row_parts::paint_container(ui.painter(), rect, row, shape, &t);
         if row_target {
             // A hovered control is still over its row (Compose hover reaches both).
-            let i = Interaction {
-                hovered: i.hovered || controls.iter().flatten().any(|c| c.target.hovered()),
-                ..i
-            };
+            let i = i.with_hovered(i.hovered || controls.iter().flatten().any(|c| c.target.hovered()));
             indication::paint(ui, response, rect, shape, col.label, i, &t);
         }
         for (slot, layout, color) in [

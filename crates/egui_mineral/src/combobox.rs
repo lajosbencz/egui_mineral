@@ -241,8 +241,10 @@ fn in_range(active: Option<usize>, len: usize) -> Option<usize> {
 
 /// Row of a filtered combobox list: a matched option or the create entry.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum ComboItem {
     /// Matched option.
+    #[non_exhaustive]
     Option {
         /// Index into the input labels.
         index: usize,

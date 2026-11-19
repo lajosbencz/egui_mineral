@@ -16,7 +16,7 @@ use super::PlatformPathPickers;
 ))]
 use super::backend;
 #[cfg(feature = "platform-pickers")]
-use super::{FileFilter, FileReader, FileWriter, PickedFile, PlatformPickers, SaveOutcome};
+use super::{FileFilter, FileReader, FileWriter, PickedFile, PlatformPickers, SaveOutcome, SaveRequest};
 #[cfg(feature = "platform-notify")]
 use super::{Notification, PlatformNotifier};
 #[cfg(not(target_arch = "wasm32"))]
@@ -100,19 +100,16 @@ mod pickers {
             move || std::fs::read(path).map_err(backend)
         })
         .await?;
-        Ok(PickedFile {
-            name: h.file_name(),
-            bytes,
-            path: Some(path),
-        })
+        Ok(PickedFile::new(h.file_name(), bytes).with_path(path))
     }
 
     #[cfg(target_arch = "wasm32")]
     pub(super) async fn read(h: rfd::FileHandle) -> Result<PickedFile, PlatformError> {
-        Ok(PickedFile {
-            name: h.file_name(),
-            bytes: h.read().await,
-        })
+        Ok(PickedFile::new(h.file_name(), h.read().await))
+    }
+
+    pub(super) fn save_dialog(request: &super::SaveRequest) -> rfd::AsyncFileDialog {
+        dialog(&request.filter).set_file_name(&request.suggested_name)
     }
 
     pub(super) fn dialog(filter: &FileFilter) -> rfd::AsyncFileDialog {
@@ -205,31 +202,18 @@ impl PlatformPickers for NativePlatform {
 
     #[cfg(not(target_arch = "wasm32"))]
     fn pick_folder(&self, filter: FileFilter) -> BoxFuture<Result<Option<std::path::PathBuf>, PlatformError>> {
-        let fut = pickers::dialog(&FileFilter {
-            filters: Vec::new(),
-            ..filter
-        })
-        .pick_folder();
+        let fut = pickers::dialog(&filter.without_file_types()).pick_folder();
         Box::pin(async move { Ok(fut.await.map(|h| h.path().to_owned())) })
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    fn pick_save_path(
-        &self,
-        suggested_name: String,
-        filter: FileFilter,
-    ) -> BoxFuture<Result<Option<std::path::PathBuf>, PlatformError>> {
-        let fut = pickers::dialog(&filter).set_file_name(suggested_name).save_file();
+    fn pick_save_path(&self, request: SaveRequest) -> BoxFuture<Result<Option<std::path::PathBuf>, PlatformError>> {
+        let fut = pickers::save_dialog(&request).save_file();
         Box::pin(async move { Ok(fut.await.map(|h| h.path().to_owned())) })
     }
 
-    fn save_file(
-        &self,
-        suggested_name: String,
-        filter: FileFilter,
-        bytes: Vec<u8>,
-    ) -> BoxFuture<Result<SaveOutcome, PlatformError>> {
-        let fut = pickers::dialog(&filter).set_file_name(suggested_name).save_file();
+    fn save_file(&self, request: SaveRequest, bytes: Vec<u8>) -> BoxFuture<Result<SaveOutcome, PlatformError>> {
+        let fut = pickers::save_dialog(&request).save_file();
         Box::pin(async move {
             let Some(h) = fut.await else {
                 return Ok(SaveOutcome::Cancelled);
@@ -240,12 +224,8 @@ impl PlatformPickers for NativePlatform {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    fn save_file_writer(
-        &self,
-        suggested_name: String,
-        filter: FileFilter,
-    ) -> BoxFuture<Result<Option<FileWriter>, PlatformError>> {
-        let fut = pickers::dialog(&filter).set_file_name(suggested_name).save_file();
+    fn save_file_writer(&self, request: SaveRequest) -> BoxFuture<Result<Option<FileWriter>, PlatformError>> {
+        let fut = pickers::save_dialog(&request).save_file();
         let blocking = Arc::clone(&self.blocking);
         Box::pin(async move {
             match fut.await {
@@ -259,19 +239,20 @@ impl PlatformPickers for NativePlatform {
     }
 
     #[cfg(target_arch = "wasm32")]
-    fn save_file_writer(
-        &self,
-        suggested_name: String,
-        filter: FileFilter,
-    ) -> BoxFuture<Result<Option<FileWriter>, PlatformError>> {
+    fn save_file_writer(&self, request: SaveRequest) -> BoxFuture<Result<Option<FileWriter>, PlatformError>> {
         let this = self.clone();
         Box::pin(async move {
             #[cfg(feature = "web-save-stream")]
-            if let Some(picked) = super::writer::web::open(&suggested_name, &filter).await? {
-                return Ok(picked.map(|stream| FileWriter::web(suggested_name, stream)));
+            if let Some(picked) = super::writer::web::open(&request.suggested_name, &request.filter).await? {
+                return Ok(picked.map(|stream| FileWriter::web(request.suggested_name, stream)));
             }
+            let SaveRequest { suggested_name, filter } = request;
             Ok(Some(FileWriter::buffered(suggested_name, move |name, bytes| {
-                Box::pin(async move { this.save_file(name, filter, bytes).await.map(drop) })
+                Box::pin(async move {
+                    this.save_file(SaveRequest::new(name).filter(filter), bytes)
+                        .await
+                        .map(drop)
+                })
             })))
         })
     }
@@ -380,7 +361,7 @@ mod web {
     }
 }
 
-// `FileFilter::directory`: a folder as is, a file as its folder plus name, a missing path as its parent
+// `FileFilter::start`: a folder as is, a file as its folder plus name, a missing path as its parent
 #[cfg(all(feature = "platform-pickers", not(target_arch = "wasm32")))]
 fn resolve_directory(
     filter: &FileFilter,
@@ -388,7 +369,7 @@ fn resolve_directory(
     is_file: impl Fn(&Path) -> bool,
 ) -> (Option<std::path::PathBuf>, Option<String>) {
     let name = filter.file_name.clone();
-    let Some(path) = &filter.directory else {
+    let Some(path) = &filter.start else {
         return (None, name);
     };
     if is_dir(path) {
@@ -422,7 +403,7 @@ mod tests {
 
     #[test]
     fn existing_folder_is_kept() {
-        let (dir, name) = resolve(&filter().directory("/d"), true, false);
+        let (dir, name) = resolve(&filter().start("/d"), true, false);
         assert_eq!(dir, Some(PathBuf::from("/d")));
         assert_eq!(name.as_deref(), Some("n.txt"));
     }

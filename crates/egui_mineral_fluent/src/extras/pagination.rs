@@ -168,6 +168,7 @@ impl Composite for Pagination<'_> {
                             t.color(ColorNeutralForeground2),
                         );
                     }
+                    _ => {}
                 }
             }
             if nav(ui, "next", chev_fwd, "mineral-pagination-next", cur < total) {

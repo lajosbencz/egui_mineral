@@ -186,11 +186,7 @@ impl PullToRefresh {
             return false;
         }
         let ctx = ui.ctx();
-        let cfg = PullConfig {
-            resistance: m::DRAG_MULTIPLIER,
-            threshold: self.threshold,
-            wheel_idle: WHEEL_IDLE,
-        };
+        let cfg = PullConfig::new(self.threshold, WHEEL_IDLE).resistance(m::DRAG_MULTIPLIER);
         let hovered = ctx.rect_contains_pointer(ui.layer_id(), response.rect);
         let wheel = if hovered {
             ctx.input(|i| i.smooth_scroll_delta.y)

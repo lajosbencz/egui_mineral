@@ -46,11 +46,15 @@ fn narrow<R>(ui: &mut Fui<'_>, width: f32, add: impl FnOnce(&mut Fui<'_>) -> R) 
 fn status_bar(ui: &mut Fui<'_>, width: f32) -> Option<usize> {
     narrow(ui, width, |ui| {
         StatusBar::new("status", "Status")
-            .item(StatusItem::new("x").progress(StatusProgress::Spinner))
-            .trailing(StatusItem::new("x").progress(StatusProgress::Bar(None)).clickable(true))
+            .item(StatusItem::new("x").progress(StatusProgress::Circular(None)))
+            .trailing(
+                StatusItem::new("x")
+                    .progress(StatusProgress::Linear(None))
+                    .clickable(true),
+            )
             .item(
                 StatusItem::new("x")
-                    .progress(StatusProgress::Bar(Some(0.2)))
+                    .progress(StatusProgress::Linear(Some(0.2)))
                     .clickable(true),
             )
             .item(StatusItem::new("x").clickable(true))
@@ -86,7 +90,7 @@ fn status_item_bar_progress_exposes_its_value() {
     let mut h = harness((), |ui, ()| {
         narrow(ui, 300.0, |ui| {
             StatusBar::new("status", "Status")
-                .item(StatusItem::new("Upload").progress(StatusProgress::Bar(Some(0.5))))
+                .item(StatusItem::new("Upload").progress(StatusProgress::Linear(Some(0.5))))
                 .show(ui);
         });
     });

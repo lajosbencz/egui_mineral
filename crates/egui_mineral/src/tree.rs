@@ -31,7 +31,7 @@ pub trait TreeData: Sized {
     fn key(&self) -> &Self::Key;
     /// Visible text; also the accessible name and typeahead text.
     fn label(&self) -> &str;
-    /// Loaded children; empty for leaves and unloaded lazy nodes.
+    /// Loaded children; empty for leaves and unloaded lazy nodes. A slice by design: nodes own their children.
     fn children(&self) -> &[Self];
     /// Children are loaded on demand: shows a chevron while `children()` is still empty.
     fn lazy(&self) -> bool {

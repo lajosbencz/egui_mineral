@@ -222,8 +222,8 @@ impl MineralWidget for Header<'_> {
             start += d::ICON_SIZE + d::ICON_GAP;
         }
         let p = ui.painter();
-        let chevron = ui.icons().chevron_right.regular;
-        let glyph = p.layout_no_wrap(chevron.ch.to_string(), chevron.font_id(d::ICON_SIZE), color);
+        let chevron = ui.icons().chevron_right.regular();
+        let glyph = p.layout_no_wrap(chevron.ch().to_string(), chevron.font_id(d::ICON_SIZE), color);
         let at = pos2(chevron_x, cy) - glyph.size() / 2.0;
         p.add(TextShape::new(at, glyph, color).with_angle_and_anchor(degrees.to_radians(), Align2::CENTER_CENTER));
         if let Some(icon) = self.item.icon {

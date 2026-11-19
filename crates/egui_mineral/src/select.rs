@@ -243,6 +243,41 @@ impl<'a, K: Ord> IntoIterator for &'a Selection<K> {
     }
 }
 
+/// Outcome of a single-selection group (radio group, tabs, navigation, stepper, button group).
+#[derive(Clone, Debug)]
+#[non_exhaustive]
+pub struct SelectionResponse {
+    /// Group response; `mark_changed` when `changed`.
+    pub response: egui::Response,
+    /// `selected` changed this frame.
+    pub changed: bool,
+    /// Index picked this frame.
+    pub selected: Option<usize>,
+}
+
+impl SelectionResponse {
+    /// Marks `response` changed when `changed`.
+    pub fn new(mut response: egui::Response, selected: Option<usize>, changed: bool) -> Self {
+        if changed {
+            response.mark_changed();
+        }
+        Self {
+            response,
+            changed,
+            selected,
+        }
+    }
+
+    /// Writes `picked` to `bound`; `changed` when it differs from the bound index.
+    pub fn pick(response: egui::Response, bound: &mut usize, picked: Option<usize>) -> Self {
+        let changed = picked.is_some_and(|i| i != *bound);
+        if let Some(i) = picked {
+            *bound = i;
+        }
+        Self::new(response, picked, changed)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

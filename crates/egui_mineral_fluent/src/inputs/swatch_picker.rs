@@ -4,6 +4,7 @@ use egui_mineral::{
     i18n::I18n,
     kit,
     layout::{Axis, Constraints, Measure, MinTarget},
+    select::SelectionResponse,
     semantic::{self, AgentKey, KeyedSalt, Role, SemanticNode, StableId},
     widget::{Availability, Interaction, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
 };
@@ -163,18 +164,6 @@ impl Swatch {
     }
 }
 
-/// Outcome of [`SwatchPicker::show`].
-#[derive(Clone, Debug)]
-#[non_exhaustive]
-pub struct SwatchPickerResponse {
-    /// Group response; `mark_changed` when `changed`.
-    pub response: egui::Response,
-    /// Agrees with `response.changed()`; `selected` is `Some`.
-    pub changed: bool,
-    /// Index picked this frame.
-    pub selected: Option<usize>,
-}
-
 /// Fluent `SwatchPicker`: single selection among swatches, one Tab stop, arrow-key navigation.
 #[derive(Debug)]
 #[must_use = "show with SwatchPicker::show"]
@@ -243,7 +232,7 @@ impl<'a> SwatchPicker<'a> {
     }
 
     /// Lays out the swatches; a pick writes `value` and reports `changed`.
-    pub fn show(self, ui: &mut MineralUi<'_, Fluent>) -> SwatchPickerResponse {
+    pub fn show(self, ui: &mut MineralUi<'_, Fluent>) -> SelectionResponse {
         let rt = ui.rt();
         let Self {
             salt,
@@ -312,15 +301,8 @@ impl<'a> SwatchPicker<'a> {
             n.state.disabled = disabled;
             n
         });
-        let mut response = group;
-        if changed {
-            response.mark_changed();
-        }
-        SwatchPickerResponse {
-            response,
-            changed,
-            selected: picked.filter(|_| changed),
-        }
+        let response = group;
+        SelectionResponse::new(response, picked.filter(|_| changed), changed)
     }
 }
 

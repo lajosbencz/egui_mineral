@@ -197,7 +197,7 @@ impl Listbox<'_> {
                     ui.set_min_height(list_h);
                     let list = VirtualList::uniform(rows_salt, m.height);
                     let list = match active.filter(|_| scroll_to_active) {
-                        Some(i) => list.scroll_to(i, None),
+                        Some(i) => list.scroll_to(i),
                         None => list,
                     };
                     list.show(ui, len, |ui, i| {

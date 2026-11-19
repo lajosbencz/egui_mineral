@@ -130,7 +130,7 @@ impl MenuStrip {
         let buttons = self.paint_titles(ui, id, rect, bar.open, tab_stop, scope);
         let ids: Vec<Id> = buttons.iter().map(|b| b.id).collect();
         let fired = self.react(&ctx, id, &mut bar, &buttons, scope);
-        bar.toggle_activation(rt.core(), self.disabled, &ids, tab_stop);
+        bar.toggle_activation(rt.core(), Availability::disabled_if(self.disabled), &ids, tab_stop);
         if bar.open.is_none() {
             RovingFocus::new(Axis::Horizontal).update_group(rt.core(), id, &ids, enabled);
         }

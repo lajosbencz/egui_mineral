@@ -84,9 +84,9 @@ pub trait Validator: Send + Sync {
     fn validate(&self, value: &str, locale: &dyn LocaleFormat) -> Result<(), ValidationError>;
 }
 
-impl<F: Fn(&str) -> Result<(), ValidationError> + Send + Sync> Validator for F {
-    fn validate(&self, value: &str, _locale: &dyn LocaleFormat) -> Result<(), ValidationError> {
-        self(value)
+impl<F: Fn(&str, &dyn LocaleFormat) -> Result<(), ValidationError> + Send + Sync> Validator for F {
+    fn validate(&self, value: &str, locale: &dyn LocaleFormat) -> Result<(), ValidationError> {
+        self(value, locale)
     }
 }
 
@@ -644,7 +644,7 @@ mod tests {
         let mut form = Form::new("f", &mut state)
             .locale(en)
             .field("email", "Email", |f| {
-                f.required(true).validator(|v: &str| {
+                f.required(true).validator(|v: &str, _: &dyn LocaleFormat| {
                     if v.contains('@') {
                         Ok(())
                     } else {

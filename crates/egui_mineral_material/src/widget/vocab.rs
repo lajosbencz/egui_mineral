@@ -80,39 +80,7 @@ pub(crate) fn item_salt(
     }
 }
 
-/// Outcome of a single-selection group: radio group, tabs, navigation bar/rail/drawer, stepper,
-/// button group.
-#[derive(Clone, Debug)]
-#[non_exhaustive]
-pub struct SelectionResponse {
-    /// Group response; `mark_changed` when `changed`.
-    pub response: egui::Response,
-    /// `selected` changed this frame.
-    pub changed: bool,
-    /// Index picked this frame.
-    pub selected: Option<usize>,
-}
-
-impl SelectionResponse {
-    pub(crate) fn new(mut response: egui::Response, selected: Option<usize>, changed: bool) -> Self {
-        if changed {
-            response.mark_changed();
-        }
-        Self {
-            response,
-            changed,
-            selected,
-        }
-    }
-
-    pub(crate) fn pick(response: egui::Response, bound: &mut usize, picked: Option<usize>) -> Self {
-        let changed = picked.is_some_and(|i| i != *bound);
-        if let Some(i) = picked {
-            *bound = i;
-        }
-        Self::new(response, picked, changed)
-    }
-}
+pub use egui_mineral::select::SelectionResponse;
 
 /// Result of an inline picker: [`DatePicker::show`](crate::selection::DatePicker::show),
 /// [`DateRangePicker::show`](crate::selection::DateRangePicker::show),
@@ -188,7 +156,6 @@ from_label!(
 #[cfg(feature = "extras")]
 from_label!(
     crate::extras::TableColumn,
-    crate::extras::PaletteCommand,
     crate::extras::StepLabel,
     crate::extras::TimelineItem
 );

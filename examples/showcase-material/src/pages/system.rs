@@ -10,7 +10,10 @@ use egui_mineral::{
     nav::{Route, Router},
     perf::{self, Eviction, ShapeCache, ShapeKey},
     persist::{self, Json, MemoryStorage, PersistError, Storage, Toml},
-    platform::{MemoryPlatform, NativePlatform, Notification, PickedFile, PlatformError, PlatformService, SaveOutcome},
+    platform::{
+        MemoryPlatform, NativePlatform, Notification, PickedFile, PlatformError, PlatformService, SaveOutcome,
+        SaveRequest,
+    },
     undo::{UndoCommand, UndoShortcuts, UndoStack},
     window::{ModalStack, WindowSpec},
 };
@@ -575,16 +578,6 @@ fn run<T: 'static>(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn picked_path(f: &PickedFile) -> Option<&std::path::Path> {
-    f.path.as_deref()
-}
-
-#[cfg(target_arch = "wasm32")]
-fn picked_path(_: &PickedFile) -> Option<&std::path::Path> {
-    None
-}
-
-#[cfg(not(target_arch = "wasm32"))]
 fn path_buttons(ui: &mut Mui<'_>, fake: Option<&MemoryPlatform>, p: &dyn PlatformService, shared: &Shared) {
     if button(ui, "plat-folder", "Pick folder") {
         if let Some(fake) = fake {
@@ -601,37 +594,29 @@ fn path_buttons(ui: &mut Mui<'_>, fake: Option<&MemoryPlatform>, p: &dyn Platfor
         if let Some(fake) = fake {
             fake.queue_path(std::path::PathBuf::from("/fake/export.txt"));
         }
-        run(
-            shared,
-            p.pick_save_path("export.txt".to_owned(), FileFilter::new(FileType::new("Text", ["txt"]))),
-            |d| {
-                d.map_or_else(
-                    || "Save target cancelled".to_owned(),
-                    |d| format!("Write to {}", d.display()),
-                )
-            },
-        );
+        run(shared, p.pick_save_path(text_save("export.txt")), |d| {
+            d.map_or_else(
+                || "Save target cancelled".to_owned(),
+                |d| format!("Write to {}", d.display()),
+            )
+        });
     }
+}
+
+fn text_save(name: &str) -> SaveRequest {
+    SaveRequest::new(name).filter(FileFilter::new(FileType::new("Text", ["txt"])))
 }
 
 fn save_buttons(ui: &mut Mui<'_>, p: &dyn PlatformService, shared: &Shared, text: &str) {
     if button(ui, "plat-save", "Save file") {
         let bytes = text.as_bytes().to_vec();
-        run(
-            shared,
-            p.save_file(
-                "export.txt".to_owned(),
-                FileFilter::new(FileType::new("Text", ["txt"])),
-                bytes,
-            ),
-            |outcome| {
-                match outcome {
-                    SaveOutcome::Saved => "Saved",
-                    _ => "Save cancelled",
-                }
-                .to_owned()
-            },
-        );
+        run(shared, p.save_file(text_save("export.txt"), bytes), |outcome| {
+            match outcome {
+                SaveOutcome::Saved => "Saved",
+                _ => "Save cancelled",
+            }
+            .to_owned()
+        });
     }
     if button(ui, "plat-stream", "Stream save") {
         stream_save(p, shared, text);
@@ -639,7 +624,7 @@ fn save_buttons(ui: &mut Mui<'_>, p: &dyn PlatformService, shared: &Shared, text
 }
 
 fn stream_save(p: &dyn PlatformService, shared: &Shared, text: &str) {
-    let open = p.save_file_writer("stream.txt".to_owned(), FileFilter::new(FileType::new("Text", ["txt"])));
+    let open = p.save_file_writer(text_save("stream.txt"));
     // 64 KiB in 4 KiB chunks
     let chunk: Vec<u8> = format!("{text}\n").bytes().cycle().take(4096).collect();
     run(
@@ -710,12 +695,9 @@ fn platform(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     super::row(ui, |row| {
         if row.add(|ui| button(ui, "plat-pick", "Pick file")) {
             if s.use_fake {
-                s.fake.queue_pick(vec![PickedFile {
-                    name: "sample.txt".to_owned(),
-                    bytes: b"fake contents".to_vec(),
-                    #[cfg(not(target_arch = "wasm32"))]
-                    path: Some(std::path::PathBuf::from("/fake/sample.txt")),
-                }]);
+                s.fake.queue_pick(vec![
+                    PickedFile::new("sample.txt", *b"fake contents").with_path("/fake/sample.txt"),
+                ]);
             }
             run(
                 shared,
@@ -723,9 +705,9 @@ fn platform(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
                 |f| {
                     f.map_or_else(
                         || "Pick cancelled".to_owned(),
-                        |f| match picked_path(&f) {
-                            Some(p) => format!("Picked {} ({} bytes)", p.display(), f.bytes.len()),
-                            None => format!("Picked {} ({} bytes)", f.name, f.bytes.len()),
+                        |f| match f.path() {
+                            Some(p) => format!("Picked {} ({} bytes)", p.display(), f.bytes().len()),
+                            None => format!("Picked {} ({} bytes)", f.name(), f.bytes().len()),
                         },
                     )
                 },
@@ -735,10 +717,7 @@ fn platform(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
         row.add(|ui| path_buttons(ui, s.use_fake.then_some(&s.fake), p, shared));
         row.add(|ui| save_buttons(ui, p, shared, &s.clip_text));
         if row.add(|ui| button(ui, "plat-notify", "Notify")) {
-            let notification = Notification {
-                title: "egui_mineral".to_owned(),
-                body: s.clip_text.clone(),
-            };
+            let notification = Notification::new("egui_mineral", s.clip_text.clone());
             run(shared, p.notify(notification), |()| "Notification sent".to_owned());
         }
     });

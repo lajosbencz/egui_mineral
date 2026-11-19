@@ -9,7 +9,7 @@ use egui_mineral::{
     layout::Axis,
     overlay::Dismiss,
     semantic::{self, KeyedSalt, Role, SemanticNode, StableId},
-    widget::MineralUi,
+    widget::{Availability, MineralUi},
 };
 
 use crate::{
@@ -168,7 +168,7 @@ impl<'a> MenuBar<'a> {
                 }
             }
         }
-        bar.toggle_activation(rt.core(), self.disabled, &ids, stop);
+        bar.toggle_activation(rt.core(), Availability::disabled_if(self.disabled), &ids, stop);
         if bar.open.is_none() {
             RovingFocus::new(Axis::Horizontal).update_group(rt.core(), id, &ids, enabled);
         }

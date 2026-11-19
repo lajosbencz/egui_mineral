@@ -237,10 +237,7 @@ impl Card {
         let i = if self.clickable {
             Interaction::of(&response, Availability::disabled_if(self.disabled))
         } else {
-            Interaction {
-                disabled: self.disabled,
-                ..Interaction::default()
-            }
+            Interaction::default().with_disabled(self.disabled)
         };
         let p = ui.painter();
         if let Some(sh) = common::elevation_shape(rect, r, s.elevation.level(i), &t) {

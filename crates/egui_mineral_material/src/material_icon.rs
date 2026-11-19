@@ -50,11 +50,11 @@ mod tests {
     fn converts_to_outlined_and_filled_families() {
         let icon = Icon::from(ICON_CLOSE);
         assert_eq!(
-            (icon.regular.family, icon.filled.family),
+            (icon.regular().family(), icon.filled().family()),
             (FONT_FAMILY_OUTLINED, FONT_FAMILY_FILLED)
         );
         assert_eq!(
-            (icon.regular.ch, icon.filled.ch),
+            (icon.regular().ch(), icon.filled().ch()),
             (ICON_CLOSE.codepoint(), ICON_CLOSE.codepoint())
         );
     }
@@ -62,8 +62,8 @@ mod tests {
     #[test]
     fn outlined_uses_one_family_in_every_state() {
         let icon = Icon::from(ICON_CLOSE.outlined());
-        assert_eq!(icon.glyph(true).family, FONT_FAMILY_OUTLINED);
-        assert_eq!(icon.glyph(true), icon.glyph(false));
+        assert_eq!(icon.filled().family(), FONT_FAMILY_OUTLINED);
+        assert_eq!(icon.filled(), icon.regular());
     }
 
     #[cfg(feature = "bundled-icons")]

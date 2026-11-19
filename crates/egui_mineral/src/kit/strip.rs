@@ -1,7 +1,8 @@
 //! Status strip model: items packed from both edges of a bar.
 
 /// Measured item of a strip.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct Item {
     /// Full width: padding, leading part and text.
     pub width: f32,
@@ -13,8 +14,39 @@ pub struct Item {
     pub elide: bool,
 }
 
+impl Item {
+    /// Item of full `width` (padding, leading part and text) at the reading start, no chrome, dropped on overflow.
+    pub const fn new(width: f32) -> Self {
+        Self {
+            width,
+            chrome: 0.0,
+            at_end: false,
+            elide: false,
+        }
+    }
+
+    /// Width without the text.
+    #[must_use]
+    pub const fn chrome(self, chrome: f32) -> Self {
+        Self { chrome, ..self }
+    }
+
+    /// Sits at the reading end.
+    #[must_use]
+    pub const fn at_end(self, at_end: bool) -> Self {
+        Self { at_end, ..self }
+    }
+
+    /// May shrink to the room left instead of being dropped.
+    #[must_use]
+    pub const fn elide(self, elide: bool) -> Self {
+        Self { elide, ..self }
+    }
+}
+
 /// Position of an item that fits.
 #[derive(Clone, Copy, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct Placed {
     /// Logical offset from the item's edge.
     pub offset: f32,

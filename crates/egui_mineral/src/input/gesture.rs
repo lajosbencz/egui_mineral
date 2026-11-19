@@ -6,6 +6,7 @@ const STALE_VELOCITY_SECS: f64 = 0.1;
 
 /// Gesture thresholds supplied by the stylekit through [`Policies`](crate::policy::Policies).
 #[derive(Clone, Copy, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct GestureConfig {
     /// Max travel for a press to still count as a tap/long-press.
     pub slop: f32,
@@ -13,6 +14,38 @@ pub struct GestureConfig {
     pub long_press: std::time::Duration,
     /// Min release velocity (points/s) for a pan to end as a swipe.
     pub swipe_min_velocity: f32,
+}
+
+impl GestureConfig {
+    /// Neutral desktop values, as in [`Policies::baseline`](crate::policy::Policies::baseline).
+    pub const fn baseline() -> Self {
+        Self {
+            slop: 8.0,
+            long_press: std::time::Duration::from_millis(500),
+            swipe_min_velocity: 600.0,
+        }
+    }
+
+    /// Max travel for a press to still count as a tap/long-press.
+    #[must_use]
+    pub const fn slop(self, slop: f32) -> Self {
+        Self { slop, ..self }
+    }
+
+    /// Hold time that turns a press into [`Gesture::LongPress`].
+    #[must_use]
+    pub const fn long_press(self, long_press: std::time::Duration) -> Self {
+        Self { long_press, ..self }
+    }
+
+    /// Min release velocity (points/s) for a pan to end as a swipe.
+    #[must_use]
+    pub const fn swipe_min_velocity(self, swipe_min_velocity: f32) -> Self {
+        Self {
+            swipe_min_velocity,
+            ..self
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default)]

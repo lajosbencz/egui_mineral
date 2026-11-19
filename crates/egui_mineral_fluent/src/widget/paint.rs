@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use egui::{Color32, CornerRadius, Galley, Painter, Pos2, Rect, Stroke, TextFormat, pos2};
 use egui_mineral::{
+    icon::IconStyle,
     runtime::Core,
     shortcut::{self, Mnemonic},
 };
@@ -29,7 +30,7 @@ pub(crate) fn icon(p: &Painter, center: Pos2, icon: Icon, filled: bool, size: f3
     p.add(egui_mineral::kit::icon::shape(
         p.ctx(),
         center,
-        icon.glyph(filled),
+        icon.glyph(IconStyle::filled_if(filled)),
         size,
         color,
         0.0,

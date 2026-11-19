@@ -1,7 +1,7 @@
 //! Formatting with `ICU4X_DATA_DIR` baked for `en` and `ar` only (ci.yml generates it).
 
 use egui_mineral::{
-    i18n::{DateFields, DateLength, Direction, I18n, IcuFormat, LocaleFormat},
+    i18n::{Catalog, DateFields, DateLength, Direction, I18n, IcuFormat, LocaleFormat},
     jiff::civil::date,
 };
 
@@ -34,7 +34,7 @@ fn baked_locales_format_natively_and_others_as_root() {
 fn switching_to_an_unbaked_locale_keeps_its_tag() {
     assert!(option_env!("ICU4X_DATA_DIR").is_some(), "{IGNORED}");
     let ctx = egui::Context::default();
-    let i18n = I18n::new(&ctx, &[("en", "hi = Hi")]).expect("i18n");
+    let i18n = I18n::new(&ctx, &[Catalog::new("en", "hi = Hi")]).expect("i18n");
     i18n.set_locale("de-DE").expect("unbaked locale");
     assert_eq!(i18n.format().tag(), "de-DE");
     assert_eq!(i18n.tr("hi", &[]), "Hi", "messages negotiate separately");

@@ -38,7 +38,7 @@ pub(crate) fn paint(
     t: &Tokens,
 ) {
     let p = ui.painter();
-    let layer = Interaction { pressed: false, ..i }.layer_opacity(t);
+    let layer = i.with_pressed(false).layer_opacity(t);
     if layer > 0.0 {
         p.rect_filled(rect, r, with_alpha(content, layer));
     }
@@ -70,7 +70,7 @@ pub(crate) fn paint_unbounded(
 ) {
     let p = ui.painter();
     let center = node.center();
-    let layer = Interaction { pressed: false, ..i }.layer_opacity(t);
+    let layer = i.with_pressed(false).layer_opacity(t);
     if layer > 0.0 {
         p.circle_filled(center, radius, with_alpha(content, layer));
     }

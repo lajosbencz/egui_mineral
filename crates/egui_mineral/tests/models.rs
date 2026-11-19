@@ -271,7 +271,7 @@ proptest! {
             let mut seen = vec![false; labels.len()];
             for (n, item) in items.iter().enumerate() {
                 match item {
-                    ComboItem::Option { index, hits } => {
+                    ComboItem::Option { index, hits, .. } => {
                         prop_assert!(*index < labels.len(), "option {index} indexes the labels");
                         prop_assert!(!std::mem::replace(&mut seen[*index], true), "option {index} listed once");
                         let chars = labels[*index].chars().count();
@@ -279,6 +279,7 @@ proptest! {
                         prop_assert!(hits.windows(2).all(|w| w[0] < w[1]), "hits ascending: {hits:?}");
                     }
                     ComboItem::Create => prop_assert_eq!(n + 1, items.len(), "Create comes last"),
+                    other => prop_assert!(false, "unknown item {other:?}"),
                 }
             }
         }
@@ -779,6 +780,7 @@ proptest! {
                     prop_assert!(!gap, "no two gaps in a row");
                     gap = true;
                 }
+                other => prop_assert!(false, "unknown item {other:?}"),
             }
         }
         if spread.boundaries >= 1 {

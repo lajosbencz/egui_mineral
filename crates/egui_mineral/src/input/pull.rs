@@ -6,6 +6,7 @@ const MIN_CONFIG: f32 = 1e-3;
 
 /// Pull-to-refresh tuning supplied by the stylekit.
 #[derive(Clone, Copy, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct PullConfig {
     /// Fraction of drag/wheel travel that becomes pull distance.
     pub resistance: f32,
@@ -13,6 +14,23 @@ pub struct PullConfig {
     pub threshold: f32,
     /// Time without wheel input before an unfinished wheel pull resets.
     pub wheel_idle: Duration,
+}
+
+impl PullConfig {
+    /// Triggers at `threshold` points of unresisted travel; an unfinished wheel pull resets after `wheel_idle`.
+    pub const fn new(threshold: f32, wheel_idle: Duration) -> Self {
+        Self {
+            resistance: 1.0,
+            threshold,
+            wheel_idle,
+        }
+    }
+
+    /// Fraction of drag/wheel travel that becomes pull distance.
+    #[must_use]
+    pub const fn resistance(self, resistance: f32) -> Self {
+        Self { resistance, ..self }
+    }
 }
 
 /// Pan of the pass along the pull axis (positive pulls past the edge).

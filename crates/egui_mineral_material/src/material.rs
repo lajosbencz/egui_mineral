@@ -139,7 +139,8 @@ impl Stylekit for Material {
     }
 
     fn catalogs(&self) -> &'static [Catalog] {
-        &[("en-US", include_str!("../locales/en-US.ftl"))]
+        static CATALOGS: [Catalog; 1] = [Catalog::new("en-US", include_str!("../locales/en-US.ftl"))];
+        &CATALOGS
     }
 
     fn setup(&self, ctx: &Context) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -153,11 +154,6 @@ impl Stylekit for Material {
 
     fn style(&self, ctx: &Context, theme: Theme) -> Arc<Style> {
         self.pass_snapshot(ctx.cumulative_pass_nr(), theme).1
-    }
-
-    fn paint_window_close(&self, ui: &egui::Ui, visual: egui::Rect, response: &egui::Response) {
-        ui.painter()
-            .extend(egui_mineral::kit::paint::window_close(ui, visual, response));
     }
 }
 
