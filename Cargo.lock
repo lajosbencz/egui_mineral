@@ -1178,7 +1178,7 @@ dependencies = [
 
 [[package]]
 name = "egui_mineral"
-version = "0.1.0-alpha"
+version = "0.1.0"
 dependencies = [
  "arboard",
  "criterion",
@@ -1226,11 +1226,11 @@ dependencies = [
 
 [[package]]
 name = "egui_mineral_fluent"
-version = "0.1.0-alpha"
+version = "0.1.0"
 
 [[package]]
 name = "egui_mineral_macros"
-version = "0.1.0-alpha"
+version = "0.1.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1239,7 +1239,7 @@ dependencies = [
 
 [[package]]
 name = "egui_mineral_material"
-version = "0.1.0-alpha"
+version = "0.1.0"
 dependencies = [
  "egui",
  "egui_kittest",
@@ -2645,7 +2645,7 @@ dependencies = [
 
 [[package]]
 name = "md3_tokens"
-version = "0.1.0-alpha"
+version = "0.1.0"
 
 [[package]]
 name = "memchr"
@@ -2673,7 +2673,7 @@ dependencies = [
 
 [[package]]
 name = "mineral_inspector"
-version = "0.1.0-alpha"
+version = "0.1.0"
 dependencies = [
  "egui",
  "egui_mineral",
@@ -4099,7 +4099,7 @@ checksum = "f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba"
 
 [[package]]
 name = "showcase"
-version = "0.1.0-alpha"
+version = "0.1.0"
 dependencies = [
  "eframe",
  "egui",
