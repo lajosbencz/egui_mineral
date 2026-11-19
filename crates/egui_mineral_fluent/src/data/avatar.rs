@@ -8,9 +8,8 @@ use egui_mineral::{
 };
 
 use crate::{
-    ColorToken, Fluent, FluentExt, FluentIcon,
+    ColorToken, Fluent, FluentExt, Icon,
     feedback::{BadgeSize, PresenceBadge, PresenceStatus},
-    icons::ICON_PERSON,
     spec::defaults::avatar as d,
     theme::{Elevation, Radius, Tokens},
     typography,
@@ -568,7 +567,7 @@ pub struct Avatar<'a> {
     id_for_color: Option<String>,
     initials: Option<String>,
     image: Option<egui::ImageSource<'a>>,
-    icon: Option<FluentIcon>,
+    icon: Option<Icon>,
     pub(super) presence: Option<(PresenceStatus, bool)>,
     active: AvatarActive,
     appearance: AvatarActiveAppearance,
@@ -634,8 +633,8 @@ impl<'a> Avatar<'a> {
     }
 
     /// `icon` slot, shown when there are no initials; default `PersonRegular`.
-    pub fn icon(mut self, icon: FluentIcon) -> Self {
-        self.icon = Some(icon);
+    pub fn icon(mut self, icon: impl Into<Icon>) -> Self {
+        self.icon = Some(icon.into());
         self
     }
 
@@ -783,7 +782,7 @@ impl<'a> Avatar<'a> {
             );
             p.galley(rect.center() - g.size() / 2.0, g, text_color);
         } else if self.image.is_none() {
-            let icon = self.icon.unwrap_or(ICON_PERSON);
+            let icon = self.icon.unwrap_or(ui.icons().person);
             paint::icon(&p, rect.center(), icon, false, d::icon_size(size) * unit, text_color);
         }
         if let Some(source) = &self.image

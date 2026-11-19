@@ -17,7 +17,7 @@ use crate::ColorToken::{
     ColorPaletteRedBorder2, ColorTransparentStroke, ColorTransparentStrokeInteractive,
 };
 use crate::{
-    Fluent, FluentExt, FluentIcon, Size,
+    Fluent, FluentExt, Icon, Size,
     spec::{
         defaults::input as inp,
         tokens::{geometry as g, motion, typography as ty},
@@ -365,8 +365,8 @@ pub(crate) fn submitted(edit: &Response) -> bool {
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Content {
-    pub before: Option<FluentIcon>,
-    pub after: Option<FluentIcon>,
+    pub before: Option<Icon>,
+    pub after: Option<Icon>,
 }
 
 pub(crate) struct Shown {

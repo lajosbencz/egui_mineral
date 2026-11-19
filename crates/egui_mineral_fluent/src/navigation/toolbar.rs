@@ -6,8 +6,9 @@ use egui_mineral::{
     widget::MineralUi,
 };
 
+use crate::FluentExt as _;
 use crate::{
-    Fluent, FluentIcon, Rt, Size,
+    Fluent, Icon, Rt, Size,
     actions::{
         ButtonAppearance, PushButton,
         button::{Metrics, Mode},
@@ -24,7 +25,7 @@ use super::{
 #[derive(Clone, Debug)]
 struct Base {
     label: String,
-    icon: Option<FluentIcon>,
+    icon: Option<Icon>,
     label_visible: bool,
     appearance: ButtonAppearance,
     disabled: bool,
@@ -48,8 +49,8 @@ macro_rules! item_setters {
     ($ty:ty) => {
         impl $ty {
             /// `icon` slot before the label; filled while hovered or checked.
-            pub fn icon(mut self, icon: FluentIcon) -> Self {
-                self.0.icon = Some(icon);
+            pub fn icon(mut self, icon: impl Into<Icon>) -> Self {
+                self.0.icon = Some(icon.into());
                 self
             }
 
@@ -119,8 +120,8 @@ impl<'a> ToolbarToggleButton<'a> {
     }
 
     /// `icon` slot before the label; filled while hovered or checked.
-    pub fn icon(mut self, icon: FluentIcon) -> Self {
-        self.base.icon = Some(icon);
+    pub fn icon(mut self, icon: impl Into<Icon>) -> Self {
+        self.base.icon = Some(icon.into());
         self
     }
 
@@ -257,6 +258,7 @@ enum Kind<'a> {
     Radio { group: usize, value: usize },
 }
 
+#[expect(clippy::large_enum_variant, reason = "short-lived per-pass list")]
 enum Slot<'a> {
     Divider,
     Item(Base, Kind<'a>, usize),
@@ -527,7 +529,7 @@ impl<'a> Toolbar<'a> {
                 }
             }
             if let Some(o) = overflow.as_ref().filter(|_| more) {
-                let mut b = overflow::trigger(salt.child("overflow"), o.label());
+                let mut b = overflow::trigger(salt.child("overflow"), o.label(), &rt.icons());
                 b.tab_stop = Some(roving::TabStop::at(run.ids.len(), stop));
                 let r = rt.ui(ui).mineral(b);
                 run.ids.push(r.id);
@@ -597,7 +599,7 @@ fn plan<'s>(
             Slot::Item(b, ..) => OverflowItem::new(button(b.clone(), salt.clone()).natural(ui).x),
         })
         .collect();
-    let menu = overflow::trigger(salt.clone(), o.label()).natural(ui).x;
+    let menu = overflow::trigger(salt.clone(), o.label(), &ui.icons()).natural(ui).x;
     let fit = o.fit(&items, ui.available_width() - 2.0 * inline, menu);
     let (mut shown, mut hidden) = (Vec::new(), Vec::new());
     for (slot, visible) in slots.into_iter().zip(fit) {

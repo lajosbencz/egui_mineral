@@ -21,8 +21,7 @@ use crate::ColorToken::{
     ColorSubtleBackgroundPressed,
 };
 use crate::{
-    Fluent, FluentExt, FluentIcon, Size,
-    icons::{ICON_CHEVRON_DOWN, ICON_CHEVRON_UP},
+    Fluent, FluentExt, Icon, Size,
     spec::{
         defaults::{input as inp, spin_button as sp},
         tokens::geometry as g,
@@ -139,7 +138,7 @@ impl<'a> SpinButton<'a> {
                 Availability::disabled_if(self.disabled),
             ));
             ui.painter().rect_filled(rect, corner(up, dir), fill.pick(s, t));
-            let icon: FluentIcon = if up { ICON_CHEVRON_UP } else { ICON_CHEVRON_DOWN };
+            let icon: Icon = if up { ui.icons().chevron_up } else { ui.icons().chevron_down };
             paint::icon(ui.painter(), rect.center(), icon, false, self.glyph(), fore.pick(s, t));
             if r.clicked() {
                 steps += if up { 1 } else { -1 };

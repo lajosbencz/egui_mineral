@@ -15,7 +15,6 @@ use super::calendar::Calendar;
 use super::input::Input;
 use super::textbox::{FieldOutput, InputAppearance};
 use crate::ColorToken::{ColorNeutralBackground1, ColorTransparentStroke};
-use crate::icons::ICON_CALENDAR_MONTH;
 use crate::{
     Fluent, FluentExt, Size,
     spec::{defaults::date_picker as dp, tokens::geometry as g},
@@ -191,7 +190,7 @@ impl Composite for DatePicker<'_> {
         let mut input = Input::new(input_salt, self.label.clone(), &mut st.text)
             .appearance(self.appearance)
             .size(self.size)
-            .content_after(ICON_CALENDAR_MONTH)
+            .content_after(ui.icons().calendar_month)
             .invalid(self.invalid)
             .disabled(self.disabled)
             .agent_key(self.key.id(&self.salt));

@@ -1,13 +1,13 @@
 use crate::tokens::ShadowTint;
 use std::sync::Arc;
 
-use egui::{Color32, CornerRadius, FontId, Galley, Painter, Pos2, Rect, Stroke, TextFormat, pos2, vec2};
+use egui::{Color32, CornerRadius, Galley, Painter, Pos2, Rect, Stroke, TextFormat, pos2};
 use egui_mineral::{
     runtime::Core,
     shortcut::{self, Mnemonic},
 };
 
-use crate::{FluentIcon, theme::Elevation, theme::Tokens};
+use crate::{Icon, theme::Elevation, theme::Tokens};
 
 pub(crate) fn galley(
     core: &Core,
@@ -25,24 +25,8 @@ pub(crate) fn galley(
     ))
 }
 
-// Glyph centered on `center` by its ink, not its line box.
-pub(crate) fn icon(p: &Painter, center: Pos2, icon: FluentIcon, filled: bool, size: f32, color: Color32) {
-    let g = p.layout_no_wrap(
-        icon.glyph(filled).to_string(),
-        FontId::new(size, crate::fonts::icon_family()),
-        color,
-    );
-    let mid_y = g
-        .rows
-        .iter()
-        .flat_map(|row| {
-            row.glyphs
-                .iter()
-                .map(move |gl| row.pos.y + gl.pos.y + gl.uv_rect.offset.y + gl.uv_rect.size.y / 2.0)
-        })
-        .next()
-        .unwrap_or_else(|| g.size().y / 2.0);
-    p.galley(center - vec2(g.size().x / 2.0, mid_y), g, color);
+pub(crate) fn icon(p: &Painter, center: Pos2, icon: Icon, filled: bool, size: f32, color: Color32) {
+    p.add(egui_mineral::kit::icon::shape(p.ctx(), center, icon.glyph(filled), size, color, 0.0));
 }
 
 pub(crate) fn shadow(p: &Painter, rect: Rect, r: CornerRadius, level: Elevation, t: &Tokens) {

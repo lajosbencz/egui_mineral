@@ -12,7 +12,6 @@ use egui_mineral::{
 use crate::ColorToken::{ColorNeutralBackground3, ColorNeutralForeground3, ColorNeutralStroke1};
 use crate::{
     Fluent, FluentExt,
-    icons::ICON_IMAGE_OFF,
     spec::tokens::geometry,
     theme::{Elevation, Radius},
     widget::paint,
@@ -264,7 +263,7 @@ impl MineralWidget for Image<'_> {
                 paint::icon(
                     p,
                     rect.center(),
-                    ICON_IMAGE_OFF,
+                    ui.icons().image_off,
                     false,
                     (rect.width().min(rect.height()) / 2.0).clamp(0.0, 24.0),
                     t.color(ColorNeutralForeground3),

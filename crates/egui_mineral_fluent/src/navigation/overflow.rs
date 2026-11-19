@@ -1,7 +1,7 @@
 use egui::{Context, Id};
 use egui_mineral::semantic::KeyedSalt;
 
-use crate::{actions::PushButton, icons::ICON_MORE_HORIZONTAL};
+use crate::{actions::PushButton, };
 
 /// Which end of a row [`Overflow::fit`] hides first (`overflowDirection`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -110,10 +110,10 @@ impl Overflow {
 }
 
 // useOverflowStyles.styles.ts `overflowMenu`: the menu button never shrinks.
-pub(crate) fn trigger(salt: KeyedSalt, label: &str) -> PushButton<'static> {
+pub(crate) fn trigger(salt: KeyedSalt, label: &str, icons: &crate::IconSet) -> PushButton<'static> {
     PushButton::new(salt, label)
         .appearance(crate::actions::ButtonAppearance::Subtle)
-        .icon(ICON_MORE_HORIZONTAL)
+        .icon(icons.more_horizontal)
         .label_visible(false)
 }
 

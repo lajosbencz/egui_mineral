@@ -10,7 +10,6 @@ use egui_mineral::{
 use super::textbox::{self, Chrome, Content, FieldOutput, Fill, InputAppearance};
 use crate::{
     Fluent, FluentExt, Size,
-    icons::{ICON_DISMISS, ICON_SEARCH},
     spec::{
         defaults::{input as inp, search_box as sb},
         tokens::geometry as g,
@@ -174,7 +173,7 @@ impl MineralWidget for SearchBox<'_> {
                 frame: visual,
                 chrome: self.chrome(),
                 content: Content {
-                    before: Some(ICON_SEARCH),
+                    before: Some(ui.icons().search),
                     after: None,
                 },
                 placeholder: self.placeholder.as_deref(),
@@ -193,7 +192,7 @@ impl MineralWidget for SearchBox<'_> {
                 Sense::click() - Sense::FOCUSABLE,
             );
             let color = t.color(crate::ColorToken::ColorNeutralForeground3);
-            paint::icon(ui.painter(), slot.center(), ICON_DISMISS, false, icon, color);
+            paint::icon(ui.painter(), slot.center(), ui.icons().dismiss, false, icon, color);
             if r.clicked() {
                 self.value.clear();
                 changed = true;

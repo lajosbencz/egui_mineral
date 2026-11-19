@@ -17,7 +17,6 @@ use super::value::{self, ListState, Value, selected_text};
 use crate::ColorToken::{ColorNeutralForegroundDisabled, ColorNeutralStrokeAccessible};
 use crate::{
     Fluent, FluentExt, Size,
-    icons::ICON_CHEVRON_DOWN,
     spec::{defaults::combobox as cb, tokens::geometry as g},
     widget::paint,
 };
@@ -169,7 +168,7 @@ impl Combobox<'_> {
         paint::icon(
             ui.painter(),
             icon_rect.center(),
-            ICON_CHEVRON_DOWN,
+            ui.icons().chevron_down,
             false,
             m.icon,
             t.color(if self.disabled {

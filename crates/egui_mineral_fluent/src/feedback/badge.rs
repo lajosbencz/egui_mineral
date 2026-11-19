@@ -23,7 +23,7 @@ use crate::ColorToken::{
     ColorPaletteYellowForeground2,
 };
 use crate::{
-    ColorToken, Fluent, FluentExt, FluentIcon, IconPosition,
+    ColorToken, Fluent, FluentExt, Icon, IconPosition,
     spec::{
         defaults::{badge as d, counter_badge as cd},
         tokens::geometry,
@@ -284,7 +284,7 @@ pub struct Badge {
     salt: KeyedSalt,
     key: AgentKey,
     text: String,
-    icon: Option<FluentIcon>,
+    icon: Option<Icon>,
     icon_position: IconPosition,
     size: BadgeSize,
     shape: BadgeShape,
@@ -313,8 +313,8 @@ impl Badge {
     }
 
     /// Glyph beside the text.
-    pub fn icon(mut self, icon: FluentIcon) -> Self {
-        self.icon = Some(icon);
+    pub fn icon(mut self, icon: impl Into<Icon>) -> Self {
+        self.icon = Some(icon.into());
         self
     }
 

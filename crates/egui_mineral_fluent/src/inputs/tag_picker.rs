@@ -22,7 +22,6 @@ use crate::ColorToken::{
 };
 use crate::{
     Fluent, FluentExt, Size,
-    icons::{ICON_CHEVRON_DOWN, ICON_DISMISS},
     spec::{
         defaults::tag_picker as tp,
         tokens::{geometry as g, typography as ty},
@@ -453,7 +452,7 @@ impl TagPicker<'_> {
         paint::icon(
             &p,
             Pos2::new(icon_x + tag.icon() / 2.0, rect.center().y),
-            ICON_DISMISS,
+            ui.icons().dismiss,
             false,
             tag.icon(),
             t.color(color),
@@ -494,7 +493,7 @@ impl TagPicker<'_> {
         paint::icon(
             ui.painter(),
             center,
-            ICON_CHEVRON_DOWN,
+            ui.icons().chevron_down,
             false,
             icon,
             t.color(if self.disabled {

@@ -13,8 +13,7 @@ use crate::ColorToken::{
     ColorPaletteRedForeground1,
 };
 use crate::{
-    Fluent, FluentExt, FluentIcon, Size,
-    icons::{ICON_CHECKMARK_CIRCLE, ICON_ERROR_CIRCLE, ICON_WARNING},
+    Fluent, FluentExt, Icon, Size,
     spec::{
         defaults::field as fd,
         tokens::{geometry as g, typography as ty},
@@ -35,11 +34,11 @@ pub enum Validation {
 
 impl Validation {
     // react-field useFieldStyles.styles.ts useValidationMessageIconStyles
-    fn icon(self) -> (FluentIcon, crate::ColorToken) {
+    fn icon(self, icons: &crate::IconSet) -> (Icon, crate::ColorToken) {
         match self {
-            Self::Error => (ICON_ERROR_CIRCLE, ColorPaletteRedForeground1),
-            Self::Warning => (ICON_WARNING, ColorPaletteDarkOrangeForeground1),
-            Self::Success => (ICON_CHECKMARK_CIRCLE, ColorPaletteGreenForeground1),
+            Self::Error => (icons.error_circle, ColorPaletteRedForeground1),
+            Self::Warning => (icons.warning, ColorPaletteDarkOrangeForeground1),
+            Self::Success => (icons.checkmark_circle, ColorPaletteGreenForeground1),
         }
     }
 }
@@ -184,7 +183,7 @@ impl Field {
         name: &'static str,
         text: &str,
         color: Color32,
-        icon: Option<(FluentIcon, Color32)>,
+        icon: Option<(Icon, Color32)>,
     ) {
         let dir = ui.i18n().direction();
         let indent = icon.map_or(0.0, |_| fd::VALIDATION_ICON + g::SPACING_HORIZONTAL_XS);
@@ -219,7 +218,7 @@ impl Field {
     fn show_messages(&self, ui: &mut MineralUi<'_, Fluent>) {
         let t = ui.tokens();
         if let Some((state, message)) = &self.validation {
-            let (icon, icon_color) = state.icon();
+            let (icon, icon_color) = state.icon(&ui.icons());
             let color = t.color(match state {
                 Validation::Error => ColorPaletteRedForeground1,
                 Validation::Warning | Validation::Success => ColorNeutralForeground3,

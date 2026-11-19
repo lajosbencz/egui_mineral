@@ -16,9 +16,8 @@ use crate::ColorToken::{
     ColorStatusWarningBackground1, ColorStatusWarningBorder1, ColorStatusWarningForeground3,
 };
 use crate::{
-    ColorToken, Fluent, FluentExt, FluentIcon,
+    ColorToken, Fluent, FluentExt, Icon,
     actions::{ButtonAppearance, PushButton},
-    icons::{ICON_CHECKMARK_CIRCLE, ICON_DISMISS, ICON_ERROR_CIRCLE, ICON_INFO, ICON_WARNING},
     spec::{
         defaults::message_bar as d,
         tokens::{geometry as g, typography as ty},
@@ -46,31 +45,31 @@ impl MessageBarIntent {
     pub const ALL: [Self; 4] = [Self::Info, Self::Success, Self::Warning, Self::Error];
 
     // react-message-bar useMessageBarStyles.styles.ts useRootIntentStyles and useIconIntentStyles
-    const fn palette(self) -> (ColorToken, ColorToken, ColorToken, FluentIcon) {
+    fn palette(self, icons: &crate::IconSet) -> (ColorToken, ColorToken, ColorToken, Icon) {
         match self {
             Self::Info => (
                 ColorNeutralBackground3,
                 ColorNeutralStroke1,
                 ColorNeutralForeground3,
-                ICON_INFO,
+                icons.info,
             ),
             Self::Success => (
                 ColorStatusSuccessBackground1,
                 ColorStatusSuccessBorder1,
                 ColorStatusSuccessForeground1,
-                ICON_CHECKMARK_CIRCLE,
+                icons.checkmark_circle,
             ),
             Self::Warning => (
                 ColorStatusWarningBackground1,
                 ColorStatusWarningBorder1,
                 ColorStatusWarningForeground3,
-                ICON_WARNING,
+                icons.warning,
             ),
             Self::Error => (
                 ColorStatusDangerBackground1,
                 ColorStatusDangerBorder1,
                 ColorStatusDangerForeground1,
-                ICON_ERROR_CIRCLE,
+                icons.error_circle,
             ),
         }
     }
@@ -214,7 +213,7 @@ impl MessageBar {
         ui.painter().layout_job(job)
     }
 
-    fn lead(&self, ui: &mut egui::Ui, rt: &crate::Rt, icon: FluentIcon, icon_color: Color32, text_color: Color32) {
+    fn lead(&self, ui: &mut egui::Ui, rt: &crate::Rt, icon: Icon, icon_color: Color32, text_color: Color32) {
         let (rect, _) = ui.allocate_exact_size(vec2(d::ICON_SIZE, d::ICON_SIZE), Sense::hover());
         paint::icon(ui.painter(), rect.center(), icon, true, d::ICON_SIZE, icon_color);
         ui.add_space(g::SPACING_HORIZONTAL_S);
@@ -241,7 +240,7 @@ impl MessageBar {
         ui.add_space(g::SPACING_HORIZONTAL_M);
         let label = crate::tr(rt.i18n(), "mineral-dismiss");
         let button = PushButton::new(self.salt.child("dismiss"), label)
-            .icon(ICON_DISMISS)
+            .icon(rt.icons().dismiss)
             .label_visible(false)
             .appearance(ButtonAppearance::Transparent);
         rt.ui(ui).mineral(button).response().clicked()
@@ -255,7 +254,7 @@ impl MessageBar {
         let rt = ui.rt();
         let t = ui.tokens();
         let dir = ui.i18n().direction();
-        let (fill, border, icon_color, icon) = self.intent.palette();
+        let (fill, border, icon_color, icon) = self.intent.palette(&ui.icons());
         let (fill, border, icon_color) = (t.color(fill), t.color(border), t.color(icon_color));
         let text_color = t.color(ColorNeutralForeground1);
         let radius = CornerRadius::from(match self.shape {

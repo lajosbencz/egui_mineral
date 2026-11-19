@@ -103,6 +103,7 @@ mod fluent;
 /// Font and icon installation.
 pub mod fonts;
 mod icon;
+mod icon_set;
 pub mod icons;
 pub mod inputs;
 pub mod navigation;
@@ -121,7 +122,9 @@ mod widget;
 pub use egui_mineral;
 pub use egui_mineral::egui;
 pub use fluent::{Fluent, FluentExt, Rt};
+pub use egui_mineral::icon::Icon;
 pub use icon::FluentIcon;
+pub use icon_set::IconSet;
 pub use spec::{BrandRamp, BrandStep, ColorToken, Shadow};
 pub use widget::vocab::{IconPosition, Size};
 

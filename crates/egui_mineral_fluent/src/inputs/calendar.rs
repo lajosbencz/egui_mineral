@@ -18,7 +18,6 @@ use crate::ColorToken::{
 };
 use crate::{
     Fluent, FluentExt,
-    icons::{ICON_CHEVRON_DOWN, ICON_CHEVRON_UP},
     spec::{
         defaults::calendar as cal,
         tokens::{geometry as g, typography as ty},
@@ -348,7 +347,7 @@ impl Run<'_> {
             n
         });
         let mut step = 0;
-        for (k, ((off, name), icon)) in nav.into_iter().zip([ICON_CHEVRON_UP, ICON_CHEVRON_DOWN]).enumerate() {
+        for (k, ((off, name), icon)) in nav.into_iter().zip([ui.icons().chevron_up, ui.icons().chevron_down]).enumerate() {
             let x = cal::PADDING + title_w + k as f32 * nav_w;
             let rect = cell(cx, self.root, x, cal::PADDING, Pos2::new(nav_w, cal::HEADER_HEIGHT));
             let id = cx.id.with(("nav", k));

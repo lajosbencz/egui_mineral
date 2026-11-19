@@ -19,7 +19,6 @@ use crate::ColorToken::{
 };
 use crate::{
     Fluent, FluentExt,
-    icons::{ICON_ARROW_DOWN, ICON_ARROW_UP},
     inputs::{Checkbox, CheckboxShape},
     spec::defaults::table as d,
     typography::TypeRamp,
@@ -947,8 +946,8 @@ fn header_cell(
         let from = d::CELL_PADDING + text.x + d::HEADER_GAP;
         let icon_x = dir.start_x(rect, Rangef::new(from, from + d::SORT_ICON)) + d::SORT_ICON / 2.0;
         let icon = match order {
-            SortOrder::Ascending => ICON_ARROW_UP,
-            SortOrder::Descending => ICON_ARROW_DOWN,
+            SortOrder::Ascending => ui.icons().arrow_up,
+            SortOrder::Descending => ui.icons().arrow_down,
         };
         // The padded icon box is centered, so the glyph sits half the top padding lower.
         let icon_y = rect.center().y + d::SORT_ICON_PADDING_TOP / 2.0;

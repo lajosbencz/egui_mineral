@@ -19,7 +19,7 @@ use crate::ColorToken::{
     ColorSubtleBackgroundPressed,
 };
 use crate::{
-    Fluent, FluentExt, FluentIcon, Rt,
+    Fluent, FluentExt, Icon, Rt,
     spec::{
         defaults::{menu, menu_grid as d},
         tokens::geometry as g,
@@ -38,7 +38,7 @@ use crate::{
 #[must_use]
 pub struct MenuGridItem {
     label: String,
-    icon: Option<FluentIcon>,
+    icon: Option<Icon>,
     sub_text: Option<String>,
     disabled: bool,
 }
@@ -55,8 +55,8 @@ impl MenuGridItem {
     }
 
     /// `icon` slot before the label.
-    pub fn icon(mut self, icon: FluentIcon) -> Self {
-        self.icon = Some(icon);
+    pub fn icon(mut self, icon: impl Into<Icon>) -> Self {
+        self.icon = Some(icon.into());
         self
     }
 
@@ -83,16 +83,16 @@ impl From<&str> for MenuGridItem {
 #[must_use]
 pub struct MenuGridAction {
     label: String,
-    icon: FluentIcon,
+    icon: Icon,
     disabled: bool,
 }
 
 impl MenuGridAction {
     /// `label` is the accessible name of the icon-only cell.
-    pub fn new(label: impl Into<String>, icon: FluentIcon) -> Self {
+    pub fn new(label: impl Into<String>, icon: impl Into<Icon>) -> Self {
         Self {
             label: label.into(),
-            icon,
+            icon: icon.into(),
             disabled: false,
         }
     }

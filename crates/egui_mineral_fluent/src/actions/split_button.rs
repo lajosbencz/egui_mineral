@@ -6,7 +6,7 @@ use egui_mineral::{
 };
 
 use crate::{
-    Fluent, FluentIcon, Size,
+    Fluent, Icon, Size,
     actions::{PushButton, button::Join},
     spec::defaults::split_button as d,
 };
@@ -34,7 +34,7 @@ pub struct SplitButton {
     key: Option<StableId>,
     label: String,
     menu_label: Option<String>,
-    icon: Option<FluentIcon>,
+    icon: Option<Icon>,
     appearance: ButtonAppearance,
     size: Size,
     shape: ButtonShape,
@@ -69,8 +69,8 @@ impl SplitButton {
     }
 
     /// Leading icon of the primary action.
-    pub fn icon(mut self, icon: FluentIcon) -> Self {
-        self.icon = Some(icon);
+    pub fn icon(mut self, icon: impl Into<Icon>) -> Self {
+        self.icon = Some(icon.into());
         self
     }
 

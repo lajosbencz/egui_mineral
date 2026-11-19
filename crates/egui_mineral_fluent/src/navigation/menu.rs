@@ -17,8 +17,7 @@ use crate::ColorToken::{
     ColorNeutralForegroundDisabled, ColorNeutralStroke1, ColorNeutralStroke2,
 };
 use crate::{
-    Fluent, FluentExt, FluentIcon, Rt,
-    icons::{ICON_CHECKMARK, ICON_CHEVRON_LEFT, ICON_CHEVRON_RIGHT},
+    Fluent, FluentExt, Icon, Rt,
     spec::{
         defaults::menu as d,
         tokens::{geometry as g, typography as ty},
@@ -37,7 +36,7 @@ use crate::{
 #[must_use]
 pub struct MenuItem {
     label: String,
-    icon: Option<FluentIcon>,
+    icon: Option<Icon>,
     secondary: Option<String>,
     disabled: bool,
     salt: Option<KeyedSalt>,
@@ -56,8 +55,8 @@ impl MenuItem {
     }
 
     /// `icon` slot; every row of the menu reserves it once one has an icon.
-    pub fn icon(mut self, icon: FluentIcon) -> Self {
-        self.icon = Some(icon);
+    pub fn icon(mut self, icon: impl Into<Icon>) -> Self {
+        self.icon = Some(icon.into());
         self
     }
 
@@ -190,7 +189,7 @@ impl Row<'_> {
         );
         let trailing = rect.width() - d::ITEM_PADDING;
         if matches!(self.kind, Kind::Submenu(_)) {
-            let chevron = dir.pick(ICON_CHEVRON_RIGHT, ICON_CHEVRON_LEFT);
+            let chevron = dir.pick(ui.icons().chevron_right, ui.icons().chevron_left);
             let left = trailing - d::ICON_SIZE;
             paint::icon(
                 ui.painter(),
@@ -295,7 +294,7 @@ impl MineralWidget for Row<'_> {
                 paint::icon(
                     ui.painter(),
                     pos2(at(x, d::ICON_SIZE) + d::ICON_SIZE / 2.0, cy),
-                    ICON_CHECKMARK,
+                    ui.icons().checkmark,
                     true,
                     d::CHECKMARK_SIZE,
                     color,
@@ -414,7 +413,7 @@ impl MineralWidget for SplitTrigger<'_> {
             t.color(ColorNeutralStroke1),
         );
         let x = g::STROKE_WIDTH_THIN + d::ITEM_GAP;
-        let chevron = dir.pick(ICON_CHEVRON_RIGHT, ICON_CHEVRON_LEFT);
+        let chevron = dir.pick(ui.icons().chevron_right, ui.icons().chevron_left);
         paint::icon(
             ui.painter(),
             pos2(at(x, d::ICON_SIZE) + d::ICON_SIZE / 2.0, cy),

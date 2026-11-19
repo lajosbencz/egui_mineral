@@ -24,9 +24,8 @@ use crate::ColorToken::{
     ColorTransparentBackgroundPressed,
 };
 use crate::{
-    Fluent, FluentExt, FluentIcon, Size,
+    Fluent, FluentExt, Icon, Size,
     data::{Avatar, AvatarSize},
-    icons::{ICON_CHECKMARK, ICON_CHEVRON_DOWN, ICON_CHEVRON_LEFT, ICON_CHEVRON_RIGHT},
     spec::{defaults::tree as d, tokens::geometry as g},
     theme::Radius,
     typography::TypeRamp,
@@ -69,8 +68,8 @@ pub enum TreeSelection {
 #[derive(Clone, Debug, Default)]
 #[must_use]
 pub struct TreeItemLayout {
-    icon_before: Option<FluentIcon>,
-    icon_after: Option<FluentIcon>,
+    icon_before: Option<Icon>,
+    icon_after: Option<Icon>,
     aside: Option<String>,
 }
 
@@ -81,14 +80,14 @@ impl TreeItemLayout {
     }
 
     /// `iconBefore` slot; the filled glyph shows while the row is checked.
-    pub fn icon_before(mut self, icon: FluentIcon) -> Self {
-        self.icon_before = Some(icon);
+    pub fn icon_before(mut self, icon: impl Into<Icon>) -> Self {
+        self.icon_before = Some(icon.into());
         self
     }
 
     /// `iconAfter` slot, right behind the label.
-    pub fn icon_after(mut self, icon: FluentIcon) -> Self {
-        self.icon_after = Some(icon);
+    pub fn icon_after(mut self, icon: impl Into<Icon>) -> Self {
+        self.icon_after = Some(icon.into());
         self
     }
 
@@ -386,7 +385,7 @@ impl Row<'_> {
                 paint::icon(
                     p,
                     center,
-                    ICON_CHECKMARK,
+                    ui.icons().checkmark,
                     true,
                     crate::spec::defaults::checkbox::GLYPH_MEDIUM,
                     t.color(ColorNeutralForegroundInverted),
@@ -587,9 +586,9 @@ impl MineralWidget for Row<'_> {
         let cy = rect.center().y;
         if let Some(span) = spans.expand {
             let icon = match (self.expanded, dir) {
-                (true, _) => ICON_CHEVRON_DOWN,
-                (false, egui_mineral::i18n::Direction::Ltr) => ICON_CHEVRON_RIGHT,
-                (false, egui_mineral::i18n::Direction::Rtl) => ICON_CHEVRON_LEFT,
+                (true, _) => ui.icons().chevron_down,
+                (false, egui_mineral::i18n::Direction::Ltr) => ui.icons().chevron_right,
+                (false, egui_mineral::i18n::Direction::Rtl) => ui.icons().chevron_left,
             };
             paint::icon(
                 ui.painter(),

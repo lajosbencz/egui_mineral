@@ -18,7 +18,6 @@ use crate::ColorToken::{
 use crate::{
     Fluent, FluentExt, Rt, Size,
     actions::PushButton,
-    icons::ICON_DISMISS,
     spec::{
         defaults::drawer as d,
         tokens::{motion as mo, typography as ty},
@@ -392,7 +391,7 @@ impl Drawer {
                             let b = PushButton::new(self.salt.child("close"), label)
                                 .appearance(ButtonAppearance::Subtle)
                                 .size(Size::Medium)
-                                .icon(ICON_DISMISS)
+                                .icon(rt.icons().dismiss)
                                 .label_visible(false);
                             close = rt.ui(ui).mineral(b).response().clicked();
                         });

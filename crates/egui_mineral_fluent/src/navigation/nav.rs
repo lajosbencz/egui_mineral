@@ -15,8 +15,7 @@ use crate::{
         ColorNeutralBackground4Pressed, ColorNeutralForeground1, ColorNeutralForeground2,
         ColorNeutralForeground2BrandSelected, ColorStrokeFocus2,
     },
-    Fluent, FluentExt, FluentIcon,
-    icons::{ICON_CHEVRON_DOWN, ICON_CHEVRON_UP},
+    Fluent, FluentExt, Icon,
     spec::{defaults::nav as d, tokens::geometry as g},
     surfaces::Divider,
     theme::Radius,
@@ -48,7 +47,7 @@ macro_rules! row_setters {
 pub struct NavItem {
     value: usize,
     label: String,
-    icon: Option<FluentIcon>,
+    icon: Option<Icon>,
     salt: Option<KeyedSalt>,
 }
 
@@ -65,8 +64,8 @@ impl NavItem {
     }
 
     /// `icon` slot; the filled glyph shows while selected.
-    pub fn icon(mut self, icon: FluentIcon) -> Self {
-        self.icon = Some(icon);
+    pub fn icon(mut self, icon: impl Into<Icon>) -> Self {
+        self.icon = Some(icon.into());
         self
     }
 
@@ -102,7 +101,7 @@ impl NavSubItem {
 pub struct NavCategory {
     value: usize,
     label: String,
-    icon: Option<FluentIcon>,
+    icon: Option<Icon>,
     salt: Option<KeyedSalt>,
 }
 
@@ -118,8 +117,8 @@ impl NavCategory {
     }
 
     /// `icon` slot; the filled glyph shows while a sub item is selected.
-    pub fn icon(mut self, icon: FluentIcon) -> Self {
-        self.icon = Some(icon);
+    pub fn icon(mut self, icon: impl Into<Icon>) -> Self {
+        self.icon = Some(icon.into());
         self
     }
 
@@ -168,7 +167,7 @@ enum Kind {
 struct Row {
     salt: KeyedSalt,
     label: String,
-    icon: Option<FluentIcon>,
+    icon: Option<Icon>,
     kind: Kind,
     selected: bool,
     density: NavDensity,
@@ -276,7 +275,7 @@ impl MineralWidget for Row {
         let tx = at(cursor, galley.size().x);
         ui.painter().galley(pos2(tx, cy - galley.size().y / 2.0), galley, color);
         if let Kind::Category { open } = self.kind {
-            let icon = if open { ICON_CHEVRON_UP } else { ICON_CHEVRON_DOWN };
+            let icon = if open { ui.icons().chevron_up } else { ui.icons().chevron_down };
             let x = at(rect.width() - end - d::ICON_SIZE, d::ICON_SIZE) + d::ICON_SIZE / 2.0;
             paint::icon(ui.painter(), pos2(x, cy), icon, false, d::ICON_SIZE, color);
         }

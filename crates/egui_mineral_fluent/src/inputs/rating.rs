@@ -16,7 +16,6 @@ use crate::ColorToken::{
 };
 use crate::{
     Fluent, FluentExt,
-    icons::ICON_STAR,
     spec::{
         defaults::{rating as rt, rating_display as rd},
         tokens::{geometry as g, typography as ty},
@@ -109,7 +108,7 @@ impl Stars {
     }
 
     // `shown` stars filled, the last one partly.
-    fn paint(&self, p: &Painter, rect: Rect, dir: Direction, shown: f32, t: &Tokens) {
+    fn paint(&self, p: &Painter, icons: &crate::IconSet, rect: Rect, dir: Direction, shown: f32, t: &Tokens) {
         let (selected, unselected) = colors(self.color, self.appearance, t);
         let filled_unselected = self.appearance == RatingAppearance::Filled;
         let s = self.size.icon();
@@ -117,7 +116,7 @@ impl Stars {
             let star = self.star(rect, dir, i);
             let part = (shown - f32::from(i)).clamp(0.0, 1.0);
             if part < 1.0 {
-                paint::icon(p, star.center(), ICON_STAR, filled_unselected, s, unselected);
+                paint::icon(p, star.center(), icons.star, filled_unselected, s, unselected);
             }
             if part > 0.0 {
                 let w = star.width() * part;
@@ -125,7 +124,7 @@ impl Stars {
                     pos2(dir.start_x(star, Rangef::new(0.0, w)), star.top()),
                     vec2(w, star.height()),
                 );
-                paint::icon(&p.with_clip_rect(clip), star.center(), ICON_STAR, true, s, selected);
+                paint::icon(&p.with_clip_rect(clip), star.center(), icons.star, true, s, selected);
             }
         }
     }
@@ -253,7 +252,7 @@ impl MineralWidget for Rating<'_> {
             *self.value = v;
         }
         let stars = self.stars();
-        stars.paint(ui.painter(), rect, dir, hover.unwrap_or(v) as f32, &t);
+        stars.paint(ui.painter(), &ui.icons(), rect, dir, hover.unwrap_or(v) as f32, &t);
         if Interaction::of(r, Availability::Enabled).focused {
             let at = (0..self.max.get()).find(|i| f64::from(*i) + 1.0 >= v).unwrap_or(0);
             focus::outline(
@@ -454,7 +453,7 @@ impl MineralWidget for RatingDisplay {
             pos2(dir.start_x(rect, Rangef::new(0.0, strip_w)), rect.center().y - s / 2.0),
             vec2(strip_w, s),
         );
-        stars.paint(ui.painter(), strip, dir, shown, &t);
+        stars.paint(ui.painter(), &ui.icons(), strip, dir, shown, &t);
         let mut at = strip.width();
         let color = t.color(ColorNeutralForeground1);
         for (galley, margin) in self.texts(ui) {

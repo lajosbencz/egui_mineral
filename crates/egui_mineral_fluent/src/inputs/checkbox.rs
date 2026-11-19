@@ -21,7 +21,6 @@ use crate::ColorToken::{
 };
 use crate::{
     Fluent, FluentExt, Size,
-    icons::{ICON_CHECKMARK, ICON_SQUARE},
     spec::{
         defaults::checkbox as cb,
         tokens::{geometry as g, typography as ty},
@@ -309,8 +308,8 @@ impl MineralWidget for Checkbox<'_> {
             Size::Small | Size::Medium => cb::GLYPH_MEDIUM,
         };
         match self.state() {
-            Check::Checked => paint::icon(p, placed.indicator.center(), ICON_CHECKMARK, true, glyph_size, glyph),
-            Check::Mixed => paint::icon(p, placed.indicator.center(), ICON_SQUARE, true, glyph_size, glyph),
+            Check::Checked => paint::icon(p, placed.indicator.center(), ui.icons().checkmark, true, glyph_size, glyph),
+            Check::Mixed => paint::icon(p, placed.indicator.center(), ui.icons().square, true, glyph_size, glyph),
             Check::Unchecked => {}
         }
         if let Some((at, galley)) = placed.text {

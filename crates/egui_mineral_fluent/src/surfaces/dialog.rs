@@ -12,7 +12,6 @@ use crate::ColorToken::{ColorBackgroundOverlay, ColorNeutralBackground1, ColorNe
 use crate::{
     Fluent, FluentExt, Rt,
     actions::PushButton,
-    icons::ICON_DISMISS,
     spec::{
         defaults::dialog as d,
         tokens::{geometry as g, motion as mo, typography as ty},
@@ -353,7 +352,7 @@ impl Dialog {
                     focus.enter(rt.ctx(), ui.make_persistent_id(salt.id_salt()));
                     let b = PushButton::new(salt, label)
                         .appearance(ButtonAppearance::Subtle)
-                        .icon(ICON_DISMISS)
+                        .icon(rt.icons().dismiss)
                         .label_visible(false);
                     close = rt.ui(ui).mineral(b).response().clicked();
                 });
