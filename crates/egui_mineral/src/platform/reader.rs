@@ -10,7 +10,7 @@ enum Source {
     Bytes(Arc<[u8]>),
     #[cfg(not(target_arch = "wasm32"))]
     Path(PathBuf),
-    #[cfg(all(target_arch = "wasm32", feature = "platform-native"))]
+    #[cfg(all(target_arch = "wasm32", feature = "platform-pickers"))]
     Web(web_sys::File),
 }
 
@@ -55,7 +55,7 @@ impl FileReader {
         })
     }
 
-    #[cfg(all(target_arch = "wasm32", feature = "platform-native"))]
+    #[cfg(all(target_arch = "wasm32", feature = "platform-pickers"))]
     pub(crate) fn from_web(file: web_sys::File) -> Self {
         // Browser file sizes are whole numbers of bytes below 2^53.
         #[expect(
@@ -111,7 +111,7 @@ impl FileReader {
                 }
                 #[cfg(not(target_arch = "wasm32"))]
                 Source::Path(path) => read_path(&path, offset, end - offset),
-                #[cfg(all(target_arch = "wasm32", feature = "platform-native"))]
+                #[cfg(all(target_arch = "wasm32", feature = "platform-pickers"))]
                 Source::Web(file) => read_web(&file, offset, end).await,
             }
         })
@@ -128,7 +128,7 @@ fn read_path(path: &Path, offset: u64, len: u64) -> Result<Vec<u8>, PlatformErro
     Ok(out)
 }
 
-#[cfg(all(target_arch = "wasm32", feature = "platform-native"))]
+#[cfg(all(target_arch = "wasm32", feature = "platform-pickers"))]
 async fn read_web(file: &web_sys::File, offset: u64, end: u64) -> Result<Vec<u8>, PlatformError> {
     let js = |e: wasm_bindgen::JsValue| PlatformError::Backend(format!("{e:?}").into());
     // Offsets stay below 2^53, exact in f64.

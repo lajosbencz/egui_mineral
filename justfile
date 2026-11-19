@@ -44,6 +44,10 @@ clippy:
     cargo clippy -p egui_mineral_material --all-targets -- -D warnings
     cargo clippy -p egui_mineral -p egui_mineral_material --all-targets --no-default-features -- -D warnings
     cargo clippy -p egui_mineral --target wasm32-unknown-unknown --no-default-features -- -D warnings
+    for f in platform-pickers platform-clipboard platform-notify; do \
+        cargo clippy -p egui_mineral --all-targets --no-default-features --features $f -- -D warnings; \
+        cargo clippy -p egui_mineral --target wasm32-unknown-unknown --no-default-features --features $f -- -D warnings; \
+    done
     cargo clippy -p egui_mineral_material --target wasm32-unknown-unknown -- -D warnings
     cargo clippy -p egui_mineral_material --target wasm32-unknown-unknown --no-default-features -- -D warnings
     cargo clippy -p egui_mineral_material --target wasm32-unknown-unknown --all-features -- -D warnings
@@ -53,6 +57,7 @@ clippy:
 test *args:
     cargo nextest run --workspace --all-features {{ args }}
     cargo nextest run -p egui_mineral -p egui_mineral_material --no-default-features --features egui_mineral_material/bundled-icons {{ args }}
+    cargo nextest run -p egui_mineral --no-default-features --features platform-notify {{ args }}
 
 # icu4x-datagen matching the locked ICU4X version
 icu-datagen:

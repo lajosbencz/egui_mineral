@@ -617,13 +617,21 @@ fn path_buttons(ui: &mut Mui<'_>, fake: Option<&MemoryPlatform>, p: &dyn Platfor
 fn save_buttons(ui: &mut Mui<'_>, p: &dyn PlatformService, shared: &Shared, text: &str) {
     if button(ui, "plat-save", "Save file") {
         let bytes = text.as_bytes().to_vec();
-        run(shared, p.save_file("export.txt".to_owned(), bytes), |outcome| {
-            match outcome {
-                SaveOutcome::Saved => "Saved",
-                _ => "Save cancelled",
-            }
-            .to_owned()
-        });
+        run(
+            shared,
+            p.save_file(
+                "export.txt".to_owned(),
+                FileFilter::new(FileType::new("Text", ["txt"])),
+                bytes,
+            ),
+            |outcome| {
+                match outcome {
+                    SaveOutcome::Saved => "Saved",
+                    _ => "Save cancelled",
+                }
+                .to_owned()
+            },
+        );
     }
     if button(ui, "plat-stream", "Stream save") {
         stream_save(p, shared, text);

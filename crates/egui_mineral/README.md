@@ -61,7 +61,10 @@ output.textures_delta.clear();
 |---|---|---|
 | `icu` | yes | ICU4X formatting, collation and direction; without it `AsciiFormat` |
 | `persist-fs` | yes | File-backed `persist` stores |
-| `platform-native` | | Native file dialogs, clipboard and notifications for `platform` |
+| `platform-pickers` | | File dialogs (`rfd`) for `platform` |
+| `platform-clipboard` | | OS clipboard (`arboard`) for `platform` |
+| `platform-notify` | | OS notifications (`notify-rust`, D-Bus on Linux) for `platform` |
+| `platform-native` | | `platform-pickers`, `platform-clipboard` and `platform-notify` |
 | `web-save-stream` | | Chromium streams `FileWriter` to disk; other browsers buffer |
 | `unstable-hotpatch` | | Native only: Dioxus `subsecond` hot-patching of `Runtime::pass`; the `dx` CLI must match `subsecond` 0.7.10; enable it from the command line only (`dx serve --hotpatch --features egui_mineral/unstable-hotpatch`), never in a manifest, since feature unification would ship it; touch the app's `main.rs` before each `dx serve` (see `docs/blockers.md`) |
 

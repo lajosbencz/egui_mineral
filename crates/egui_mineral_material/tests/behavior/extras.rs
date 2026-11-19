@@ -4,8 +4,8 @@ use egui_mineral_material::{
     actions::PushButton,
     communication::RichTooltip,
     extras::{
-        DateField, DescriptionItem, DescriptionList, Pagination, Popover, StatusBar, StatusItem, StatusTone, TextLink, Timeline,
-        TimelineItem,
+        DateField, DescriptionItem, DescriptionList, Pagination, Popover, StatusBar, StatusItem, StatusTone, TextLink,
+        Timeline, TimelineItem,
     },
 };
 
@@ -304,7 +304,10 @@ fn status_item_elides_into_the_room_left_instead_of_dropping() {
     assert!(item.right() <= end.left() + 0.5 && item.width() > 0.0 && bar.contains_rect(item));
     h.state_mut().value = false;
     h.run();
-    assert!(h.tree().find_key("status-1-status-item").is_none(), "dropped without elide");
+    assert!(
+        h.tree().find_key("status-1-status-item").is_none(),
+        "dropped without elide"
+    );
 }
 
 #[test]
@@ -314,7 +317,11 @@ fn status_item_colors_override_the_tone_strip() {
         StatusBar::new("status", "Status")
             .item(StatusItem::new("Low disk").colors(amber, egui::Color32::BLACK))
             .item(StatusItem::new("Failed").tone(StatusTone::Error))
-            .item(StatusItem::new("Plain").tone(StatusTone::Error).colors(amber, egui::Color32::BLACK))
+            .item(
+                StatusItem::new("Plain")
+                    .tone(StatusTone::Error)
+                    .colors(amber, egui::Color32::BLACK),
+            )
             .show(ui);
     });
     let strip = |c: egui::Color32| {
@@ -324,7 +331,11 @@ fn status_item_colors_override_the_tone_strip() {
             .count()
     };
     assert_eq!(strip(amber), 2, "colors paint their strips");
-    assert_eq!(pass.filled(ColorRole::ErrorContainer).len(), 1, "tone paints without colors");
+    assert_eq!(
+        pass.filled(ColorRole::ErrorContainer).len(),
+        1,
+        "tone paints without colors"
+    );
 }
 
 #[test]

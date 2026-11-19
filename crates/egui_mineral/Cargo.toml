@@ -34,9 +34,15 @@ icu = [
     "dep:fixed_decimal",
 ]
 persist-fs = ["dep:toml", "dep:serde_json", "dep:dirs"]
-platform-native = ["dep:rfd", "dep:arboard", "dep:notify-rust", "dep:wasm-bindgen-futures"]
+# File dialogs (`rfd`).
+platform-pickers = ["dep:rfd", "dep:wasm-bindgen-futures"]
+# OS clipboard (`arboard`, browser Clipboard API).
+platform-clipboard = ["dep:arboard", "dep:wasm-bindgen-futures"]
+# OS notifications (`notify-rust` with D-Bus, browser Notification API).
+platform-notify = ["dep:notify-rust", "dep:wasm-bindgen-futures"]
+platform-native = ["platform-pickers", "platform-clipboard", "platform-notify"]
 # Chromium streams `save_file_writer` to disk (File System Access API); other browsers buffer.
-web-save-stream = ["platform-native"]
+web-save-stream = ["platform-pickers"]
 # Dioxus `subsecond` hot-patching, native only; command line only (`dx serve --hotpatch --features egui_mineral/unstable-hotpatch`).
 unstable-hotpatch = ["dep:subsecond", "dep:dioxus-devtools"]
 

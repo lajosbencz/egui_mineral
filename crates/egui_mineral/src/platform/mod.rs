@@ -2,13 +2,21 @@
 //! Blocking OS work runs when the future is polled, never in the call itself.
 
 mod memory;
-#[cfg(feature = "platform-native")]
+#[cfg(any(
+    feature = "platform-pickers",
+    feature = "platform-clipboard",
+    feature = "platform-notify"
+))]
 mod native;
 mod reader;
 mod writer;
 
 pub use memory::MemoryPlatform;
-#[cfg(feature = "platform-native")]
+#[cfg(any(
+    feature = "platform-pickers",
+    feature = "platform-clipboard",
+    feature = "platform-notify"
+))]
 pub use native::NativePlatform;
 pub use reader::FileReader;
 pub use writer::FileWriter;
@@ -25,6 +33,9 @@ pub enum PlatformError {
     /// User or OS refused access (clipboard read, notifications).
     #[error("permission denied")]
     PermissionDenied,
+    /// The cargo feature (named) behind the call is disabled.
+    #[error("platform feature `{0}` is not enabled")]
+    Unsupported(&'static str),
     /// Backend failure; the cause is the [`source`](std::error::Error::source).
     #[error("platform backend failed: {0}")]
     Backend(#[source] Box<dyn std::error::Error + Send + Sync>),
@@ -76,6 +87,8 @@ pub struct FileFilter {
     /// Folder the dialog opens in; the OS default when `None`. Native only.
     #[cfg(not(target_arch = "wasm32"))]
     pub directory: Option<PathBuf>,
+    /// File name the dialog starts with; a suggested save name overrides it.
+    pub file_name: Option<String>,
 }
 
 /// One named group of file extensions in a file picker.
@@ -122,6 +135,12 @@ impl FileFilter {
         self
     }
 
+    /// File name the dialog starts with.
+    pub fn file_name(mut self, file_name: impl Into<String>) -> Self {
+        self.file_name = Some(file_name.into());
+        self
+    }
+
     /// Folder the dialog opens in.
     #[cfg(not(target_arch = "wasm32"))]
     pub fn directory(mut self, directory: impl Into<PathBuf>) -> Self {
@@ -144,7 +163,12 @@ pub trait PlatformService {
     fn pick_folder(&self, filter: FileFilter) -> BoxFuture<Result<Option<PathBuf>, PlatformError>>;
     /// [`SaveOutcome::Cancelled`] when the user dismissed the dialog. Browsers expose no saved path, so none is reported.
     /// Writes `bytes` whole; stream large files through [`Self::save_file_writer`].
-    fn save_file(&self, suggested_name: String, bytes: Vec<u8>) -> BoxFuture<Result<SaveOutcome, PlatformError>>;
+    fn save_file(
+        &self,
+        suggested_name: String,
+        filter: FileFilter,
+        bytes: Vec<u8>,
+    ) -> BoxFuture<Result<SaveOutcome, PlatformError>>;
     /// Like [`Self::save_file`], written in chunks; `Ok(None)` when the user cancelled.
     fn save_file_writer(
         &self,

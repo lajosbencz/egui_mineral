@@ -253,7 +253,8 @@ impl Popover {
     ) -> OverlayResponse<R> {
         let rt = ui.rt();
         let ctx = ui.ctx().clone();
-        let focus_id = kit::scoped_id(rt.core(), Id::unique(("mineral::popover_at", self.base.salt.id_salt()))).with("focus");
+        let focus_id =
+            kit::scoped_id(rt.core(), Id::unique(("mineral::popover_at", self.base.salt.id_salt()))).with("focus");
         let chrome = Chrome {
             arrow: self.arrow,
             max_width: self.base.max_width,

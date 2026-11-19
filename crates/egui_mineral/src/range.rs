@@ -560,7 +560,11 @@ impl RangeModel {
                     None if page => LOG_PAGE * self.log_span(),
                     None => LOG_ARROW * self.log_span(),
                 };
-                let ln_ratio = if ln_ratio.is_finite() { ln_ratio.min(self.log_span()) } else { 0.0 };
+                let ln_ratio = if ln_ratio.is_finite() {
+                    ln_ratio.min(self.log_span())
+                } else {
+                    0.0
+                };
                 let one = self.snap(from * (n.signum() * ln_ratio).exp());
                 let mut next = self.snap(from * (n * ln_ratio).exp());
                 if page && let Some(j) = self.jump {
@@ -572,9 +576,7 @@ impl RangeModel {
                 }
                 match self.step {
                     Some(s) => self.snap(base + n * s),
-                    None => stall_steps(n).fold(base, |acc, _| {
-                        self.significant_step(acc, n > 0.0).unwrap_or(acc)
-                    }),
+                    None => stall_steps(n).fold(base, |acc, _| self.significant_step(acc, n > 0.0).unwrap_or(acc)),
                 }
             }
         }
@@ -699,7 +701,12 @@ fn round_decimal_digits(v: f64, digits: usize) -> Option<f64> {
     let text = format!("{:.precision$e}", v.abs());
     let (mantissa, exp) = text.split_once('e')?;
     let mut exp: i32 = exp.parse().ok()?;
-    let mut ds: Vec<u8> = mantissa.bytes().filter(u8::is_ascii_digit).filter_map(|b| char::from(b).to_digit(10)).map(|d| d as u8).collect();
+    let mut ds: Vec<u8> = mantissa
+        .bytes()
+        .filter(u8::is_ascii_digit)
+        .filter_map(|b| char::from(b).to_digit(10))
+        .map(|d| d as u8)
+        .collect();
     if digits < ds.len() {
         let up = ds.get(digits).is_some_and(|d| *d >= 5);
         ds.truncate(digits);
@@ -902,9 +909,17 @@ mod tests {
         let log = RangeModel::new(0.0, 10.0).scale(Scale::Log);
         assert_eq!(log, RangeModel::new(0.0, 10.0), "log needs min > 0");
         let log = RangeModel::new(1.0, 10.0).increment(2.0).scale(Scale::Log);
-        assert_eq!(log, RangeModel::new(1.0, 10.0).scale(Scale::Log), "log drops the increment");
+        assert_eq!(
+            log,
+            RangeModel::new(1.0, 10.0).scale(Scale::Log),
+            "log drops the increment"
+        );
         let log = RangeModel::new(1.0, 10.0).scale(Scale::Log).increment(2.0);
-        assert_eq!(log, RangeModel::new(1.0, 10.0).scale(Scale::Log), "log ignores an increment");
+        assert_eq!(
+            log,
+            RangeModel::new(1.0, 10.0).scale(Scale::Log),
+            "log ignores an increment"
+        );
     }
 
     #[test]
@@ -930,12 +945,19 @@ mod tests {
         assert_eq!(r.on_key(10.0, Key::PageUp, Track::vertical()), Some(20.0));
         assert_eq!(r.on_key(20.0, Key::PageDown, Track::vertical()), Some(10.0));
         let no_jump = RangeModel::new(1.0, 1000.0).scale(Scale::Log).ratio(1.02).step(1.0);
-        assert_eq!(no_jump.on_key(10.0, Key::PageUp, Track::vertical()), Some(12.0), "ratio page only");
+        assert_eq!(
+            no_jump.on_key(10.0, Key::PageUp, Track::vertical()),
+            Some(12.0),
+            "ratio page only"
+        );
         for n in 1..=5 {
             assert_eq!(no_jump.step_by(10.0, n), 10.0 + n as f64, "{n} stalled steps");
             assert_eq!(no_jump.step_by(10.0, -n), 10.0 - n as f64);
         }
-        let sig = RangeModel::new(0.1, 100.0).scale(Scale::Log).ratio(1.001).significant(2);
+        let sig = RangeModel::new(0.1, 100.0)
+            .scale(Scale::Log)
+            .ratio(1.001)
+            .significant(2);
         assert_eq!(sig.step_by(1.0, 3), 1.3, "stalled significant steps repeat");
     }
 

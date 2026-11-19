@@ -566,7 +566,10 @@ impl SideSheet {
                 // The sheet keeps its full width and slides: the panel reveals its start edge.
                 let shown = ui.max_rect();
                 let sheet = Rect::from_min_size(
-                    pos2(self.inner_side(dir).start_x(shown, Rangef::new(0.0, 0.0 + w)), shown.top()),
+                    pos2(
+                        self.inner_side(dir).start_x(shown, Rangef::new(0.0, 0.0 + w)),
+                        shown.top(),
+                    ),
                     vec2(w, shown.height()),
                 );
                 ui.painter().rect_filled(shown, 0, t.role(SIDE_CONTAINER_COLOR));

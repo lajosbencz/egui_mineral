@@ -86,7 +86,12 @@ impl PlatformService for MemoryPlatform {
         Box::pin(async move { Ok(next) })
     }
 
-    fn save_file(&self, suggested_name: String, bytes: Vec<u8>) -> BoxFuture<Result<SaveOutcome, PlatformError>> {
+    fn save_file(
+        &self,
+        suggested_name: String,
+        _filter: FileFilter,
+        bytes: Vec<u8>,
+    ) -> BoxFuture<Result<SaveOutcome, PlatformError>> {
         self.inner().saved.push(PickedFile {
             name: suggested_name,
             bytes,
@@ -103,7 +108,7 @@ impl PlatformService for MemoryPlatform {
     ) -> BoxFuture<Result<Option<FileWriter>, PlatformError>> {
         let this = self.clone();
         let w = FileWriter::buffered(suggested_name, move |name, bytes| {
-            Box::pin(async move { this.save_file(name, bytes).await.map(drop) })
+            Box::pin(async move { this.save_file(name, FileFilter::default(), bytes).await.map(drop) })
         });
         Box::pin(async move { Ok(Some(w)) })
     }
@@ -137,7 +142,11 @@ mod tests {
     #[test]
     fn save_and_notify_report_typed_results() {
         let p = MemoryPlatform::default();
-        let outcome = p.save_file("a.txt".into(), vec![1]).now_or_never().unwrap().unwrap();
+        let outcome = p
+            .save_file("a.txt".into(), FileFilter::default(), vec![1])
+            .now_or_never()
+            .unwrap()
+            .unwrap();
         assert_eq!(outcome, SaveOutcome::Saved);
         let note = Notification {
             title: "t".into(),
@@ -163,5 +172,10 @@ mod tests {
         assert_eq!(f.filters[0].name, "Images");
         assert_eq!(f.filters[0].extensions, ["png", "jpg"]);
         assert_eq!(f.filters[1].extensions, ["txt"]);
+        assert_eq!(
+            f.clone().file_name("report.txt").file_name.as_deref(),
+            Some("report.txt")
+        );
+        assert_eq!(f.file_name, None);
     }
 }
