@@ -3,32 +3,49 @@
 [![CI](https://github.com/lajosbencz/egui_mineral/actions/workflows/ci.yml/badge.svg)](https://github.com/lajosbencz/egui_mineral/actions/workflows/ci.yml)
 [![version](https://img.shields.io/crates/v/egui_mineral.svg)](https://crates.io/crates/egui_mineral)
 [![docs](https://img.shields.io/docsrs/egui_mineral)](https://docs.rs/egui_mineral)
-[![license](https://img.shields.io/crates/l/egui_mineral)](https://github.com/lajosbencz/egui_mineral/blob/master/LICENSE)
-[![msrv](https://img.shields.io/crates/msrv/egui_mineral)](https://github.com/lajosbencz/egui_mineral/blob/master/rust-toolchain.toml)
+[![license](https://img.shields.io/crates/l/egui_mineral)](LICENSE)
+[![msrv](https://img.shields.io/crates/msrv/egui_mineral)](rust-toolchain.toml)
 
 A headless, unopinionated behavior core with different stylekits for customization,
 all on top of [egui](https://github.com/emilk/egui).
 
-## Demo
+## Portable
 
 It's cross-platform:
 
 - Open in the [browser](https://lajosbencz.github.io/egui_mineral/material/)
 - Or after cloning the repo, run: `cargo run -p showcase`.
 
+## Release size
+WASM showcase: `8.7 MB` (gzipped: `3.3 MB`).
+
+Savings over a default build, uncompressed WASM:
+
+| | Feature | Default | Replace with | Saved |
+|--:|---|---|---|--:|
+| 1 | Icon fonts | Material Symbols | a subset of the icons | `3.0 MB` |
+| 2 | Text fonts | egui's bundled fonts | your own fonts | `1.4 MB` |
+| 3 | Locale data | ICU4X, every locale | en-US locale only | `0.8 MB` |
+| 4 | Renderer | wgpu | glow | `2.0 MB` |
+
+How to opt-out:
+
+1. Disable `bundled-icons` and pass `Material::icon_fonts`. The showcase's [`build.rs`](examples/showcase/build.rs) subsets the fonts to the icons it uses.
+2. Disable eframe's `default_fonts` feature and install your own fonts with `egui::Context::set_fonts`.
+3. Set `ICU4X_DATA_DIR` to data for your locales ([`i18n`](https://docs.rs/egui_mineral/latest/egui_mineral/i18n/)), or disable `icu`.
+4. Build eframe without its default features and enable `glow`, as the [showcase](examples/showcase/) does.
+
 ## Use
 
-```toml
-[dependencies]
-egui_mineral = "0.1"
-egui_mineral_material = "0.1"
-egui = "0.37"
-eframe = "0.37"
+```sh
+cargo add egui_mineral_material
+cargo add eframe@0.37
 ```
 
 ```rust
 use std::sync::Arc;
 
+use eframe::egui;
 use egui_mineral_material::prelude::*;
 
 struct App {
@@ -38,7 +55,7 @@ struct App {
 
 impl App {
     /// Fails when a catalog does not parse.
-    fn new(ctx: &egui::Context) -> Result<Self, egui_mineral::runtime::InitError> {
+    fn new(ctx: &egui::Context) -> Result<Self, egui_mineral_material::egui_mineral::runtime::InitError> {
         let rt = Runtime::new(ctx, Material::new(egui::Theme::Light))?;
         Ok(Self { rt, clicks: 0 })
     }
@@ -67,19 +84,8 @@ fn main() -> eframe::Result {
 
 Cargo features: [docs.rs](https://docs.rs/crate/egui_mineral/latest/features).
 
-## Release size
-
-The WASM showcase is 8.7 MB (3.3 MB gzipped). Main assets of a default build:
-
-| Asset | Size | Opt out |
-|---|---|---|
-| Material Symbols fonts, filled and outlined | 3.0 MB | disable `bundled-icons`, pass `Material::icon_fonts`; the showcase's [`build.rs`](https://github.com/lajosbencz/egui_mineral/blob/master/examples/showcase/build.rs) subsets them to the icons used (38 KB) |
-| egui text fonts | 1.4 MB | eframe's `default_fonts` feature, then your own via `egui::Context::set_fonts` |
-| ICU4X data, every CLDR locale | 0.8 MB over `en` only | `ICU4X_DATA_DIR` with your locales ([`i18n`](https://docs.rs/egui_mineral/latest/egui_mineral/i18n/)), or disable `icu` |
-| eframe `wgpu` renderer | 2.0 MB (0.8 MB gzipped) over `glow` | eframe without default features, with `glow`, as the showcase does |
-
 ## License
 
-- [LICENSE](https://github.com/lajosbencz/egui_mineral/blob/master/LICENSE)- GPL-3.0-or-later
-- [LICENSE-APACHE](https://github.com/lajosbencz/egui_mineral/blob/master/crates/egui_mineral_material/LICENSE-APACHE) - Apache-2.0 data derived from Jetpack Compose
-- [NOTICE](https://github.com/lajosbencz/egui_mineral/blob/master/crates/egui_mineral_material/NOTICE)
+- [LICENSE](LICENSE) - GPL-3.0-or-later
+- [LICENSE-APACHE](crates/egui_mineral_material/LICENSE-APACHE) - Apache-2.0 data derived from Jetpack Compose
+- [NOTICE](crates/egui_mineral_material/NOTICE)
