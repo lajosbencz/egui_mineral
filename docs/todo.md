@@ -1,7 +1,6 @@
 # TODO
 
-Core APIs kept but not exercised by any layer.
-
+Core APIs kept but not exercised by any layer: none.
 
 ## Deferred requests
 
