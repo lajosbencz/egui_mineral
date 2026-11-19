@@ -513,7 +513,6 @@ fn spring_demo(ui: &mut Mui<'_>, s: &mut State, track_w: f32) {
 
 fn locale(ui: &mut Mui<'_>, s: &mut State) {
     let rt = ui.rt();
-    let ctx = ui.ctx().clone();
     let f = rt.i18n().format();
     let sample = Date::constant(2026, 11, 15);
     let afternoon = Time::constant(14, 5, 0, 0);
@@ -561,16 +560,12 @@ fn locale(ui: &mut Mui<'_>, s: &mut State) {
         ("Months", months.join(", ")),
         ("Collation", sorted.join(" < ")),
     ];
-    egui::Grid::new("locale-grid")
-        .num_columns(2)
-        .striped(true)
-        .show(ui, |ui| {
-            for (k, v) in rows {
-                ui.label(RichText::new(k).font(TypeScale::LabelLarge.font(&ctx)));
-                ui.label(v);
-                ui.end_row();
-            }
-        });
+    ui.mineral(
+        DescriptionList::new("locale-values")
+            .columns(1)
+            .dividers(true)
+            .items(rows.into_iter().map(|(k, v)| DescriptionItem::term(k).detail(v))),
+    );
     ui.add_space(8.0);
     super::row(ui, |row| {
         row.mineral(
