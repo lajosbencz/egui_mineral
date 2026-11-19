@@ -1,6 +1,6 @@
 use crate::Material;
 use crate::MaterialExt;
-use egui::{Pos2, Rangef, Rect, Response, Sense, Stroke, Vec2, pos2, vec2};
+use egui::{Color32, Pos2, Rangef, Rect, Response, Sense, Stroke, Vec2, pos2, vec2};
 use egui_material_icons::MaterialIcon;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::{Availability, MineralUi};
@@ -32,6 +32,17 @@ enum Lead {
     Progress(Option<f32>),
 }
 
+/// Color treatment of a [`StatusItem`]; MD3 has no warning role, so there is none.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum StatusTone {
+    /// Bar container and content colors.
+    #[default]
+    Default,
+    /// Error container and on-error-container content.
+    Error,
+}
+
 /// Text, with an optional icon or progress indicator, in a [`StatusBar`].
 #[derive(Clone, Debug)]
 #[must_use]
@@ -40,6 +51,9 @@ pub struct StatusItem {
     lead: Option<Lead>,
     tooltip: Option<String>,
     clickable: bool,
+    tone: StatusTone,
+    colors: Option<(Color32, Color32)>,
+    elide: bool,
 }
 
 impl StatusItem {
@@ -50,6 +64,9 @@ impl StatusItem {
             lead: None,
             tooltip: None,
             clickable: false,
+            tone: StatusTone::Default,
+            colors: None,
+            elide: false,
         }
     }
 
@@ -80,6 +97,28 @@ impl StatusItem {
     }
 }
 
+impl StatusItem {
+    /// [`StatusTone`] of the item's strip; default [`StatusTone::Default`].
+    pub fn tone(mut self, tone: StatusTone) -> Self {
+        self.tone = tone;
+        self
+    }
+
+    /// App-chosen strip and text colors, overriding the [`tone`](Self::tone) (e.g. a warning tone,
+    /// which MD3 lacks).
+    pub fn colors(mut self, container: Color32, content: Color32) -> Self {
+        self.colors = Some((container, content));
+        self
+    }
+
+    /// A start item that does not fit shrinks to the room left, ending in an ellipsis, instead of
+    /// being dropped; default `false`.
+    pub fn elide(mut self, elide: bool) -> Self {
+        self.elide = elide;
+        self
+    }
+}
+
 impl<S: Into<String>> From<S> for StatusItem {
     fn from(text: S) -> Self {
         Self::new(text)
@@ -97,7 +136,7 @@ pub struct StatusBarResponse {
 }
 
 /// Desktop status bar: items at the reading start and end of a full-width strip; non-MD3. Show it
-/// last in a bottom panel. Items that do not fit are dropped from the end of the start group.
+/// last in a bottom panel. Start items that do not fit are dropped from the end of the start group, unless [`StatusItem::elide`].
 #[derive(Clone, Debug)]
 #[must_use = "call .show(..)"]
 pub struct StatusBar {
@@ -151,35 +190,55 @@ impl StatusBar {
             Stroke::new(divider::THICKNESS, t.role(divider::COLOR)),
         );
 
-        let content = t.role(CONTENT);
-        let galleys: Vec<_> = self
+        let content_of = |it: &StatusItem| match (it.colors, it.tone) {
+            (Some((_, content)), _) => content,
+            (None, StatusTone::Default) => t.role(CONTENT),
+            (None, StatusTone::Error) => t.role(ColorRole::OnErrorContainer),
+        };
+        let mut galleys: Vec<_> = self
             .items
             .iter()
-            .map(|(it, _)| parts::type_galley(rt.core(), ui.painter(), &it.text, TEXT, content, None))
+            .map(|(it, _)| parts::type_galley(rt.core(), ui.painter(), &it.text, TEXT, content_of(it), None))
             .collect();
-        let width = |i: usize| {
-            let icon = self.items[i].0.lead.map_or(0.0, |_| ICON + ICON_GAP);
-            2.0 * PAD_X + icon + galleys[i].size().x
-        };
+        let chrome = |i: usize| 2.0 * PAD_X + self.items[i].0.lead.map_or(0.0, |_| ICON + ICON_GAP);
+        let width = |i: usize, galleys: &[std::sync::Arc<egui::Galley>]| chrome(i) + galleys[i].size().x;
         // Logical offsets from each edge; the end group claims its space first.
         let mut slots: Vec<Option<Rect>> = vec![None; self.items.len()];
         let mut end = 0.0;
         for i in (0..self.items.len()).filter(|&i| self.items[i].1) {
-            slots[i] = Some(slot(rect, dir, true, end, width(i)));
-            end += width(i);
+            let w = width(i, &galleys);
+            slots[i] = Some(slot(rect, dir, true, end, w));
+            end += w;
         }
         let mut start = 0.0;
         for i in (0..self.items.len()).filter(|&i| !self.items[i].1) {
-            if start + width(i) + end > rect.width() {
-                break;
+            let mut w = width(i, &galleys);
+            if start + w + end > rect.width() {
+                let room = rect.width() - start - end - chrome(i);
+                if !self.items[i].0.elide || room <= 0.0 {
+                    break;
+                }
+                let item = &self.items[i].0;
+                galleys[i] = parts::type_wrapped(ui.painter(), &item.text, TEXT, content_of(item), room, 1);
+                w = rect.width() - start - end;
             }
-            slots[i] = Some(slot(rect, dir, false, start, width(i)));
-            start += width(i);
+            slots[i] = Some(slot(rect, dir, false, start, w));
+            start += w;
         }
 
         let mut clicked = None;
         for (i, ((item, _), galley)) in self.items.iter().zip(galleys).enumerate() {
             let Some(r) = slots[i] else { continue };
+            let content = content_of(item);
+            match (item.colors, item.tone) {
+                (Some((container, _)), _) => {
+                    ui.painter().rect_filled(r, 0, container);
+                }
+                (None, StatusTone::Error) => {
+                    ui.painter().rect_filled(r, 0, t.role(ColorRole::ErrorContainer));
+                }
+                (None, StatusTone::Default) => {}
+            }
             let sense = if item.clickable { Sense::click() } else { Sense::hover() };
             let resp = ui.interact(r, id.with(i), sense);
             if item.clickable {

@@ -4,12 +4,13 @@ use egui_mineral_material::{
     actions::PushButton,
     communication::RichTooltip,
     extras::{
-        DateField, DescriptionItem, DescriptionList, Pagination, Popover, StatusBar, StatusItem, TextLink, Timeline,
+        DateField, DescriptionItem, DescriptionList, Pagination, Popover, StatusBar, StatusItem, StatusTone, TextLink, Timeline,
         TimelineItem,
     },
 };
 
-use crate::support::{MineralHarness, SCREEN, dismissals, harness, render_directed};
+use crate::support::{MineralHarness, SCREEN, dismissals, harness, render, render_directed};
+use egui_mineral_material::spec::ColorRole;
 
 #[test]
 fn focused_date_field_requests_ime_and_takes_soft_keyboard_input() {
@@ -278,4 +279,50 @@ fn status_bar_mirrors_in_rtl() {
         (rect("status-1-status-item").left() - bar.left()).abs() < 0.5,
         "end item on the left"
     );
+}
+
+fn long_item_bar(ui: &mut crate::support::Mui<'_>, elide: bool) {
+    StatusBar::new("status", "Status")
+        .item(StatusItem::new("main"))
+        .item(
+            StatusItem::new("A long log line that cannot possibly fit the narrow bar")
+                .elide(elide)
+                .tone(StatusTone::Error),
+        )
+        .trailing(StatusItem::new("UTF-8"))
+        .show(ui);
+}
+
+#[test]
+fn status_item_elides_into_the_room_left_instead_of_dropping() {
+    let mut h = harness(egui::vec2(260.0, 100.0), true, |ui, elide| long_item_bar(ui, *elide));
+    let (bar, item, end) = (
+        h.rect("status-status-bar"),
+        h.rect("status-1-status-item"),
+        h.rect("status-2-status-item"),
+    );
+    assert!(item.right() <= end.left() + 0.5 && item.width() > 0.0 && bar.contains_rect(item));
+    h.state_mut().value = false;
+    h.run();
+    assert!(h.tree().find_key("status-1-status-item").is_none(), "dropped without elide");
+}
+
+#[test]
+fn status_item_colors_override_the_tone_strip() {
+    let amber = egui::Color32::from_rgb(250, 200, 20);
+    let pass = render(|ui| {
+        StatusBar::new("status", "Status")
+            .item(StatusItem::new("Low disk").colors(amber, egui::Color32::BLACK))
+            .item(StatusItem::new("Failed").tone(StatusTone::Error))
+            .item(StatusItem::new("Plain").tone(StatusTone::Error).colors(amber, egui::Color32::BLACK))
+            .show(ui);
+    });
+    let strip = |c: egui::Color32| {
+        pass.shapes
+            .iter()
+            .filter(|s| matches!(&s.shape, egui::Shape::Rect(r) if r.fill == c))
+            .count()
+    };
+    assert_eq!(strip(amber), 2, "colors paint their strips");
+    assert_eq!(pass.filled(ColorRole::ErrorContainer).len(), 1, "tone paints without colors");
 }

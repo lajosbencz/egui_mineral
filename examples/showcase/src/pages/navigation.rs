@@ -182,6 +182,11 @@ fn status_bar(ui: &mut Mui<'_>, s: &mut State) {
             .item(StatusItem::new("main").icon(ICON_CALL_SPLIT).clickable(true))
             .item(StatusItem::new("Indexing").progress(None).tooltip("Background task"))
             .trailing(StatusItem::new(format!("Zoom {}%", s.zoom)).clickable(true))
+            .item(
+                StatusItem::new("Build failed: a long message that elides when the window narrows")
+                    .elide(true)
+                    .tone(StatusTone::Error),
+            )
             .trailing(StatusItem::new("UTF-8"))
             .show(ui);
         match r.clicked {

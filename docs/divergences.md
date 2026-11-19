@@ -10,3 +10,4 @@ Deliberate departures from the MD3 spec, Compose behavior or our own [convention
 | `SegmentedButton` press | No z-index raise on press, segments paint in row order. | egui paints in call order. |
 | `SegmentedButton` check | The check's scale spring keeps running while hidden, a quick reselect starts part-way. | One spring per segment. |
 | `SegmentedButton` overflow | A row wider than the available width shrinks its segments evenly and clips their labels. | Compose has no defined overflow. |
+| `StatusItem::tone` | `StatusTone` has `Default` and `Error` only, no warning tone; apps pass their own through `StatusItem::colors`. | MD3 defines no warning color role, none is invented. |
