@@ -20,6 +20,7 @@
 //! Mnemonics follow ARIA/APG menu conventions: <https://www.w3.org/WAI/ARIA/apg/patterns/menubar/>.
 
 use std::{
+    collections::HashMap,
     fmt,
     hash::{Hash, Hasher},
     ops::Range,
@@ -263,6 +264,9 @@ struct MnemonicBinding {
 struct Registry {
     shortcuts: Vec<ShortcutBinding>,
     mnemonics: Vec<MnemonicBinding>,
+    // Position in `shortcuts` / `mnemonics` of the first binding per key.
+    shortcut_index: HashMap<(Scope, KeyboardShortcut), usize>,
+    mnemonic_index: HashMap<(Scope, Mnemonic), usize>,
     last_shortcuts: Vec<ShortcutBinding>,
     last_mnemonics: Vec<MnemonicBinding>,
     fired: Vec<ActionId>,
@@ -320,8 +324,8 @@ fn with_registry<R>(ctx: &Context, f: impl FnOnce(&mut Registry) -> R) -> R {
 pub fn bind(ctx: &Context, scope: Scope, shortcut: KeyboardShortcut, action: impl Into<ActionId>) {
     let action = action.into();
     with_registry(ctx, |r| {
-        if let Some(other) = r.shortcuts.iter().find(|b| b.scope == scope && b.shortcut == shortcut) {
-            if other.action != action {
+        if let Some(&at) = r.shortcut_index.get(&(scope, shortcut)) {
+            if let Some(other) = r.shortcuts.get(at).filter(|b| b.action != action) {
                 crate::kit::sanitize::report(format_args!(
                     "shortcut {shortcut:?} bound twice in {scope:?}: {:?} and {action:?}",
                     other.action
@@ -329,6 +333,7 @@ pub fn bind(ctx: &Context, scope: Scope, shortcut: KeyboardShortcut, action: imp
             }
             return;
         }
+        r.shortcut_index.insert((scope, shortcut), r.shortcuts.len());
         r.shortcuts.push(ShortcutBinding {
             scope,
             shortcut,
@@ -341,8 +346,8 @@ pub fn bind(ctx: &Context, scope: Scope, shortcut: KeyboardShortcut, action: imp
 /// Another item on the same mnemonic is reported and ignored, the first binding stays.
 pub fn bind_mnemonic(ctx: &Context, scope: Scope, mnemonic: Mnemonic, trigger: Trigger, item: Id) {
     with_registry(ctx, |r| {
-        if let Some(other) = r.mnemonics.iter().find(|b| b.scope == scope && b.mnemonic == mnemonic) {
-            if other.item != item {
+        if let Some(&at) = r.mnemonic_index.get(&(scope, mnemonic)) {
+            if let Some(other) = r.mnemonics.get(at).filter(|b| b.item != item) {
                 crate::kit::sanitize::report(format_args!(
                     "mnemonic {:?} bound twice in {scope:?}: {:?} and {item:?}",
                     mnemonic.char(),
@@ -351,6 +356,7 @@ pub fn bind_mnemonic(ctx: &Context, scope: Scope, mnemonic: Mnemonic, trigger: T
             }
             return;
         }
+        r.mnemonic_index.insert((scope, mnemonic), r.mnemonics.len());
         r.mnemonics.push(MnemonicBinding {
             scope,
             mnemonic,
@@ -797,6 +803,8 @@ pub(crate) fn begin_pass(core: &crate::runtime::Core) {
     let mut reg = ctx.data_mut(|d| d.remove_temp::<Registry>(id)).unwrap_or_default();
     reg.last_shortcuts = std::mem::take(&mut reg.shortcuts);
     reg.last_mnemonics = std::mem::take(&mut reg.mnemonics);
+    reg.shortcut_index.clear();
+    reg.mnemonic_index.clear();
     if ctx.current_pass_index() == 0 {
         reg.alt.update(ctx);
         reg.fired.clear();
