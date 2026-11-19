@@ -33,7 +33,7 @@ tools: icu-datagen
 ci: check hygiene
 
 # CI "Check" job
-check: fmt clippy test icu-trimmed doc readme-check package versions-check minimal-versions
+check: fmt hotpatch-guard clippy test icu-trimmed doc readme-check package versions-check minimal-versions
 
 fmt:
     cargo fmt --all --check
@@ -66,6 +66,10 @@ icu-trimmed:
     trap 'rm -rf "$data"' EXIT
     icu4x-datagen --format baked --markers all --locales en ar --out "$data/icu"
     ICU4X_DATA_DIR="$data/icu" cargo nextest run -p egui_mineral --test icu_trimmed --run-ignored only
+
+# `unstable-hotpatch` must stay a command-line feature: no published crate or default set may enable it
+hotpatch-guard:
+    ! cargo tree --workspace -e features -i subsecond 2>/dev/null | grep -q .
 
 # Doctests, rustdoc and the docs.rs build
 doc:
@@ -151,7 +155,7 @@ hygiene: typos deny rules machete workflows
 # Native showcase under `dx` subsecond hot-patching (dioxus-cli `dx_version`)
 hotpatch:
     @dx --version | grep -q ' {{ dx_version }}' || { echo "needs dioxus-cli {{ dx_version }}: cargo install dioxus-cli --version {{ dx_version }} --locked"; exit 1; }
-    dx serve --hotpatch --platform linux --package showcase --features hotpatch
+    dx serve --hotpatch --platform linux --package showcase --features egui_mineral/unstable-hotpatch
 
 # CI runs crate-ci/typos
 typos:

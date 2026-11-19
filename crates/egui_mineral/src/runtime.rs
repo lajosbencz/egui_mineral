@@ -246,6 +246,8 @@ impl<K: Stylekit> Runtime<K> {
     /// # Errors
     /// As [`Self::new`].
     pub fn with_i18n(ctx: &Context, kit: K, i18n: I18n) -> Result<Arc<Self>, InitError> {
+        #[cfg(all(feature = "unstable-hotpatch", not(target_arch = "wasm32")))]
+        crate::hotpatch::connect(ctx);
         kit.setup(ctx).map_err(InitError::Stylekit)?;
         for &catalog in kit.catalogs() {
             i18n.add_resource(catalog)?;
@@ -314,9 +316,22 @@ impl<K> Runtime<K> {
         };
         self.begin_pass(viewport);
         ui.set_style(self.style());
-        let r = add(&mut MineralUi::new(ui, self));
+        let r = self.add_hot(ui, add);
         self.end_pass(viewport);
         r
+    }
+
+    #[cfg(not(all(feature = "unstable-hotpatch", not(target_arch = "wasm32"))))]
+    fn add_hot<R>(&self, ui: &mut Ui, add: impl FnOnce(&mut MineralUi<'_, K>) -> R) -> R {
+        add(&mut MineralUi::new(ui, self))
+    }
+
+    // subsecond::call wants FnMut; 0.7.10 never raises HotFnPanic, so the body runs once.
+    #[cfg(all(feature = "unstable-hotpatch", not(target_arch = "wasm32")))]
+    #[expect(clippy::expect_used, reason = "dev-only feature; the hot closure runs exactly once")]
+    fn add_hot<R>(&self, ui: &mut Ui, add: impl FnOnce(&mut MineralUi<'_, K>) -> R) -> R {
+        let mut add = Some(add);
+        subsecond::call(|| add.take().map(|add| add(&mut MineralUi::new(ui, self)))).expect("hot closure ran once")
     }
 
     /// Kit style for root `Ui`s and frames built outside one; egui's global style stays the app's.

@@ -37,6 +37,8 @@ persist-fs = ["dep:toml", "dep:serde_json", "dep:dirs"]
 platform-native = ["dep:rfd", "dep:arboard", "dep:notify-rust", "dep:wasm-bindgen-futures"]
 # Chromium streams `save_file_writer` to disk (File System Access API); other browsers buffer.
 web-save-stream = ["platform-native"]
+# Dioxus `subsecond` hot-patching, native only; command line only (`dx serve --hotpatch --features egui_mineral/unstable-hotpatch`).
+unstable-hotpatch = ["dep:subsecond", "dep:dioxus-devtools"]
 
 [dependencies]
 jiff.workspace = true
@@ -79,6 +81,8 @@ dirs = { workspace = true, optional = true }
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 arboard = { workspace = true, optional = true }
 notify-rust = { workspace = true, optional = true }
+subsecond = { version = "0.7.10", optional = true }
+dioxus-devtools = { version = "0.7.10", optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 web-sys = { workspace = true, features = ["Window", "Storage", "Navigator", "Clipboard", "Notification", "NotificationOptions", "NotificationPermission", "Blob", "File"] }

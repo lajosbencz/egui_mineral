@@ -298,9 +298,6 @@ impl eframe::App for App {
     fn ui(&mut self, ui: &mut Ui, frame: &mut eframe::Frame) {
         self.inspector
             .set_cpu_time(frame.info().cpu_usage.map(std::time::Duration::from_secs_f32));
-        #[cfg(feature = "hotpatch")]
-        subsecond::call(|| self.shell(ui));
-        #[cfg(not(feature = "hotpatch"))]
         self.shell(ui);
     }
 }
@@ -317,15 +314,7 @@ fn main() -> eframe::Result {
     eframe::run_native(
         "egui_mineral showcase",
         eframe::NativeOptions::default(),
-        Box::new(|cc| {
-            #[cfg(feature = "hotpatch")]
-            {
-                let ctx = cc.egui_ctx.clone();
-                subsecond::register_handler(std::sync::Arc::new(move || ctx.request_repaint()));
-                dioxus_devtools::connect_subsecond();
-            }
-            Ok(Box::new(App::new(&cc.egui_ctx)?))
-        }),
+        Box::new(|cc| Ok(Box::new(App::new(&cc.egui_ctx)?))),
     )
 }
 
