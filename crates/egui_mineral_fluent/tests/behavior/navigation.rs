@@ -929,3 +929,26 @@ mod big_tree {
         assert!(h.node(&last).state.focused);
     }
 }
+
+#[test]
+fn nav_children_state_does_not_outlive_removed_categories() {
+    let mut h = harness((3_usize, 0_usize), |ui, (categories, stored)| {
+        let mut selected = None;
+        Nav::new("n", "Main", &mut selected)
+            .multiple(true)
+            .default_open([0, 1, 2])
+            .show(ui, |nav| {
+                for v in 0..*categories {
+                    nav.category(NavCategory::new(v, "Cat"), |nav| {
+                        nav.sub_item(NavSubItem::new(100 + v, "Sub"));
+                    });
+                }
+            });
+        *stored = ui.ctx().data(|d| d.count::<Vec<usize>>());
+    });
+    h.run();
+    h.state_mut().value.0 = 1;
+    h.run();
+    // The open set is the only Vec<usize> kept per nav.
+    assert_eq!(h.state().value.1, 1);
+}

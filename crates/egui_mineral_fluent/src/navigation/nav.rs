@@ -1,3 +1,5 @@
+use std::collections::{BTreeMap, BTreeSet};
+
 use egui::{Frame, Id, Margin, Panel, Sense, Stroke, StrokeKind, UiBuilder, pos2, text::LayoutJob, vec2};
 use egui_mineral::{
     i18n::{Direction, I18n},
@@ -328,6 +330,14 @@ pub struct NavUi<'u, 's> {
     density: NavDensity,
     picked: &'u mut Option<usize>,
     values: Vec<usize>,
+    children: &'u mut Children,
+}
+
+// Sub item values per category value; entries of categories no longer placed are pruned.
+#[derive(Clone, Default)]
+struct Children {
+    known: BTreeMap<usize, Vec<usize>>,
+    seen: BTreeSet<usize>,
 }
 
 impl NavUi<'_, '_> {
@@ -388,11 +398,8 @@ impl NavUi<'_, '_> {
     ) -> NavItemResponse<R> {
         let value = category.value;
         let open = self.open.contains(&value);
-        let known: Vec<usize> = self
-            .ui
-            .ctx()
-            .data(|d| d.get_temp(self.id.with(("mineral::nav-children", value))))
-            .unwrap_or_default();
+        self.children.seen.insert(value);
+        let known = self.children.known.get(&value).map_or(&[][..], Vec::as_slice);
         let selected = !open && self.selected.is_some_and(|s| known.contains(&s));
         let row = Row {
             salt: self.salt.clone(),
@@ -425,12 +432,11 @@ impl NavUi<'_, '_> {
                 density: self.density,
                 picked: &mut *self.picked,
                 values: Vec::new(),
+                children: &mut *self.children,
             };
             let out = add(&mut child);
             let values = child.values;
-            self.ui
-                .ctx()
-                .data_mut(|d| d.insert_temp(self.id.with(("mineral::nav-children", value)), values));
+            self.children.known.insert(value, values);
             out
         });
         NavItemResponse {
@@ -557,6 +563,9 @@ impl<'a> Nav<'a> {
         });
         let before = *selected;
         let mut picked = None;
+        let children_id = id.with("mineral::nav-children");
+        let mut children: Children = ui.ctx().data(|d| d.get_temp(children_id)).unwrap_or_default();
+        children.seen.clear();
         let group = ui
             .push_id(salt.id_salt(), |ui| {
                 ui.scope_builder(
@@ -573,13 +582,25 @@ impl<'a> Nav<'a> {
                             density,
                             picked: &mut picked,
                             values: Vec::new(),
+                            children: &mut children,
                         };
                         add(&mut nav)
                     },
                 )
             })
             .inner;
-        ui.ctx().data_mut(|d| d.insert_temp(open_id, open));
+        let Children { mut known, seen } = children;
+        known.retain(|v, _| seen.contains(v));
+        ui.ctx().data_mut(|d| {
+            d.insert_temp(open_id, open);
+            d.insert_temp(
+                children_id,
+                Children {
+                    known,
+                    seen: BTreeSet::new(),
+                },
+            );
+        });
         semantic::emit(ui.ctx(), Some(group.response.id), group.response.rect, || {
             SemanticNode::new(key.id(&salt), Role::Navigation, &label)
         });
