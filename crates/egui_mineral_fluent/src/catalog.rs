@@ -719,10 +719,8 @@ mod extras {
     use super::{Category, Component, ComponentMeta, Origin};
     use crate::prelude::*;
 
-    other!(
-        SplitPane,
-        "https://developer.microsoft.com/fluentui#/controls/web/splitview"
-    );
+    other!(SplitPane, "Desktop splitter: resizable panes");
+    other!(StatusBar, "Desktop status bar");
 }
 
 /// Every public component with its category and origin.
@@ -834,6 +832,8 @@ pub const CATALOG: &[ComponentMeta] = &[
     TreeItemPersonaLayout::META,
     #[cfg(feature = "extras")]
     SplitPane::META,
+    #[cfg(feature = "extras")]
+    StatusBar::META,
 ];
 
 #[cfg(test)]

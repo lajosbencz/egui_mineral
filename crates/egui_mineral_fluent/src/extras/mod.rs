@@ -11,5 +11,7 @@
 )]
 
 pub(crate) mod split_pane;
+pub(crate) mod status_bar;
 
 pub use split_pane::SplitPane;
+pub use status_bar::{StatusBar, StatusBarResponse, StatusItem, StatusProgress, StatusTone};

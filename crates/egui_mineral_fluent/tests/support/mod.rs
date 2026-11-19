@@ -192,7 +192,7 @@ impl Pass {
         self.flat()
             .into_iter()
             .filter_map(|s| match s {
-                Shape::LineSegment { points, stroke } => Some((points, stroke.into())),
+                Shape::LineSegment { points, stroke } => Some((points, stroke)),
                 _ => None,
             })
             .collect()

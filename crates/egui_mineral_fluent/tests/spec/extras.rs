@@ -1,4 +1,8 @@
-use egui_mineral_fluent::{ColorToken, FluentExt as _, extras::SplitPane, spec::tokens::geometry};
+use egui_mineral_fluent::{
+    ColorToken, FluentExt as _,
+    extras::{SplitPane, StatusBar},
+    spec::tokens::geometry,
+};
 
 use crate::support::render;
 
@@ -22,4 +26,14 @@ fn split_pane_divider_is_a_thin_neutral_line_centered_in_the_handle() {
     assert_eq!(a.x, b.x, "vertical line between side by side panes");
     assert!(handle.x_range().contains(a.x), "{handle:?} {a:?}");
     assert_eq!(b.y - a.y, handle.height());
+}
+
+#[test]
+fn status_bar_is_a_full_width_row_on_neutral_background_3() {
+    let p = render(|ui| {
+        StatusBar::new("status", "Status").item("Ready").show(ui);
+    });
+    let bar = p.one(p.rt.tokens().color(ColorToken::ColorNeutralBackground3));
+    assert_eq!(bar.width(), crate::support::SCREEN.x);
+    assert_eq!(bar.height(), 24.0);
 }
