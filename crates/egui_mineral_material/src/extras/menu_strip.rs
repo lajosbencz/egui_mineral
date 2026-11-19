@@ -1,7 +1,10 @@
 use crate::Material;
 use crate::MaterialExt;
-use egui::{Context, CornerRadius, Id, Key, Memory, Modifiers, Rangef, Rect, Response, Sense, pos2, vec2};
-use egui_mineral::kit::state::TempState;
+use egui::{Context, CornerRadius, Id, Key, Rangef, Rect, Response, Sense, pos2, vec2};
+use egui_mineral::kit::{
+    menubar::{self, BarState},
+    state::TempState,
+};
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::Availability;
 use egui_mineral::widget::MineralUi;
@@ -47,18 +50,6 @@ pub struct MenuStripResponse {
     /// Clicked item without a [`MenuItem::command`](crate::selection::MenuItem::command).
     pub clicked: Option<MenuPath>,
 }
-
-#[derive(Clone, Copy, Default)]
-struct BarState {
-    open: Option<usize>,
-    revealed: bool,
-    // Set by F10 or a lone Alt until focus leaves the bar.
-    active: bool,
-    // Focus before the bar was activated.
-    return_to: Option<Id>,
-}
-
-impl TempState for BarState {}
 
 /// Horizontal menu bar over [`Menu`]s with APG menubar keyboard behavior; non-MD3.
 #[must_use = "call .show(..)"]
@@ -139,7 +130,7 @@ impl MenuStrip {
         let buttons = self.paint_titles(ui, id, rect, bar.open, tab_stop, scope);
         let ids: Vec<Id> = buttons.iter().map(|b| b.id).collect();
         let fired = self.react(&ctx, id, &mut bar, &buttons, scope);
-        self.toggle_activation(rt.core(), &mut bar, &ids, tab_stop);
+        bar.toggle_activation(rt.core(), self.disabled, &ids, tab_stop);
         if bar.open.is_none() {
             RovingFocus::new(Axis::Horizontal).update_group(rt.core(), id, &ids, enabled);
         }
@@ -161,9 +152,7 @@ impl MenuStrip {
             let still_open = st.open;
             st.store(&ctx, menu_id);
             if out.nav != 0 {
-                // nav is -1 or 1: wraps at both ends.
-                let n = self.menus.len();
-                let next = i.checked_add_signed(isize::from(out.nav)).map_or(n - 1, |j| j % n);
+                let next = menubar::adjacent(i, out.nav, self.menus.len());
                 bar.open = Some(next);
                 Self::reopen(&ctx, id, next, buttons[next].rect, Some(FocusTarget::SelectedOrFirst));
             } else if !still_open {
@@ -183,14 +172,7 @@ impl MenuStrip {
                 self.menus[i].mnemonic,
             );
         }
-        if bar.open.is_none() && !ctx.memory(|m| m.focused().is_some_and(|f| ids.contains(&f))) {
-            bar.active = false;
-            bar.return_to = None;
-        }
-        if bar.open.is_none() && bar.revealed && !bar.active {
-            bar.revealed = false;
-            shortcut::set_mnemonics_revealed(&ctx, false);
-        }
+        bar.settle(&ctx, &ids);
         semantic::emit(&ctx, Some(bar_resp.id), rect, || {
             let name = crate::tr_or(rt.i18n(), self.label.as_deref(), "mineral-menu-strip");
             let mut n = SemanticNode::new(StableId::of(&self.salt, "menubar"), Role::MenuBar, name);
@@ -307,35 +289,6 @@ impl MenuStrip {
             }
         }
         fired
-    }
-
-    // Windows and Linux menu bar toggle: F10 or a lone Alt focuses the bar, again returns focus.
-    fn toggle_activation(&self, core: &egui_mineral::runtime::Core, bar: &mut BarState, ids: &[Id], stop: usize) {
-        let ctx = core.ctx();
-        if !core.policies().mnemonics || self.disabled {
-            return;
-        }
-        let f10 = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::F10));
-        if !f10 && !shortcut::lone_alt(core) {
-            return;
-        }
-        let focused = ctx.memory(Memory::focused);
-        if bar.open.is_some() || focused.is_some_and(|f| ids.contains(&f)) {
-            bar.open = None;
-            bar.active = false;
-            bar.revealed = false;
-            shortcut::set_mnemonics_revealed(ctx, false);
-            match bar.return_to.take() {
-                Some(id) => ctx.memory_mut(|m| m.request_focus(id)),
-                None => ctx.memory_mut(|m| focused.into_iter().for_each(|f| m.surrender_focus(f))),
-            }
-        } else if let Some(&first) = ids.get(stop) {
-            bar.return_to = focused;
-            bar.active = true;
-            bar.revealed = true;
-            shortcut::set_mnemonics_revealed(ctx, true);
-            ctx.memory_mut(|m| m.request_focus(first));
-        }
     }
 
     fn reopen(ctx: &Context, id: Id, i: usize, anchor: Rect, focus: Option<FocusTarget>) {

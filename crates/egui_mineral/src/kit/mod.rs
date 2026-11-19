@@ -6,13 +6,16 @@ pub mod focus;
 pub mod i18n;
 pub mod icon;
 pub mod input;
+pub mod menubar;
 pub mod overlay;
 pub mod paint;
+pub mod palette;
 pub mod rating;
 pub mod sanitize;
 pub mod scroll;
 pub mod semantic;
 pub mod state;
+pub mod strip;
 
 /// `id` made distinct per runtime and window: `Context` data and popup ids are shared by every viewport and runtime,
 /// so state keyed by an app salt alone would leak between them. Call outside `Context` lock closures.

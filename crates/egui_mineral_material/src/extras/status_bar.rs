@@ -2,6 +2,7 @@ use crate::Material;
 use crate::MaterialExt;
 use egui::{Color32, Pos2, Rangef, Rect, Response, Sense, Stroke, Vec2, pos2, vec2};
 use egui_mineral::icon::Icon;
+use egui_mineral::kit::strip;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::{Availability, MineralUi};
 use egui_mineral::{
@@ -220,29 +221,26 @@ impl StatusBar {
             .collect();
         let chrome = |i: usize| 2.0 * PAD_X + self.items[i].0.lead.map_or(0.0, |l| l.width() + ICON_GAP);
         let width = |i: usize, galleys: &[std::sync::Arc<egui::Galley>]| chrome(i) + galleys[i].size().x;
-        // Logical offsets from each edge; the end group claims its space first.
-        let mut slots: Vec<Option<Rect>> = vec![None; self.items.len()];
-        let mut end = 0.0;
-        for i in (0..self.items.len()).filter(|&i| self.items[i].1) {
-            let w = width(i, &galleys);
-            slots[i] = Some(slot(rect, dir, true, end, w));
-            end += w;
-        }
-        let mut start = 0.0;
-        for i in (0..self.items.len()).filter(|&i| !self.items[i].1) {
-            let mut w = width(i, &galleys);
-            if start + w + end > rect.width() {
-                let room = rect.width() - start - end - chrome(i);
-                if !self.items[i].0.elide || room <= 0.0 {
-                    break;
+        let measured: Vec<strip::Item> = (0..self.items.len())
+            .map(|i| strip::Item {
+                width: width(i, &galleys),
+                chrome: chrome(i),
+                at_end: self.items[i].1,
+                elide: self.items[i].0.elide,
+            })
+            .collect();
+        let slots: Vec<Option<Rect>> = strip::place(rect.width(), &measured)
+            .into_iter()
+            .zip(&self.items)
+            .enumerate()
+            .map(|(i, (placed, (item, at_end)))| {
+                let p = placed?;
+                if let Some(room) = p.elided_room {
+                    galleys[i] = parts::type_wrapped(ui.painter(), &item.text, TEXT, content_of(item), room, 1);
                 }
-                let item = &self.items[i].0;
-                galleys[i] = parts::type_wrapped(ui.painter(), &item.text, TEXT, content_of(item), room, 1);
-                w = rect.width() - start - end;
-            }
-            slots[i] = Some(slot(rect, dir, false, start, w));
-            start += w;
-        }
+                Some(slot(rect, dir, *at_end, p.offset, p.width))
+            })
+            .collect();
 
         let mut clicked = None;
         for (i, ((item, _), galley)) in self.items.iter().zip(galleys).enumerate() {
