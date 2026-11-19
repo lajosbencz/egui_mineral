@@ -1,12 +1,13 @@
 # Single source of the checks: .github/workflows/{ci,hygiene}.yml call these recipes.
 # Tools: `just tools`; cargo-nextest, icu4x-datagen, a nightly toolchain, cargo-deny, cargo-machete,
-# cargo-rdme, typos, ast-grep, actionlint, shellcheck, zizmor; `api-diff` also needs cargo-public-api, `bump-breaking` cargo-edit.
+# cargo-hack, cargo-rdme, typos, ast-grep, actionlint, shellcheck, zizmor; `api-diff` also needs cargo-public-api, `bump-breaking` cargo-edit.
 
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
 # Tool pins, read by the workflows (`just --evaluate <name>`); Dependabot does not bump them.
 machete_version := "0.9.2"
 rdme_version := "2.2.3"
+hack_version := "0.6.46"
 public_api_version := "0.52.0"
 cargo_edit_version := "0.13.14"
 zizmor_version := "1.32.0"
@@ -24,7 +25,7 @@ default:
 # Installs the check tools with cargo at the pinned versions, and a nightly toolchain
 tools: icu-datagen
     cargo install --locked cargo-nextest cargo-deny typos-cli
-    cargo install --locked cargo-machete@{{ machete_version }} cargo-rdme@{{ rdme_version }} ast-grep@{{ ast_grep_version }} zizmor@{{ zizmor_version }} cargo-edit@{{ cargo_edit_version }}
+    cargo install --locked cargo-machete@{{ machete_version }} cargo-hack@{{ hack_version }} cargo-rdme@{{ rdme_version }} ast-grep@{{ ast_grep_version }} zizmor@{{ zizmor_version }} cargo-edit@{{ cargo_edit_version }}
     rustup toolchain install nightly --profile minimal --target wasm32-unknown-unknown
     @command -v actionlint >/dev/null || echo "actionlint {{ actionlint_version }} is not on crates.io: https://github.com/rhysd/actionlint"
     @command -v shellcheck >/dev/null || echo "shellcheck is not on crates.io: install it with the system package manager"
@@ -38,26 +39,23 @@ check: fmt hotpatch-guard clippy test icu-trimmed doc readme-check package versi
 fmt:
     cargo fmt --all --check
 
-# Feature and target matrix
+# Every feature alone, the default set and none, per published crate, native and wasm32; the all-features line covers `unstable-hotpatch` (native only, never in the matrix)
 clippy:
-    cargo clippy --workspace --all-targets --all-features -- -D warnings
-    cargo clippy -p egui_mineral_material --all-targets -- -D warnings
-    cargo clippy -p egui_mineral -p egui_mineral_material --all-targets --no-default-features -- -D warnings
-    cargo clippy -p egui_mineral --target wasm32-unknown-unknown --no-default-features -- -D warnings
-    for f in platform-pickers platform-clipboard platform-notify; do \
-        cargo clippy -p egui_mineral --all-targets --no-default-features --features $f -- -D warnings; \
-        cargo clippy -p egui_mineral --target wasm32-unknown-unknown --no-default-features --features $f -- -D warnings; \
+    for c in egui_mineral egui_mineral_material; do \
+        cargo hack clippy -p "$c" --each-feature --exclude-features unstable-hotpatch --all-targets -- -D warnings; \
+        cargo hack clippy -p "$c" --each-feature --exclude-features unstable-hotpatch --target wasm32-unknown-unknown -- -D warnings; \
     done
-    cargo clippy -p egui_mineral_material --target wasm32-unknown-unknown -- -D warnings
-    cargo clippy -p egui_mineral_material --target wasm32-unknown-unknown --no-default-features -- -D warnings
-    cargo clippy -p egui_mineral_material --target wasm32-unknown-unknown --all-features -- -D warnings
+    cargo clippy --workspace --all-targets --all-features -- -D warnings
     cargo clippy -p showcase --target wasm32-unknown-unknown -- -D warnings
+
+# Features of the published crates but `unstable-hotpatch`
+test_features := "egui_mineral/platform-native,egui_mineral/web-save-stream,egui_mineral_material/theme-file,egui_mineral_material/unstable-catalog,egui_mineral_material/unstable-spec"
 
 # Extra args go to nextest, e.g. `--no-run`
 test *args:
-    cargo nextest run --workspace --all-features {{ args }}
+    cargo nextest run --workspace --features egui_mineral_material/unstable-spec {{ args }}
+    cargo nextest run --workspace --features {{ test_features }} {{ args }}
     cargo nextest run -p egui_mineral -p egui_mineral_material --no-default-features --features egui_mineral_material/bundled-icons {{ args }}
-    cargo nextest run -p egui_mineral --no-default-features --features platform-notify {{ args }}
 
 # icu4x-datagen matching the locked ICU4X version
 icu-datagen:
@@ -76,12 +74,19 @@ icu-trimmed:
 hotpatch-guard:
     ! cargo tree --workspace -e features -i subsecond 2>/dev/null | grep -q .
 
+# Mirrors `[package.metadata.docs.rs] features` of each crate
+docsrs_core := "icu,persist-fs,platform-native,web-save-stream"
+docsrs_material := "icu,persist-fs,bundled-icons,theme-file,unstable-catalog,unstable-spec"
+
 # Doctests, rustdoc and the docs.rs build
 doc:
     cargo test --doc --workspace --all-features
     RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --all-features
     RUSTDOCFLAGS="-D warnings" cargo doc -p egui_mineral -p egui_mineral_material --no-deps --no-default-features
-    RUSTDOCFLAGS="--cfg docsrs -D warnings" cargo +nightly doc -p egui_mineral -p egui_mineral_material --all-features --no-deps
+    for t in x86_64-unknown-linux-gnu wasm32-unknown-unknown; do \
+        RUSTDOCFLAGS="--cfg docsrs -D warnings" cargo +nightly doc -p egui_mineral --no-deps --target "$t" --features {{ docsrs_core }}; \
+        RUSTDOCFLAGS="--cfg docsrs -D warnings" cargo +nightly doc -p egui_mineral_material --no-deps --target "$t" --features {{ docsrs_material }}; \
+    done
 
 # Published crates; their READMEs are generated from the crate docs
 readme_crates := "egui_mineral egui_mineral_material egui_mineral_macros"

@@ -43,7 +43,7 @@ impl Material {
         Self::with_icons(contrast, Icons::Bundled)
     }
 
-    /// [`Self::new`] with `icon_fonts` instead of the bundled ones.
+    /// `Self::new` with `icon_fonts` instead of the bundled ones.
     pub fn with_icon_fonts(contrast: Contrast, icon_fonts: IconFonts) -> Self {
         Self::with_icons(contrast, Icons::Custom(icon_fonts))
     }

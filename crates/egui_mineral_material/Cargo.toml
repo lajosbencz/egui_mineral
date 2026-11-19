@@ -14,7 +14,7 @@ categories.workspace = true
 exclude = ["clippy.toml"]
 
 [package.metadata.docs.rs]
-all-features = true
+features = ["icu", "persist-fs", "bundled-icons", "theme-file", "unstable-catalog", "unstable-spec"]
 rustdoc-args = ["--cfg", "docsrs"]
 targets = ["x86_64-unknown-linux-gnu", "wasm32-unknown-unknown"]
 

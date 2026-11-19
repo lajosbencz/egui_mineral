@@ -47,10 +47,16 @@ jobs:
           fallback: none
       # The docs.rs build in `just doc`.
       - if: ${{ github.event_name != 'push' }}
-        run: rustup toolchain install nightly --profile minimal
+        run: rustup toolchain install nightly --profile minimal --target wasm32-unknown-unknown
       - id: pins
-        if: ${{ github.event_name != 'push' }}
-        run: echo "rdme=$(just --evaluate rdme_version)" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "rdme=$(just --evaluate rdme_version)" >> "$GITHUB_OUTPUT"
+          echo "hack=$(just --evaluate hack_version)" >> "$GITHUB_OUTPUT"
+      # The feature matrix of `just clippy`; installed on push too, for the cache.
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        with:
+          tool: cargo-hack@${{ steps.pins.outputs.hack }}
+          fallback: cargo-install
       - if: ${{ github.event_name != 'push' }}
         uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
         with:
