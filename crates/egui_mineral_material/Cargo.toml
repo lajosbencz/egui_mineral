@@ -1,7 +1,7 @@
 [package]
 name = "egui_mineral_material"
 description = "Material Design 3 stylekit for egui_mineral"
-version = "0.2.0"
+version = "0.3.0"
 edition.workspace = true
 rust-version.workspace = true
 # Ships Apache-2.0 data derived from Jetpack Compose (LICENSE-APACHE, NOTICE).

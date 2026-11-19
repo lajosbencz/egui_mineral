@@ -1226,7 +1226,7 @@ dependencies = [
 
 [[package]]
 name = "egui_mineral"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "arboard",
  "criterion",
@@ -1278,7 +1278,7 @@ version = "0.0.0"
 
 [[package]]
 name = "egui_mineral_macros"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1287,7 +1287,7 @@ dependencies = [
 
 [[package]]
 name = "egui_mineral_material"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "egui",
  "egui_kittest",
