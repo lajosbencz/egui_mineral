@@ -11,6 +11,12 @@ pub fn size_or_discard(ctx: &Context, id: Id) -> Option<Vec2> {
     size
 }
 
+/// Whether `now` differs from `before` by more than half a point on either axis.
+pub fn size_changed(now: Vec2, before: Vec2) -> bool {
+    let d = (now - before).abs();
+    d.x > 0.5 || d.y > 0.5
+}
+
 /// Remembers `size` for `id` so the next pass can lay out without a discard.
 pub fn store_size(ctx: &Context, id: Id, size: Vec2) {
     size.store(ctx, id);
@@ -21,6 +27,12 @@ mod tests {
     use egui::{Context, Id, vec2};
 
     use crate::test_support::{input, run};
+
+    #[test]
+    fn sub_point_size_changes_are_not_changes() {
+        assert!(!super::size_changed(vec2(30.3, 20.0), vec2(30.0, 20.4)));
+        assert!(super::size_changed(vec2(31.0, 20.0), vec2(30.0, 20.0)));
+    }
 
     #[test]
     fn first_show_discards_until_sized() {

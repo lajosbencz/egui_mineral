@@ -574,9 +574,12 @@ impl<C: Composite> MineralWidget for C {
         child.set_min_size(frame.constraints.min);
         let out = self.compose(&mut ui.rt().ui(&mut child), frame.constraints);
         let size = child.min_rect().size();
-        if size != frame.zones.outer.size() {
+        if perf::size_changed(size, frame.zones.outer.size()) {
             perf::store_size(ui.ctx(), composite_size_id(ui, salt), size);
-            ui.ctx().request_discard("mineral: composite resized");
+            // Off-screen composites adopt the new size on their next visible pass.
+            if ui.is_rect_visible(outer) {
+                ui.ctx().request_discard("mineral: composite resized");
+            }
         }
         out
     }
@@ -753,6 +756,52 @@ mod tests {
             None,
         );
         h.state().value.expect("ran")
+    }
+
+    struct Box(Vec2);
+
+    impl super::Composite for Box {
+        type Kit = TestKit;
+        type Output = ();
+
+        fn id_salt(&self) -> IdSalt {
+            IdSalt::new("box")
+        }
+
+        fn compose(&mut self, ui: &mut MineralUi<'_, TestKit>, _: Constraints) -> WidgetResponse<()> {
+            let (_, r) = ui.allocate_exact_size(self.0, egui::Sense::hover());
+            WidgetResponse::new(r, ())
+        }
+    }
+
+    // Passes run per frame for `Box(size)` shown after `skip` points of vertical space.
+    fn composite_discards(skip: f32, sizes: &[Vec2]) -> Vec<usize> {
+        let ctx = egui::Context::default();
+        let rt = crate::test_support::runtime(&ctx);
+        let mut counts = Vec::new();
+        for size in sizes {
+            let mut passes = 0;
+            crate::test_support::run(&ctx, crate::test_support::input(vec![]), |ui| {
+                rt.pass(ui, |ui| {
+                    ui.add_space(skip);
+                    ui.mineral(Box(*size));
+                });
+                passes += 1;
+            });
+            counts.push(passes);
+        }
+        counts
+    }
+
+    #[test]
+    fn composite_discards_only_for_visible_real_resizes() {
+        let (a, b) = (vec2(100.0, 40.0), vec2(100.3, 40.2));
+        assert_eq!(composite_discards(0.0, &[a, a, b, vec2(100.0, 60.0)]), [2, 1, 1, 2]);
+        assert_eq!(
+            composite_discards(1_000_000.0, &[a, a, vec2(100.0, 60.0)]),
+            [2, 1, 1],
+            "off-screen resizes are stored without a discard"
+        );
     }
 
     #[test]
