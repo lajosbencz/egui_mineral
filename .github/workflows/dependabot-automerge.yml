@@ -2,8 +2,7 @@
 # 0.MINOR is breaking: a minor bump merges only from major >= 1. Majors wait for a human approval.
 name: Dependabot auto-merge
 
-# Merges with the release App token so push workflows (release-plz, Pages, caches) fire.
-# On Dependabot pull requests the secret is read from the Dependabot secret store.
+# A merge by GITHUB_TOKEN triggers no push workflows; release-plz, Pages and the caches catch up on the next push.
 on: pull_request
 
 permissions: {}
@@ -13,6 +12,9 @@ jobs:
     if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' && github.repository == 'lajosbencz/egui_mineral' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - id: meta
         uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
@@ -27,15 +29,7 @@ jobs:
           )' <<<"$DEPS")
           echo "ok=$ok" >> "$GITHUB_OUTPUT"
       - if: ${{ steps.gate.outputs.ok == 'true' }}
-        id: app
-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
-        with:
-          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
-          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
-          permission-contents: write
-          permission-pull-requests: write
-      - if: ${{ steps.gate.outputs.ok == 'true' }}
         run: gh pr merge --auto --squash "$PR"
         env:
           PR: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ steps.app.outputs.token }}
+          GH_TOKEN: ${{ github.token }}
