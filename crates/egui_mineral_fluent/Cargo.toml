@@ -14,12 +14,12 @@ exclude = ["clippy.toml"]
 publish = false
 
 [package.metadata.docs.rs]
-features = ["icu", "persist-fs", "persist-json", "persist-toml", "bundled-icons", "unstable-catalog", "unstable-spec"]
+features = ["icu", "persist-fs", "persist-json", "persist-toml", "bundled-icons", "extras", "unstable-catalog", "unstable-spec"]
 rustdoc-args = ["--cfg", "docsrs"]
 targets = ["x86_64-unknown-linux-gnu", "wasm32-unknown-unknown"]
 
 [features]
-default = ["icu", "persist-fs", "persist-toml", "bundled-icons"]
+default = ["icu", "persist-fs", "persist-toml", "bundled-icons", "extras"]
 # Fluent UI System Icons resizable font (1.6 MB); without it use `Fluent::with_icon_font`.
 bundled-icons = []
 # `egui_mineral/icu`: ICU4X locale formatting.
@@ -30,6 +30,8 @@ persist-json = ["egui_mineral/persist-json"]
 persist-toml = ["egui_mineral/persist-toml"]
 # `egui_mineral/persist-fs`: file-backed persistence.
 persist-fs = ["egui_mineral/persist-fs"]
+# Components beyond Fluent UI React v9 (`extras` module).
+extras = []
 # Component provenance: `catalog` module. Unstable: outside semver.
 unstable-catalog = []
 # Spec tokens and component defaults as public API. Unstable: outside semver.
@@ -47,11 +49,11 @@ futures-executor.workspace = true
 
 [[test]]
 name = "spec"
-required-features = ["unstable-spec", "icu", "bundled-icons"]
+required-features = ["extras", "unstable-spec", "icu", "bundled-icons"]
 
 [[test]]
 name = "behavior"
-required-features = ["icu", "bundled-icons"]
+required-features = ["extras", "icu", "bundled-icons"]
 
 [lints]
 workspace = true

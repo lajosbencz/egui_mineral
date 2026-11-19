@@ -13,6 +13,8 @@ pub use crate::data::{
     Table, TableCellLayout, TableColumn, TableResponse, TableRowAppearance, TableSize, Tag, TagAppearance, TagGroup,
     TagGroupResponse, TagShape, TagSize, Text, TextAlign, TextFont, TextSize, TextWeight,
 };
+#[cfg(feature = "extras")]
+pub use crate::extras::SplitPane;
 pub use crate::feedback::{
     Badge, BadgeAppearance, BadgeColor, BadgeShape, BadgeSize, CounterBadge, CounterBadgeAppearance, CounterBadgeColor,
     MessageBar, MessageBarGroup, MessageBarIntent, MessageBarLayout, MessageBarResponse, MessageBarShape,

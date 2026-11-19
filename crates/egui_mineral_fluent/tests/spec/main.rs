@@ -8,6 +8,7 @@ mod support;
 mod actions;
 mod collections;
 mod data;
+mod extras;
 mod feedback;
 mod inputs;
 mod navigation;

@@ -13,10 +13,26 @@ pub enum Category {
     Navigation,
     /// Text, avatars, tables, lists, trees.
     Data,
+    /// Components beyond Fluent UI React v9 ([`Origin::Other`]); needs the `extras` feature.
+    #[cfg(feature = "extras")]
+    Extras,
 }
 
 impl Category {
     /// Every variant.
+    #[cfg(feature = "extras")]
+    pub const ALL: [Self; 7] = [
+        Self::Actions,
+        Self::Inputs,
+        Self::Feedback,
+        Self::Surfaces,
+        Self::Navigation,
+        Self::Data,
+        Self::Extras,
+    ];
+
+    /// Every variant.
+    #[cfg(not(feature = "extras"))]
     pub const ALL: [Self; 6] = [
         Self::Actions,
         Self::Inputs,
@@ -37,6 +53,8 @@ impl Category {
                 Self::Surfaces => "mineral-category-surfaces",
                 Self::Navigation => "mineral-category-navigation",
                 Self::Data => "mineral-category-data",
+                #[cfg(feature = "extras")]
+                Self::Extras => "mineral-category-extras",
             },
         )
     }
@@ -49,11 +67,26 @@ pub struct ComponentMeta {
     pub name: &'static str,
     /// Category module that exports the component.
     pub category: Category,
-    /// Fluent UI React v9 component it ports.
-    pub react: &'static str,
-    /// Its styles file under `packages/react-components/` at
-    /// [`SOURCE_COMMIT`](crate::spec::tokens::SOURCE_COMMIT), vendored in `tools/fluent_tokens/vendor`.
-    pub styles: &'static str,
+    /// What it ports.
+    pub origin: Origin,
+}
+
+/// Provenance of a component.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Origin {
+    /// Ports a Fluent UI React v9 component.
+    ReactV9 {
+        /// Component it ports.
+        react: &'static str,
+        /// Its styles file under `packages/react-components/` at
+        /// [`SOURCE_COMMIT`](crate::spec::tokens::SOURCE_COMMIT), vendored in `tools/fluent_tokens/vendor`.
+        styles: &'static str,
+    },
+    /// Not in Fluent UI React v9; patterned after a design system or desktop convention.
+    Other {
+        /// Pattern URL or name.
+        pattern: &'static str,
+    },
 }
 
 /// Provenance of a stylekit component.
@@ -68,8 +101,23 @@ macro_rules! meta {
             const META: ComponentMeta = ComponentMeta {
                 name: stringify!($ty),
                 category: Category::$category,
-                react: $react,
-                styles: $styles,
+                origin: Origin::ReactV9 {
+                    react: $react,
+                    styles: $styles,
+                },
+            };
+        }
+    };
+}
+
+#[cfg(feature = "extras")]
+macro_rules! other {
+    ($ty:ident $(<$lt:lifetime>)?, $pattern:literal) => {
+        impl $(<$lt>)? Component for $ty $(<$lt>)? {
+            const META: ComponentMeta = ComponentMeta {
+                name: stringify!($ty),
+                category: Category::Extras,
+                origin: Origin::Other { pattern: $pattern },
             };
         }
     };
@@ -276,8 +324,10 @@ impl<T> Component for RadioGroup<'_, T> {
     const META: ComponentMeta = ComponentMeta {
         name: "RadioGroup",
         category: Category::Inputs,
-        react: "RadioGroup",
-        styles: "react-radio/library/src/components/RadioGroup/useRadioGroupStyles.styles.ts",
+        origin: Origin::ReactV9 {
+            react: "RadioGroup",
+            styles: "react-radio/library/src/components/RadioGroup/useRadioGroupStyles.styles.ts",
+        },
     };
 }
 meta!(
@@ -657,12 +707,25 @@ impl<N: egui_mineral::tree::TreeData> Component for Tree<'_, N> {
     const META: ComponentMeta = ComponentMeta {
         name: "Tree",
         category: Category::Navigation,
-        react: "Tree",
-        styles: "react-tree/library/src/components/Tree/useTreeStyles.styles.ts",
+        origin: Origin::ReactV9 {
+            react: "Tree",
+            styles: "react-tree/library/src/components/Tree/useTreeStyles.styles.ts",
+        },
     };
 }
 
-/// Every public component with its category and React v9 source.
+#[cfg(feature = "extras")]
+mod extras {
+    use super::{Category, Component, ComponentMeta, Origin};
+    use crate::prelude::*;
+
+    other!(
+        SplitPane,
+        "https://developer.microsoft.com/fluentui#/controls/web/splitview"
+    );
+}
+
+/// Every public component with its category and origin.
 pub const CATALOG: &[ComponentMeta] = &[
     <PushButton<'static>>::META,
     <ToggleButton<'static>>::META,
@@ -754,8 +817,10 @@ pub const CATALOG: &[ComponentMeta] = &[
     ComponentMeta {
         name: "MenuUi::split_item",
         category: Category::Navigation,
-        react: "MenuSplitGroup",
-        styles: "react-menu/library/src/components/MenuSplitGroup/useMenuSplitGroupStyles.styles.ts",
+        origin: Origin::ReactV9 {
+            react: "MenuSplitGroup",
+            styles: "react-menu/library/src/components/MenuSplitGroup/useMenuSplitGroupStyles.styles.ts",
+        },
     },
     <Carousel<'static>>::META,
     CarouselCard::META,
@@ -767,6 +832,8 @@ pub const CATALOG: &[ComponentMeta] = &[
     TreeItem::META,
     TreeItemLayout::META,
     TreeItemPersonaLayout::META,
+    #[cfg(feature = "extras")]
+    SplitPane::META,
 ];
 
 #[cfg(test)]
@@ -779,13 +846,15 @@ mod tests {
         let vendored = std::fs::read_to_string(format!("{root}{}/STYLES.txt", crate::spec::tokens::SOURCE_COMMIT))
             .expect("STYLES.txt");
         for c in CATALOG {
+            let Origin::ReactV9 { styles, .. } = c.origin else {
+                continue;
+            };
             assert!(
                 vendored
                     .lines()
-                    .any(|l| l == format!("packages/react-components/{}", c.styles)),
-                "{}: {} not vendored",
-                c.name,
-                c.styles
+                    .any(|l| l == format!("packages/react-components/{styles}")),
+                "{}: {styles} not vendored",
+                c.name
             );
         }
     }

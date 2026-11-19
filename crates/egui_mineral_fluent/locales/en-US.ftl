@@ -30,6 +30,7 @@ mineral-category-feedback = Feedback
 mineral-category-surfaces = Surfaces
 mineral-category-navigation = Navigation
 mineral-category-data = Data
+mineral-category-extras = Extras
 
 # Inputs
 mineral-range-value = { $start } - { $end }

@@ -7,6 +7,7 @@ mod support;
 mod actions;
 mod alignment;
 mod collections;
+mod extras;
 mod feedback;
 mod i18n;
 mod icons;

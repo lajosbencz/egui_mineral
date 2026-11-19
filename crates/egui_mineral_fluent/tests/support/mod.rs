@@ -77,6 +77,12 @@ pub(crate) trait FluentHarness {
         self.node(key).rect
     }
 
+    fn widget(&self, key: &str) -> egui::Id {
+        self.node(key).widget_id.unwrap_or_else(|| panic!("no widget {key}"))
+    }
+
+    fn focused(&self, key: &str) -> bool;
+
     fn click_at(&mut self, pos: Pos2);
 
     fn click(&mut self, key: &str) {
@@ -90,6 +96,10 @@ pub(crate) trait FluentHarness {
 impl<S> FluentHarness for Harness<'_, S> {
     fn rt(&self) -> Arc<Rt> {
         Arc::clone(self.state().rt.as_ref().expect("first pass ran"))
+    }
+
+    fn focused(&self, key: &str) -> bool {
+        self.ctx.memory(egui::Memory::focused) == Some(self.widget(key))
     }
 
     fn click_at(&mut self, pos: Pos2) {
@@ -176,6 +186,16 @@ impl Pass {
                 _ => None,
             })
             .unwrap_or_else(|| panic!("no text {text:?}"))
+    }
+
+    pub(crate) fn segments(&self) -> Vec<([Pos2; 2], egui::Stroke)> {
+        self.flat()
+            .into_iter()
+            .filter_map(|s| match s {
+                Shape::LineSegment { points, stroke } => Some((points, stroke.into())),
+                _ => None,
+            })
+            .collect()
     }
 
     pub(crate) fn hlines(&self) -> Vec<(f32, f32, f32)> {
