@@ -139,6 +139,14 @@ impl Default for State {
     }
 }
 
+/// Pagination rows of touch targets are wider than compact windows.
+fn scroll_x(ui: &mut Mui<'_>, id_salt: &str, add: impl FnOnce(&mut Mui<'_>)) {
+    let rt = ui.rt();
+    egui::ScrollArea::horizontal()
+        .id_salt(id_salt)
+        .show(ui, |ui| add(&mut rt.ui(ui)));
+}
+
 fn boxed(ui: &mut Mui<'_>, size: egui::Vec2, add: impl FnOnce(&mut Mui<'_>)) {
     let rt = ui.rt();
     let t = rt.tokens();
@@ -284,8 +292,8 @@ fn bars(ui: &mut Mui<'_>, s: &mut State) {
 fn rail_drawer(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     let rt = ui.rt();
     super::section(ui, TOPICS[2], Some(<NavigationRail<'static>>::META), |ui| {
-        ui.horizontal_top(|ui| {
-            ui.vertical(|ui| {
+        super::top_row(ui, |row| {
+            row.add(|ui| {
                 caption(&mut rt.ui(ui), TypeScale::LabelMedium, "Baseline: menu, FAB, badges");
                 boxed(&mut rt.ui(ui), vec2(120.0, 420.0), |ui| {
                     let r = NavigationRail::new("nav-rail", &mut s.rail)
@@ -305,7 +313,7 @@ fn rail_drawer(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
                     }
                 });
             });
-            ui.vertical(|ui| {
+            row.add(|ui| {
                 caption(&mut rt.ui(ui), TypeScale::LabelMedium, "Expressive collapsed");
                 boxed(&mut rt.ui(ui), vec2(120.0, 420.0), |ui| {
                     NavigationRail::new("nav-rail-expr", &mut s.rail_expr)
@@ -316,7 +324,7 @@ fn rail_drawer(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
                         .show(ui);
                 });
             });
-            ui.vertical(|ui| {
+            row.add(|ui| {
                 caption(
                     &mut rt.ui(ui),
                     TypeScale::LabelMedium,
@@ -340,8 +348,8 @@ fn rail_drawer(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
         });
     });
     super::section(ui, TOPICS[3], Some(NavigationDrawer::META), |ui| {
-        ui.horizontal_top(|ui| {
-            ui.vertical(|ui| {
+        super::top_row(ui, |row| {
+            row.add(|ui| {
                 caption(&mut rt.ui(ui), TypeScale::LabelMedium, "Standard");
                 boxed(&mut rt.ui(ui), vec2(300.0, 300.0), |ui| {
                     NavigationDrawer::new("nav-drawer", &mut s.drawer)
@@ -351,7 +359,7 @@ fn rail_drawer(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
                         .show(ui);
                 });
             });
-            ui.vertical(|ui| {
+            row.add(|ui| {
                 caption(&mut rt.ui(ui), TypeScale::LabelMedium, "Sections and dividers");
                 boxed(&mut rt.ui(ui), vec2(300.0, 380.0), |ui| {
                     NavigationDrawer::new("nav-drawer-sections", &mut s.drawer_sections)
@@ -505,8 +513,8 @@ fn toolbars(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
             _ => report_action(&r, shared),
         }
         ui.add_space(8.0);
-        ui.horizontal_top(|ui| {
-            ui.vertical(|ui| {
+        super::top_row(ui, |row| {
+            row.add(|ui| {
                 caption(&mut rt.ui(ui), TypeScale::LabelMedium, "Floating");
                 let r = Toolbar::floating("nav-toolbar-float", "Edit")
                     .actions([
@@ -517,7 +525,7 @@ fn toolbars(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
                     .show(&mut rt.ui(ui));
                 report_action(&r, shared);
             });
-            ui.vertical(|ui| {
+            row.add(|ui| {
                 caption(&mut rt.ui(ui), TypeScale::LabelMedium, "Floating, vibrant");
                 let r = Toolbar::floating("nav-toolbar-vibrant", "Edit")
                     .colors(ToolbarColors::Vibrant)
@@ -529,7 +537,7 @@ fn toolbars(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
                     .show(&mut rt.ui(ui));
                 report_action(&r, shared);
             });
-            ui.vertical(|ui| {
+            row.add(|ui| {
                 caption(&mut rt.ui(ui), TypeScale::LabelMedium, "Floating, vertical");
                 let r = Toolbar::floating("nav-toolbar-vert", "Edit")
                     .axis(Axis::Vertical)
@@ -804,7 +812,6 @@ fn menus(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
 }
 
 fn paging(ui: &mut Mui<'_>, s: &mut State) {
-    let rt = ui.rt();
     super::section(ui, TOPICS[8], Some(Breadcrumbs::META), |ui| {
         let path = ["Home", "Library", "Data", "2026", "Reports", "Q3", "Summary"];
         caption(ui, TypeScale::LabelMedium, "Full path");
@@ -827,14 +834,18 @@ fn paging(ui: &mut Mui<'_>, s: &mut State) {
     });
     super::section(ui, TOPICS[9], Some(<Pagination<'static>>::META), |ui| {
         caption(ui, TypeScale::LabelMedium, "Default");
-        rt.ui(ui).mineral(Pagination::new("nav-page", 12, &mut s.page));
+        scroll_x(ui, "nav-page-scroll", |ui| {
+            ui.mineral(Pagination::new("nav-page", 12, &mut s.page));
+        });
         caption(ui, TypeScale::LabelMedium, "First/last, 2 siblings, 2 boundaries");
-        rt.ui(ui).mineral(
-            Pagination::new("nav-page-wide", 50, &mut s.page_wide)
-                .first_last(true)
-                .siblings(2)
-                .boundaries(2),
-        );
+        scroll_x(ui, "nav-page-wide-scroll", |ui| {
+            ui.mineral(
+                Pagination::new("nav-page-wide", 50, &mut s.page_wide)
+                    .first_last(true)
+                    .siblings(2)
+                    .boundaries(2),
+            );
+        });
         ui.label(format!("Pages: {} and {}", s.page + 1, s.page_wide + 1));
     });
 }
