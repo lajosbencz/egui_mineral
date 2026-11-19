@@ -29,12 +29,14 @@ The tooling is the styleguide, CI runs all of it:
 API behavior lives in rustdoc:
 `cargo doc --workspace --no-deps --all-features --open`
 
+## Setup
+
+`cargo install just`, then `just tools` (cargo tools at CI's pins, nightly toolchain). `actionlint` and `shellcheck` come from the system package manager.
+
 ## Workflow
 
 1. Read the rules and conventions for the area you touch
-2. Run the checks ([commands](docs/workspace.md#commands)):
-  - [`ci.yml`](.github/workflows/ci.yml)
-  - [`hygiene.yml`](.github/workflows/hygiene.yml)
+2. Run `just ci` before pushing ([commands](docs/workspace.md#commands))
 3. Use [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/) (`feat(core): ...`, `fix(material): ...`)
 
 ## Compatibility

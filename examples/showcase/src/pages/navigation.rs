@@ -139,7 +139,7 @@ impl Default for State {
     }
 }
 
-/// Pagination rows of touch targets are wider than compact windows.
+// Pagination rows of touch targets are wider than compact windows.
 fn scroll_x(ui: &mut Mui<'_>, id_salt: &str, add: impl FnOnce(&mut Mui<'_>)) {
     let rt = ui.rt();
     egui::ScrollArea::horizontal()

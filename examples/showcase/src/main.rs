@@ -576,8 +576,6 @@ mod tests {
         assert_eq!(app.pages.navigation.last_action, "Command: Quit");
     }
 
-    /// Every page at each window class's narrowest width and at degenerate viewports, LTR and RTL, at density and
-    /// zoom extremes: no panic, id clash or duplicate agent key; at the baseline, no page wider than its window.
     #[test]
     fn every_page_holds_up() {
         use std::panic::{self, AssertUnwindSafe};
@@ -630,7 +628,6 @@ mod tests {
         );
     }
 
-    /// Shows `page` until settled; `width` also checks that it fits its window.
     fn check(ctx: &egui::Context, app: &mut App, page: Page, size: egui::Vec2, width: bool) -> BTreeSet<String> {
         app.navigate(page);
         let mut problems = BTreeSet::new();
