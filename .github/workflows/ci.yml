@@ -93,7 +93,7 @@ jobs:
           fallback: none
       - run: just spec
 
-  # Removed or changed public API vs the PR base (release PRs: the last release tag) fails unless the breaking version rises
+  # Removed or changed public API vs the PR base (release PRs: each crate's last release tag) fails unless the breaking version rises
   public-api:
     name: Public API diff
     if: ${{ github.event_name == 'pull_request' }}
@@ -124,12 +124,7 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           HEAD_REF: ${{ github.head_ref }}
-        run: |
-          base=$BASE_SHA
-          if [[ $HEAD_REF == release-plz-* ]]; then
-            base=$(git describe --tags --abbrev=0 --match 'egui_mineral-v*' "$BASE_SHA" || echo "$BASE_SHA")
-          fi
-          just api-diff "$base" "$HEAD_SHA"
+        run: just api-diff "$BASE_SHA" "$HEAD_SHA" "$([[ $HEAD_REF == release-plz-* ]] && echo true || echo false)"
 
   result:
     name: CI result

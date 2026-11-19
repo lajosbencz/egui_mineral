@@ -164,8 +164,8 @@ spec:
     echo "$changes"
     exit 1
 
-# Public API diff of the libraries between two commits; removals and changes fail unless the crate's breaking version (0.MINOR, MAJOR from 1.0) rises
-api-diff base head="HEAD":
+# Public API diff of the libraries between two commits; removals and changes fail unless the crate's breaking version (0.MINOR, MAJOR from 1.0) rises. With release=true each crate's base is its last `<crate>-v*` tag reachable from <base>.
+api-diff base head="HEAD" release="false":
     #!/usr/bin/env bash
     set -euo pipefail
     summary=${GITHUB_STEP_SUMMARY:-/dev/null}
@@ -180,16 +180,20 @@ api-diff base head="HEAD":
             | grep -v '^unstable' | grep -vx default | sort
     }
     for crate in egui_mineral egui_mineral_material; do
-    features=$(comm -12 <(features "{{ base }}" "$crate") <(features "{{ head }}" "$crate") | paste -sd, -)
+    base="{{ base }}"
+    if [ "{{ release }}" = true ]; then
+        base=$(git describe --tags --abbrev=0 --match "$crate-v*" "{{ base }}" 2>/dev/null || echo "{{ base }}")
+    fi
+    features=$(comm -12 <(features "$base" "$crate") <(features "{{ head }}" "$crate") | paste -sd, -)
     deny=(--deny removed --deny changed)
-    if [ "$(breaking "{{ base }}" "$crate")" != "$(breaking "{{ head }}" "$crate")" ]; then
+    if [ "$(breaking "$base" "$crate")" != "$(breaking "{{ head }}" "$crate")" ]; then
         deny=()
         echo "\`$crate\`: breaking version bump, removals and changes allowed" | tee -a "$summary"
     fi
     for target in x86_64-unknown-linux-gnu wasm32-unknown-unknown; do
         echo "## \`$crate\` ($target)" | tee -a "$summary"
         echo '```diff' >> "$summary"
-        cargo public-api -p "$crate" --features "$features" --target "$target" -sss diff "${deny[@]}" "{{ base }}..{{ head }}" \
+        cargo public-api -p "$crate" --features "$features" --target "$target" -sss diff "${deny[@]}" "$base..{{ head }}" \
             | tee -a "$summary" || status=1
         echo '```' >> "$summary"
     done
