@@ -209,7 +209,7 @@ fn segmented_button_joins_equal_outlined_segments() {
         (shift("Week", selected) - slot / 2.0).abs() < 0.5,
         "the check pushes the label"
     );
-    let check = p.text(<&str>::from(ICON_CHECK));
+    let check = p.text(&ICON_CHECK.codepoint().to_string());
     assert!(check.right() <= p.text("Week").left(), "check before the label");
     assert!(selected.contains_rect(check), "check inside the selected segment");
 }

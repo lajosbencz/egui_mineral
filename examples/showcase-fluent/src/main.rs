@@ -66,7 +66,7 @@ struct Settings {
 // `MINERAL_ICONS=material` draws the kit's own icons (chevrons, dismiss, ...) from Material Symbols.
 fn kit(ctx: &egui::Context) -> Fluent {
     if std::env::var("MINERAL_ICONS").is_ok_and(|v| v == "material") {
-        egui_material_icons::initialize(ctx);
+        egui_mineral_material::fonts::install_bundled_icons(ctx);
         Fluent::with_icons(&material_icons(), &[])
     } else {
         Fluent::default()
@@ -74,7 +74,7 @@ fn kit(ctx: &egui::Context) -> Fluent {
 }
 
 fn material_icons() -> IconSet {
-    use egui_material_icons::icons as m;
+    use egui_mineral_material::icons as m;
     IconSet {
         arrow_down: m::ICON_ARROW_DOWNWARD.into(),
         arrow_up: m::ICON_ARROW_UPWARD.into(),
