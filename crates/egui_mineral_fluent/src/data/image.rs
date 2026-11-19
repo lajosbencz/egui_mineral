@@ -9,19 +9,39 @@ use egui_mineral::{
     widget::{MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
 };
 
-use crate::ColorToken::ColorNeutralStroke1;
+use crate::ColorToken::{ColorNeutralBackground3, ColorNeutralForeground3, ColorNeutralStroke1};
 use crate::{
     Fluent, FluentExt,
+    icons::ICON_IMAGE_OFF,
     spec::tokens::geometry,
     theme::{Elevation, Radius},
     widget::paint,
 };
 
+pub(super) enum Load {
+    Pending,
+    Failed,
+    // Texture and natural size.
+    Ready(egui::TextureId, Vec2),
+}
+
+#[track_caller]
+pub(super) fn load(ctx: &egui::Context, source: &ImageSource<'_>, hint: Vec2) -> Load {
+    match egui::Image::new(source.clone()).load_for_size(ctx, hint) {
+        Ok(TexturePoll::Ready { texture }) => Load::Ready(texture.id, texture.size),
+        Ok(TexturePoll::Pending { .. }) => Load::Pending,
+        Err(e) => {
+            kit::sanitize::report(format_args!("image failed to load: {e}"));
+            Load::Failed
+        }
+    }
+}
+
 // Texture and natural size once the source has loaded.
 pub(super) fn texture(ctx: &egui::Context, source: &ImageSource<'_>, hint: Vec2) -> Option<(egui::TextureId, Vec2)> {
-    match egui::Image::new(source.clone()).load_for_size(ctx, hint).ok()? {
-        TexturePoll::Ready { texture } => Some((texture.id, texture.size)),
-        TexturePoll::Pending { .. } => None,
+    match load(ctx, source, hint) {
+        Load::Ready(id, size) => Some((id, size)),
+        Load::Pending | Load::Failed => None,
     }
 }
 
@@ -143,12 +163,15 @@ impl<'a> Image<'a> {
         agent_key(key)
     }
 
-    fn loaded(&self, ui: &MineralUi<'_, Fluent>, hint: Vec2) -> Option<(egui::TextureId, Vec2)> {
-        texture(ui.ctx(), &self.source, hint)
+    fn load(&self, ui: &MineralUi<'_, Fluent>, hint: Vec2) -> Load {
+        load(ui.ctx(), &self.source, hint)
     }
 
     fn natural(&self, ui: &MineralUi<'_, Fluent>, hint: Vec2) -> Vec2 {
-        self.loaded(ui, hint).map_or(Vec2::ZERO, |(_, size)| size)
+        match self.load(ui, hint) {
+            Load::Ready(_, size) => size,
+            Load::Pending | Load::Failed => Vec2::ZERO,
+        }
     }
 
     fn box_size(&self, natural: Vec2, avail: f32) -> Vec2 {
@@ -228,11 +251,26 @@ impl MineralWidget for Image<'_> {
         if self.shadow {
             paint::shadow(ui.painter(), rect, radius, Elevation::E4, false, &t);
         }
-        if let Some((id, natural)) = self.loaded(ui, rect.size()) {
-            let (dest, uv) = self.placement(rect, natural);
-            ui.painter().add(Shape::Rect(
-                RectShape::filled(dest, radius, Color32::WHITE).with_texture(id, uv),
-            ));
+        match self.load(ui, rect.size()) {
+            Load::Ready(id, natural) => {
+                let (dest, uv) = self.placement(rect, natural);
+                ui.painter().add(Shape::Rect(
+                    RectShape::filled(dest, radius, Color32::WHITE).with_texture(id, uv),
+                ));
+            }
+            Load::Failed => {
+                let p = ui.painter();
+                p.rect_filled(rect, radius, t.color(ColorNeutralBackground3));
+                paint::icon(
+                    p,
+                    rect.center(),
+                    ICON_IMAGE_OFF,
+                    false,
+                    (rect.width().min(rect.height()) / 2.0).clamp(0.0, 24.0),
+                    t.color(ColorNeutralForeground3),
+                );
+            }
+            Load::Pending => {}
         }
         if self.bordered {
             ui.painter().rect_stroke(
