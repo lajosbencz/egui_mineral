@@ -15,13 +15,14 @@ use std::{
     },
 };
 
-use egui::{Context, Id, RawInput, Style, Theme, ThemePreference, Ui, ViewportId, ViewportIdMap};
+use egui::{Context, Id, Pos2, RawInput, Style, Theme, ThemePreference, Ui, Vec2, ViewportId, ViewportIdMap};
 use parking_lot::{Mutex, MutexGuard};
 
 use crate::{
     agent::{AgentHandle, AgentHost},
     focus,
     i18n::{Catalog, I18n, I18nError},
+    input::claim::Relay,
     input::{InputAdapter, InputContext, RawPass, UnifiedInputEvent},
     motion::Motion,
     policy::Policies,
@@ -82,6 +83,7 @@ struct PassState {
     agent: AgentHost,
     agent_handle: AgentHandle,
     active: bool,
+    relay: Relay,
 }
 
 impl PassState {
@@ -96,6 +98,7 @@ impl PassState {
             agent,
             agent_handle,
             active: false,
+            relay: Relay::default(),
         }
     }
 }
@@ -266,6 +269,18 @@ impl Core {
         }
     }
 
+    /// Coasts `velocity` (points/s, pointer direction) on the enclosing scroll area of the current viewport until it decays.
+    pub(crate) fn coast(&self, velocity: Vec2) {
+        let viewport = self.ctx.viewport_id();
+        self.passes.with(viewport, |st| st.relay.coast = velocity);
+    }
+
+    /// Relays the pan pressed at `origin` to the enclosing scroll area from the next pass on.
+    pub(crate) fn relay(&self, origin: Pos2) {
+        let viewport = self.ctx.viewport_id();
+        self.passes.with(viewport, |st| st.relay.origin = Some(origin));
+    }
+
     /// Input of the current viewport's pass; empty before its first [`Runtime::pass`].
     pub fn input(&self) -> InputContext {
         let viewport = self.ctx.viewport_id();
@@ -371,6 +386,9 @@ impl<K> Runtime<K> {
             outer,
         };
         self.begin_pass(viewport);
+        self.core.passes.with(viewport, |st| {
+            st.relay.step(ui, &self.core.policies.fling, st.input.pan);
+        });
         let style = self.style();
         if outer.is_none() {
             self.sync_global(&style);

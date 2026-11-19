@@ -1,4 +1,5 @@
 mod adapter;
+pub(crate) mod claim;
 mod event;
 mod gesture;
 mod intent;
@@ -8,6 +9,7 @@ mod timing;
 
 pub use adapter::InputContext;
 pub(crate) use adapter::{InputAdapter, RawPass};
+pub use claim::PanClaim;
 pub use event::{
     Gesture, KeyAction, PanFrame, PointerId, PointerKind, PointerState, SwipeDirection, UnifiedInputEvent,
 };
