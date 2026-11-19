@@ -92,6 +92,7 @@ impl<'a> Combobox<'a> {
     }
 
     crate::text_inputs::text_field::field_chrome_setters!();
+    crate::text_inputs::text_field::field_chrome_setters!(text);
 
     crate::widget::setters! {
         /// Greys out the field; the list cannot open.
@@ -104,20 +105,12 @@ impl<'a> Combobox<'a> {
     }
 
     fn field(&mut self, rt: &crate::Rt, arrow: MaterialIcon) -> TextField<'_> {
-        let mut field = TextField::new(self.salt.clone(), self.label.clone(), &mut *self.text)
+        TextField::new(self.salt.clone(), self.label.clone(), &mut *self.text)
+            .with_chrome(std::mem::take(&mut self.chrome))
             .event_filter(text_field::editor_keys(false))
-            .variant(self.chrome.variant)
             .trailing_icon(arrow, crate::tr(rt.i18n(), "mineral-combobox-toggle"))
             .disabled(self.disabled)
             .with_agent_key(self.key.clone())
-            .maybe_error(self.chrome.error.take());
-        if let Some(s) = self.chrome.supporting.take() {
-            field = field.supporting(s);
-        }
-        if let Some(i) = self.chrome.leading {
-            field = field.icon(i);
-        }
-        field
     }
 
     fn items(&self) -> Vec<ComboItem> {

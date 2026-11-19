@@ -723,49 +723,55 @@ macro_rules! field_chrome_setters {
         }
     };
     (text) => {
+        $crate::text_inputs::text_field::field_chrome_setters!(text chrome);
+    };
+    (text $($path:ident).+) => {
         /// Hint shown while empty.
         pub fn placeholder(mut self, placeholder: impl Into<String>) -> Self {
-            self.chrome.placeholder = Some(placeholder.into());
+            self.$($path).+.placeholder = Some(placeholder.into());
             self
         }
 
         /// Type style of the value, placeholder and affixes; default [`TypeScale::BodyLarge`]($crate::spec::TypeScale::BodyLarge).
         /// Lines past the first are spaced by its line height; the first keeps the 24dp line box.
         pub fn text_style(mut self, text_style: $crate::spec::TypeScale) -> Self {
-            self.chrome.text_style = Some(text_style);
+            self.$($path).+.text_style = Some(text_style);
             self
         }
 
         /// Text before the input, e.g. a currency sign.
         pub fn prefix(mut self, prefix: impl Into<String>) -> Self {
-            self.chrome.prefix = Some(prefix.into());
+            self.$($path).+.prefix = Some(prefix.into());
             self
         }
 
         /// Text after the input, e.g. a unit.
         pub fn suffix(mut self, suffix: impl Into<String>) -> Self {
-            self.chrome.suffix = Some(suffix.into());
+            self.$($path).+.suffix = Some(suffix.into());
             self
         }
 
         /// Character limit, with a counter below the field.
         pub fn max_chars(mut self, max_chars: usize) -> Self {
-            self.chrome.max_chars = Some(max_chars);
+            self.$($path).+.max_chars = Some(max_chars);
             self
         }
 
         /// `false` hides the label but keeps it as the accessible name; default `true`.
         pub fn label_visible(mut self, label_visible: bool) -> Self {
-            self.chrome.label_hidden = !label_visible;
+            self.$($path).+.label_hidden = !label_visible;
             self
         }
     };
-    (no_icon) => {
+    (variant) => {
         /// Default [`TextFieldVariant::Filled`]($crate::text_inputs::TextFieldVariant::Filled).
         pub fn variant(mut self, variant: $crate::text_inputs::TextFieldVariant) -> Self {
             self.chrome.variant = variant;
             self
         }
+    };
+    (no_icon) => {
+        $crate::text_inputs::text_field::field_chrome_setters!(variant);
 
         /// Helper text below the field; replaced by an error.
         pub fn supporting(mut self, supporting: impl Into<String>) -> Self {
@@ -927,6 +933,12 @@ impl<'a> TextField<'a> {
 
     pub(crate) fn with_agent_key(mut self, key: AgentKey) -> Self {
         self.key = key;
+        self
+    }
+
+    // The input format hint when the chrome has no placeholder.
+    pub(crate) fn placeholder_or(mut self, hint: String) -> Self {
+        self.chrome.placeholder.get_or_insert(hint);
         self
     }
 

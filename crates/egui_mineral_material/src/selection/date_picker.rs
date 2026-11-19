@@ -24,6 +24,7 @@ use egui_mineral::{
 
 use crate::containment::dialog;
 use crate::selection::{PickerModalResponse, PickerResponse};
+use crate::text_inputs::text_field::FieldChrome;
 use crate::text_inputs::{TextField, TextFieldVariant};
 use crate::widget::{
     common::{self, Interaction},
@@ -235,6 +236,21 @@ macro_rules! config_builders {
             self
         }
 
+        crate::text_inputs::text_field::field_chrome_setters!(text cfg.chrome);
+
+        /// Docked field and input fields; default filled for the docked field, outlined for the
+        /// inputs of a modal.
+        pub fn variant(mut self, variant: TextFieldVariant) -> Self {
+            self.cfg.variant = Some(variant);
+            self
+        }
+
+        /// Helper text below the docked field and the modal input fields.
+        pub fn supporting(mut self, supporting: impl Into<String>) -> Self {
+            self.cfg.chrome.supporting = Some(supporting.into());
+            self
+        }
+
         dialog::picker_label_setters!(cfg.labels);
 
         /// [`show`](Self::show) and the initial mode of [`show_modal`](Self::show_modal).
@@ -339,6 +355,8 @@ struct Config {
     today: Option<Date>,
     labels: dialog::PickerLabels,
     disabled: bool,
+    chrome: FieldChrome,
+    variant: Option<TextFieldVariant>,
 }
 
 impl Config {
@@ -350,6 +368,15 @@ impl Config {
             today: None,
             labels: dialog::PickerLabels::default(),
             disabled: false,
+            chrome: FieldChrome::default(),
+            variant: None,
+        }
+    }
+
+    fn field_chrome(&self, default: TextFieldVariant) -> FieldChrome {
+        FieldChrome {
+            variant: self.variant.unwrap_or(default),
+            ..self.chrome.clone()
         }
     }
 
@@ -425,8 +452,9 @@ impl Config {
         let error = self.text_error(rt, loc, &text);
         let hint = input_hint(rt, loc);
         let field = TextField::new(field_salt, label, &mut text)
+            .with_chrome(self.field_chrome(TextFieldVariant::Filled))
             .trailing_icon(ICON_CALENDAR_MONTH, crate::tr(rt.i18n(), "mineral-date-picker-open"))
-            .placeholder(hint)
+            .placeholder_or(hint)
             .maybe_error(error)
             .disabled(self.disabled);
         let out = ui.mineral(field);
@@ -742,8 +770,8 @@ impl Config {
                     for (i, (msg, error)) in labels.iter().zip(errors).enumerate() {
                         rt.ui(ui).mineral(
                             TextField::new(self.salt.child((i, "date")), tr(rt.i18n(), msg), &mut work.texts[i])
-                                .variant(TextFieldVariant::Outlined)
-                                .placeholder(hint.clone())
+                                .with_chrome(self.field_chrome(TextFieldVariant::Outlined))
+                                .placeholder_or(hint.clone())
                                 .maybe_error(error)
                                 .preferred_width(field_w),
                         );

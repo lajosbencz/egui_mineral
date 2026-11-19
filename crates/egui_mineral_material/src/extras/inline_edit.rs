@@ -19,7 +19,7 @@ use egui_mineral::{
 };
 
 use crate::actions::IconButton;
-use crate::text_inputs::text_field::{self, FieldState, TextFieldVariant, line_galley};
+use crate::text_inputs::text_field::{self, FieldChrome, FieldState, line_galley};
 use crate::widget::common;
 use crate::{
     icons,
@@ -69,6 +69,7 @@ pub struct InlineEdit<'a> {
     style: TypeScale,
     placeholder: Option<String>,
     disabled: bool,
+    chrome: FieldChrome,
 }
 
 impl<'a> InlineEdit<'a> {
@@ -82,8 +83,11 @@ impl<'a> InlineEdit<'a> {
             style: TypeScale::BodyLarge,
             placeholder: None,
             disabled: false,
+            chrome: FieldChrome::default(),
         }
     }
+
+    crate::text_inputs::text_field::field_chrome_setters!(variant);
 
     /// Text role of the preview and the editor; default [`TypeScale::BodyLarge`].
     pub fn scale(mut self, scale: TypeScale) -> Self {
@@ -121,7 +125,7 @@ impl InlineEdit<'_> {
         let t = rt.tokens();
         // A focused filled text field without its container.
         let colors = text_field::colors(
-            TextFieldVariant::Filled,
+            self.chrome.variant,
             FieldState {
                 focused: true,
                 ..FieldState::default()

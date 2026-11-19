@@ -131,3 +131,33 @@ fn setting_row_is_a_list_item() {
     assert_eq!(value.left(), label.left());
     assert_eq!(value.top(), label.bottom());
 }
+
+#[test]
+fn field_wrappers_forward_the_text_chrome() {
+    use egui_mineral::range::RangeModel;
+    use egui_mineral_material::{
+        MaterialUiExt as _,
+        adaptive::Density,
+        extras::{Combobox, NumberField},
+        spec::TypeScale,
+    };
+    let content = TypeScale::BodyLarge.line_height() + 8.0;
+    let (mut x, mut text) = (1.5_f64, String::new());
+    let p = crate::support::render_zones(|ui| {
+        ui.with_density(Density::MIN, |ui| {
+            let n = NumberField::new("x", "X", RangeModel::new(0.0, 9.0), &mut x)
+                .label_visible(false)
+                .step_buttons(false)
+                .suffix("mm");
+            let zones = ui.mineral(n).zones();
+            ui.mineral(Combobox::new("c", "Unit", ["a"], &mut text).label_visible(false).prefix("#").placeholder("pick"));
+            zones
+        })
+    });
+    let field = p.zones.expect("zones reported").visual;
+    assert_eq!(field.height(), content);
+    assert_eq!(p.node("x-field").name, "X", "hidden label stays the name");
+    assert!(field.contains_rect(p.text("mm")) && p.text("mm").left() > field.center().x);
+    p.text("#");
+    p.text("pick");
+}

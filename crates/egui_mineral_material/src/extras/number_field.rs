@@ -102,6 +102,12 @@ impl<'a, N: Numeric> NumberField<'a, N> {
     }
 
     crate::text_inputs::text_field::field_chrome_setters!(no_icon);
+    crate::text_inputs::text_field::field_chrome_setters!(text);
+
+    pub(crate) fn with_field_chrome(mut self, chrome: FieldChrome) -> Self {
+        self.chrome = chrome;
+        self
+    }
 
     /// `false` keeps typed values off the step grid, only clamped, and shows the value's own
     /// digits: `0.123` with step 0.01 stays 0.123. Steps and scrubs still land on the grid.
@@ -180,15 +186,11 @@ impl<'a, N: Numeric> NumberField<'a, N> {
 
     fn field<'t>(&'t self, text: &'t mut String, v: f64) -> TextField<'t> {
         let mut field = TextField::new(self.salt.child("field"), self.label.clone(), text)
-            .variant(self.chrome.variant)
+            .with_chrome(self.chrome.clone())
             .disabled(self.disabled)
             // Arrows step the value and Escape cancels, so the editor keeps them.
             .event_filter(text_field::editor_keys(true))
-            .agent_key(StableId::of(&self.salt, "field"))
-            .maybe_error(self.chrome.error.clone());
-        if let Some(s) = &self.chrome.supporting {
-            field = field.supporting(s.clone());
-        }
+            .agent_key(StableId::of(&self.salt, "field"));
         field.spin = Some(self.range.numeric(v));
         field
     }

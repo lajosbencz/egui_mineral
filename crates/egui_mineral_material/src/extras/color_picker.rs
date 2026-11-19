@@ -23,6 +23,7 @@ use egui_mineral::{
 use material_colors::{color::Rgb, hct::Hct};
 
 use crate::extras::NumberField;
+use crate::text_inputs::text_field::FieldChrome;
 use crate::text_inputs::{TextField, TextFieldVariant};
 use crate::widget::{
     common::{self, Interaction},
@@ -121,6 +122,7 @@ pub struct ColorPicker<'a> {
     swatches: Vec<Color32>,
     disabled: bool,
     rgb_fields: bool,
+    chrome: FieldChrome,
 }
 
 impl<'a> ColorPicker<'a> {
@@ -135,8 +137,15 @@ impl<'a> ColorPicker<'a> {
             swatches: Vec::new(),
             disabled: false,
             rgb_fields: false,
+            chrome: FieldChrome {
+                variant: TextFieldVariant::Outlined,
+                ..FieldChrome::default()
+            },
         }
     }
+
+    crate::text_inputs::text_field::field_chrome_setters!(no_icon);
+    crate::text_inputs::text_field::field_chrome_setters!(text);
 
     /// Red, green and blue 0..=255 fields under the hex field, in sync with the color.
     pub fn rgb_fields(mut self, rgb_fields: bool) -> Self {
@@ -211,7 +220,7 @@ impl Composite for ColorPicker<'_> {
             hex = hex6(*self.color);
         }
         let field = TextField::new(self.salt.child("hex"), tr(rt.i18n(), "mineral-color-hex"), &mut hex)
-            .variant(TextFieldVariant::Outlined)
+            .with_chrome(self.chrome.clone())
             .disabled(self.disabled)
             .agent_key(StableId::of(&self.salt, "hex-field"))
             .preferred_width(width - SWATCH - crate::adaptive::grid(4));
@@ -314,7 +323,12 @@ impl ColorPicker<'_> {
                                 RangeModel::new(0.0, 255.0).step(1.0),
                                 v,
                             )
-                            .variant(TextFieldVariant::Outlined)
+                            .with_field_chrome(FieldChrome {
+                                variant: self.chrome.variant,
+                                text_style: self.chrome.text_style,
+                                label_hidden: self.chrome.label_hidden,
+                                ..FieldChrome::default()
+                            })
                             .step_buttons(false)
                             .scrub(true)
                             .disabled(self.disabled)
