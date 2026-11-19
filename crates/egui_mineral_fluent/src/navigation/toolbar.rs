@@ -258,17 +258,16 @@ enum Kind<'a> {
     Radio { group: usize, value: usize },
 }
 
-#[expect(clippy::large_enum_variant, reason = "short-lived per-pass list")]
 enum Slot<'a> {
     Divider,
-    Item(Base, Kind<'a>, usize),
+    Item(Box<Base>, Kind<'a>, usize),
 }
 
 fn flatten<'a>(entries: Vec<Entry<'a>>, slots: &mut Vec<Slot<'a>>, groups: &mut Vec<&'a mut usize>) {
     for entry in entries {
         match entry {
-            Entry::Button(b) => slots.push(Slot::Item(b.0, Kind::Plain, 0)),
-            Entry::Toggle(t) => slots.push(Slot::Item(t.base, Kind::Toggle(t.checked), 0)),
+            Entry::Button(b) => slots.push(Slot::Item(Box::new(b.0), Kind::Plain, 0)),
+            Entry::Toggle(t) => slots.push(Slot::Item(Box::new(t.base), Kind::Toggle(t.checked), 0)),
             Entry::Radio(g) => {
                 let group = groups.len();
                 groups.push(g.selected);
@@ -276,7 +275,7 @@ fn flatten<'a>(entries: Vec<Entry<'a>>, slots: &mut Vec<Slot<'a>>, groups: &mut 
                     g.buttons
                         .into_iter()
                         .enumerate()
-                        .map(|(value, b)| Slot::Item(b.0, Kind::Radio { group, value }, 0)),
+                        .map(|(value, b)| Slot::Item(Box::new(b.0), Kind::Radio { group, value }, 0)),
                 );
             }
             Entry::Divider => slots.push(Slot::Divider),
@@ -370,7 +369,7 @@ impl Run {
             for slot in hidden {
                 match slot {
                     Slot::Divider => m.divider(),
-                    Slot::Item(base, kind, n) => self.row(m, (base, kind, n), groups),
+                    Slot::Item(base, kind, n) => self.row(m, (*base, kind, n), groups),
                 }
             }
         });
@@ -525,7 +524,7 @@ impl<'a> Toolbar<'a> {
             for (at, slot) in shown.into_iter().enumerate() {
                 match slot {
                     Slot::Divider => show_divider(rt, ui, salt.child(("divider", at)), vertical),
-                    Slot::Item(base, kind, n) => run.item(rt, ui, &salt, (base, kind, n), &mut groups),
+                    Slot::Item(base, kind, n) => run.item(rt, ui, &salt, (*base, kind, n), &mut groups),
                 }
             }
             if let Some(o) = overflow.as_ref().filter(|_| more) {
@@ -596,7 +595,7 @@ fn plan<'s>(
         .iter()
         .map(|s| match s {
             Slot::Divider => OverflowItem::new(DIVIDER_WIDTH),
-            Slot::Item(b, ..) => OverflowItem::new(button(b.clone(), salt.clone()).natural(ui).x),
+            Slot::Item(b, ..) => OverflowItem::new(button(b.as_ref().clone(), salt.clone()).natural(ui).x),
         })
         .collect();
     let menu = overflow::trigger(salt.clone(), o.label(), &ui.icons()).natural(ui).x;

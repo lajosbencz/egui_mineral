@@ -347,7 +347,11 @@ impl Run<'_> {
             n
         });
         let mut step = 0;
-        for (k, ((off, name), icon)) in nav.into_iter().zip([ui.icons().chevron_up, ui.icons().chevron_down]).enumerate() {
+        for (k, ((off, name), icon)) in nav
+            .into_iter()
+            .zip([ui.icons().chevron_up, ui.icons().chevron_down])
+            .enumerate()
+        {
             let x = cal::PADDING + title_w + k as f32 * nav_w;
             let rect = cell(cx, self.root, x, cal::PADDING, Pos2::new(nav_w, cal::HEADER_HEIGHT));
             let id = cx.id.with(("nav", k));

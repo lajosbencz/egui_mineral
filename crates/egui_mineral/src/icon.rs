@@ -26,7 +26,7 @@ impl Glyph {
     }
 }
 
-/// An icon in its two forms; a font without a second form repeats the glyph.
+/// Outlined and filled glyph of one icon; fonts without a filled form use the same glyph twice.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Icon {
     /// Outlined form.
@@ -67,7 +67,7 @@ impl From<egui_material_icons::MaterialIcon> for Icon {
     }
 }
 
-/// An icon font file and how it is registered.
+/// Font bytes plus the family name [`Glyph::family`] refers to; installed once per context.
 #[derive(Clone, Copy, Debug)]
 pub struct IconFont {
     /// Registered font name.

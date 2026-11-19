@@ -28,6 +28,11 @@ use egui_mineral::{
 };
 
 use crate::selection::{Chip, InputChip};
+use crate::spec::{
+    TypeScale,
+    defaults::{menu as menu_defaults, text_field as tf},
+    tokens::menu,
+};
 use crate::text_inputs::text_field::{self, Decor, INPUT_FONT, TextFieldVariant, content_inset, field_h, line_galley};
 use crate::widget::{
     common::{self},
@@ -35,11 +40,6 @@ use crate::widget::{
     parts,
     row_parts::{OptionRow, RowMetrics},
 };
-use crate::spec::{
-        TypeScale,
-        defaults::{menu as menu_defaults, text_field as tf},
-        tokens::menu,
-    };
 
 pub(crate) const CHIP_GAP: f32 = 8.0;
 

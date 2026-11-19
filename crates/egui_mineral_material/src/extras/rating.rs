@@ -89,7 +89,7 @@ impl<'a> Rating<'a> {
         icon_button::metrics(self.size, IconButtonWidth::Narrow)
     }
 
-    /// Star icon; default [`IconSet::star`].
+    /// Star icon; default [`crate::IconSet::star`].
     pub fn icon(mut self, icon: impl Into<Icon>) -> Self {
         self.icon = Some(icon.into());
         self
@@ -237,7 +237,13 @@ impl MineralWidget for Rating<'_> {
                     pos2(dir.start_x(star, Rangef::new(0.0, 0.0 + w)), star.top()),
                     vec2(w, star.height()),
                 );
-                common::icon(&p.with_clip_rect(clip), star.center(), Icon::single(icon.filled), size, full);
+                common::icon(
+                    &p.with_clip_rect(clip),
+                    star.center(),
+                    Icon::single(icon.filled),
+                    size,
+                    full,
+                );
             }
         }
         WidgetResponse::new(r.clone(), ()).with_changed((before - *self.value).abs() > f64::EPSILON)

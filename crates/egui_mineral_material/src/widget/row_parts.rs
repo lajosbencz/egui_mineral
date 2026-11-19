@@ -380,13 +380,7 @@ pub(crate) fn drop_indicator(t: &crate::tokens::Tokens) -> Stroke {
 // No MD3 counterpart: step and timeline markers use the x-small icon button
 pub(crate) const MARKER: f32 = x_small_icon_button::CONTAINER_HEIGHT;
 
-pub(crate) fn marker(
-    p: &Painter,
-    center: Pos2,
-    diameter: f32,
-    fill: Color32,
-    glyph: Option<(crate::Icon, Color32)>,
-) {
+pub(crate) fn marker(p: &Painter, center: Pos2, diameter: f32, fill: Color32, glyph: Option<(crate::Icon, Color32)>) {
     p.circle_filled(center, diameter / 2.0, fill);
     if let Some((icon, color)) = glyph {
         common::icon(p, center, icon, x_small_icon_button::ICON_SIZE, color);

@@ -18,15 +18,13 @@ use egui_mineral::{
     toast::{ToastId, ToastQueue},
 };
 
+use crate::spec::{
+    defaults,
+    tokens::{baseline_button, small_icon_button, snackbar},
+};
 use crate::widget::{
     common::{self, Interaction},
     indication, parts,
-};
-use crate::{
-    spec::{
-        defaults,
-        tokens::{baseline_button, small_icon_button, snackbar},
-    },
 };
 
 /// Action button of a [`Snackbar`].

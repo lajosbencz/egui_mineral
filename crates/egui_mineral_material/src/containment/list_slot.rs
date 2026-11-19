@@ -10,7 +10,7 @@ use egui_mineral::{
 use crate::selection::controls::{self, Control, SwitchLook};
 use crate::spec::tokens::list;
 use crate::widget::{common, parts, row_parts};
-use crate::{Leading, LeadingPaint, Material, Icon, Rt, tokens::Tokens};
+use crate::{Icon, Leading, LeadingPaint, Material, Rt, tokens::Tokens};
 
 /// Toggle control in a [`ListSlot`]; the row reports its toggles and Space on the focused row
 /// toggles the leading one first.

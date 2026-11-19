@@ -159,7 +159,6 @@ impl Pass {
             .unwrap_or_else(|| panic!("no text starting {prefix:?}"))
     }
 
-    /// Font family the text `text` is laid out with.
     pub(crate) fn text_family(&self, text: &str) -> Option<egui::FontFamily> {
         self.flat().into_iter().find_map(|s| match s {
             Shape::Text(t) if t.galley.text() == text => {

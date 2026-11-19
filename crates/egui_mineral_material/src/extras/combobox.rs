@@ -13,12 +13,12 @@ use egui_mineral::{
     widget::{SizeExt, WidgetResponse},
 };
 
+use crate::Icon;
 use crate::text_inputs::{
     TextField,
     text_field::{self},
 };
 use crate::widget::leading::Leading;
-use crate::Icon;
 use crate::{
     selection::select::{self, Listbox},
     widget::row_parts::{self, OptionRow},

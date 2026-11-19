@@ -99,7 +99,7 @@ impl Avatar {
         self.image = Some(source.into());
         self
     }
-    /// Fallback icon when `name` has no initials; default [`IconSet::person`].
+    /// Fallback icon when `name` has no initials; default [`crate::IconSet::person`].
     pub fn icon(mut self, icon: impl Into<Icon>) -> Self {
         self.icon = Some(icon.into());
         self

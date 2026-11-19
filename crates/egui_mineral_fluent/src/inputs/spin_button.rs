@@ -138,7 +138,11 @@ impl<'a> SpinButton<'a> {
                 Availability::disabled_if(self.disabled),
             ));
             ui.painter().rect_filled(rect, corner(up, dir), fill.pick(s, t));
-            let icon: Icon = if up { ui.icons().chevron_up } else { ui.icons().chevron_down };
+            let icon: Icon = if up {
+                ui.icons().chevron_up
+            } else {
+                ui.icons().chevron_down
+            };
             paint::icon(ui.painter(), rect.center(), icon, false, self.glyph(), fore.pick(s, t));
             if r.clicked() {
                 steps += if up { 1 } else { -1 };

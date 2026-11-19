@@ -14,7 +14,6 @@ use egui_mineral::{
 
 use crate::selection::{Menu, MenuItem};
 use crate::widget::parts;
-use crate::{IconAction, actions::IconButton};
 use crate::{
     Icon,
     adaptive::WindowClass,
@@ -28,6 +27,7 @@ use crate::{
     },
     tokens::Tokens,
 };
+use crate::{IconAction, actions::IconButton};
 
 /// Compose `TopAppBar`, `CenterAlignedTopAppBar`, `MediumTopAppBar` and `LargeTopAppBar` styles.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
@@ -337,7 +337,8 @@ impl<'a> TopAppBar<'a> {
                 *ui.layout(),
                 |ui| {
                     ui.mineral(
-                        IconButton::new(self.salt.child("overflow"), ui.icons().more_vert, &label).disabled(self.disabled),
+                        IconButton::new(self.salt.child("overflow"), ui.icons().more_vert, &label)
+                            .disabled(self.disabled),
                     )
                     .into_response()
                 },

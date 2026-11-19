@@ -1,7 +1,7 @@
 use egui::{Context, Id};
 use egui_mineral::semantic::KeyedSalt;
 
-use crate::{actions::PushButton, };
+use crate::actions::PushButton;
 
 /// Which end of a row [`Overflow::fit`] hides first (`overflowDirection`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]

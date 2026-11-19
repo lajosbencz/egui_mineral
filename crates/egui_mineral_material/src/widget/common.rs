@@ -1,6 +1,4 @@
-use egui::{
-    Color32, CornerRadius, Painter, Pos2, Rect, Shape, Stroke, StrokeKind, epaint::TextShape,
-};
+use egui::{Color32, CornerRadius, Painter, Pos2, Rect, Shape, Stroke, StrokeKind, epaint::TextShape};
 
 use egui_mineral::anchor::{Align, Anchor, Side};
 use egui_mineral::widget::InteractionKind;

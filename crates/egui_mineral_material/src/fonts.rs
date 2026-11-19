@@ -30,7 +30,7 @@ pub struct IconFonts {
 }
 
 impl IconFonts {
-    /// The two fonts as installable [`IconFont`]s, under the families [`MaterialIcon`](crate::MaterialIcon) names.
+    /// Fonts under the families `MaterialIcon` names, with the baseline offset of `egui_material_icons`.
     pub const fn fonts(self) -> [IconFont; 2] {
         // egui_material_icons' baseline tweak
         const Y_OFFSET: f32 = 0.05;

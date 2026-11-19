@@ -421,7 +421,10 @@ impl Config {
         let error = self.text_error(rt, loc, &text);
         let hint = input_hint(rt, loc);
         let field = TextField::new(field_salt, label, &mut text)
-            .trailing_icon(ui.icons().calendar_month, crate::tr(rt.i18n(), "mineral-date-picker-open"))
+            .trailing_icon(
+                ui.icons().calendar_month,
+                crate::tr(rt.i18n(), "mineral-date-picker-open"),
+            )
             .placeholder(hint)
             .maybe_error(error)
             .disabled(self.disabled);

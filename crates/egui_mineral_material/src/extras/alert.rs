@@ -252,7 +252,13 @@ impl Alert {
                 ui.spacing_mut().item_spacing.x = gap;
                 let size = list::ITEM_LEADING_ICON_SIZE;
                 let (ir, _) = ui.allocate_exact_size(vec2(size, size), Sense::hover());
-                crate::widget::common::icon(ui.painter(), ir.center(), self.severity.icon(&rt.icons()), size, icon_color);
+                crate::widget::common::icon(
+                    ui.painter(),
+                    ir.center(),
+                    self.severity.icon(&rt.icons()),
+                    size,
+                    icon_color,
+                );
                 let close_w = if self.dismissible {
                     MIN_INTERACTIVE.points(rt.core()) + gap
                 } else {

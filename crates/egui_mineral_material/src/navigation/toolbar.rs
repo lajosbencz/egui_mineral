@@ -21,14 +21,6 @@ use egui_mineral::{
 
 use crate::actions::icon_button::{IconButton, Palette};
 use crate::{
-    IconAction,
-    widget::item_salt,
-    widget::{
-        common::{self},
-        parts,
-    },
-};
-use crate::{
     Icon,
     adaptive::MIN_INTERACTIVE,
     motion,
@@ -36,6 +28,14 @@ use crate::{
         ColorRole,
         defaults::toolbar as cx,
         tokens::{docked_toolbar as docked, fab_baseline, fab_medium, floating_toolbar as floating},
+    },
+};
+use crate::{
+    IconAction,
+    widget::item_salt,
+    widget::{
+        common::{self},
+        parts,
     },
 };
 

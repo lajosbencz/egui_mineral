@@ -67,7 +67,7 @@ pub struct EmptyPlaceholderResponse {
 }
 
 impl EmptyPlaceholder {
-    /// `title` is the headline and accessible name; default icon [`IconSet::inbox`]. Agent key prefix `<id_salt>`.
+    /// `title` is the headline and accessible name; default icon [`crate::IconSet::inbox`]. Agent key prefix `<id_salt>`.
     pub fn new(id_salt: impl Into<KeyedSalt>, title: impl Into<String>) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
@@ -84,7 +84,7 @@ impl EmptyPlaceholder {
         agent_key(salt)
     }
 
-    /// Large icon above the title; default [`IconSet::inbox`].
+    /// Large icon above the title; default [`crate::IconSet::inbox`].
     pub fn icon(mut self, icon: impl Into<Icon>) -> Self {
         self.icon = Some(icon.into());
         self

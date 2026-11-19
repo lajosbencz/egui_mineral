@@ -818,7 +818,15 @@ impl MineralWidget for PushButton<'_> {
 }
 
 impl PushButton<'_> {
-    fn paint_icon_only(&self, ui: &MineralUi<'_, Fluent>, rect: Rect, m: &Metrics, menu: f32, look: Look, dir: Direction) {
+    fn paint_icon_only(
+        &self,
+        ui: &MineralUi<'_, Fluent>,
+        rect: Rect,
+        m: &Metrics,
+        menu: f32,
+        look: Look,
+        dir: Direction,
+    ) {
         let p = ui.painter();
         let icons = ui.icons();
         let icon_w = if self.icon.is_some() { m.icon } else { 0.0 };

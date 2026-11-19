@@ -448,7 +448,11 @@ impl<'a> Carousel<'a> {
                         .clicked()
                 };
                 if let Some(interval) = self.autoplay {
-                    let icon = if auto.playing { rt.icons().pause } else { rt.icons().play };
+                    let icon = if auto.playing {
+                        rt.icons().pause
+                    } else {
+                        rt.icons().play
+                    };
                     if button(ui, "autoplay", &label(2, "mineral-carousel-autoplay"), icon, reduced) {
                         auto.playing = !auto.playing;
                         auto.since = ctx.input(|i| i.time);

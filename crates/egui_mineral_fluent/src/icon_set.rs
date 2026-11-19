@@ -54,7 +54,7 @@ pub struct IconSet {
 }
 
 impl IconSet {
-    /// Fluent UI System Icons, the font of [`Fluent::new`](crate::Fluent::new).
+    /// Fluent UI System Icons, the bundled font.
     pub fn fluent() -> Self {
         Self {
             arrow_down: Icon::from(icons::ICON_ARROW_DOWN),

@@ -249,11 +249,7 @@ impl Core<'_> {
         if self.kind != ChipKind::Input {
             return (SPACE, SPACE);
         }
-        let start = if self.has_leading() {
-            SPACE
-        } else {
-            INPUT_EDGE_SPACE
-        };
+        let start = if self.has_leading() { SPACE } else { INPUT_EDGE_SPACE };
         let end = if self.has_remove() { SPACE } else { INPUT_EDGE_SPACE };
         (start, end)
     }

@@ -14,7 +14,7 @@ use egui_mineral::{
 
 use crate::widget::{common, indication, parts};
 use crate::{
-    Material, MaterialExt, Icon, SelectionResponse, motion,
+    Icon, Material, MaterialExt, SelectionResponse, motion,
     spec::{
         defaults::{button, segmented_button as sbx},
         tokens::outlined_segmented_button as sb,

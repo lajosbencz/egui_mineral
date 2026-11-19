@@ -308,7 +308,14 @@ impl MineralWidget for Checkbox<'_> {
             Size::Small | Size::Medium => cb::GLYPH_MEDIUM,
         };
         match self.state() {
-            Check::Checked => paint::icon(p, placed.indicator.center(), ui.icons().checkmark, true, glyph_size, glyph),
+            Check::Checked => paint::icon(
+                p,
+                placed.indicator.center(),
+                ui.icons().checkmark,
+                true,
+                glyph_size,
+                glyph,
+            ),
             Check::Mixed => paint::icon(p, placed.indicator.center(), ui.icons().square, true, glyph_size, glyph),
             Check::Unchecked => {}
         }

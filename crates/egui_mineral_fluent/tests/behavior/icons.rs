@@ -22,15 +22,24 @@ fn fluent_icon_converts_to_both_forms_of_its_family() {
     let icon = Icon::from(ICON_STAR);
     assert_eq!(icon.regular.family, ICON_FAMILY);
     assert_eq!(icon.filled.family, ICON_FAMILY);
-    assert_eq!((icon.regular.ch, icon.filled.ch), (ICON_STAR.regular(), ICON_STAR.filled()));
+    assert_eq!(
+        (icon.regular.ch, icon.filled.ch),
+        (ICON_STAR.regular(), ICON_STAR.filled())
+    );
 }
 
 #[test]
 fn material_icon_converts_to_outlined_and_filled_families() {
     let icon = Icon::from(material::ICON_STAR);
-    assert_eq!((icon.regular.family, icon.filled.family), (FONT_FAMILY_OUTLINED, FONT_FAMILY));
+    assert_eq!(
+        (icon.regular.family, icon.filled.family),
+        (FONT_FAMILY_OUTLINED, FONT_FAMILY)
+    );
     assert_eq!(icon.regular.ch, icon.filled.ch);
-    assert_eq!(Icon::from(material::ICON_STAR.outlined()).glyph(true).family, FONT_FAMILY_OUTLINED);
+    assert_eq!(
+        Icon::from(material::ICON_STAR.outlined()).glyph(true).family,
+        FONT_FAMILY_OUTLINED
+    );
 }
 
 #[test]

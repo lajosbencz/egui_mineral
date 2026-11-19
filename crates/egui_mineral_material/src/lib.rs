@@ -116,8 +116,8 @@ pub mod containment;
 pub mod extras;
 /// Font and icon installation.
 pub mod fonts;
-mod material;
 mod icon_set;
+mod material;
 mod motion;
 pub mod navigation;
 pub mod prelude;
@@ -135,10 +135,10 @@ pub mod typography;
 mod widget;
 
 pub use egui_material_icons::{MaterialIcon, icons};
-pub use egui_mineral::icon::Icon;
-pub use icon_set::IconSet;
 pub use egui_mineral;
 pub use egui_mineral::egui;
+pub use egui_mineral::icon::Icon;
+pub use icon_set::IconSet;
 pub use material::{Material, MaterialExt, MaterialUiExt, Rt};
 pub use widget::{
     leading::{Leading, LeadingPaint},

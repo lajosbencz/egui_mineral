@@ -255,13 +255,21 @@ impl MineralWidget for SearchBar<'_> {
                 ui,
                 lead,
                 base.with("leading"),
-                rt.i18n().direction().pick(ui.icons().arrow_back, ui.icons().arrow_forward),
+                rt.i18n()
+                    .direction()
+                    .pick(ui.icons().arrow_back, ui.icons().arrow_forward),
                 c(search_bar::LEADING_ICON_COLOR),
                 node,
             );
         } else {
             let (_, size) = crate::widget::parts::small_icon_metrics();
-            common::icon(ui.painter(), lead, ui.icons().search, size, c(search_bar::LEADING_ICON_COLOR));
+            common::icon(
+                ui.painter(),
+                lead,
+                ui.icons().search,
+                size,
+                c(search_bar::LEADING_ICON_COLOR),
+            );
         }
         let text_rect = input_rect(rt, rect, self.trailing.is_some());
         let te = SearchInput {
@@ -981,7 +989,9 @@ impl<'a> SearchView<'a> {
             ui,
             icon_center(ui.rt(), head, Edge::Start),
             vc.base.with("view-back"),
-            rt.i18n().direction().pick(ui.icons().arrow_back, ui.icons().arrow_forward),
+            rt.i18n()
+                .direction()
+                .pick(ui.icons().arrow_back, ui.icons().arrow_forward),
             t.role(search_view::HEADER_LEADING_ICON_COLOR),
             enabled_button(&self.salt, "back-button", &back_label),
         );

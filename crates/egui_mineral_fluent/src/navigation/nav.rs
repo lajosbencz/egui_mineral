@@ -275,7 +275,11 @@ impl MineralWidget for Row {
         let tx = at(cursor, galley.size().x);
         ui.painter().galley(pos2(tx, cy - galley.size().y / 2.0), galley, color);
         if let Kind::Category { open } = self.kind {
-            let icon = if open { ui.icons().chevron_up } else { ui.icons().chevron_down };
+            let icon = if open {
+                ui.icons().chevron_up
+            } else {
+                ui.icons().chevron_down
+            };
             let x = at(rect.width() - end - d::ICON_SIZE, d::ICON_SIZE) + d::ICON_SIZE / 2.0;
             paint::icon(ui.painter(), pos2(x, cy), icon, false, d::ICON_SIZE, color);
         }

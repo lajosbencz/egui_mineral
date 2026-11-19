@@ -111,9 +111,9 @@ pub struct IconSet {
 }
 
 impl IconSet {
-    /// Material Symbols Rounded, the font of [`Material::new`](crate::Material::new).
+    /// Material Symbols Rounded, the bundled fonts.
     pub fn material() -> Self {
-                Self {
+        Self {
             add: Icon::from(icons::ICON_ADD),
             arrow_back: Icon::from(icons::ICON_ARROW_BACK),
             arrow_downward: Icon::from(icons::ICON_ARROW_DOWNWARD),
