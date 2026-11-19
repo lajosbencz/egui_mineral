@@ -454,7 +454,7 @@ fn show<K, W: MineralWidget<Kit = K>>(ui: &mut MineralUi<'_, K>, mut widget: W) 
         emit_node(&ctx, out.response.id, zones.hit, || {
             node_of(core, &widget, &out, &state, access_key, accelerator)
         });
-        ui.data_mut(|d| d.insert_temp(id, state));
+        crate::kit::state::store_evicting(&ctx, ctx.cumulative_pass_nr(), id, state);
         return out;
     }
 
@@ -505,7 +505,7 @@ fn show<K, W: MineralWidget<Kit = K>>(ui: &mut MineralUi<'_, K>, mut widget: W) 
     emit_node(&ctx, out.response.id, zones.hit, || {
         node_of(core, &widget, &out, &state, access_key, accelerator)
     });
-    ui.data_mut(|d| d.insert_temp(id, state));
+    crate::kit::state::store_evicting(&ctx, ctx.cumulative_pass_nr(), id, state);
     out
 }
 
