@@ -285,7 +285,7 @@ impl<'a> Card<'a> {
         let mut child = ui.new_child(
             UiBuilder::new()
                 .max_rect(place)
-                .layout(dir.row().with_main_align(Align::Max)),
+                .layout(dir.reversed().row().with_cross_align(Align::Min)),
         );
         let before = *sel;
         rt.ui(&mut child).mineral(

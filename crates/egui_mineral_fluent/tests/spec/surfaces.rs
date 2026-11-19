@@ -1,6 +1,7 @@
+use egui::ViewportId;
 use egui_mineral_fluent::{
-    spec::defaults::divider,
-    surfaces::{Divider, DividerAlign},
+    spec::defaults::{card, divider},
+    surfaces::{Card, CardAppearance, Divider, DividerAlign},
 };
 
 use crate::support::render;
@@ -38,4 +39,28 @@ fn start_content_has_the_short_leading_line() {
     let text = p.text("Text");
     assert_eq!(text.left() - lines[0].1, divider::CONTENT_SPACING);
     assert_eq!(lines[1].0 - text.right(), divider::CONTENT_SPACING);
+}
+
+#[test]
+fn card_checkbox_floats_at_the_end_top_corner() {
+    let p = render(|ui| {
+        let mut selected = false;
+        Card::new("c")
+            .appearance(CardAppearance::FilledAlternative)
+            .selectable(&mut selected)
+            .checkbox(true)
+            .show(ui, |c| c.body(|ui| _ = ui.label("Body")));
+    });
+    let tree = p.rt.tree(ViewportId::ROOT).expect("semantics collected");
+    let card_rect = tree.find_key("c-card").expect("card").rect;
+    let check = tree.find_key("c-select-checkbox").expect("checkbox").rect;
+    assert!(
+        check.right() <= card_rect.right() - card::SELECT_INSET + 0.5,
+        "{check:?} {card_rect:?}"
+    );
+    assert!(check.left() > card_rect.center().x, "{check:?} {card_rect:?}");
+    assert!(
+        check.top() >= card_rect.top() + card::SELECT_INSET - 0.5,
+        "{check:?} {card_rect:?}"
+    );
 }
