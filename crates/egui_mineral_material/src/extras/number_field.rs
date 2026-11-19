@@ -270,7 +270,7 @@ impl<N: Numeric> Composite for NumberField<'_, N> {
             height,
         } = self.row_metrics(ui.density(), foot, total, gap);
         let scrub_sense = (self.scrub && !disabled && !focused)
-            .then(|| number::scrub_sense(&rt.core().input()))
+            .then(|| number::scrub_sense(&ui.pass_input()))
             .flatten();
         let step = |ui: &mut Ui, b: IconButton, foot: Vec2| {
             ui.allocate_ui_with_layout(vec2(foot.x, height), Layout::top_down(Align::Center), |ui| {
@@ -406,9 +406,8 @@ struct RowMetrics {
 }
 
 fn scrub_handle(ui: &MineralUi<'_, Material>, rect: egui::Rect, id: Id, sense: egui::Sense) -> egui::Response {
-    let rt = ui.rt();
     let mut handle = ui.interact(rect, id, sense);
-    rt.core().input().tap_on(&mut handle);
+    ui.pass_input().tap_on(&mut handle);
     if handle.hovered() || handle.dragged() {
         ui.ctx().set_cursor_icon(CursorIcon::ResizeHorizontal);
     }

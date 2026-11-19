@@ -356,9 +356,7 @@ impl ListItem {
                 .into_iter()
                 .find(|s| self.swipe(*s).is_some_and(|a| a.removes_row));
         }
-        let pan = state
-            .claim
-            .update(ui, rt.core(), egui_mineral::layout::Axis::Horizontal, r);
+        let pan = state.claim.update(ui, egui_mineral::layout::Axis::Horizontal, r);
         if let Some(pan) = pan {
             state.offset = (state.offset + pan.delta.x).clamp(min, max);
             state.rest = state.offset;

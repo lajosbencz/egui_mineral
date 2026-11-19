@@ -1,7 +1,7 @@
 use egui::{Id, Pos2, Response, Ui, Vec2, style::ScrollAnimation};
 
 use super::PanFrame;
-use crate::{layout::Axis, motion::Fling, runtime::Core};
+use crate::{layout::Axis, motion::Fling, runtime::Core, widget::MineralUi};
 
 const COAST_STOP: f32 = 5.0;
 
@@ -25,12 +25,13 @@ impl PanClaim {
     /// Per pass: the frame of the pan that started on `response` to apply when it is claimed on `axis`, otherwise
     /// `None`, the pass then relays the pan and its release velocity to the enclosing scroll area.
     /// Only the start is hit-tested, the pan stays this widget's when the scroll moves it away from the press.
-    pub fn update(&mut self, ui: &Ui, core: &Core, axis: Axis, response: &Response) -> Option<PanFrame> {
+    pub fn update<K>(&mut self, ui: &MineralUi<'_, K>, axis: Axis, response: &Response) -> Option<PanFrame> {
+        let (core, input) = (ui.core(), ui.pass_input());
         self.id = Some(response.id);
         forward(ui, core.take_relay(response.id));
         let pan = match self.pan {
-            Some((origin, _)) => core.input().pan.filter(|p| p.origin == origin),
-            None => core.input().pan_on(response),
+            Some((origin, _)) => input.pan.filter(|p| p.origin == origin),
+            None => input.pan_on(response),
         };
         let Some(p) = pan else {
             self.pan = None;
@@ -180,7 +181,7 @@ mod tests {
                         .show(ui, |ui| {
                             let (rect, _) = ui.allocate_exact_size(vec2(200.0, 100.0), Sense::hover());
                             let r = ui.interact(rect, ui.make_persistent_id("pannable"), Sense::drag());
-                            if let Some(f) = p.claim.update(ui, rt.core(), axis, &r) {
+                            if let Some(f) = p.claim.update(&rt.ui(ui), axis, &r) {
                                 let step = -axis.main(f.delta);
                                 let over = p.pos + step - (p.pos + step).clamp(0.0, RANGE);
                                 p.claim.chain(rt.core(), ui, axis, &f, -over);

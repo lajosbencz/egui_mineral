@@ -487,7 +487,7 @@ impl<'a> Carousel<'a> {
             st.claim.reset();
             None
         } else {
-            st.claim.update(ui, rt.core(), axis, response)
+            st.claim.update(ui, axis, response)
         };
         if let Some(pan) = pan {
             let step = -flip * axis.main(pan.delta);

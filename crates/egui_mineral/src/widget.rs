@@ -88,11 +88,11 @@ struct PanGateState {
     owned: bool,
 }
 
-fn pan_gate(ui: &Ui, core: &Core, axis: Axis, response: &egui::Response) -> PanGate {
+fn pan_gate<K>(ui: &MineralUi<'_, K>, axis: Axis, response: &egui::Response) -> PanGate {
     let id = response.id.with("pan-gate");
     let mut st = ui.data(|d| d.get_temp::<PanGateState>(id)).unwrap_or_default();
     let was_relaying = st.claim.relaying();
-    let frame = st.claim.update(ui, core, axis, response);
+    let frame = st.claim.update(ui, axis, response);
     let gate = PanGate(if frame.is_some() {
         GateState::Claimed { started: !st.owned }
     } else if was_relaying || st.claim.relaying() {
@@ -299,7 +299,8 @@ impl<'a, K> MineralUi<'a, K> {
         }
     }
 
-    fn pass_input(&self) -> Rc<InputContext> {
+    /// Input of this pass, read once per `MineralUi` ([`Core::input`] locks per call).
+    pub fn pass_input(&self) -> Rc<InputContext> {
         Rc::clone(self.input.get_or_init(|| Rc::new(self.rt.core().input())))
     }
 
@@ -425,7 +426,7 @@ fn show<K, W: MineralWidget<Kit = K>>(ui: &mut MineralUi<'_, K>, mut widget: W) 
     let min = if composite {
         0.0
     } else {
-        widget.min_target().points(ui.core())
+        widget.min_target().points_for(core, input.modality)
     };
     // Height is unbounded: horizontal layouts report only the current row height as available.
     let constraints = Constraints::loose(Vec2::new(ui.available_width(), f32::INFINITY));
@@ -460,7 +461,7 @@ fn show<K, W: MineralWidget<Kit = K>>(ui: &mut MineralUi<'_, K>, mut widget: W) 
     let tapped = input.tap_on(&mut response);
     let pan = match widget.pan_axis() {
         Some(axis) if widget.enabled() && !composite && input.modality == PointerKind::Touch => {
-            pan_gate(ui, core, axis, &response)
+            pan_gate(ui, axis, &response)
         }
         _ => PanGate::default(),
     };
