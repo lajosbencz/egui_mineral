@@ -6,7 +6,7 @@ use crate::semantic::{Collector, SemanticNode, collecting, collector_id};
 
 /// True when this pass collects a tree or AccessKit has a node for `id`.
 pub fn wanted(ctx: &Context, id: Option<Id>) -> bool {
-    id.is_some_and(|id| ctx.accesskit_node_builder(id, |_| ()).is_some()) || collecting(ctx)
+    collecting(ctx) || id.is_some_and(|id| ctx.accesskit_node_builder(id, |_| ()).is_some())
 }
 
 /// Stores `rect` for `id` for the semantic node of the same pass, when a tree is wanted.

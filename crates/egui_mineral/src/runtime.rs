@@ -190,8 +190,13 @@ fn owner_id(viewport: ViewportId) -> Id {
 
 pub(crate) fn pass_scoped(ctx: &Context, name: &'static str) -> Id {
     let viewport = ctx.viewport_id();
-    let owner = ctx
-        .data(|d| d.get_temp::<Owner>(owner_id(viewport)))
+    ctx.data(|d| pass_scoped_in(d, viewport, name))
+}
+
+// For callers already inside a `ctx.data` read, with the viewport read beforehand.
+pub(crate) fn pass_scoped_in(d: &egui::util::IdTypeMap, viewport: ViewportId, name: &'static str) -> Id {
+    let owner = d
+        .get_temp::<Owner>(owner_id(viewport))
         .map(|o| o.current.unwrap_or(o.outermost));
     Id::unique((name, viewport, owner))
 }

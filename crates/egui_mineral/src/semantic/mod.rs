@@ -203,8 +203,10 @@ pub(crate) struct Collector {
 }
 
 pub(crate) fn collector_id(ctx: &Context) -> Id {
-    crate::runtime::pass_scoped(ctx, "mineral::semantic")
+    crate::runtime::pass_scoped(ctx, COLLECTOR_SCOPE)
 }
+
+const COLLECTOR_SCOPE: &str = "mineral::semantic";
 
 pub(crate) fn begin_pass(ctx: &Context, wanted: bool) {
     let id = collector_id(ctx);
@@ -220,8 +222,9 @@ pub(crate) fn begin_pass(ctx: &Context, wanted: bool) {
 }
 
 pub(crate) fn collecting(ctx: &Context) -> bool {
-    let id = collector_id(ctx);
+    let viewport = ctx.viewport_id();
     ctx.data(|d| {
+        let id = crate::runtime::pass_scoped_in(d, viewport, COLLECTOR_SCOPE);
         d.get_temp_raw(egui::util::id_type_map::RawKey::new::<Collector>(id))
             .and_then(|c| c.downcast_ref::<Collector>())
             .is_some_and(|c| c.wanted)
@@ -230,9 +233,12 @@ pub(crate) fn collecting(ctx: &Context) -> bool {
 
 /// Builds `node` only when [`wanted`], then writes it to AccessKit (with an `id`) and the tree.
 pub fn emit(ctx: &Context, id: Option<Id>, rect: Rect, node: impl FnOnce() -> SemanticNode) {
-    if !wanted(ctx, id) {
-        return;
+    if wanted(ctx, id) {
+        write(ctx, id, rect, node);
     }
+}
+
+fn write(ctx: &Context, id: Option<Id>, rect: Rect, node: impl FnOnce() -> SemanticNode) {
     let mut node = node();
     node.rect = rect;
     node.widget_id = id;
@@ -249,7 +255,7 @@ pub fn emit_parent(ctx: &Context, id: Id, node: impl FnOnce() -> SemanticNode) {
         let rect = ctx
             .data(|d| d.get_temp::<Rect>(id.with(RECT_KEY)))
             .unwrap_or(Rect::NOTHING);
-        emit(ctx, Some(id), rect, node);
+        write(ctx, Some(id), rect, node);
     }
 }
 
