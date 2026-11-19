@@ -24,6 +24,7 @@ pub(crate) const TOPICS: &[&str] = &[
     "Date field",
     "Form",
     "File drop zone",
+    "Inspector",
 ];
 
 pub(crate) struct State {
@@ -71,6 +72,8 @@ pub(crate) struct State {
     form_done: Option<String>,
     files: Vec<String>,
     rejected: Vec<String>,
+    inspector_name: String,
+    inspector: [f64; 4],
 }
 
 impl Default for State {
@@ -120,6 +123,8 @@ impl Default for State {
             tags_limited: vec!["one".to_owned()],
             inline_title: "Click to rename me".to_owned(),
             inline_heading: "Project Mineral".to_owned(),
+            inspector_name: "Rectangle 1".to_owned(),
+            inspector: [120.0, 48.0, 15.0, 80.0],
         }
     }
 }
@@ -133,6 +138,7 @@ pub(crate) fn show(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     dates(ui, s);
     form(ui, s, shared);
     files(ui, s, shared);
+    inspector(ui, s);
 }
 
 fn text_fields(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
@@ -717,4 +723,52 @@ impl Validator for PasswordPolicy {
             ))
         }
     }
+}
+
+fn inspector(ui: &mut Mui<'_>, s: &mut State) {
+    let rt = ui.rt();
+    super::section(ui, TOPICS[8], None, |ui| {
+        caption(
+            ui,
+            TypeScale::LabelMedium,
+            "Density -6: label column, label-less fields, units as suffixes",
+        );
+        let [x, y, angle, opacity] = &mut s.inspector;
+        let name = &mut s.inspector_name;
+        rt.ui(ui).with_density(Density::MIN, |ui| {
+            egui::Grid::new("ti-inspector")
+                .num_columns(2)
+                .spacing([16.0, 4.0])
+                .show(ui, |g| {
+                    g.label("Name");
+                    rt.ui(g).mineral(
+                        TextField::new("ti-insp-name", "Name", name)
+                            .variant(TextFieldVariant::Outlined)
+                            .label_visible(false)
+                            .preferred_width(200.0),
+                    );
+                    g.end_row();
+                    for (id, label, unit, v) in [("x", "X", "px", x), ("y", "Y", "px", y), ("angle", "Angle", "deg", angle)] {
+                        g.label(label);
+                        rt.ui(g).mineral(
+                            NumberField::new(("ti-insp", id), label, RangeModel::new(-360.0, 360.0).step(1.0), v)
+                                .variant(TextFieldVariant::Outlined)
+                                .label_visible(false)
+                                .step_buttons(false)
+                                .scrub(true)
+                                .suffix(unit)
+                                .preferred_width(200.0),
+                        );
+                        g.end_row();
+                    }
+                    g.label("Opacity");
+                    rt.ui(g).mineral(
+                        ValueSlider::new("ti-insp-opacity", "Opacity", RangeModel::new(0.0, 100.0).step(1.0), opacity)
+                            .value_field(true)
+                            .preferred_width(200.0),
+                    );
+                    g.end_row();
+                });
+        });
+    });
 }

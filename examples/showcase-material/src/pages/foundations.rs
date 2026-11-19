@@ -189,7 +189,7 @@ fn theme(ui: &mut Mui<'_>, shared: &mut Shared) {
     caption(
         ui,
         TypeScale::BodySmall,
-        "Density -3..0 shrinks the visual size of components by 4dp per step. Hit targets stay at 48dp: \
+        "Density -6..0 shrinks the visual size of components by 4dp per step, down to their content. Hit targets stay at 48dp: \
          the visual box is smaller, the touch zone is not.",
     );
 }
