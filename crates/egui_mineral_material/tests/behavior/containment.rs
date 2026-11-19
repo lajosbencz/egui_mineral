@@ -181,6 +181,22 @@ fn modal_bottom_sheet_reports_escape_and_outside_dismissal() {
 }
 
 #[test]
+fn modal_sheet_binds_in_its_own_scope_from_its_opening_pass() {
+    let h = still(WIDE, (true, Vec::new()), |ui, (open, scopes)| {
+        BottomSheet::new("sheet").show_modal(ui.rt(), open, |ui| {
+            scopes.push(egui_mineral::shortcut::scope_of(ui.ctx(), ui.layer_id()));
+        });
+    });
+    let scopes = &h.state().value.1;
+    assert!(
+        scopes
+            .first()
+            .is_some_and(|s| matches!(s, egui_mineral::shortcut::Scope::Modal(_))),
+        "{scopes:?}"
+    );
+}
+
+#[test]
 fn bottom_sheet_handle_steps_below_the_lowest_detent_to_swipe_dismiss() {
     let mut h = still(WIDE, (true, None), |ui, (open, dismissed)| {
         let r = BottomSheet::new("sheet").show(ui.rt(), open, |_| ());
