@@ -55,9 +55,15 @@ pub struct NavDestination {
     badge: Option<Badge>,
     disabled: bool,
     mnemonic: Option<Mnemonic>,
+    salt: Option<egui_mineral::semantic::KeyedSalt>,
 }
 
 impl NavDestination {
+    crate::widget::setters! {
+        /// Default the index.
+        item_salt
+    }
+
     /// `label` is the visible text and accessible name.
     pub fn new(icon: MaterialIcon, label: impl Into<String>) -> Self {
         Self {
@@ -65,6 +71,7 @@ impl NavDestination {
             label: label.into(),
             badge: None,
             disabled: false,
+            salt: None,
             mnemonic: None,
         }
     }
@@ -153,9 +160,10 @@ impl Group {
         let mut picked = None;
         for (i, dest) in items.iter().enumerate() {
             let is_selected = i == selected;
+            let own = crate::widget::item_salt(&self.salt, dest.salt.as_ref(), None, i);
             let r = ui.mineral(NavItem {
-                salt: self.salt.child((i, "nav-item")),
-                key: StableId::of(&self.salt, (i, "nav-item")),
+                salt: own.child("nav-item"),
+                key: StableId::of(&own, "nav-item"),
                 dest,
                 selected: is_selected,
                 tab_stop: focus::TabStop::at(i, tab_stop),
@@ -1328,9 +1336,10 @@ impl Drawer {
                                 );
                             }
                             DrawerEntry::Item(dest) => {
+                                let own = crate::widget::item_salt(&self.group.salt, dest.salt.as_ref(), None, index);
                                 let item = DrawerItem {
-                                    salt: self.group.salt.child((index, "nav-item")),
-                                    key: StableId::of(&self.group.salt, (index, "nav-item")),
+                                    salt: own.child("nav-item"),
+                                    key: StableId::of(&own, "nav-item"),
                                     dest,
                                     selected: selected == index,
                                 };

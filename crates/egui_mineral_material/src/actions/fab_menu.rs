@@ -98,9 +98,15 @@ pub struct FabMenuItem {
     label: String,
     command: Option<ActionId>,
     disabled: bool,
+    salt: Option<egui_mineral::semantic::KeyedSalt>,
 }
 
 impl FabMenuItem {
+    crate::widget::setters! {
+        /// Default the [`Self::command`] action, else the index.
+        item_salt
+    }
+
     /// `label` is the visible text and accessible name.
     pub fn new(icon: MaterialIcon, label: impl Into<String>) -> Self {
         Self {
@@ -108,6 +114,7 @@ impl FabMenuItem {
             label: label.into(),
             command: None,
             disabled: false,
+            salt: None,
         }
     }
 
@@ -320,9 +327,10 @@ impl FabMenu {
                 ui.with_layout(Layout::top_down(align), |ui| {
                     let mut ids = Vec::with_capacity(self.items.len());
                     for (i, (item, &(width, alpha))) in self.items.iter().zip(reveal).enumerate() {
+                        let own = crate::widget::item_salt(&self.salt, item.salt.as_ref(), item.command.as_ref(), i);
                         let r = rt.ui(ui).mineral(Row {
-                            salt: i.into(),
-                            key: StableId::of(&self.salt, (i, "fab-menu-item")),
+                            key: StableId::of(&own, "fab-menu-item"),
+                            salt: own,
                             item,
                             color: self.color,
                             width,

@@ -211,15 +211,22 @@ pub struct DialogAction {
     label: String,
     mnemonic: Option<Mnemonic>,
     disabled: bool,
+    salt: Option<egui_mineral::semantic::KeyedSalt>,
 }
 
 impl DialogAction {
+    crate::widget::setters! {
+        /// Default the index.
+        item_salt
+    }
+
     /// `label` is the button text and accessible name.
     pub fn new(label: impl Into<String>) -> Self {
         Self {
             label: label.into(),
             mnemonic: None,
             disabled: false,
+            salt: None,
         }
     }
 
@@ -431,6 +438,11 @@ impl Dialog {
         self
     }
 
+    fn action_salt(&self, index: usize) -> KeyedSalt {
+        let own = self.actions.get(index).and_then(|a| a.salt.as_ref());
+        crate::widget::item_salt(&self.salt, own, None, index).child("action")
+    }
+
     /// Appends one text button to the action row.
     pub fn action(mut self, action: impl Into<DialogAction>) -> Self {
         self.actions.push(action.into());
@@ -534,11 +546,11 @@ impl Dialog {
                     self.actions
                         .iter()
                         .enumerate()
-                        .map(|(idx, a)| (idx, a.button(self.salt.child((idx, "action")))))
+                        .map(|(idx, a)| (idx, a.button(self.action_salt(idx))))
                         .collect(),
                     |row| {
                         if let Some(i) = initial {
-                            focus.enter(ctx, row.make_persistent_id(self.salt.child((i, "action")).id_salt()));
+                            focus.enter(ctx, row.make_persistent_id(self.action_salt(i).id_salt()));
                         }
                     },
                 );

@@ -121,6 +121,27 @@ impl Hash for ActionId {
     }
 }
 
+/// Key text is the id text (`file.save` keys `file-save`), so collection items commanding an action
+/// keep their agent key when items are inserted before them.
+impl crate::semantic::KeySalt for ActionId {
+    fn write_key(&self, out: &mut String) {
+        match &self.0 {
+            ActionRepr::Widget(id) => {
+                out.push_str("accelerator-");
+                out.push_str(&id.value().to_string());
+            }
+            _ => out.push_str(self.as_str().unwrap_or_default()),
+        }
+    }
+
+    fn key_parts(&self, parts: &mut crate::semantic::KeyParts) -> bool {
+        match &self.0 {
+            ActionRepr::Static(s) => parts.push_str(s),
+            _ => false,
+        }
+    }
+}
+
 impl fmt::Debug for ActionId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.0 {

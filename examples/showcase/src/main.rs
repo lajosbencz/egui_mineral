@@ -513,10 +513,10 @@ mod tests {
     #[test]
     fn alt_mnemonic_opens_menu_then_bare_letter_activates_item() {
         let (ctx, mut app) = navigation_app();
-        assert!(!menu_item_open(&app, "nav-mb-file-0-menu-item"));
+        assert!(!menu_item_open(&app, "nav-mb-file-file-new-menu-item"));
         step(&mut app, &ctx, press(Key::F, Modifiers::ALT));
         step_until(&mut app, &ctx, "File menu opening", |a| {
-            menu_item_open(a, "nav-mb-file-0-menu-item")
+            menu_item_open(a, "nav-mb-file-file-new-menu-item")
         });
         settle(&mut app, &ctx);
         assert!(
@@ -526,7 +526,7 @@ mod tests {
         let new = app
             .rt
             .tree(egui::ViewportId::ROOT)
-            .and_then(|t| t.find_key("nav-mb-file-0-menu-item").cloned())
+            .and_then(|t| t.find_key("nav-mb-file-file-new-menu-item").cloned())
             .expect("menu item in tree");
         assert_eq!(new.access_key.map(shortcut::Mnemonic::char), Some('N'));
         let ctrl_n = shortcut::label(&ctx, &KeyboardShortcut::new(Modifiers::COMMAND, Key::N));
@@ -538,7 +538,7 @@ mod tests {
         });
         settle(&mut app, &ctx);
         assert!(
-            !menu_item_open(&app, "nav-mb-file-0-menu-item"),
+            !menu_item_open(&app, "nav-mb-file-file-new-menu-item"),
             "menu closes after activation"
         );
         assert!(!shortcut::mnemonics_visible(app.rt.core()));

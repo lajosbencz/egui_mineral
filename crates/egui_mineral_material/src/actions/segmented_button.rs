@@ -29,15 +29,22 @@ pub struct Segment {
     label: String,
     icon: Option<MaterialIcon>,
     disabled: bool,
+    salt: Option<egui_mineral::semantic::KeyedSalt>,
 }
 
 impl Segment {
+    crate::widget::setters! {
+        /// Default the index.
+        item_salt
+    }
+
     /// `label` is the visible text and accessible name.
     pub fn new(label: impl Into<String>) -> Self {
         Self {
             label: label.into(),
             icon: None,
             disabled: false,
+            salt: None,
         }
     }
 
@@ -122,7 +129,7 @@ impl<'a> SegmentedButton<'a> {
     }
 
     /// Radio group binding the selected index; `label` names the group, segment agent keys are
-    /// `<id_salt>-<index>-segment`.
+    /// `<id_salt>-<item>-segment`, `<item>` the segment's `salt(..)`, else its index.
     pub fn single(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selected: &'a mut usize) -> Self {
         Self::new(id_salt, label, Bound::Single(selected))
     }
@@ -219,9 +226,10 @@ impl<'a> SegmentedButton<'a> {
                 for (i, (((segment, label), &selected), &width)) in
                     self.items.iter().zip(&labels).zip(&selected).zip(&widths).enumerate()
                 {
+                    let own = crate::widget::item_salt(&self.salt, segment.salt.as_ref(), None, i);
                     let r = rt.ui(ui).mineral(SegmentItem {
-                        salt: self.salt.child((i, "segment")),
-                        key: StableId::of(&self.salt, (i, "segment")),
+                        salt: own.child("segment"),
+                        key: StableId::of(&own, "segment"),
                         segment,
                         label,
                         role,

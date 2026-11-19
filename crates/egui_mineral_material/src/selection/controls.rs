@@ -866,15 +866,22 @@ pub struct RadioOption<T> {
     value: T,
     label: String,
     disabled: bool,
+    salt: Option<egui_mineral::semantic::KeyedSalt>,
 }
 
 impl<T> RadioOption<T> {
+    crate::widget::setters! {
+        /// Default the index.
+        item_salt
+    }
+
     /// `label` is the visible text and accessible name of `value`.
     pub fn new(value: T, label: impl Into<String>) -> Self {
         Self {
             value,
             label: label.into(),
             disabled: false,
+            salt: None,
         }
     }
 
@@ -959,7 +966,7 @@ impl<'a, T: PartialEq + Clone> RadioGroup<'a, T> {
         let body = |ui: &mut Ui| {
             for (i, o) in options.iter().enumerate() {
                 let r = rt.ui(ui).mineral(
-                    Radio::new(salt.child(i), &o.label)
+                    Radio::new(crate::widget::item_salt(&salt, o.salt.as_ref(), None, i), &o.label)
                         .selected(o.value == *value)
                         .tab_stop(i == tab_stop)
                         .disabled(!enabled(i)),

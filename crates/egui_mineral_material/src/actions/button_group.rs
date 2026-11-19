@@ -32,9 +32,15 @@ pub struct ButtonGroupItem {
     label_visible: bool,
     icon: Option<MaterialIcon>,
     disabled: bool,
+    salt: Option<egui_mineral::semantic::KeyedSalt>,
 }
 
 impl ButtonGroupItem {
+    crate::widget::setters! {
+        /// Default the index.
+        item_salt
+    }
+
     /// `label` is the accessible name; shown unless [`Self::label_visible`] is `false`.
     pub fn new(label: impl Into<String>) -> Self {
         Self {
@@ -42,6 +48,7 @@ impl ButtonGroupItem {
             label_visible: true,
             icon: None,
             disabled: false,
+            salt: None,
         }
     }
 
@@ -98,7 +105,7 @@ pub struct ButtonGroup<'a> {
 }
 
 impl<'a> ButtonGroup<'a> {
-    /// `label` is the group's accessible name; item agent keys are `<id_salt>-<index>-button`.
+    /// `label` is the group's accessible name; item agent keys are `<id_salt>-<item>-button`, `<item>` the item's `salt(..)`, else its index.
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
@@ -168,8 +175,10 @@ impl<'a> ButtonGroup<'a> {
     }
 
     fn button(&self, i: usize, item: &ButtonGroupItem) -> PushButton<'static> {
-        let mut b = PushButton::new(self.salt.child(i), item.label.clone())
-            .agent_key(StableId::of(&self.salt, (i, "button")))
+        let own = crate::widget::item_salt(&self.salt, item.salt.as_ref(), None, i);
+        let key = StableId::of(&own, "button");
+        let mut b = PushButton::new(own, item.label.clone())
+            .agent_key(key)
             .variant(self.button_variant.into())
             .shape(self.shape)
             .disabled(self.disabled || item.disabled);

@@ -50,9 +50,15 @@ pub struct PaletteCommand {
     shortcut: Option<KeyboardShortcut>,
     icon: Option<MaterialIcon>,
     disabled: bool,
+    salt: Option<egui_mineral::semantic::KeyedSalt>,
 }
 
 impl PaletteCommand {
+    crate::widget::setters! {
+        /// Default the [`Self::command`] action, else the index.
+        item_salt
+    }
+
     /// `label` is the visible text and accessible name; also matched by the query.
     pub fn new(label: impl Into<String>) -> Self {
         Self {
@@ -62,6 +68,7 @@ impl PaletteCommand {
             shortcut: None,
             icon: None,
             disabled: false,
+            salt: None,
         }
     }
     /// Overline header the entry is listed under.
@@ -562,9 +569,10 @@ fn command_row(
         disabled: cmd.disabled,
         ..OptionRow::default()
     };
-    let resp = row.show(ui, id.with(("command", index)), width, &cx.metrics, t);
+    let own = crate::widget::item_salt(salt, cmd.salt.as_ref(), cmd.id.as_ref(), index);
+    let resp = row.show(ui, id.with(own.id_salt()), width, &cx.metrics, t);
     semantic::emit(ui.ctx(), Some(resp.id), resp.rect, || {
-        row.pick_node(StableId::of(salt, (index, "command")))
+        row.pick_node(StableId::of(&own, "command"))
             .shortcut(shortcut_label.clone())
     });
     resp

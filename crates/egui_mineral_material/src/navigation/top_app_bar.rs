@@ -346,10 +346,12 @@ impl<'a> TopAppBar<'a> {
             .inner;
             let mut menu = Menu::new(self.salt.child("overflow"), label).emit_anchor(false);
             for (idx, a) in self.actions.iter().enumerate().skip(shown) {
+                let own =
+                    crate::widget::item_salt(&self.salt, a.salt.as_ref(), a.command.as_ref(), idx).child("action");
                 let mut item = MenuItem::new(&a.label)
                     .leading(a.icon)
                     .disabled(a.disabled)
-                    .agent_key(StableId::of(&self.salt, (idx, "action-button")));
+                    .agent_key(StableId::of(&own, "button"));
                 if let Some(c) = &a.command {
                     item = item.command(c);
                 }
@@ -367,7 +369,12 @@ impl<'a> TopAppBar<'a> {
         for (idx, a) in self.actions.iter().enumerate().take(shown).rev() {
             let r = row.slot(row.rect.width() - end - MIN_INTERACTIVE_DP);
             let resp = egui_mineral::layout::child(ui, ("action", idx), r, *ui.layout(), |ui| {
-                let mut b = IconButton::new(self.salt.child((idx, "action")), a.icon, &a.label).disabled(a.disabled);
+                let mut b = IconButton::new(
+                    crate::widget::item_salt(&self.salt, a.salt.as_ref(), a.command.as_ref(), idx).child("action"),
+                    a.icon,
+                    &a.label,
+                )
+                .disabled(a.disabled);
                 if let Some(sel) = a.selected {
                     b = b.selected(sel);
                 }

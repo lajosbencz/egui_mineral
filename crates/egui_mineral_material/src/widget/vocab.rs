@@ -1,4 +1,4 @@
-use egui_mineral::shortcut::ActionId;
+use egui_mineral::{semantic::KeyedSalt, shortcut::ActionId};
 
 use crate::MaterialIcon;
 
@@ -28,6 +28,7 @@ pub struct IconAction {
     pub(crate) command: Option<ActionId>,
     pub(crate) selected: Option<bool>,
     pub(crate) disabled: bool,
+    pub(crate) salt: Option<KeyedSalt>,
 }
 
 impl IconAction {
@@ -39,7 +40,13 @@ impl IconAction {
             command: None,
             selected: None,
             disabled: false,
+            salt: None,
         }
+    }
+
+    crate::widget::setters! {
+        /// Default the [`Self::command`] action, else the index.
+        item_salt
     }
 
     /// Activation fires the app action `id` ([`shortcut::fire`](egui_mineral::shortcut::fire)) instead
@@ -57,6 +64,19 @@ impl IconAction {
     crate::widget::setters! {
         /// Greys the item out and ignores activation.
         disabled
+    }
+}
+
+pub(crate) fn item_salt(
+    parent: &KeyedSalt,
+    own: Option<&KeyedSalt>,
+    command: Option<&ActionId>,
+    index: usize,
+) -> KeyedSalt {
+    match (own, command) {
+        (Some(own), _) => parent.join(own),
+        (None, Some(command)) => parent.child(command),
+        (None, None) => parent.child(index),
     }
 }
 
@@ -191,6 +211,15 @@ macro_rules! setters {
             let mut $s = self;
             $place = $place.with_key(key.into());
             $s
+        }
+    };
+    ($(#[$m:meta])* item_salt) => {
+        /// Identity within the collection (egui id and agent key part), stable when items are
+        /// inserted before it.
+        $(#[$m])*
+        pub fn salt(mut self, id_salt: impl Into<egui_mineral::semantic::KeyedSalt>) -> Self {
+            self.salt = Some(id_salt.into());
+            self
         }
     };
     ($(#[$m:meta])* agent_key(key)) => {

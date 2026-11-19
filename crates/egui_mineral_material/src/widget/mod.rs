@@ -7,4 +7,4 @@ pub(crate) mod paint;
 pub(crate) mod parts;
 pub(crate) mod row_parts;
 pub(crate) mod vocab;
-pub(crate) use vocab::{error_setters, setters};
+pub(crate) use vocab::{error_setters, item_salt, setters};

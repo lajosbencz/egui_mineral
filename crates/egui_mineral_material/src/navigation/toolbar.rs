@@ -22,6 +22,7 @@ use egui_mineral::{
 use crate::actions::icon_button::{IconButton, Palette};
 use crate::{
     IconAction,
+    widget::item_salt,
     widget::{
         common::{self},
         parts,
@@ -79,7 +80,12 @@ fn actions(
             list.iter()
                 .enumerate()
                 .map(|(i, a)| {
-                    let mut b = IconButton::new(salt.child(i), a.icon, &a.label).disabled(a.disabled);
+                    let mut b = IconButton::new(
+                        item_salt(salt, a.salt.as_ref(), a.command.as_ref(), i),
+                        a.icon,
+                        &a.label,
+                    )
+                    .disabled(a.disabled);
                     if let Some(sel) = a.selected {
                         b = b.selected(sel);
                     }

@@ -184,3 +184,30 @@ fn partial_tree_check_reaches_both_serializers() {
     let node = h.get_by_role_and_label(Role::CheckBox, "root");
     assert_eq!(node.accesskit_node().toggled(), Some(Toggled::Mixed));
 }
+
+#[test]
+fn inserting_a_toolbar_action_keeps_the_keys_of_identified_ones() {
+    use egui_mineral_material::{IconAction, icons, navigation::Toolbar};
+    let mut h = harness(WIDE, (false, 0), |ui, (insert, pastes)| {
+        let actions = insert
+            .then(|| IconAction::new(icons::ICON_CONTENT_CUT, "Cut").command("edit.cut"))
+            .into_iter()
+            .chain([
+                IconAction::new(icons::ICON_CONTENT_COPY, "Copy").command("edit.copy"),
+                IconAction::new(icons::ICON_CONTENT_PASTE, "Paste").salt("paste"),
+            ]);
+        let out = Toolbar::floating("tb", "Edit").actions(actions).show(ui);
+        *pastes += usize::from(out.clicked == Some(usize::from(*insert) + 1));
+    });
+    let keys = ["tb-edit-copy-button", "tb-paste-button"];
+    let rects = keys.map(|k| h.rect(k));
+    h.state_mut().value.0 = true;
+    h.run();
+    assert!(
+        h.rect(keys[0]).min.x > rects[0].min.x,
+        "the action moved behind the insert"
+    );
+    h.drive_agent(move |agent| futures_executor::block_on(agent.act(keys[1], AgentAction::Click)))
+        .expect("agent click");
+    assert_eq!(h.state().value.1, 1, "the moved action keeps its key");
+}

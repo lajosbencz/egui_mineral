@@ -50,15 +50,22 @@ pub struct Tab {
     label: String,
     disabled: bool,
     mnemonic: Option<Mnemonic>,
+    salt: Option<egui_mineral::semantic::KeyedSalt>,
 }
 
 impl Tab {
+    crate::widget::setters! {
+        /// Default the index.
+        item_salt
+    }
+
     /// `label` is the visible text and accessible name.
     pub fn new(label: impl Into<String>) -> Self {
         Self {
             icon: None,
             label: label.into(),
             disabled: false,
+            salt: None,
             mnemonic: None,
         }
     }
@@ -244,9 +251,10 @@ impl<'a> Tabs<'a> {
             ui.add_space(tx::SCROLLABLE_EDGE_PADDING);
         }
         for (i, (spec, content)) in self.specs.iter().zip(row.contents).enumerate() {
+            let own = crate::widget::item_salt(&self.salt, spec.salt.as_ref(), None, i);
             let r = rt.ui(ui).mineral(TabItem {
-                salt: self.salt.child((i, "tab")),
-                key: StableId::of(&self.salt, (i, "tab")),
+                salt: own.child("tab"),
+                key: StableId::of(&own, "tab"),
                 spec,
                 content,
                 variant: self.variant,

@@ -462,6 +462,15 @@ impl KeyedSalt {
         }
     }
 
+    /// [`Self::child`] with a keyed `part`, such as an item's own salt: keyed `<key>-<part key>`.
+    #[must_use]
+    pub fn join(&self, part: &KeyedSalt) -> Self {
+        Self {
+            salt: IdSalt::new((self.salt, part.salt)),
+            key: self.key.appended(part, Join::Salt),
+        }
+    }
+
     /// Same salt with `key` as the key, verbatim (agent key overrides).
     #[must_use]
     pub fn with_key(mut self, key: impl Into<StableId>) -> Self {

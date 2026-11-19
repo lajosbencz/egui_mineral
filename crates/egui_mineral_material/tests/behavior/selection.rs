@@ -125,7 +125,7 @@ fn menu_item_trailing_shortcut_is_exposed_and_icon_is_not() {
             .show(ui.rt(), &anchor);
     });
     h.click("anchor-button");
-    assert!(h.node("menu-0-menu-item").shortcut.is_some());
+    assert!(h.node("menu-file-save-menu-item").shortcut.is_some());
     assert!(h.node("menu-1-menu-item").shortcut.is_none());
 }
 

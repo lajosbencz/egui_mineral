@@ -217,11 +217,17 @@ pub struct MenuItem {
     selected: bool,
     disabled: bool,
     submenu: Vec<Entry>,
+    salt: Option<egui_mineral::semantic::KeyedSalt>,
 }
 
 egui_mineral::kit::opaque_debug!(MenuItem);
 
 impl MenuItem {
+    crate::widget::setters! {
+        /// Default the [`Self::command`] action, else the index; [`Self::agent_key`] overrides only the key.
+        item_salt
+    }
+
     /// `label` is the visible text and accessible name.
     pub fn new(label: impl Into<String>) -> Self {
         Self {
@@ -234,11 +240,12 @@ impl MenuItem {
             tooltip: None,
             selected: false,
             disabled: false,
+            salt: None,
             submenu: Vec::new(),
         }
     }
 
-    /// Overrides the `<menu-key>-<index>-menu-item` default.
+    /// Overrides the `<menu-key>-<item>-menu-item` default (`<item>` from [`Self::salt`]).
     pub fn agent_key(mut self, key: impl Into<StableId>) -> Self {
         self.key = Some(key.into());
         self
@@ -297,12 +304,9 @@ impl MenuItem {
     }
 }
 
-#[cfg_attr(
-    target_pointer_width = "64",
-    expect(
-        clippy::large_enum_variant,
-        reason = "entries are mostly items; boxing allocates per item per pass"
-    )
+#[expect(
+    clippy::large_enum_variant,
+    reason = "entries are mostly items; boxing allocates per item per pass"
 )]
 enum Entry {
     Item(MenuItem),
@@ -1021,12 +1025,10 @@ impl Menu {
         let index = Self::child_base(entries, base, e) - 1;
         let resp = ui
             .scope_builder(UiBuilder::new().max_rect(slot), |ui| {
+                let own = crate::widget::item_salt(&self.salt, item.salt.as_ref(), item.command.as_ref(), index);
                 rt.ui(ui).mineral(MenuRow {
-                    salt: self.salt.child(("row", level, e)),
-                    key: item
-                        .key
-                        .clone()
-                        .unwrap_or_else(|| StableId::of(&self.salt, (index, "menu-item"))),
+                    salt: own.child("row"),
+                    key: item.key.clone().unwrap_or_else(|| StableId::of(&own, "menu-item")),
                     item,
                     width: slot.width(),
                     style: self.style,
