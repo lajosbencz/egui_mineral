@@ -314,7 +314,8 @@ mod tests {
     use egui::ViewportId;
     use futures_util::FutureExt as _;
 
-    use crate::test_support::{ctx, runtime};
+    use crate::agent::{AgentAction, AgentError};
+    use crate::test_support::{ctx, input, run, runtime};
 
     #[test]
     fn request_wakes_the_handles_viewport() {
@@ -323,5 +324,27 @@ mod tests {
         let other = ViewportId::from_hash_of("other");
         assert!(rt.agent(other).snapshot().now_or_never().is_none());
         assert!(ctx.has_requested_repaint_for(&other));
+    }
+
+    #[test]
+    fn act_after_a_pass_without_a_tree_completes_on_requested_repaints() {
+        let ctx = ctx();
+        let rt = runtime(&ctx);
+        let viewport = ViewportId::ROOT;
+        let pass = || {
+            let out = run(&ctx, input(vec![]), |ui| rt.pass(ui, |_| {}));
+            out.viewport_output
+                .get(&viewport)
+                .is_some_and(|v| v.repaint_delay.is_zero())
+        };
+        rt.set_collect_semantics(true);
+        pass();
+        rt.set_collect_semantics(false);
+        while pass() {}
+        let handle = rt.agent(viewport);
+        let mut act = Box::pin(handle.act("missing", AgentAction::Click));
+        assert!((&mut act).now_or_never().is_none());
+        while pass() {}
+        assert!(matches!((&mut act).now_or_never(), Some(Err(AgentError::NotFound(_)))));
     }
 }

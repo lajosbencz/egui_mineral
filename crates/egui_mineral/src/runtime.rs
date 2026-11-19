@@ -551,7 +551,7 @@ impl<K> Runtime<K> {
         // A discarded pass changed what it showed: its tree and the previous one are stale, and the rerun
         // (whose input hook runs too) collects again for the queued requests.
         let discard = self.core.ctx.will_discard();
-        self.core.passes.with(viewport, |st| {
+        let pending = self.core.passes.with(viewport, |st| {
             if discard {
                 st.tree = None;
             } else {
@@ -560,7 +560,12 @@ impl<K> Runtime<K> {
                 }
                 st.tree = tree;
             }
+            st.agent.wants_tree()
         });
+        // Acts queued during a pass that had no tree are injected by the next one.
+        if pending {
+            self.core.ctx.request_repaint_of(viewport);
+        }
     }
 }
 
