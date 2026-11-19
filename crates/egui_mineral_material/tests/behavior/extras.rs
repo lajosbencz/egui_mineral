@@ -326,3 +326,27 @@ fn status_item_colors_override_the_tone_strip() {
     assert_eq!(strip(amber), 2, "colors paint their strips");
     assert_eq!(pass.filled(ColorRole::ErrorContainer).len(), 1, "tone paints without colors");
 }
+
+#[test]
+fn popover_show_at_follows_the_app_flag_and_ignores_anchor_clicks() {
+    let mut h = harness(SCREEN, (false, None), |ui, (open, dismissed)| {
+        let anchor = ui.mineral(PushButton::new("trigger", "Open")).response().rect;
+        let r = Popover::new("pop", "Details").show_at(ui, anchor, open, |ui| ui.label("Details"));
+        *dismissed = dismissed.or(r.dismissed);
+    });
+    h.run();
+    assert!(
+        h.tree().find_key("pop-popover").is_none(),
+        "closed until the app opens it"
+    );
+    h.state_mut().value.0 = true;
+    h.run();
+    assert!(h.tree().find_key("pop-popover").is_some(), "opened from code");
+    h.click("trigger-button");
+    assert!(h.state().value.0, "an anchor click neither toggles nor dismisses");
+    let outside = h.outside();
+    assert_eq!(
+        crate::support::flag_dismissals(h, outside),
+        [Some(Dismiss::Escape), Some(Dismiss::Outside)]
+    );
+}

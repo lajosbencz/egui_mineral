@@ -93,8 +93,8 @@ pub(crate) struct State {
     textures: Vec<TextureHandle>,
     image_clicked: Option<usize>,
     popover_dismissed: Option<Dismiss>,
-    // Four sided popovers, then the plain one.
-    popovers: [bool; 5],
+    // Four sided popovers, the plain one, then the anchored one.
+    popovers: [bool; 6],
 }
 
 const SWIPE_ROWS: [&str; 4] = ["Invoice March", "Invoice April", "Invoice May", "Invoice June"];
@@ -118,7 +118,7 @@ impl Default for State {
             list_checks: [true, false, false],
             list_switch: true,
             popover_dismissed: None,
-            popovers: [false; 5],
+            popovers: [false; 6],
             swipe_rows: SWIPE_ROWS.to_vec(),
             reorder: REORDER_ROWS.to_vec(),
             accordion_single: Expansion::single(),
@@ -668,6 +668,7 @@ fn popovers(ui: &mut Mui<'_>, s: &mut State) {
         "Click the trigger; Escape or an outside press closes. Last dismiss: {:?}",
         s.popover_dismissed
     ));
+    let mut at_rect = None;
     super::row(ui, |row| {
         for (i, (side, name)) in [
             (Side::Bottom, "Bottom"),
@@ -698,7 +699,15 @@ fn popovers(ui: &mut Mui<'_>, s: &mut State) {
             .show(rt, r.response(), &mut s.popovers[4], |ui| {
                 ui.label("A narrow popover without arrow.");
             });
+        let r = row.mineral(PushButton::new("pop-at", "Opened by code").variant(ButtonVariant::Outlined));
+        s.popovers[5] |= r.clicked();
+        at_rect = Some(r.response().rect);
     });
+    if let Some(rect) = at_rect {
+        Popover::new("pop-at-p", "Anchored popover").show_at(ui, rect, &mut s.popovers[5], |ui| {
+            ui.label("Anchored at a rect; the button never toggles it.");
+        });
+    }
 }
 
 fn hover_cards(ui: &mut Mui<'_>) {

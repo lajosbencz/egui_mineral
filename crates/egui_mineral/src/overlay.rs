@@ -240,16 +240,32 @@ impl Popup {
         }
     }
 
-    /// Shows the content while `open`; clears `open` on Escape or an outside press.
-    pub fn show<K, R>(
+    /// Shows the content against `anchor_rect` while `open`, which the app owns: no trigger, so
+    /// nothing toggles it. Clears `open` on Escape or an outside press (`anchor_rect` is exempt).
+    pub fn show_open_at<K, R>(
         self,
         rt: &Runtime<K>,
-        trigger: &Response,
+        anchor_rect: Rect,
+        open: &mut bool,
+        add: impl FnOnce(&mut MineralUi<'_, K>, &Placement) -> R,
+    ) -> OverlayResponse<R> {
+        let id = crate::kit::scoped_id(rt.core(), Id::unique(("mineral::popup", self.salt)));
+        let parent = top_modal(rt.ctx());
+        self.show_open(rt, id, anchor_rect, parent, self.return_focus, open, add)
+    }
+
+    #[expect(clippy::too_many_arguments, reason = "shared body of the trigger and anchor forms")]
+    fn show_open<K, R>(
+        &self,
+        rt: &Runtime<K>,
+        id: Id,
+        anchor_rect: Rect,
+        parent: Option<LayerId>,
+        return_focus: Option<Id>,
         open: &mut bool,
         add: impl FnOnce(&mut MineralUi<'_, K>, &Placement) -> R,
     ) -> OverlayResponse<R> {
         let ctx = rt.ctx();
-        let id = trigger.id.with_salt(self.salt);
         let state_id = id.with("mineral::popup");
         let mut out = OverlayResponse {
             response: None,
@@ -260,8 +276,7 @@ impl Popup {
             let pass = ctx.cumulative_pass_nr();
             let st = PopupState::load(ctx, state_id);
             let opened = st.shown.is_none_or(|p| p + 1 < pass);
-            let anchor_rect = self.anchor_rect.unwrap_or(trigger.rect);
-            let area = self.place(rt, id, anchor_rect, Some(trigger.layer_id), add);
+            let area = self.place(rt, id, anchor_rect, parent, add);
             if opened && let Some(f) = self.focus {
                 ctx.memory_mut(|m| m.request_focus(f));
             }
@@ -269,13 +284,35 @@ impl Popup {
                 rt.core(),
                 area.response.layer_id,
                 &[area.response.rect, anchor_rect],
-                Some(self.return_focus.unwrap_or(trigger.id)),
+                return_focus,
             );
             *open = out.dismissed.is_none();
             PopupState { shown: Some(pass) }.store(ctx, state_id);
             out.response = Some(area.response);
             out.inner = Some(area.inner);
         }
+        out
+    }
+
+    /// Shows the content while `open`; clears `open` on Escape or an outside press.
+    pub fn show<K, R>(
+        self,
+        rt: &Runtime<K>,
+        trigger: &Response,
+        open: &mut bool,
+        add: impl FnOnce(&mut MineralUi<'_, K>, &Placement) -> R,
+    ) -> OverlayResponse<R> {
+        let ctx = rt.ctx();
+        let id = trigger.id.with_salt(self.salt);
+        let out = self.show_open(
+            rt,
+            id,
+            self.anchor_rect.unwrap_or(trigger.rect),
+            Some(trigger.layer_id),
+            Some(self.return_focus.unwrap_or(trigger.id)),
+            open,
+            add,
+        );
         let has_popup = self.role.and_then(has_popup);
         let expanded = *open;
         ctx.accesskit_node_builder(trigger.id, |b| {

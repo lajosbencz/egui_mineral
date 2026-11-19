@@ -240,6 +240,46 @@ impl Popover {
     }
 }
 
+impl Popover {
+    /// Shown while `open`, anchored to `anchor`, like [`Menu::show_at`](crate::selection::Menu::show_at): nothing
+    /// toggles it, so an anchor that opens it from code (a menu item) is not a trigger. An outside press other than
+    /// on `anchor`, or Escape, clears `open`.
+    pub fn show_at<R>(
+        self,
+        ui: &MineralUi<'_, Material>,
+        anchor: Rect,
+        open: &mut bool,
+        add: impl FnOnce(&mut MineralUi<'_, Material>) -> R,
+    ) -> OverlayResponse<R> {
+        let rt = ui.rt();
+        let ctx = ui.ctx().clone();
+        let focus_id = kit::scoped_id(rt.core(), Id::unique(("mineral::popover_at", self.base.salt.id_salt()))).with("focus");
+        let chrome = Chrome {
+            arrow: self.arrow,
+            max_width: self.base.max_width,
+        };
+        let out = popup(&self.base.salt, self.base.anchor(), self.arrow)
+            .role(Role::Dialog)
+            .focus(focus_id)
+            .show_open_at(rt, anchor, open, |ui, placement| {
+                frame(ui, placement, chrome, Some(focus_id), add)
+            });
+        if let (Some(area), Some((rect, inner))) = (out.response, out.inner) {
+            emit(
+                &ctx,
+                &area,
+                rect,
+                SemanticNode::new(StableId::of(&self.base.salt, "popover"), Role::Dialog, &self.base.label),
+            );
+            OverlayResponse::shown(area, Some(inner), out.dismissed)
+        } else {
+            let mut closed = OverlayResponse::closed();
+            closed.dismissed = out.dismissed;
+            closed
+        }
+    }
+}
+
 #[derive(Clone, Default)]
 struct HoverState {
     intent: HoverIntent<bool>,
