@@ -5,7 +5,8 @@ mod pages;
 use std::sync::Arc;
 
 use egui::{
-    CentralPanel, Color32, Key, KeyboardShortcut, Modifiers, Panel, ScrollArea, Ui, scroll_area::ScrollAreaOutput,
+    CentralPanel, Color32, Frame, Key, KeyboardShortcut, Margin, Modifiers, Panel, ScrollArea, Ui,
+    scroll_area::ScrollAreaOutput,
 };
 use egui_mineral_fluent::{
     BrandRamp,
@@ -170,14 +171,22 @@ impl App {
         let rt = ui.rt();
         Panel::top("top-bar").show(ui, |ui| self.top_bar(&mut rt.ui(ui)));
         let page = self.page;
+        // No right margin: the scroll bar spans to the window edge, the content keeps the gap itself.
+        let panel = Frame::central_panel(ui.style());
+        let gap = panel.inner_margin.right;
+        let panel = panel.inner_margin(Margin {
+            right: 0,
+            ..panel.inner_margin
+        });
         CentralPanel::default()
+            .frame(panel)
             .show(ui, |ui| {
                 ScrollArea::vertical()
                     .id_salt(("page", page.key()))
                     .auto_shrink(false)
                     .show(ui, |ui| {
-                        let w = ui.available_width().min(CONTENT_MAX_W);
-                        let pad = (ui.available_width() - w) / 2.0;
+                        let w = (ui.available_width() - f32::from(gap)).clamp(0.0, CONTENT_MAX_W);
+                        let pad = (ui.available_width() - f32::from(gap) - w) / 2.0;
                         ui.horizontal(|ui| {
                             ui.add_space(pad);
                             ui.vertical(|ui| {
