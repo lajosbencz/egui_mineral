@@ -206,6 +206,79 @@ impl<'a> SpinButton<'a> {
         }
     }
 
+    // Icons, unit and placeholder around the editor; the editor rect they leave.
+    fn paint_content(
+        &self,
+        ui: &MineralUi<'_, Fluent>,
+        chrome: Chrome,
+        visual: Rect,
+        column: Rect,
+        empty: bool,
+        t: &crate::theme::Tokens,
+    ) -> Rect {
+        let ctx = ui.ctx();
+        let dir = ui.i18n().direction();
+        let inner = visual.shrink(g::STROKE_WIDTH_THIN);
+        let pad = self.pad();
+        let m = chrome.metrics();
+        let lead = if self.before.is_some() {
+            textbox::pads(&m, true, false).start
+        } else {
+            pad
+        };
+        let start = dir.start_x(inner, Rangef::new(lead - g::STROKE_WIDTH_THIN, lead));
+        let (text_left, text_right) = match dir {
+            Direction::Ltr => (start + g::STROKE_WIDTH_THIN, column.min.x - g::SPACING_HORIZONTAL_XS),
+            Direction::Rtl => (column.max.x + g::SPACING_HORIZONTAL_XS, start),
+        };
+        let p = ui.painter().clone();
+        let icon_at = |x: f32| Rect::from_center_size(Pos2::new(x, inner.center().y), vec2(m.icon, m.icon));
+        if let Some(icon) = self.before {
+            let x = dir.start_x(inner, Rangef::new(m.root, m.root + m.icon)) + m.icon / 2.0;
+            paint::icon(&p, icon_at(x).center(), icon, false, m.icon, chrome.icon_color(t));
+        }
+        // Reserved beside the editor: the trailing icon, then the unit.
+        let after_w = if self.after.is_some() { m.icon + m.gap } else { 0.0 };
+        let unit = self.unit.as_deref().map(|u| {
+            p.layout_no_wrap(
+                u.to_owned(),
+                chrome.text_format(ctx, t).font_id,
+                chrome.placeholder_color(t),
+            )
+        });
+        let unit_w = unit.as_ref().map_or(0.0, |g| g.size().x + m.gap);
+        let (edit_left, edit_right) = match dir {
+            Direction::Ltr => (text_left, text_right - after_w - unit_w),
+            Direction::Rtl => (text_left + after_w + unit_w, text_right),
+        };
+        let text_rect = Rect::from_min_max(
+            Pos2::new(edit_left, inner.top()),
+            Pos2::new(edit_right.max(edit_left), inner.bottom()),
+        );
+        if let Some(g) = unit {
+            let at = match dir {
+                Direction::Ltr => Pos2::new(edit_right + m.gap, inner.center().y - g.size().y / 2.0),
+                Direction::Rtl => Pos2::new(edit_left - m.gap - g.size().x, inner.center().y - g.size().y / 2.0),
+            };
+            let color = chrome.placeholder_color(t);
+            p.galley(at, g, color);
+        }
+        if let Some(icon) = self.after {
+            let edge = match dir {
+                Direction::Ltr => text_right - m.icon / 2.0,
+                Direction::Rtl => text_left + m.icon / 2.0,
+            };
+            paint::icon(&p, icon_at(edge).center(), icon, false, m.icon, chrome.icon_color(t));
+        }
+        if let (Some(ph), true) = (&self.placeholder, empty) {
+            let color = chrome.placeholder_color(t);
+            let g = p.layout_no_wrap(ph.clone(), chrome.text_format(ctx, t).font_id, color);
+            let x = dir.start_x(text_rect, Rangef::new(0.0, g.size().x));
+            p.galley(Pos2::new(x, text_rect.center().y - g.size().y / 2.0), g, color);
+        }
+        text_rect
+    }
+
     // useBaseButtonClassName / useButtonStyles `:enabled` colors per appearance.
     fn button_ramps(&self) -> (Ramp, Ramp) {
         let fore = Ramp::new(
@@ -300,60 +373,7 @@ impl MineralWidget for SpinButton<'_> {
                 false,
             ),
         ];
-        let inner = visual.shrink(g::STROKE_WIDTH_THIN);
-        let pad = self.pad();
-        let m = chrome.metrics();
-        let lead = if self.before.is_some() {
-            textbox::pads(&m, true, false).start
-        } else {
-            pad
-        };
-        let start = dir.start_x(inner, Rangef::new(lead - g::STROKE_WIDTH_THIN, lead));
-        let (text_left, text_right) = match dir {
-            Direction::Ltr => (start + g::STROKE_WIDTH_THIN, column.min.x - g::SPACING_HORIZONTAL_XS),
-            Direction::Rtl => (column.max.x + g::SPACING_HORIZONTAL_XS, start),
-        };
-        let p = ui.painter().clone();
-        let icon_at = |x: f32| Rect::from_center_size(Pos2::new(x, inner.center().y), vec2(m.icon, m.icon));
-        if let Some(icon) = self.before {
-            let x = dir.start_x(inner, Rangef::new(m.root, m.root + m.icon)) + m.icon / 2.0;
-            paint::icon(&p, icon_at(x).center(), icon, false, m.icon, chrome.icon_color(&t));
-        }
-        // Reserved beside the editor: the trailing icon, then the unit.
-        let after_w = if self.after.is_some() { m.icon + m.gap } else { 0.0 };
-        let unit = self.unit.as_deref().map(|u| {
-            p.layout_no_wrap(u.to_owned(), chrome.text_format(ctx, &t).font_id, chrome.placeholder_color(&t))
-        });
-        let unit_w = unit.as_ref().map_or(0.0, |g| g.size().x + m.gap);
-        let (edit_left, edit_right) = match dir {
-            Direction::Ltr => (text_left, text_right - after_w - unit_w),
-            Direction::Rtl => (text_left + after_w + unit_w, text_right),
-        };
-        let text_rect = Rect::from_min_max(
-            Pos2::new(edit_left, inner.top()),
-            Pos2::new(edit_right.max(edit_left), inner.bottom()),
-        );
-        if let Some(g) = unit {
-            let at = match dir {
-                Direction::Ltr => Pos2::new(edit_right + m.gap, inner.center().y - g.size().y / 2.0),
-                Direction::Rtl => Pos2::new(edit_left - m.gap - g.size().x, inner.center().y - g.size().y / 2.0),
-            };
-            let color = chrome.placeholder_color(&t);
-            p.galley(at, g, color);
-        }
-        if let Some(icon) = self.after {
-            let edge = match dir {
-                Direction::Ltr => text_right - m.icon / 2.0,
-                Direction::Rtl => text_left + m.icon / 2.0,
-            };
-            paint::icon(&p, icon_at(edge).center(), icon, false, m.icon, chrome.icon_color(&t));
-        }
-        if let (Some(ph), true) = (&self.placeholder, pass.text_mut().is_empty()) {
-            let color = chrome.placeholder_color(&t);
-            let g = p.layout_no_wrap(ph.clone(), chrome.text_format(ctx, &t).font_id, color);
-            let x = dir.start_x(text_rect, Rangef::new(0.0, g.size().x));
-            p.galley(Pos2::new(x, text_rect.center().y - g.size().y / 2.0), g, color);
-        }
+        let text_rect = self.paint_content(ui, chrome, visual, column, pass.text_mut().is_empty(), &t);
         let te = Edit {
             id: edit_id,
             rect: text_rect,

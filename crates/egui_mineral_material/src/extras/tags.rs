@@ -21,7 +21,7 @@ use crate::selection::{
     select::{CHIP_GAP, ChipRows, chip_flow, chip_size, place_chip},
 };
 use crate::spec::defaults::text_field as tf;
-use crate::text_inputs::text_field::{self, Decor, DecorOut, INPUT_FONT, content_inset, line_galley, line_h};
+use crate::text_inputs::text_field::{self, AffixCx, Decor, INPUT_FONT, content_inset, line_galley, line_h};
 
 // No MD3 value; five bodyLarge digits
 const INPUT_MIN: f32 = 80.0;
@@ -187,18 +187,7 @@ impl MineralWidget for TagsField<'_> {
         let before = self.tags.len();
         let mut out = TagsFieldOutput::default();
 
-        // Text in the same frame belongs to the editor; Backspace then edits it instead.
-        let typed = ctx.input(|i| {
-            i.events
-                .iter()
-                .any(|e| matches!(e, egui::Event::Text(_) | egui::Event::Paste(_)))
-        });
-        if focused
-            && !self.disabled
-            && !typed
-            && input.is_empty()
-            && ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Backspace))
-        {
+        if focused && !self.disabled && input.is_empty() && backspace(ctx) {
             out.removed.extend(self.tags.pop());
         }
         let (widths, pos, _) = self.flow(ui, field.width());
@@ -216,20 +205,15 @@ impl MineralWidget for TagsField<'_> {
         }
         .paint(ui, field, &t);
         let colors = decor.colors;
-        let content = text_field::paint_affixes(
-            ui,
-            &self.chrome,
-            self.labeled(),
-            &decor,
+        let affixes = AffixCx {
+            chrome: &self.chrome,
+            labeled: self.labeled(),
             base,
             focused,
-            self.tags.is_empty() && input.is_empty(),
-            1,
-        );
-        let decor = DecorOut {
-            span: Rangef::new(content.left(), content.right()),
-            ..decor
+            empty: self.tags.is_empty() && input.is_empty(),
+            lines: 1,
         };
+        let decor = decor.within(text_field::paint_affixes(ui, &decor, &affixes));
         let span = decor.span.span();
         let rows = ChipRows::new(ui, self.chrome.variant, self.labeled(), !self.tags.is_empty());
         let x_of = |x: f32, w: f32| dir.span_x(decor.span, Rangef::new(x, x + w));
@@ -257,8 +241,14 @@ impl MineralWidget for TagsField<'_> {
             paint_placeholder(ui, ph, input_rect, row_top, colors.placeholder, dir);
         }
         let interactive = !self.disabled && !self.full();
-        let te = text_field::BareEdit::new(edit_id, input_rect, self.chrome.text_style.unwrap_or(INPUT_FONT).format(ctx, colors.input), &colors, &t)
-            .show(ui, &mut input, |ui, edit| ui.add(edit.interactive(interactive)));
+        let te = text_field::BareEdit::new(
+            edit_id,
+            input_rect,
+            self.chrome.text_style.unwrap_or(INPUT_FONT).format(ctx, colors.input),
+            &colors,
+            &t,
+        )
+        .show(ui, &mut input, |ui, edit| ui.add(edit.interactive(interactive)));
         if !focused && frame.response.clicked() {
             ctx.memory_mut(|m| m.request_focus(edit_id));
         }
@@ -292,6 +282,16 @@ impl MineralWidget for TagsField<'_> {
         n.state.invalid = self.chrome.error.is_some();
         Some(n.editable(Availability::disabled_if(self.disabled)))
     }
+}
+
+// Text in the same frame belongs to the editor; Backspace then edits it instead.
+fn backspace(ctx: &egui::Context) -> bool {
+    let typed = ctx.input(|i| {
+        i.events
+            .iter()
+            .any(|e| matches!(e, egui::Event::Text(_) | egui::Event::Paste(_)))
+    });
+    !typed && ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Backspace))
 }
 
 fn paint_placeholder(ui: &Ui, text: &str, rect: Rect, top: f32, color: egui::Color32, dir: Direction) {

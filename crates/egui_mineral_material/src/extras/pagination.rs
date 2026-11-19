@@ -1,7 +1,6 @@
 use crate::Material;
-use crate::MaterialUiExt as _;
-use crate::adaptive::Density;
 use crate::MaterialExt;
+use crate::MaterialUiExt as _;
 use crate::Rt;
 use egui::{Color32, CornerRadius, Rect, Sense, Ui, Vec2, vec2};
 use egui_mineral::i18n::I18n;
@@ -81,7 +80,7 @@ struct PageButton {
 fn page_metrics(ui: &MineralUi<'_, Material>) -> Metrics {
     let m = PAGE.metrics();
     Metrics {
-        height: ui.dense(m.height, Density::MIN).max(m.font.line_height() + 8.0).min(m.height),
+        height: ui.density().dense_to(m.height, m.font.line_height() + 8.0),
         ..m
     }
 }

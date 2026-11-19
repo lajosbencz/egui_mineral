@@ -40,7 +40,7 @@ pub(crate) fn height(density: Density, lines: ListLines) -> f32 {
         ListLines::Two => head + sub,
         ListLines::Three => head + 2.0 * sub,
     };
-    density.dense(lines.height(), Density::MIN).max(text + 8.0).min(lines.height())
+    density.dense_to(lines.height(), text + 8.0)
 }
 
 pub(crate) fn row_height(density: Density) -> f32 {

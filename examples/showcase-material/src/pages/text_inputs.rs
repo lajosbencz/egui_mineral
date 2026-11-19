@@ -748,7 +748,11 @@ fn inspector(ui: &mut Mui<'_>, s: &mut State) {
                             .preferred_width(200.0),
                     );
                     g.end_row();
-                    for (id, label, unit, v) in [("x", "X", "px", x), ("y", "Y", "px", y), ("angle", "Angle", "deg", angle)] {
+                    for (id, label, unit, v) in [
+                        ("x", "X", "px", x),
+                        ("y", "Y", "px", y),
+                        ("angle", "Angle", "deg", angle),
+                    ] {
                         g.label(label);
                         rt.ui(g).mineral(
                             NumberField::new(("ti-insp", id), label, RangeModel::new(-360.0, 360.0).step(1.0), v)
@@ -763,9 +767,14 @@ fn inspector(ui: &mut Mui<'_>, s: &mut State) {
                     }
                     g.label("Opacity");
                     rt.ui(g).mineral(
-                        ValueSlider::new("ti-insp-opacity", "Opacity", RangeModel::new(0.0, 100.0).step(1.0), opacity)
-                            .value_field(true)
-                            .preferred_width(200.0),
+                        ValueSlider::new(
+                            "ti-insp-opacity",
+                            "Opacity",
+                            RangeModel::new(0.0, 100.0).step(1.0),
+                            opacity,
+                        )
+                        .value_field(true)
+                        .preferred_width(200.0),
                     );
                     g.end_row();
                 });

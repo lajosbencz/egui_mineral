@@ -175,7 +175,7 @@ impl Control {
             Self::Radio => (rb::STATE_LAYER_SIZE, rb::ICON_SIZE),
             Self::Switch => (sw::STATE_LAYER_SIZE, sw::TRACK_HEIGHT),
         };
-        density.dense(size, Density::MIN).max(content)
+        density.dense_to(size, content)
     }
 
     // Compose minimumInteractiveComponentSize

@@ -489,7 +489,12 @@ impl<'a> Select<'a> {
         if chips.is_empty() {
             return field_h(ui.density(), self.chrome.variant, self.shows_label());
         }
-        let rows = chip_flow(&self.chip_widths(ui, &chips), self.content_width(ui.rt(), ui.density(), w), 0.0).1;
+        let rows = chip_flow(
+            &self.chip_widths(ui, &chips),
+            self.content_width(ui.rt(), ui.density(), w),
+            0.0,
+        )
+        .1;
         ChipRows::new(ui, self.chrome.variant, self.shows_label(), true).field_height(
             ui.density(),
             self.chrome.variant,

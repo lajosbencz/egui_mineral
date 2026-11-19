@@ -1,5 +1,5 @@
-use crate::adaptive::Density;
 use crate::MaterialUiExt as _;
+use crate::adaptive::Density;
 use std::sync::Arc;
 
 use crate::Material;
@@ -43,7 +43,7 @@ const BAR_H: f32 = search_bar::CONTAINER_HEIGHT;
 
 // Dense down to one input line with padding.
 fn bar_h(ui: &MineralUi<'_, Material>) -> f32 {
-    ui.dense(BAR_H, Density::MIN).max(text_field::line_h() + 8.0).min(BAR_H)
+    ui.density().dense_to(BAR_H, text_field::line_h() + 8.0)
 }
 
 // Compose SearchBarIconOffsetX

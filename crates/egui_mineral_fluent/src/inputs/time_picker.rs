@@ -118,8 +118,6 @@ impl<'a> TimePicker<'a> {
         self
     }
 
-
-
     /// `aria-invalid`: red border until focused.
     pub fn invalid(mut self, invalid: bool) -> Self {
         self.invalid = invalid;

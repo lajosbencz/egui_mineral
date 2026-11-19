@@ -265,18 +265,17 @@ impl Field {
         let out = ui
             .push_id(self.salt.id_salt(), |ui| match self.orientation {
                 Axis::Horizontal => {
-                    let share = self.label_width.unwrap_or(total * fd::HORIZONTAL_LABEL_SHARE).clamp(0.0, total);
+                    let share = self
+                        .label_width
+                        .unwrap_or(total * fd::HORIZONTAL_LABEL_SHARE)
+                        .clamp(0.0, total);
                     ui.scope_builder(UiBuilder::new().layout(dir.row().with_cross_align(Align::Min)), |ui| {
                         if let Some(label) = &self.label {
                             let column = (share - g::SPACING_HORIZONTAL_M - ui.spacing().item_spacing.x).max(0.0);
-                            ui.allocate_ui_with_layout(
-                                vec2(column, 0.0),
-                                dir.column(),
-                                |ui| {
-                                    ui.set_min_width(column);
-                                    self.show_label(&mut rt.ui(ui), label);
-                                },
-                            );
+                            ui.allocate_ui_with_layout(vec2(column, 0.0), dir.column(), |ui| {
+                                ui.set_min_width(column);
+                                self.show_label(&mut rt.ui(ui), label);
+                            });
                             ui.add_space(g::SPACING_HORIZONTAL_M);
                         } else {
                             ui.add_space(share);

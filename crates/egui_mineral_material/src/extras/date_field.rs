@@ -22,7 +22,7 @@ use egui_mineral::{
 };
 
 use crate::spec::TypeScale;
-use crate::text_inputs::text_field::{self, Decor, DecorOut, INPUT_FONT, field_h, line_galley};
+use crate::text_inputs::text_field::{self, AffixCx, Decor, DecorOut, INPUT_FONT, field_h, line_galley};
 use crate::{spec::defaults::text_field as tf, tr};
 
 #[doc(hidden)]
@@ -167,6 +167,24 @@ fn apply_events(
     edited
 }
 
+fn nearest_segment(rects: &[Rect; 3], pt: egui::Pos2) -> usize {
+    if !rects.iter().any(Rect::is_positive) {
+        return 0;
+    }
+    let d = |i: usize| (rects[i].center().x - pt.x).abs();
+    (0..3).min_by(|a, b| d(*a).total_cmp(&d(*b))).unwrap_or(0)
+}
+
+fn typed_value(ctx: &egui::Context, id: egui::Id) -> Option<String> {
+    ctx.input(|i| {
+        i.accesskit_action_requests(id, AkAction::SetValue)
+            .find_map(|a| match &a.data {
+                Some(ActionData::Value(s)) => Some(s.to_string()),
+                _ => None,
+            })
+    })
+}
+
 fn paint_segments(
     ui: &MineralUi<'_, Material>,
     decor: &DecorOut,
@@ -285,14 +303,7 @@ impl MineralWidget for DateField<'_> {
             seg.commit();
         }
         // AccessKit/agent SetValue with a typed date.
-        let typed = ctx.input(|i| {
-            i.accesskit_action_requests(r.id, AkAction::SetValue)
-                .find_map(|a| match &a.data {
-                    Some(ActionData::Value(s)) => Some(s.to_string()),
-                    _ => None,
-                })
-        });
-        if let Some(s) = typed.filter(|_| !self.disabled) {
+        if let Some(s) = typed_value(ctx, r.id).filter(|_| !self.disabled) {
             let date = fmt.parse_date(&s);
             if date.is_some() || s.trim().is_empty() {
                 seg = DateSegments::from_date(order, date);
@@ -334,38 +345,31 @@ impl MineralWidget for DateField<'_> {
         .paint(ui, field, &t);
         let colors = decor.colors;
 
-        let rect = text_field::paint_affixes(
-            ui,
-            &self.chrome,
-            self.labeled(),
-            &decor,
-            r.id,
+        let affixes = AffixCx {
+            chrome: &self.chrome,
+            labeled: self.labeled(),
+            base: r.id,
             focused,
-            seg.is_empty(),
-            1,
-        );
-        let inner = DecorOut {
-            span: Rangef::new(rect.left(), rect.right()),
-            ..decor
+            empty: seg.is_empty(),
+            lines: 1,
         };
-        let seg_rects = paint_segments(ui, &inner, self.chrome.text_style.unwrap_or(INPUT_FONT), &seg, focused.then_some(st.active), fmt.as_ref());
+        let inner = decor.within(text_field::paint_affixes(ui, &decor, &affixes));
+        let seg_rects = paint_segments(
+            ui,
+            &inner,
+            self.chrome.text_style.unwrap_or(INPUT_FONT),
+            &seg,
+            focused.then_some(st.active),
+            fmt.as_ref(),
+        );
         if !self.disabled {
             if r.hovered() {
                 ctx.set_cursor_icon(CursorIcon::Text);
             }
-            let press = frame.press_pos();
-            if let Some(pt) = press {
+            if let Some(pt) = frame.press_pos() {
                 r.request_focus();
                 seg.commit();
-                let near = (0..3).min_by(|a, b| {
-                    let d = |i: usize| (seg_rects[i].center().x - pt.x).abs();
-                    d(*a).total_cmp(&d(*b))
-                });
-                st.active = if seg_rects.iter().any(Rect::is_positive) {
-                    near.unwrap_or(0)
-                } else {
-                    0
-                };
+                st.active = nearest_segment(&seg_rects, pt);
             }
         }
         if focused && !self.disabled && ctx.memory(|m| m.owns_ime_events(r.id)) {

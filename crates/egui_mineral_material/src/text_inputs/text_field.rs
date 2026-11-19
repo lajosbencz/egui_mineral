@@ -59,11 +59,14 @@ const SMALL_FONT: TypeScale = filled_text_field::SUPPORTING_FONT;
 pub(crate) fn field_h(density: Density, variant: TextFieldVariant, labeled: bool) -> f32 {
     let content = match (variant, labeled) {
         (TextFieldVariant::Filled, true) => {
-            tf::LABEL_VERTICAL_PADDING + SMALL_FONT.line_height().max(tf::MIN_FOCUSED_LABEL_LINE_HEIGHT) + line_h() + 4.0
+            tf::LABEL_VERTICAL_PADDING
+                + SMALL_FONT.line_height().max(tf::MIN_FOCUSED_LABEL_LINE_HEIGHT)
+                + line_h()
+                + 4.0
         }
         _ => line_h() + 8.0,
     };
-    density.dense(tf::MIN_HEIGHT, Density::MIN).max(content.min(tf::MIN_HEIGHT))
+    density.dense_to(tf::MIN_HEIGHT, content)
 }
 
 // Compose MinTextLineHeight
@@ -111,10 +114,7 @@ pub(crate) fn text_top(density: Density, variant: TextFieldVariant, labeled: boo
 // Compose minimumInteractiveComponentSize, shrunk by density down to the icon with padding.
 pub(crate) fn icon_slot(rt: &Rt, density: Density) -> f32 {
     let slot = crate::adaptive::MIN_INTERACTIVE.points(rt.core());
-    density
-        .dense(slot, Density::MIN)
-        .max(small_icon_button::ICON_SIZE + 8.0)
-        .min(slot)
+    density.dense_to(slot, small_icon_button::ICON_SIZE + 8.0)
 }
 
 pub(crate) fn trailing_icon_size(variant: TextFieldVariant) -> f32 {
@@ -432,6 +432,7 @@ pub(crate) struct Decor<'a> {
     pub trailing: bool,
 }
 
+#[derive(Clone, Copy)]
 pub(crate) struct DecorOut {
     /// Content span on screen.
     pub span: egui::Rangef,
@@ -983,7 +984,9 @@ impl<'a> TextField<'a> {
     // Editor width in a `width` wide field: the span `paint_chrome` leaves beside the affixes.
     fn text_width(&self, ui: &MineralUi<'_, Material>, width: f32) -> f32 {
         let rt = ui.rt();
-        let span = width - content_inset(rt, ui.density(), self.chrome.leading.is_some()) - content_inset(rt, ui.density(), self.has_trailing());
+        let span = width
+            - content_inset(rt, ui.density(), self.chrome.leading.is_some())
+            - content_inset(rt, ui.density(), self.has_trailing());
         span - affix_room(ui, &self.chrome, span)
     }
 
@@ -1005,9 +1008,10 @@ impl<'a> TextField<'a> {
         if self.grow_rows == 0 {
             return self.rows.get();
         }
-        let extra = ((height - field_h(density, self.chrome.variant, self.labeled())) / self.input_style().line_height())
-            .round()
-            .max(0.0);
+        let extra = ((height - field_h(density, self.chrome.variant, self.labeled()))
+            / self.input_style().line_height())
+        .round()
+        .max(0.0);
         #[expect(clippy::cast_sign_loss, reason = "max(0.0)")]
         let extra = extra as usize;
         extra.saturating_add(1).clamp(self.rows.get(), self.max_lines())
@@ -1271,6 +1275,25 @@ impl TextField<'_> {
     }
 }
 
+pub(crate) struct AffixCx<'a> {
+    pub chrome: &'a FieldChrome,
+    pub labeled: bool,
+    pub base: Id,
+    pub focused: bool,
+    pub empty: bool,
+    pub lines: usize,
+}
+
+impl DecorOut {
+    // The content span narrowed to `rect`.
+    pub(crate) fn within(self, rect: Rect) -> Self {
+        Self {
+            span: Rangef::new(rect.left(), rect.right()),
+            ..self
+        }
+    }
+}
+
 // Width the prefix and suffix take of a `span` wide content area.
 pub(crate) fn affix_room(ui: &MineralUi<'_, Material>, chrome: &FieldChrome, span: f32) -> f32 {
     let style = chrome.text_style.unwrap_or(INPUT_FONT);
@@ -1283,16 +1306,15 @@ pub(crate) fn affix_room(ui: &MineralUi<'_, Material>, chrome: &FieldChrome, spa
 }
 
 // Affixes and placeholder in the content span; the editor rect they leave.
-pub(crate) fn paint_affixes(
-ui: &MineralUi<'_, Material>,
-chrome: &FieldChrome,
-labeled: bool,
-decor: &DecorOut,
-    base: Id,
-    focused: bool,
-    empty: bool,
-    lines: usize,
-) -> Rect {
+pub(crate) fn paint_affixes(ui: &MineralUi<'_, Material>, decor: &DecorOut, cx: &AffixCx<'_>) -> Rect {
+    let AffixCx {
+        chrome,
+        labeled,
+        base,
+        focused,
+        empty,
+        lines,
+    } = *cx;
     let rt = ui.rt();
     let style = chrome.text_style.unwrap_or(INPUT_FONT);
     let colors = decor.colors;
@@ -1362,12 +1384,7 @@ impl MineralWidget for TextField<'_> {
     fn layout(&self, ui: &MineralUi<'_, Material>, constraints: Constraints, buffer: &Self::State) -> Measure {
         let w = constraints.constrain(vec2(tf::MIN_WIDTH, 0.0)).x;
         let container = constraints.constrain(vec2(w, self.field_height(ui.density(), self.lines(ui, w, buffer))));
-        measure(
-            container,
-            self.chrome.variant,
-            self.labeled(),
-            self.has_support_row(),
-        )
+        measure(container, self.chrome.variant, self.labeled(), self.has_support_row())
     }
 
     fn update(
@@ -1402,7 +1419,18 @@ impl MineralWidget for TextField<'_> {
         let colors = decor.colors;
         self.revealed = bool::load(&ctx, base.with("reveal"));
 
-        let text_rect = paint_affixes(ui, &self.chrome, self.labeled(), &decor, base, focused, empty, lines);
+        let text_rect = paint_affixes(
+            ui,
+            &decor,
+            &AffixCx {
+                chrome: &self.chrome,
+                labeled: self.labeled(),
+                base,
+                focused,
+                empty,
+                lines,
+            },
+        );
         let mut te = self.show_editor(
             ui,
             buffer,

@@ -96,8 +96,6 @@ impl<'a> Combobox<'a> {
         self
     }
 
-
-
     /// `freeform`: typed text that matches no option stays after focus leaves.
     pub fn freeform(mut self, freeform: bool) -> Self {
         self.freeform = freeform;

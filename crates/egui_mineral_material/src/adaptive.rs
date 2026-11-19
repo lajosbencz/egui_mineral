@@ -132,6 +132,11 @@ impl Density {
         self.0
     }
 
+    /// `size` shrunk by this density, at most down to `content` (never above `size`).
+    pub fn dense_to(self, size: f32, content: f32) -> f32 {
+        (size + 4.0 * f32::from(self.0)).max(content.min(size))
+    }
+
     /// `size` shrunk by this density, at most down to `min`.
     pub fn dense(self, size: f32, min: Self) -> f32 {
         size + 4.0 * f32::from(self.max(min).step())

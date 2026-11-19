@@ -18,8 +18,6 @@ use crate::MaterialUiExt as _;
 use crate::extras::NumberField;
 use crate::text_inputs::TextFieldVariant;
 use crate::text_inputs::text_field::field_h;
-use egui_mineral::i18n::Direction;
-use egui_mineral::widget::SizeExt as _;
 use crate::widget::parts;
 use crate::{
     MaterialIcon,
@@ -33,6 +31,8 @@ use crate::{
     Size,
     widget::common::{self, with_alpha},
 };
+use egui_mineral::i18n::Direction;
+use egui_mineral::widget::SizeExt as _;
 
 const MAX_TICKS: usize = 64;
 // No MD3 value; five bodyLarge digits with the field paddings
@@ -619,7 +619,8 @@ impl MineralWidget for ValueSlider<'_> {
             self.axis.main(ui.available_size())
         };
         let cross = if self.has_value_field() {
-            self.cross().max(field_h(ui.density(), TextFieldVariant::Outlined, false))
+            self.cross()
+                .max(field_h(ui.density(), TextFieldVariant::Outlined, false))
         } else {
             self.cross()
         };

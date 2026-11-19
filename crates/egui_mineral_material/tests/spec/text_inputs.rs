@@ -96,7 +96,11 @@ fn dense_fields_clamp_at_their_content() {
 fn hidden_label_stays_the_accessible_name() {
     let (p, _) = render(|v| TextField::new("n", "Name", v).label_visible(false));
     assert_eq!(p.node("n-field").name, "Name");
-    assert!(p.shapes.iter().all(|s| !matches!(&s.shape, egui::Shape::Text(t) if t.galley.text() == "Name")));
+    assert!(
+        p.shapes
+            .iter()
+            .all(|s| !matches!(&s.shape, egui::Shape::Text(t) if t.galley.text() == "Name"))
+    );
 }
 
 #[test]

@@ -1,8 +1,8 @@
 use crate::Material;
-use crate::MaterialUiExt as _;
-use crate::adaptive::Density;
 use crate::MaterialExt;
+use crate::MaterialUiExt as _;
 use crate::Rt;
+use crate::adaptive::Density;
 use egui_mineral::i18n::I18n;
 use egui_mineral::kit::state::TempState;
 use egui_mineral::semantic::KeyedSalt;
@@ -99,10 +99,7 @@ impl MenuColors {
             }
         } else {
             ItemMetrics {
-                height: density
-                    .dense(d::ITEM_HEIGHT, Density::MIN)
-                    .max(list::ITEM_LEADING_ICON_SIZE + 4.0)
-                    .min(d::ITEM_HEIGHT),
+                height: density.dense_to(d::ITEM_HEIGHT, list::ITEM_LEADING_ICON_SIZE + 4.0),
                 icon: list::ITEM_LEADING_ICON_SIZE,
                 gap: d::ITEM_HORIZONTAL_PADDING,
                 inset: 0.0,
@@ -585,7 +582,7 @@ impl Menu {
         let width = self.width(rt, density, entries);
         let exp = self.style.expressive();
         let item_h = self.style.metrics(density).height;
-        let label_h = density.dense(d::GROUP_LABEL_HEIGHT, Density::MIN).max(GROUP_LABEL_MIN).min(d::GROUP_LABEL_HEIGHT);
+        let label_h = density.dense_to(d::GROUP_LABEL_HEIGHT, GROUP_LABEL_MIN);
         let divider_h = divider::THICKNESS + 2.0 * d::DIVIDER_VERTICAL_PADDING;
         let edge = self.edge_padding();
         let mut slots = Vec::new();

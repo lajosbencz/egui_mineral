@@ -150,7 +150,12 @@ fn field_wrappers_forward_the_text_chrome() {
                 .step_buttons(false)
                 .suffix("mm");
             let zones = ui.mineral(n).zones();
-            ui.mineral(Combobox::new("c", "Unit", ["a"], &mut text).label_visible(false).prefix("#").placeholder("pick"));
+            ui.mineral(
+                Combobox::new("c", "Unit", ["a"], &mut text)
+                    .label_visible(false)
+                    .prefix("#")
+                    .placeholder("pick"),
+            );
             zones
         })
     });
@@ -174,8 +179,12 @@ fn date_and_tag_fields_take_density_label_visibility_and_affixes() {
     let mut date = None;
     let p = crate::support::render_zones(|ui| {
         ui.with_density(Density::MIN, |ui| {
-            ui.mineral(DateField::new("d", "Date", &mut date).label_visible(false).suffix("UTC"))
-                .zones()
+            ui.mineral(
+                DateField::new("d", "Date", &mut date)
+                    .label_visible(false)
+                    .suffix("UTC"),
+            )
+            .zones()
         })
     });
     let field = p.zones.expect("zones reported").visual;
