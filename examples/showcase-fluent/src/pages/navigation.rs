@@ -30,7 +30,7 @@ pub(crate) struct State {
     wrap: bool,
     size: u8,
     last: &'static str,
-    bold: bool,
+    bold: [bool; 4],
     align: usize,
     crumb: Option<usize>,
     overflow_last: Option<usize>,
@@ -92,7 +92,7 @@ fn toolbars(ui: &mut Fui<'_>, s: &mut State) {
             .size(size)
             .action("Cut")
             .action(ToolbarButton::new("Paste").disabled(true))
-            .toggle(ToolbarToggleButton::new("Bold", &mut s.bold))
+            .toggle(ToolbarToggleButton::new("Bold", &mut s.bold[i]))
             .show(ui);
     }
     let icon = |label: &'static str, icon| ToolbarButton::new(label).icon(icon).label_visible(false);
@@ -102,7 +102,7 @@ fn toolbars(ui: &mut Fui<'_>, s: &mut State) {
         .action(icon("Settings", ICON_SETTINGS).disabled(true))
         .divider()
         .toggle(
-            ToolbarToggleButton::new("Home", &mut s.bold)
+            ToolbarToggleButton::new("Home", &mut s.bold[3])
                 .icon(ICON_HOME)
                 .label_visible(false),
         )
