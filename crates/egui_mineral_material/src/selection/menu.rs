@@ -19,7 +19,7 @@ use egui_mineral::{
     input::{Gesture, HoverIntent},
     kit,
     layout::{Axis, Constraints, Measure},
-    overlay::{self, Dismiss},
+    overlay::Dismiss,
     semantic::{self, Role, SemanticNode, StableId},
     shortcut::{self, ActionId, Mnemonic, Scope, Trigger},
     widget::{MineralWidget, WidgetFrame, WidgetResponse},
@@ -926,7 +926,7 @@ impl Menu {
         }
 
         // Outside press closes everything.
-        if st.open && overlay::outside_press_after_open(rt.core(), id, panels) {
+        if st.open && egui_mineral::kit::overlay::outside_press_after_open(rt.core(), id, panels) {
             st.open = false;
             out.dismissed = Some(Dismiss::Outside);
         }

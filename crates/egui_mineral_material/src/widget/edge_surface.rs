@@ -35,12 +35,9 @@ impl EdgeSurface<'_> {
             .role(Role::Dialog)
             .accessible_name(self.name);
         if let Some(scrim) = self.scrim {
-            // The floating area replaces the modal's own, so its layer is the one to declare.
-            egui_mineral::overlay::declare_modal(ctx, area.layer());
-            let r = egui_mineral::kit::overlay::modal(rt.core(), self.id)
+            let r = kit::overlay::modal_on(rt.core(), self.id, area)
                 .frame(Frame::NONE)
                 .backdrop_color(scrim)
-                .area(area)
                 .show(ctx, |ui| body(&mut rt.ui(ui)));
             EdgeShown {
                 close: overlay::modal(&r),
