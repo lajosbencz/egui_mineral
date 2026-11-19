@@ -236,3 +236,18 @@ fn dialog_opens_with_focus_on_the_first_action() {
     let focused = h.ctx.memory(egui::Memory::focused);
     assert_eq!(focused, h.node("dlg-action-0-button").widget_id);
 }
+
+#[test]
+fn page_scroll_nests_floating_bars_and_fills_the_viewport() {
+    let mut h = harness((false, 0.0), |ui, (floating, height)| {
+        let out = egui_mineral_fluent::scroll::page(ui, "pg", |ui| {
+            *floating = ui.spacing().scroll.floating;
+            ui.allocate_space(egui::vec2(10.0, 2000.0));
+        });
+        *height = out.inner_rect.height();
+    });
+    h.run();
+    let (floating, height) = h.state().value;
+    assert!(floating);
+    assert!(height > 500.0, "page fills the viewport: {height}");
+}

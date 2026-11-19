@@ -82,6 +82,7 @@ impl TokenStore {
 }
 
 fn apply_style(style: &mut Style, t: &Tokens) {
+    style.spacing.scroll = crate::scroll::nested_style();
     let c = |token: ColorToken| t.color(token);
     let thin = geometry::STROKE_WIDTH_THIN;
     let medium = CornerRadius::from(Radius::Medium.points());

@@ -196,7 +196,7 @@ fn tags(ui: &mut Fui<'_>, s: &mut State) {
     }
     let values = s
         .tags
-        .get_or_insert_with(|| ["Design", "Code", "Review", "Ship"].map(str::to_owned).to_vec());
+        .get_or_insert_with(|| ["Plan", "Code", "Review", "Ship"].map(str::to_owned).to_vec());
     let selection = s.tag_selection.get_or_insert_with(Selection::multiple);
     let mut group = TagGroup::new("tag-group", "Workflow")
         .appearance(TagAppearance::Brand)
