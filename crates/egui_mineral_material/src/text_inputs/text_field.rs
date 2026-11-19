@@ -1242,7 +1242,9 @@ impl TextField<'_> {
                 let flipped = !revealed;
                 flipped.store(ctx, base.with("reveal"));
                 self.revealed = flipped;
-                ctx.request_discard("password reveal toggled after the editor laid out");
+                if ctx.current_pass_index() == 0 {
+                    ctx.request_discard("password reveal toggled after the editor laid out");
+                }
                 flipped
             } else {
                 revealed

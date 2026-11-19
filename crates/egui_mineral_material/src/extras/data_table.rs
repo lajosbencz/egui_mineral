@@ -543,7 +543,7 @@ impl<'a> DataTable<'a> {
             }
         });
         let changed = *paging != before;
-        if changed {
+        if changed && ui.ctx().current_pass_index() == 0 {
             // The body above already showed the old page.
             ui.ctx().request_discard("table page changed after the body laid out");
         }
