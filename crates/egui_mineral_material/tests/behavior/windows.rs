@@ -32,7 +32,7 @@ fn native_windows() -> Context {
     Context::set_immediate_viewport_renderer(|ctx, mut viewport| {
         let time = ctx.input(|i| i.time);
         run(ctx, screen(viewport.ids.this, time, &[]), |ui| {
-            (viewport.viewport_ui_cb)(ui)
+            (viewport.viewport_ui_cb)(ui);
         });
     });
     ctx

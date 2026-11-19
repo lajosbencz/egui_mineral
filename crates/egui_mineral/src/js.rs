@@ -1,6 +1,6 @@
 use wasm_bindgen::{JsCast, JsValue};
 
-/// A caught JS exception: `name` and `stack` exist only for `Error` objects.
+// `name` and `stack` exist only for `Error` objects.
 #[derive(Debug, thiserror::Error)]
 #[error("{}", self.display())]
 #[non_exhaustive]
