@@ -92,6 +92,25 @@ pub trait Spawner {
     fn spawn(&self, fut: BoxFuture);
 }
 
+/// Job for [`BlockingSpawner`].
+#[cfg(not(target_arch = "wasm32"))]
+pub type BlockingJob = Box<dyn FnOnce() + Send>;
+
+/// Runs blocking jobs off the thread polling the core's futures; supplied by the app
+/// (`tokio::task::spawn_blocking`, `blocking::unblock`, a thread pool).
+#[cfg(not(target_arch = "wasm32"))]
+pub trait BlockingSpawner: Send + Sync {
+    /// Must run `job` to completion, never on a thread that polls futures; the core never spawns on its own.
+    fn spawn_blocking(&self, job: BlockingJob);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl<T: BlockingSpawner + ?Sized> BlockingSpawner for std::sync::Arc<T> {
+    fn spawn_blocking(&self, job: BlockingJob) {
+        (**self).spawn_blocking(job);
+    }
+}
+
 /// Spawn helpers over [`Spawner`].
 pub trait SpawnerExt: Spawner {
     /// Boxes and spawns `fut`.

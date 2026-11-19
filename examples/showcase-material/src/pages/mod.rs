@@ -16,7 +16,7 @@ use egui::RichText;
 use egui_mineral_material::MaterialExt;
 use std::sync::Arc;
 
-use egui_mineral::bus::{Bus, Spawner};
+use egui_mineral::bus::Bus;
 use egui_mineral_material::{
     adaptive,
     catalog::{ComponentMeta, Origin},
@@ -215,7 +215,7 @@ pub(crate) struct Shared {
     pub(crate) bus: Bus<Cmd, Evt>,
     pub(crate) done: Vec<u32>,
     pub(crate) platform: Vec<Result<String, String>>,
-    pub(crate) spawner: Arc<dyn Spawner>,
+    pub(crate) spawner: Arc<crate::spawn::AppSpawner>,
 }
 
 pub(crate) mod snack {

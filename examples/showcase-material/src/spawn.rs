@@ -13,7 +13,7 @@ mod native {
         time::{Duration, Instant},
     };
 
-    use egui_mineral::bus::{BoxFuture, Spawner};
+    use egui_mineral::bus::{BlockingJob, BlockingSpawner, BoxFuture, Spawner};
 
     const SHUTDOWN_GRACE: Duration = Duration::from_secs(2);
 
@@ -43,6 +43,13 @@ mod native {
     impl Spawner for AppSpawner {
         fn spawn(&self, fut: BoxFuture) {
             let handle = std::thread::spawn(move || futures_executor::block_on(fut));
+            self.handles().push(handle);
+        }
+    }
+
+    impl BlockingSpawner for AppSpawner {
+        fn spawn_blocking(&self, job: BlockingJob) {
+            let handle = std::thread::spawn(job);
             self.handles().push(handle);
         }
     }

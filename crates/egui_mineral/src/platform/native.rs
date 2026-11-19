@@ -1,4 +1,4 @@
-#[cfg(all(feature = "platform-clipboard", not(target_arch = "wasm32")))]
+#[cfg(not(target_arch = "wasm32"))]
 use std::sync::Arc;
 
 #[cfg(all(feature = "platform-clipboard", not(target_arch = "wasm32")))]
@@ -19,6 +19,8 @@ use super::backend;
 use super::{FileFilter, FileReader, FileWriter, PickedFile, PlatformPickers, SaveOutcome};
 #[cfg(feature = "platform-notify")]
 use super::{Notification, PlatformNotifier};
+#[cfg(not(target_arch = "wasm32"))]
+use crate::bus::BlockingSpawner;
 use crate::bus::BoxFuture;
 #[cfg(all(feature = "platform-pickers", not(target_arch = "wasm32")))]
 use std::path::Path;
@@ -27,50 +29,57 @@ use std::path::Path;
 /// [`PlatformClipboard`] (`platform-clipboard`) and [`PlatformNotifier`] (`platform-notify`)
 /// only with their feature.
 ///
-/// Native clipboard, file read and writer-creation work runs on a short-lived worker thread per call.
+/// Native clipboard, file read and writer-creation work runs on the app's [`BlockingSpawner`].
 #[derive(Clone)]
+#[cfg_attr(target_arch = "wasm32", derive(Default))]
 pub struct NativePlatform {
+    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg_attr(
+        not(any(feature = "platform-pickers", feature = "platform-clipboard")),
+        expect(dead_code, reason = "only pickers and clipboard block")
+    )]
+    blocking: Arc<dyn BlockingSpawner>,
     #[cfg(all(feature = "platform-clipboard", not(target_arch = "wasm32")))]
     clipboard: Arc<Mutex<arboard::Clipboard>>,
 }
 
 crate::kit::opaque_debug!(NativePlatform);
 
-// Runs blocking `f` on its own short-lived thread so the polling thread never waits on I/O; the future owns the
-// result channel and the thread ends with `f`.
+// The future owns the result channel; the app's `BlockingSpawner` owns the job.
 #[cfg(all(
     any(feature = "platform-pickers", feature = "platform-clipboard"),
     not(target_arch = "wasm32")
 ))]
 async fn offload<T: Send + 'static>(
+    blocking: &dyn BlockingSpawner,
     f: impl FnOnce() -> Result<T, PlatformError> + Send + 'static,
 ) -> Result<T, PlatformError> {
     let (tx, rx) = futures_channel::oneshot::channel();
-    #[expect(
-        clippy::disallowed_methods,
-        reason = "one-shot worker for blocking OS I/O, owned by the awaiting future"
-    )]
-    std::thread::Builder::new()
-        .name("egui_mineral-platform".into())
-        .spawn(move || {
-            // The receiver is gone when the future was dropped; the result has no consumer.
-            drop(tx.send(f()));
-        })
-        .map_err(backend)?;
-    rx.await
-        .map_err(|_| backend("platform worker ended without a result"))?
+    blocking.spawn_blocking(Box::new(move || {
+        // The receiver is gone when the future was dropped; the result has no consumer.
+        drop(tx.send(f()));
+    }));
+    rx.await.map_err(|_| backend("blocking job ended without a result"))?
 }
 
 impl NativePlatform {
-    /// Platform service over the OS clipboard (`platform-clipboard`).
+    /// Platform service over the OS clipboard (`platform-clipboard`); blocking OS calls run on `blocking`.
     ///
     /// # Errors
     /// [`PlatformError::Backend`] when the OS clipboard is unavailable.
-    pub fn new() -> Result<Self, PlatformError> {
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn new(blocking: impl BlockingSpawner + 'static) -> Result<Self, PlatformError> {
         Ok(Self {
-            #[cfg(all(feature = "platform-clipboard", not(target_arch = "wasm32")))]
+            blocking: Arc::new(blocking),
+            #[cfg(feature = "platform-clipboard")]
             clipboard: Arc::new(Mutex::new(arboard::Clipboard::new().map_err(backend)?)),
         })
+    }
+
+    /// Platform service over the browser APIs.
+    #[cfg(target_arch = "wasm32")]
+    pub fn new() -> Self {
+        Self {}
     }
 }
 
@@ -81,9 +90,12 @@ mod pickers {
     use super::{FileFilter, PickedFile, PlatformError};
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub(super) async fn read(h: rfd::FileHandle) -> Result<PickedFile, PlatformError> {
+    pub(super) async fn read(
+        blocking: &dyn super::BlockingSpawner,
+        h: rfd::FileHandle,
+    ) -> Result<PickedFile, PlatformError> {
         let path = h.path().to_owned();
-        let bytes = super::offload({
+        let bytes = super::offload(blocking, {
             let path = path.clone();
             move || std::fs::read(path).map_err(backend)
         })
@@ -150,8 +162,13 @@ impl PlatformPathPickers for NativePlatform {
 impl PlatformPickers for NativePlatform {
     fn pick_file(&self, filter: FileFilter) -> BoxFuture<Result<Option<PickedFile>, PlatformError>> {
         let fut = pickers::dialog(&filter).pick_file();
+        #[cfg(not(target_arch = "wasm32"))]
+        let blocking = Arc::clone(&self.blocking);
         Box::pin(async move {
             match fut.await {
+                #[cfg(not(target_arch = "wasm32"))]
+                Some(h) => pickers::read(&*blocking, h).await.map(Some),
+                #[cfg(target_arch = "wasm32")]
                 Some(h) => pickers::read(h).await.map(Some),
                 None => Ok(None),
             }
@@ -172,9 +189,14 @@ impl PlatformPickers for NativePlatform {
 
     fn pick_files(&self, filter: FileFilter) -> BoxFuture<Result<Vec<PickedFile>, PlatformError>> {
         let fut = pickers::dialog(&filter).pick_files();
+        #[cfg(not(target_arch = "wasm32"))]
+        let blocking = Arc::clone(&self.blocking);
         Box::pin(async move {
             let mut out = Vec::new();
             for h in fut.await.unwrap_or_default() {
+                #[cfg(not(target_arch = "wasm32"))]
+                out.push(pickers::read(&*blocking, h).await?);
+                #[cfg(target_arch = "wasm32")]
                 out.push(pickers::read(h).await?);
             }
             Ok(out)
@@ -224,11 +246,12 @@ impl PlatformPickers for NativePlatform {
         filter: FileFilter,
     ) -> BoxFuture<Result<Option<FileWriter>, PlatformError>> {
         let fut = pickers::dialog(&filter).set_file_name(suggested_name).save_file();
+        let blocking = Arc::clone(&self.blocking);
         Box::pin(async move {
             match fut.await {
                 Some(h) => {
                     let path = h.path().to_owned();
-                    offload(move || FileWriter::create(path)).await.map(Some)
+                    offload(&*blocking, move || FileWriter::create(path)).await.map(Some)
                 }
                 None => Ok(None),
             }
@@ -258,14 +281,14 @@ impl PlatformPickers for NativePlatform {
 impl PlatformClipboard for NativePlatform {
     #[cfg(not(target_arch = "wasm32"))]
     fn clipboard_text(&self) -> BoxFuture<Result<String, PlatformError>> {
-        let clipboard = Arc::clone(&self.clipboard);
-        Box::pin(offload(move || clipboard.lock().get_text().map_err(backend)))
+        let (blocking, clipboard) = (Arc::clone(&self.blocking), Arc::clone(&self.clipboard));
+        Box::pin(async move { offload(&*blocking, move || clipboard.lock().get_text().map_err(backend)).await })
     }
 
     #[cfg(not(target_arch = "wasm32"))]
     fn set_clipboard_text(&self, text: String) -> BoxFuture<Result<(), PlatformError>> {
-        let clipboard = Arc::clone(&self.clipboard);
-        Box::pin(offload(move || clipboard.lock().set_text(text).map_err(backend)))
+        let (blocking, clipboard) = (Arc::clone(&self.blocking), Arc::clone(&self.clipboard));
+        Box::pin(async move { offload(&*blocking, move || clipboard.lock().set_text(text).map_err(backend)).await })
     }
 
     #[cfg(target_arch = "wasm32")]

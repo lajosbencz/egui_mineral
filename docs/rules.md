@@ -37,7 +37,7 @@ Other files cite them as `docs/rules.md rule N`.
     No silent fallbacks, no `let _ =` on a `Result`, no `# Panics` sections.
     Indices that outlive the current scope (stored, persisted, app-provided, agent or AccessKit requests) go through `.get()` or `kit::sanitize::index` where they are used.
     Locally derived ones may index, iterators are preferred over both.
-11. Every thread or task has an owner that joins or cancels it. The core spawns none, apps own them through their `Spawner`.
+11. Every thread or task has an owner that joins or cancels it. The core spawns none, apps own them through their `Spawner` (futures) and `BlockingSpawner` (blocking OS calls).
 
 ## Enforcement
 

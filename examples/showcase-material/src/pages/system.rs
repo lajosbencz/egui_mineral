@@ -142,7 +142,7 @@ pub(crate) struct State {
     durable: Option<Durable>,
     persist_note: String,
     persist_error: Option<String>,
-    platform: Result<NativePlatform, String>,
+    platform: Option<Result<NativePlatform, String>>,
     use_fake: bool,
     fake: MemoryPlatform,
     clip_text: String,
@@ -185,7 +185,7 @@ impl Default for State {
             durable: None,
             persist_note: String::new(),
             persist_error: None,
-            platform: NativePlatform::new().map_err(|e| e.to_string()),
+            platform: None,
             use_fake: false,
             fake: MemoryPlatform::default(),
             clip_text: "Hello from egui_mineral".to_owned(),
@@ -657,6 +657,17 @@ fn stream_save(p: &dyn PlatformService, shared: &Shared, text: &str) {
     );
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+fn native_platform(shared: &Shared) -> Result<NativePlatform, String> {
+    NativePlatform::new(std::sync::Arc::clone(&shared.spawner)).map_err(|e| e.to_string())
+}
+
+#[cfg(target_arch = "wasm32")]
+#[expect(clippy::unnecessary_wraps, reason = "same signature as native")]
+fn native_platform(_: &Shared) -> Result<NativePlatform, String> {
+    Ok(NativePlatform::new())
+}
+
 fn platform(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     let rt = ui.rt();
     for r in shared.platform.drain(..) {
@@ -675,8 +686,8 @@ fn platform(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     let p: &dyn PlatformService = if s.use_fake {
         &s.fake
     } else {
-        match &s.platform {
-            Ok(p) => p,
+        match s.platform.get_or_insert_with(|| native_platform(shared)) {
+            Ok(p) => &*p,
             Err(e) => {
                 Alert::new("platform-init", format!("Platform unavailable: {e}"))
                     .severity(Severity::Error)
