@@ -390,3 +390,95 @@ fn carousel_shrinking_mid_drag_does_not_panic() {
     h.drop_at(from - vec2(100.0, 0.0));
     h.run();
 }
+
+#[derive(Default)]
+struct Page {
+    offset: f32,
+    position: f32,
+}
+
+fn page_with_carousel<'a>(layout: CarouselLayout, height: f32) -> Harness<'a, Page> {
+    still(vec2(400.0, 300.0), Page::default(), move |ui, p| {
+        let rt = ui.rt();
+        let out = egui::ScrollArea::vertical().auto_shrink([false; 2]).show(ui, |ui| {
+            let mut mui = rt.ui(ui);
+            let r = Carousel::new("c", 6, layout).height(height).show(&mut mui, |ui, i| {
+                ui.label(i.to_string());
+            });
+            ui.allocate_space(vec2(1.0, 2000.0));
+            r.position
+        });
+        p.offset = out.state.clamped_offset().y;
+        p.position = out.inner;
+    })
+}
+
+// eframe web order: pointerdown runs a pass before touchstart arrives.
+fn touch_drag(h: &mut Harness<'_, Page>, from: Pos2, step: egui::Vec2, n: u32) {
+    use egui::{Event, TouchPhase};
+    h.input_mut()
+        .events
+        .push(synth::pointer_down(from, PointerButton::Primary));
+    h.step();
+    h.input_mut()
+        .events
+        .extend([synth::touch(from, TouchPhase::Start), Event::PointerMoved(from)]);
+    h.step();
+    for i in 1..=n {
+        let at = from + step * i as f32;
+        h.input_mut()
+            .events
+            .extend([synth::touch(at, TouchPhase::Move), Event::PointerMoved(at)]);
+        h.step();
+    }
+    let end = from + step * n as f32;
+    h.input_mut().events.extend([
+        synth::pointer_up(end, PointerButton::Primary),
+        Event::PointerGone,
+        synth::touch(end, TouchPhase::End),
+    ]);
+    h.step();
+}
+
+const HERO: CarouselLayout = CarouselLayout::Hero {
+    preferred_item_width: None,
+    centered: false,
+};
+
+#[test]
+fn carousel_vertical_touch_pan_scrolls_the_enclosing_page() {
+    let mut h = page_with_carousel(HERO, 120.0);
+    h.step();
+    let from = h.rect("c-0-item").center();
+    touch_drag(&mut h, from, vec2(0.0, -20.0), 6);
+    h.run();
+    let page = h.state().value.offset;
+    assert!(page > 50.0, "page scrolled by the vertical pan: {page}");
+    assert!(h.state().value.position.abs() < 0.01, "strip stayed put");
+}
+
+#[test]
+fn carousel_horizontal_touch_pan_pages_the_strip_not_the_page() {
+    let mut h = page_with_carousel(HERO, 120.0);
+    h.step();
+    let from = h.rect("c-0-item").center();
+    touch_drag(&mut h, from, vec2(-25.0, 0.0), 6);
+    h.step_until("strip settles", |h| {
+        (h.state().value.position - 1.0).abs() < f32::EPSILON
+    });
+    assert!(h.state().value.offset.abs() < 0.01, "page stayed put");
+}
+
+#[test]
+fn fullscreen_carousel_past_the_last_item_chains_the_pan_to_the_page() {
+    let mut h = page_with_carousel(CarouselLayout::FullScreen, 200.0);
+    h.step();
+    let from = h.rect("c-0-item").center();
+    for _ in 0..8 {
+        touch_drag(&mut h, from, vec2(0.0, -20.0), 8);
+        h.run();
+    }
+    let s = &h.state().value;
+    assert!(s.position > 4.9, "strip reached the end: {}", s.position);
+    assert!(s.offset > 50.0, "page took the rest: {}", s.offset);
+}
