@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral_macros-v0.3.0...egui_mineral_macros-v0.4.0) - 2026-11-19
+
+### Other
+
+- bump the published crates to 0.4.0 for the breaking theme change.
+
 ## [0.3.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral_macros-v0.2.0...egui_mineral_macros-v0.3.0) - 2026-11-19
 
 ### Other

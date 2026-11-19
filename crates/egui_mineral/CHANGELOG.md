@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral-v0.3.1...egui_mineral-v0.4.0) - 2026-11-19
+
+### Added
+
+- *(core)* [**breaking**] split persist-fs into persist-json, persist-toml and native-only FsStorage.
+- *(core)* split platform-native into platform-pickers, -clipboard and -notify, add FileFilter::file_name, route save_file through the filter.
+- *(material)* Popover::show_at anchors at a rect without a toggle.
+- *(core)* [**breaking**] runtime owns the theme preference (default System) and passes the resolved theme to Stylekit::style; Material::new takes a Contrast, showcase cycles System/Light/Dark.
+
+### Fixed
+
+- *(core)* keep the touch modality through eframe's touch-less pointerdown pass, switch to mouse only on hover or wheel evidence.
+- doc comments satisfy restating-doc.
+- *(core)* gate platform unsupported tests per feature.
+- *(core)* gate platform unsupported tests.
+- *(core)* log range steps from the current value, round decimal ties away from zero, honor jump and add up stalled steps.
+
+### Other
+
+- cargo-hack feature matrix for clippy, default-feature test run, wasm32 docs.rs build and explicit docs.rs features.
+- *(core)* [**breaking**] split PlatformService into per-capability traits implemented only with their feature, drop PlatformError::Unsupported.
+- bump the published crates to 0.4.0 for the breaking theme change.
+
 ## [0.3.1](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral-v0.3.0...egui_mineral-v0.3.1) - 2026-11-19
 
 ### Added
