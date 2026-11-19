@@ -1,7 +1,7 @@
 name: CI
 
 # Pull requests verify; the ruleset keeps them up to date with master, so merges are not verified again.
-# A push to master that changes what the caches are keyed on only builds (check, spec generators, rustdoc JSON), saving the caches pull requests restore.
+# A push to master that changes what the caches are keyed on only builds (clippy, test, docs, spec generators, rustdoc JSON), saving the caches pull requests restore.
 on:
   pull_request:
   push:
@@ -28,8 +28,40 @@ env:
   CARGO_PROFILE_TEST_DEBUG: line-tables-only
 
 jobs:
-  check:
-    name: Check
+  # `just check-clippy` locally: the feature matrix, native and wasm32.
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          shared-key: clippy
+          save-if: ${{ github.event_name == 'push' }}
+      # Runner mirrors time out now and then.
+      - run: |
+          echo 'Acquire::Retries "5"; Acquire::http::Timeout "30"; Acquire::https::Timeout "30";' | sudo tee /etc/apt/apt.conf.d/80-retries
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libxkbcommon-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        with:
+          tool: just@1.59.0
+          fallback: none
+      - id: pins
+        run: echo "hack=$(just --evaluate hack_version)" >> "$GITHUB_OUTPUT"
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        with:
+          tool: cargo-hack@${{ steps.pins.outputs.hack }}
+          fallback: cargo-install
+      - run: just check-clippy
+
+  # `just check-test` locally: nextest legs and the ICU4X trimmed-data test.
+  test:
+    name: Test
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
@@ -41,6 +73,7 @@ jobs:
       - run: rustup toolchain install
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
+          shared-key: test
           save-if: ${{ github.event_name == 'push' }}
       # Runner mirrors time out now and then.
       - run: |
@@ -51,29 +84,41 @@ jobs:
         with:
           tool: cargo-nextest,just@1.59.0
           fallback: none
-      # The docs.rs build in `just doc`.
-      - if: ${{ github.event_name != 'push' }}
-        run: rustup toolchain install nightly --profile minimal --target wasm32-unknown-unknown
-      - id: pins
-        run: |
-          echo "rdme=$(just --evaluate rdme_version)" >> "$GITHUB_OUTPUT"
-          echo "hack=$(just --evaluate hack_version)" >> "$GITHUB_OUTPUT"
-      # The feature matrix of `just clippy`; installed on push too, for the cache.
+      - run: just icu-datagen
+      - run: just check-test
+
+  # `just check-docs` locally: rustdoc and the docs.rs build, READMEs, package, versions, fmt, hotpatch guard, minimal versions.
+  docs:
+    name: Docs and packaging
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          shared-key: docs
+          save-if: ${{ github.event_name == 'push' }}
+      # Runner mirrors time out now and then.
+      - run: |
+          echo 'Acquire::Retries "5"; Acquire::http::Timeout "30"; Acquire::https::Timeout "30";' | sudo tee /etc/apt/apt.conf.d/80-retries
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libxkbcommon-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
       - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
         with:
-          tool: cargo-hack@${{ steps.pins.outputs.hack }}
-          fallback: cargo-install
-      - if: ${{ github.event_name != 'push' }}
-        uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+          tool: just@1.59.0
+          fallback: none
+      - id: pins
+        run: echo "rdme=$(just --evaluate rdme_version)" >> "$GITHUB_OUTPUT"
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
         with:
           tool: cargo-rdme@${{ steps.pins.outputs.rdme }}
           fallback: cargo-install
-      # Installed on push too, for the cache.
-      - run: just icu-datagen
-      - if: ${{ github.event_name == 'push' }}
-        run: just clippy test --no-run
-      - if: ${{ github.event_name != 'push' }}
-        run: just check
+      # The docs.rs build, minimal-versions and rustdoc JSON.
+      - run: rustup toolchain install "$(just --evaluate nightly_version)" --profile minimal --target wasm32-unknown-unknown
+      - run: just check-docs
 
   # Fails when specs change, never blocks merging
   spec:
@@ -135,7 +180,7 @@ jobs:
   result:
     name: CI result
     if: ${{ always() }}
-    needs: [check, public-api]
+    needs: [clippy, test, docs, spec, public-api]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -145,7 +190,7 @@ jobs:
   # Default-branch caches: the newest per key. rust-cache keys end in the lockfile's hash.
   caches:
     name: Prune caches
-    needs: [check, spec, public-api]
+    needs: [clippy, test, docs, spec, public-api]
     if: ${{ always() && github.event_name == 'push' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15

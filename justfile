@@ -36,8 +36,17 @@ tools: icu-datagen
 # Every blocking check of CI and Hygiene
 ci: check hygiene
 
-# CI "Check" job
-check: fmt hotpatch-guard clippy test icu-trimmed doc readme-check package versions-check minimal-versions
+# Every blocking check of the CI jobs clippy, test and docs
+check: check-clippy check-test check-docs
+
+# CI "Clippy" job
+check-clippy: clippy
+
+# CI "Test" job
+check-test: test icu-trimmed
+
+# CI "Docs and packaging" job
+check-docs: doc readme-check package versions-check fmt hotpatch-guard minimal-versions
 
 fmt:
     cargo fmt --all --check
