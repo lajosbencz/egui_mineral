@@ -1,4 +1,5 @@
 use std::ops::{Bound, Deref, DerefMut, RangeBounds};
+use std::{cell::OnceCell, rc::Rc};
 
 use egui::{IdSalt, KeyboardShortcut, Pos2, Sense, Ui, Vec2};
 
@@ -272,13 +273,23 @@ impl Interaction {
 pub struct MineralUi<'a, K> {
     ui: &'a mut Ui,
     rt: &'a Runtime<K>,
+    input: OnceCell<Rc<InputContext>>,
 }
 
 crate::kit::opaque_debug!(MineralUi<'_, K>);
 
 impl<'a, K> MineralUi<'a, K> {
     pub(crate) fn new(ui: &'a mut Ui, rt: &'a Runtime<K>) -> Self {
-        Self { ui, rt }
+        Self {
+            ui,
+            rt,
+            input: OnceCell::new(),
+        }
+    }
+
+    /// Input of this pass, fetched once per `MineralUi`.
+    fn pass_input(&self) -> Rc<InputContext> {
+        Rc::clone(self.input.get_or_init(|| Rc::new(self.rt.core().input())))
     }
 
     /// Outlives this borrow of the `Ui`; wraps child uis inside egui closures via [`Runtime::ui`].
@@ -395,9 +406,10 @@ pub trait MineralWidget {
 
 fn show<K, W: MineralWidget<Kit = K>>(ui: &mut MineralUi<'_, K>, mut widget: W) -> WidgetResponse<W::Output> {
     let core = ui.core();
-    let input = &core.input();
+    let input = &*ui.pass_input();
     let id = ui.make_persistent_id(widget.id_salt());
-    let mut state = ui.data(|d| d.get_temp::<W::State>(id)).unwrap_or_default();
+    // Taken out and put back, so the state is moved instead of cloned.
+    let mut state = ui.data_mut(|d| d.remove_temp::<W::State>(id)).unwrap_or_default();
     let composite = widget.composite();
     let min = if composite {
         0.0
@@ -430,6 +442,7 @@ fn show<K, W: MineralWidget<Kit = K>>(ui: &mut MineralUi<'_, K>, mut widget: W) 
         emit_node(&ctx, out.response.id, zones.hit, || {
             node_of(core, &widget, &out, &state, access_key, accelerator)
         });
+        ui.data_mut(|d| d.insert_temp(id, state));
         return out;
     }
 
