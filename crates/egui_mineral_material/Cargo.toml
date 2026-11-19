@@ -1,7 +1,7 @@
 [package]
 name = "egui_mineral_material"
 description = "Material Design 3 stylekit for egui_mineral"
-version = "0.5.0"
+version = "0.6.0"
 edition.workspace = true
 rust-version.workspace = true
 # Ships Apache-2.0 data derived from Jetpack Compose (LICENSE-APACHE, NOTICE).
@@ -14,12 +14,12 @@ categories.workspace = true
 exclude = ["clippy.toml"]
 
 [package.metadata.docs.rs]
-features = ["icu", "persist-fs", "bundled-icons", "theme-file", "unstable-catalog", "unstable-spec"]
+features = ["icu", "persist-fs", "persist-json", "persist-toml", "bundled-icons", "theme-file", "unstable-catalog", "unstable-spec"]
 rustdoc-args = ["--cfg", "docsrs"]
 targets = ["x86_64-unknown-linux-gnu", "wasm32-unknown-unknown"]
 
 [features]
-default = ["icu", "persist-fs", "bundled-icons"]
+default = ["icu", "persist-fs", "persist-toml", "bundled-icons"]
 # Material Symbols Rounded fonts (filled and outlined, 3 MB); without it use `Material::with_icon_fonts`.
 bundled-icons = []
 # `egui_mineral/icu`: ICU4X locale formatting.

@@ -212,7 +212,6 @@ mod fs {
     #[cfg(test)]
     mod tests {
         use super::*;
-        use crate::persist::{Json, load, save};
 
         #[test]
         fn dotted_keys_do_not_share_temp_path() {
@@ -233,8 +232,8 @@ mod fs {
         fn fs_roundtrip_with_odd_keys() {
             let dir = std::env::temp_dir().join(format!("mineral-persist-{}", std::process::id()));
             let mut s = FsStorage::new(&dir).unwrap();
-            save::<Json, _>(&mut s, "a/b c", &vec![1, 2, 3]).unwrap();
-            assert_eq!(load::<Json, Vec<i32>>(&s, "a/b c").unwrap(), Some(vec![1, 2, 3]));
+            s.set("a/b c", "[1,2,3]".into()).unwrap();
+            assert_eq!(s.get("a/b c").unwrap().as_deref(), Some("[1,2,3]"));
             s.remove("a/b c").unwrap();
             assert_eq!(s.get("a/b c").unwrap(), None);
             assert!(s.get("..").is_err());

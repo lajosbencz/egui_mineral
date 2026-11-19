@@ -50,7 +50,7 @@ clippy:
     cargo clippy -p showcase-fluent --target wasm32-unknown-unknown -- -D warnings
 
 # Features of the published crates but `unstable-hotpatch`
-test_features := "egui_mineral/platform-native,egui_mineral/web-save-stream,egui_mineral_material/theme-file,egui_mineral_material/unstable-catalog,egui_mineral_material/unstable-spec,egui_mineral_fluent/unstable-catalog,egui_mineral_fluent/unstable-spec"
+test_features := "egui_mineral/platform-native,egui_mineral/persist-json,egui_mineral/web-save-stream,egui_mineral_material/theme-file,egui_mineral_material/unstable-catalog,egui_mineral_material/unstable-spec,egui_mineral_fluent/unstable-catalog,egui_mineral_fluent/unstable-spec"
 
 # Extra args go to nextest, e.g. `--no-run`
 test *args:
@@ -76,9 +76,9 @@ hotpatch-guard:
     ! cargo tree --workspace -e features -i subsecond 2>/dev/null | grep -q .
 
 # Mirrors `[package.metadata.docs.rs] features` of each crate
-docsrs_core := "icu,persist-fs,platform-native,web-save-stream"
-docsrs_material := "icu,persist-fs,bundled-icons,theme-file,unstable-catalog,unstable-spec"
-docsrs_fluent := "icu,persist-fs,bundled-icons,unstable-catalog,unstable-spec"
+docsrs_core := "icu,persist-fs,persist-json,persist-toml,platform-native,web-save-stream"
+docsrs_material := "icu,persist-fs,persist-json,persist-toml,bundled-icons,theme-file,unstable-catalog,unstable-spec"
+docsrs_fluent := "icu,persist-fs,persist-json,persist-toml,bundled-icons,unstable-catalog,unstable-spec"
 
 # Doctests, rustdoc and the docs.rs build
 doc:

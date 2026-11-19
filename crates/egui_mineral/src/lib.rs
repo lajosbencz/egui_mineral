@@ -57,8 +57,8 @@
 //! |---|---|---|
 //! | `icu` | yes | ICU4X formatting, collation and direction; without it [`AsciiFormat`](i18n::AsciiFormat) |
 //! | `persist-json` | | `persist::Json` codec |
-//! | `persist-toml` | | `persist::Toml` codec |
-//! | `persist-fs` | yes | `persist-json`, `persist-toml` and the native-only `persist::FsStorage` |
+//! | `persist-toml` | yes | `persist::Toml` codec |
+//! | `persist-fs` | yes | Native-only `persist::FsStorage`; pick a codec feature to encode values |
 //! | `platform-pickers` | | File dialogs (`rfd`): `NativePlatform` implements [`PlatformPickers`](platform::PlatformPickers) |
 //! | `platform-clipboard` | | OS clipboard (`arboard`): [`PlatformClipboard`](platform::PlatformClipboard) |
 //! | `platform-notify` | | OS notifications (`notify-rust`, D-Bus on Linux): [`PlatformNotifier`](platform::PlatformNotifier) |

@@ -66,8 +66,8 @@
 //! |---|---|---|
 //! | `icu` | yes | ICU4X locale formatting (`egui_mineral/icu`); without it [`AsciiFormat`](egui_mineral::i18n::AsciiFormat) |
 //! | `persist-json` | | JSON persistence codec (`egui_mineral/persist-json`) |
-//! | `persist-toml` | | TOML persistence codec (`egui_mineral/persist-toml`) |
-//! | `persist-fs` | yes | Both codecs and native file-backed storage (`egui_mineral/persist-fs`) |
+//! | `persist-toml` | yes | TOML persistence codec (`egui_mineral/persist-toml`) |
+//! | `persist-fs` | yes | Native file-backed storage (`egui_mineral/persist-fs`) |
 //! | `bundled-icons` | yes | Fluent UI System Icons resizable font (1.6 MB); without it use [`Fluent::with_icon_font`] |
 //! | `unstable-catalog` | | [`catalog`]: each component's category and React v9 styles file ([`catalog::CATALOG`]) |
 //! | `unstable-spec` | | Public [`spec::tokens`] and [`spec::defaults`]: the generated Fluent UI React v9 values, changed by every re-pin of the sources |

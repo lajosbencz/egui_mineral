@@ -14,12 +14,12 @@ exclude = ["clippy.toml"]
 publish = false
 
 [package.metadata.docs.rs]
-features = ["icu", "persist-fs", "bundled-icons", "unstable-catalog", "unstable-spec"]
+features = ["icu", "persist-fs", "persist-json", "persist-toml", "bundled-icons", "unstable-catalog", "unstable-spec"]
 rustdoc-args = ["--cfg", "docsrs"]
 targets = ["x86_64-unknown-linux-gnu", "wasm32-unknown-unknown"]
 
 [features]
-default = ["icu", "persist-fs", "bundled-icons"]
+default = ["icu", "persist-fs", "persist-toml", "bundled-icons"]
 # Fluent UI System Icons resizable font (1.6 MB); without it use `Fluent::with_icon_font`.
 bundled-icons = []
 # `egui_mineral/icu`: ICU4X locale formatting.
