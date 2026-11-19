@@ -136,15 +136,15 @@ pub(crate) fn store_evicting<S: Clone + Send + Sync + 'static>(ctx: &Context, pa
             return;
         }
         log.swept = pass;
-        let mut stale = Vec::new();
+        let mut expired = Vec::new();
         log.last.retain(|&id, &mut at| {
             let keep = pass.saturating_sub(at) < EVICT_AFTER;
             if !keep {
-                stale.push(id);
+                expired.push(id);
             }
             keep
         });
-        for id in stale {
+        for id in expired {
             d.remove::<S>(id);
         }
     });
@@ -195,7 +195,7 @@ mod tests {
         for pass in (2..=EVICT_AFTER + SWEEP_EVERY).step_by(100) {
             store_evicting(&ctx, pass, live, 8_u32);
         }
-        assert_eq!(ctx.data(|d| d.get_temp::<u32>(old)), None, "stale state is evicted");
+        assert_eq!(ctx.data(|d| d.get_temp::<u32>(old)), None, "expired state is evicted");
         assert_eq!(ctx.data(|d| d.get_temp::<u32>(live)), Some(8), "touched state stays");
     }
 

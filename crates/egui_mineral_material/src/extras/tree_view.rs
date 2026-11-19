@@ -605,6 +605,14 @@ impl<'a, N: TreeData> TreeView<'a, N> {
         }
     }
 
+    // Off-screen row: tree-only node under the id the drawn row would have.
+    fn emit_culled(&self, ui: &Ui, rows: &[TreeRow<'a, N>], (i, rect): (usize, Rect), look: RowLook, i18n: &I18n) {
+        let Some(row) = rows.get(i) else { return };
+        let widget = self.row_widget(row, look, focus::TabStop::Skip);
+        let rid = ui.scope_id().with(widget.id_salt());
+        kit::semantic::emit_culled(ui, rid, rect, || widget.node(i18n));
+    }
+
     fn row_widget(&self, row: &TreeRow<'a, N>, look: RowLook, tab_stop: focus::TabStop) -> RowWidget<'a> {
         let key = row.node.key();
         let expanded = row.has_children && self.expansion.is_expanded(key);
@@ -936,12 +944,7 @@ impl<'a, N: TreeData> TreeView<'a, N> {
                         events.push((i, o));
                     }
                 },
-                |ui, i, rect| {
-                    let Some(row) = rows.get(i) else { return };
-                    let widget = self.row_widget(row, look, focus::TabStop::Skip);
-                    let rid = ui.scope_id().with(widget.id_salt());
-                    kit::semantic::emit_culled(ui, rid, rect, || widget.node(rt.i18n()));
-                },
+                |ui, i, rect| self.emit_culled(ui, &rows, (i, rect), look, rt.i18n()),
             );
         });
         if reorderable {
