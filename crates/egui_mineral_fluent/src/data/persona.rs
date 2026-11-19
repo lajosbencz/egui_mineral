@@ -346,12 +346,25 @@ impl<'a> Persona<'a> {
         Some(vec2(side, side))
     }
 
-    fn galleys(ui: &MineralUi<'_, Fluent>, lines: &[Line]) -> Vec<std::sync::Arc<egui::Galley>> {
+    // Width the text lines wrap at (`display: block` lines in an `auto` grid track): the room the media leaves,
+    // or all of it below the media.
+    fn text_limit(&self, available: f32) -> f32 {
+        let media = match self.position {
+            PersonaTextPosition::Below => 0.0,
+            _ => self
+                .media()
+                .map_or(0.0, |m| m.x + self.size.spacing(self.presence_only)),
+        };
+        (available - media).max(0.0)
+    }
+
+    fn galleys(ui: &MineralUi<'_, Fluent>, lines: &[Line], limit: f32) -> Vec<std::sync::Arc<egui::Galley>> {
         lines
             .iter()
             .map(|l| {
                 let color = ui.tokens().color(l.color);
-                let job = LayoutJob::single_section(l.text.clone(), l.ramp.format(ui.ctx(), color));
+                let mut job = LayoutJob::single_section(l.text.clone(), l.ramp.format(ui.ctx(), color));
+                job.wrap.max_width = limit;
                 ui.painter().layout_job(job)
             })
             .collect()
@@ -361,7 +374,7 @@ impl<'a> Persona<'a> {
         let sizes: Vec<Vec2> = galleys
             .iter()
             .zip(lines)
-            .map(|(g, l)| vec2(g.size().x, l.ramp.line_height()))
+            .map(|(g, l)| vec2(g.size().x, g.rows.len().max(1) as f32 * l.ramp.line_height()))
             .collect();
         let offsets: Vec<f32> = lines.iter().map(|l| l.offset).collect();
         let to_primary = self.presence_only && self.alignment == PersonaTextAlignment::Start && !self.size.large();
@@ -390,7 +403,7 @@ impl MineralWidget for Persona<'_> {
 
     fn layout(&self, ui: &MineralUi<'_, Fluent>, c: Constraints, (): &()) -> Measure {
         let lines = self.lines();
-        let galleys = Self::galleys(ui, &lines);
+        let galleys = Self::galleys(ui, &lines, self.text_limit(c.max.x));
         c.constrain(self.grid(&lines, &galleys).size).into()
     }
 
@@ -399,7 +412,7 @@ impl MineralWidget for Persona<'_> {
         let dir = ui.i18n().direction();
         let rect = frame.zones.visual;
         let lines = self.lines();
-        let galleys = Self::galleys(ui, &lines);
+        let galleys = Self::galleys(ui, &lines, self.text_limit(rect.width()));
         let grid = self.grid(&lines, &galleys);
         let at = |r: Rect| {
             let x = dir.start_x(rect, Rangef::new(r.min.x, r.max.x));

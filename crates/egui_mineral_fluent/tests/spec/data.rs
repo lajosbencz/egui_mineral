@@ -208,6 +208,39 @@ mod persona {
     }
 
     #[test]
+    fn text_wraps_within_the_available_width() {
+        // Headless text has no glyphs: the icon font stands in as the proportional font.
+        const GLYPHS: &[u8] = include_bytes!("../../assets/FluentSystemIcons-Resizable.ttf");
+        let long = ["\u{e82b}"; 24].join(" ");
+        let rect_in = |width: f32| {
+            let long = long.clone();
+            let mut h = harness((), move |ui, ()| {
+                let mut fonts = egui::FontDefinitions::empty();
+                fonts.font_data.insert(
+                    "glyphs".into(),
+                    std::sync::Arc::new(egui::FontData::from_static(GLYPHS)),
+                );
+                fonts
+                    .families
+                    .insert(egui::FontFamily::Proportional, vec!["glyphs".into()]);
+                ui.ctx().set_fonts(fonts);
+                ui.set_max_width(width);
+                ui.mineral(Persona::new("p", long.as_str()).secondary_text(long.as_str()));
+            });
+            h.run();
+            h.run();
+            h.rect("p-persona")
+        };
+        let wide = rect_in(2000.0);
+        let narrow = rect_in(160.0);
+        assert!(narrow.width() <= 160.0, "{narrow:?}");
+        assert!(
+            narrow.height() > wide.height(),
+            "wrapped lines add rows: {narrow:?} vs {wide:?}"
+        );
+    }
+
+    #[test]
     fn presence_only_media_is_the_badge() {
         let r = rect(|| {
             Persona::new("p", "Kat")
