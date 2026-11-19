@@ -346,10 +346,10 @@ fn drag_drop(ui: &mut Mui<'_>, s: &mut State) {
     let rt = ui.rt();
     let t = rt.tokens();
     let mut moved: Option<(bool, usize)> = None;
-    ui.horizontal_top(|ui| {
+    super::top_row(ui, |row| {
         for left in [true, false] {
             let items = if left { &s.left } else { &s.right };
-            ui.vertical(|ui| {
+            row.add(|ui| {
                 ui.set_width(200.0);
                 ui.label(RichText::new(if left { "Fruit" } else { "Vegetables" }).strong());
                 let frame = Frame::new()
