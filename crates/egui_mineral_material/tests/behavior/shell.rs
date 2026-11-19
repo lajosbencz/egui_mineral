@@ -193,6 +193,38 @@ fn resizable_side_sheet_drags_and_steps_within_its_range() {
 }
 
 #[test]
+fn resizable_modal_side_sheet_drags_clamps_and_persists() {
+    let mut h = still(WIDE, true, |ui, open| {
+        SideSheet::new("sheet")
+            .width_range(300.0..=380.0)
+            .width(320.0)
+            .resizable(true)
+            .show_modal(ui.rt(), open, |_| {});
+    });
+    h.step_until("the sheet slides in", |h| {
+        h.tree().find_key("sheet-resize").is_some() && (h.rect("sheet-side-sheet").width() - 320.0).abs() < 0.5
+    });
+    let edge = h.rect("sheet-resize");
+    h.hover_at(edge.center());
+    h.drag_at(edge.center());
+    h.hover_at(edge.center() - egui::vec2(200.0, 0.0));
+    h.drop_at(edge.center() - egui::vec2(200.0, 0.0));
+    h.run();
+    assert_eq!(h.rect("sheet-side-sheet").width(), 380.0, "drag clamps to the maximum");
+    h.run();
+    h.run();
+    assert_eq!(h.rect("sheet-side-sheet").width(), 380.0, "the width persists");
+    for _ in 0..8 {
+        if !h.focused("sheet-resize") {
+            h.press(Key::Tab);
+        }
+    }
+    assert!(h.focused("sheet-resize"), "the handle is a Tab stop");
+    h.press(Key::Home);
+    assert_eq!(h.rect("sheet-side-sheet").width(), 300.0, "Home clamps to the minimum");
+}
+
+#[test]
 fn side_sheet_edge_docks_and_slides_at_the_start_in_both_directions() {
     use egui_mineral::{i18n::Direction, layout::Edge};
     for (dir, left) in [(Direction::Ltr, true), (Direction::Rtl, false)] {
