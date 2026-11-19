@@ -84,7 +84,7 @@ impl Default for State {
             url: String::new(),
             multiline: String::new(),
             grow: String::new(),
-            path: "/home/user/projects/wavedude/renders/final-mix-v3.wav".to_owned(),
+            path: "/home/user/projects/podcast/renders/final-mix-v3.wav".to_owned(),
             description: String::new(),
             password: String::new(),
             password_plain: String::new(),
@@ -183,7 +183,7 @@ fn filled_fields(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
         row.mineral(
             TextField::new("ti-path", "Path", &mut s.path)
                 .elide(Elide::Start)
-                .supporting("/home/user/projects/wavedude/renders: the file name stays visible")
+                .supporting("/home/user/projects/podcast/renders: the file name stays visible")
                 .preferred_width(260.0),
         );
         row.mineral(
