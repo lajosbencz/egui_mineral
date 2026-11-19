@@ -414,7 +414,7 @@ pub(super) fn fluent_number(v: &FluentValue<'_>, memo: &intl_memoizer::concurren
     };
     let digits = super::format::fluent_fraction_digits(n);
     memo.with_try_get::<FluentDecimal, _, _>((), |f| format_f64(&f.0, n.value, digits))
-        .inspect_err(|e| tracing::warn!(%e, "fluent NUMBER formatter"))
+        .inspect_err(|e| crate::kit::sanitize::report(format_args!("fluent NUMBER formatter: {e}")))
         .ok()
 }
 

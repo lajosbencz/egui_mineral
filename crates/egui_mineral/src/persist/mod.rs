@@ -198,7 +198,7 @@ mod fs {
                 if let Err(rm) = std::fs::remove_file(&tmp)
                     && rm.kind() != std::io::ErrorKind::NotFound
                 {
-                    tracing::warn!(path = %tmp.display(), error = %rm, "temp file left behind");
+                    tracing::warn!(target: "egui_mineral", path = %tmp.display(), error = %rm, "temp file left behind");
                 }
                 return Err(e.into());
             }

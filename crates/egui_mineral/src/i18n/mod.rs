@@ -455,7 +455,7 @@ impl Localizer for FluentLocalizer {
             let mut errs = Vec::new();
             let out = bundle.format_pattern(pattern, Some(&fargs), &mut errs);
             if !errs.is_empty() {
-                tracing::warn!(id, ?errs, "fluent format errors");
+                crate::kit::sanitize::report(format_args!("fluent format errors in message {id:?}: {errs:?}"));
             }
             Some(out.into_owned())
         })
@@ -544,7 +544,7 @@ impl I18n {
         let system = system_locale().and_then(|l| match SystemFormat::new(&l) {
             Ok(f) => Some((l, f)),
             Err(error) => {
-                tracing::warn!(tag = %l, %error, "system locale unsupported, using root");
+                tracing::warn!(target: "egui_mineral", tag = %l, %error, "system locale unsupported, using root");
                 None
             }
         });
@@ -716,7 +716,7 @@ impl I18n {
             }
             match &found {
                 None => {
-                    tracing::warn!(id, "missing message");
+                    tracing::warn!(target: "egui_mineral", id, "missing message");
                     s.missing.insert(id.to_owned());
                 }
                 Some(m) if args.is_empty() => {

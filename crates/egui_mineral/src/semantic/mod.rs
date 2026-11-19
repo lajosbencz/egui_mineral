@@ -268,7 +268,10 @@ pub(crate) fn end_pass(ctx: &Context) -> Option<SemanticTree> {
     let mut seen = std::collections::HashSet::with_capacity(tree.nodes.len());
     for n in &tree.nodes {
         if !seen.insert(n.id.key()) {
-            tracing::warn!(key = n.id.key(), "duplicate agent key; agents target the first");
+            crate::kit::sanitize::report(format_args!(
+                "duplicate agent key {:?}; agents target the first",
+                n.id.key()
+            ));
         }
     }
     Some(tree)
