@@ -35,8 +35,6 @@ icu = [
 ]
 # `Json` codec.
 persist-json = ["dep:serde_json"]
-# `From<egui_material_icons::MaterialIcon> for Icon`.
-material-icons = ["dep:egui_material_icons"]
 # `Toml` codec.
 persist-toml = ["dep:toml"]
 # `FsStorage` (native only); stores encoded strings, the codec is separate.
@@ -66,7 +64,6 @@ percent-encoding.workspace = true
 unicode-segmentation.workspace = true
 egui_taffy.workspace = true
 parking_lot.workspace = true
-egui_material_icons = { workspace = true, optional = true }
 toml = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 unic-langid.workspace = true

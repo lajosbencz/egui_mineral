@@ -1,5 +1,6 @@
-use egui_material_icons::icons;
 use egui_mineral::icon::Icon;
+
+use crate::icons;
 
 /// Glyphs the kit draws for its own parts (chevrons, close, check, ...), one field per role named after
 /// the Material Symbols icon it defaults to. [`Self::material`] is the default, other fonts fill the same fields

@@ -145,7 +145,7 @@ impl Stylekit for Material {
     fn setup(&self, ctx: &Context) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         match &self.fonts {
             #[cfg(feature = "bundled-icons")]
-            Fonts::Bundled => egui_material_icons::initialize(ctx),
+            Fonts::Bundled => crate::fonts::install_bundled_icons(ctx),
             Fonts::Custom(fonts) => fonts.iter().for_each(|f| f.install(ctx)),
         }
         Ok(())

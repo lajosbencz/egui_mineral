@@ -10,6 +10,7 @@ members = [
     "tools/mineral_inspector",
     "tools/md3_tokens",
     "tools/fluent_tokens",
+    "tools/material_symbols",
 ]
 
 [workspace.package]

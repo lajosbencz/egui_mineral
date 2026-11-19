@@ -139,13 +139,14 @@ minimal-versions:
     trap 'cp "$lock" Cargo.lock; rm -f "$lock"' EXIT
     cargo +nightly check --workspace --all-features -Z direct-minimal-versions
 
-# Regenerates the MD3 and Fluent specs; fails when it changed (non-blocking in CI)
+# Regenerates the MD3 and Fluent specs and the Material Symbols icons; fails when it changed (non-blocking in CI)
 spec:
     #!/usr/bin/env bash
     set -euo pipefail
     cargo run -p md3_tokens -- generate
     cargo run -p fluent_tokens -- generate
-    changes=$(git status --porcelain -- crates/egui_mineral_material/src/spec crates/egui_mineral_fluent/src/spec)
+    cargo run -p material_symbols -- generate
+    changes=$(git status --porcelain -- crates/egui_mineral_material/src/spec crates/egui_mineral_material/src/icons.rs crates/egui_mineral_fluent/src/spec)
     [ -z "$changes" ] && exit 0
     if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
         printf '## Stale generated spec\n```\n%s\n```\n' "$changes" >> "$GITHUB_STEP_SUMMARY"

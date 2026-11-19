@@ -1,5 +1,5 @@
 //! Subsets the Material Symbols fonts to the `ICON_*` constants named by every package that depends on
-//! `egui_material_icons`, the stylekit included. Writes both fonts to `OUT_DIR`.
+//! `egui_material_icons`, the stylekit included (its generated `icons.rs` lists every icon and is skipped). Writes both fonts to `OUT_DIR`.
 
 use std::{
     collections::{BTreeSet, HashMap, HashSet},
@@ -131,7 +131,7 @@ fn scan(dir: &Path, names: &mut HashSet<String>) -> Res<()> {
         let path = entry?.path();
         if path.is_dir() {
             scan(&path, names)?;
-        } else if path.extension().is_some_and(|e| e == "rs") {
+        } else if path.extension().is_some_and(|e| e == "rs") && path.file_name().is_none_or(|n| n != "icons.rs") {
             identifiers(&fs::read_to_string(&path)?, names);
         }
     }

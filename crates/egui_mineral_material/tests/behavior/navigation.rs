@@ -401,10 +401,10 @@ fn search_back_arrows_point_along_the_reading_direction() {
         let bar = render_directed(direction, WIDE, |ui| {
             ui.mineral(SearchBar::new("bar", &mut String::new()).back_button(true));
         });
-        bar.text(back.codepoint);
+        bar.text(&back.codepoint().to_string());
         let view = render_directed(direction, WIDE, |ui| {
             SearchView::new("view", &mut String::new()).show(ui, &mut true, |_, _| ());
         });
-        view.text(back.codepoint);
+        view.text(&back.codepoint().to_string());
     }
 }

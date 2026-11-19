@@ -52,21 +52,6 @@ impl Icon {
     }
 }
 
-// Orphan rules put this impl here: neither `Icon` nor `MaterialIcon` is local to a stylekit.
-#[cfg(feature = "material-icons")]
-impl From<egui_material_icons::MaterialIcon> for Icon {
-    /// Outlined and filled forms are one codepoint in two families.
-    fn from(icon: egui_material_icons::MaterialIcon) -> Self {
-        use egui_material_icons::{FONT_FAMILY, FONT_FAMILY_OUTLINED, IconStyle};
-        let ch = icon.codepoint.chars().next().unwrap_or(char::REPLACEMENT_CHARACTER);
-        let outlined = Glyph::new(FONT_FAMILY_OUTLINED, ch);
-        match icon.style {
-            IconStyle::Filled => Self::new(outlined, Glyph::new(FONT_FAMILY, ch)),
-            _ => Self::single(outlined),
-        }
-    }
-}
-
 /// Font bytes plus the family name [`Glyph::family`] refers to; installed once per context.
 #[derive(Clone, Copy, Debug)]
 pub struct IconFont {
@@ -120,16 +105,5 @@ mod tests {
     #[test]
     fn font_id_names_the_family() {
         assert_eq!(FILLED.font_id(12.0).family, FontFamily::Name("a".into()));
-    }
-
-    #[cfg(feature = "material-icons")]
-    #[test]
-    fn material_icon_maps_to_both_families() {
-        let icon = Icon::from(egui_material_icons::icons::ICON_CLOSE);
-        assert_eq!(icon.regular.family, egui_material_icons::FONT_FAMILY_OUTLINED);
-        assert_eq!(icon.filled.family, egui_material_icons::FONT_FAMILY);
-        assert_eq!(icon.regular.ch, icon.filled.ch);
-        let outlined = Icon::from(egui_material_icons::icons::ICON_CLOSE.outlined());
-        assert_eq!(outlined.glyph(true), outlined.regular);
     }
 }
