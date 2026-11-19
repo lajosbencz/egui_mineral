@@ -112,7 +112,7 @@ impl Density {
     pub const DEFAULT: Self = Self(0);
     /// Densest step, -24dp; components clamp at their content minimum before it.
     pub const MIN: Self = Self(-6);
-    /// Step where fixed-size components stop shrinking (Compose `VisualDensity.Compact`).
+    // Compose VisualDensity.Compact: where fixed-size components stop shrinking
     pub(crate) const COMPACT_FLOOR: Self = Self(-3);
     /// Least dense step; equals [`Self::DEFAULT`].
     pub const MAX: Self = Self::DEFAULT;

@@ -100,8 +100,13 @@ impl Field {
     }
 
     /// Width of the label column of a horizontal field, label gap included; default 33% of the available width.
+    #[track_caller]
     pub fn label_width(mut self, label_width: f32) -> Self {
-        self.label_width = Some(label_width);
+        self.label_width = Some(egui_mineral::kit::sanitize::at_least(
+            label_width,
+            0.0..,
+            "Field label_width",
+        ));
         self
     }
 
