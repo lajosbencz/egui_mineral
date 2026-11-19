@@ -60,21 +60,13 @@ toml.workspace = true
 
 [[test]]
 name = "spec"
-required-features = ["unstable-spec", "icu", "bundled-icons"]
+required-features = ["extras", "unstable-spec", "icu", "bundled-icons"]
 
 # Asserts ICU4X locale output.
 [[test]]
 name = "behavior"
-required-features = ["icu", "bundled-icons"]
-
-# Asserts ICU4X locale output.
-[[test]]
-name = "behavior_extras"
 required-features = ["extras", "icu", "bundled-icons"]
 
-[[test]]
-name = "spec_extras"
-required-features = ["extras", "unstable-spec", "icu", "bundled-icons"]
-
+# Asserts ICU4X locale output.
 [lints]
 workspace = true
