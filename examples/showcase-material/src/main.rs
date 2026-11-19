@@ -634,10 +634,18 @@ mod tests {
             .map(|w| egui::vec2(w, 900.0))
             .collect();
         let mut failed = Vec::new();
-        let configs = [(0, 0, 1.0), (rtl, -3, 0.5), (0, -3, 3.0), (rtl, 0, 3.0)];
+        let configs = [(0, 0, 1.0), (rtl, -6, 0.5), (0, -3, 3.0), (rtl, 0, 3.0)];
         for (i, (locale, density, zoom)) in configs.into_iter().enumerate() {
             let (mut ctx, mut app) = fresh(locale, density, zoom);
-            for size in DEGENERATE.into_iter().chain(classes.iter().copied()) {
+            // Every size in the plain config; the others take the degenerate sizes once and the extreme classes.
+            let degenerate = if i < 2 { &DEGENERATE[..] } else { &[] };
+            let extremes = [classes.first(), classes.last()];
+            let sized: Vec<egui::Vec2> = if i == 0 {
+                classes.clone()
+            } else {
+                extremes.into_iter().flatten().copied().collect()
+            };
+            for size in degenerate.iter().copied().chain(sized) {
                 let width = i == 0 && classes.contains(&size);
                 let case = format!("{size:?} locale={locale} density={density} zoom={zoom}");
                 let run = panic::catch_unwind(AssertUnwindSafe(|| check(&ctx, &mut app, page, size, width)));

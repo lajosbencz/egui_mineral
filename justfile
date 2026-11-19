@@ -52,9 +52,9 @@ clippy:
 # Features of the published crates but `unstable-hotpatch`
 test_features := "egui_mineral/platform-native,egui_mineral/persist-json,egui_mineral/web-save-stream,egui_mineral_material/theme-file,egui_mineral_material/unstable-catalog,egui_mineral_material/unstable-spec,egui_mineral_fluent/unstable-catalog,egui_mineral_fluent/unstable-spec"
 
-# Extra args go to nextest, e.g. `--no-run`
+# Default features (+spec) without the showcases' feature unification, every feature, none; extra args go to nextest, e.g. `--no-run`
 test *args:
-    cargo nextest run --workspace --features egui_mineral_material/unstable-spec,egui_mineral_fluent/unstable-spec {{ args }}
+    cargo nextest run -p egui_mineral -p egui_mineral_material -p egui_mineral_fluent --features egui_mineral_material/unstable-spec,egui_mineral_fluent/unstable-spec {{ args }}
     cargo nextest run --workspace --features {{ test_features }} {{ args }}
     cargo nextest run -p egui_mineral -p egui_mineral_material -p egui_mineral_fluent --no-default-features --features egui_mineral_material/bundled-icons,egui_mineral_fluent/bundled-icons {{ args }}
 

@@ -1,11 +1,8 @@
 //! Agent parity: agents act through the same raw input path as users and screen readers.
 
-#[path = "../support/mod.rs"]
-#[expect(dead_code, reason = "shared by the test binaries, each uses a part")]
-mod support;
-
 use std::collections::BTreeSet;
 
+use crate::support::{MineralHarness, SCREEN, TreeNode, WIDE, harness};
 use egui::accesskit::{Role, Toggled};
 use egui_kittest::kittest::{NodeT as _, Queryable as _};
 use egui_mineral::{
@@ -21,7 +18,6 @@ use egui_mineral_material::{
     extras::{DataTable, TableCell, TreeView},
     selection::{CheckButton, ValueSlider},
 };
-use support::{MineralHarness, SCREEN, TreeNode, WIDE, harness};
 
 #[test]
 fn agent_click_and_tap_activate_button() {

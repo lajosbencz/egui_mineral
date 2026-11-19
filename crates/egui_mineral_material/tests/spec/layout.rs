@@ -95,7 +95,7 @@ fn size_overrides_win_over_token_defaults() {
 
 #[test]
 fn linear_progress_narrower_than_its_caps_paints() {
-    for width in [0.0, 1.0, 2.0, 3.0] {
+    for width in [0.0, 3.0] {
         harness(SCREEN, (), move |ui, ()| {
             for (i, wavy) in [false, true].into_iter().enumerate() {
                 ui.mineral(

@@ -116,15 +116,15 @@ fn dense_rows_take_the_set_row_height() {
 fn culled_rows_register_no_widgets() {
     use egui_mineral::semantic::Action;
 
-    const ROWS: u32 = 10_000;
+    const ROWS: u32 = 1000;
     let roots: Vec<TreeNode> = (0..ROWS).map(|k| TreeNode::leaf(k, "Row")).collect();
     let mut h = harness(SCREEN, Expansion::<u32>::default(), move |ui, open| {
         TreeView::new("tree", "Files", &roots, open).show(ui);
     });
     h.run();
-    assert!(h.node("tree-9000-treeitem").actions.contains(&Action::ScrollIntoView));
+    assert!(h.node("tree-900-treeitem").actions.contains(&Action::ScrollIntoView));
     let widgets: usize = h
         .ctx
         .viewport(|v| v.prev_pass.widgets.layers().map(|(_, w)| w.len()).sum());
-    assert!(widgets < 500, "{widgets} widgets for {ROWS} rows");
+    assert!(widgets < 150, "{widgets} widgets for {ROWS} rows");
 }

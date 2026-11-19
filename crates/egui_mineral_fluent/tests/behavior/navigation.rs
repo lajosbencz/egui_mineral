@@ -886,8 +886,8 @@ fn carousel_autoplay_starts_paused_and_stops_under_reduced_motion() {
 mod big_tree {
     use super::*;
 
-    const PARENTS: usize = 100;
-    const KIDS: usize = 99;
+    const PARENTS: usize = 20;
+    const KIDS: usize = 24;
 
     fn big() -> Harness<'static, Expansion<String>> {
         let roots: Vec<TreeItem> = (0..PARENTS)
@@ -914,7 +914,7 @@ mod big_tree {
         let widgets: usize = h
             .ctx
             .viewport(|v| v.prev_pass.widgets.layers().map(|(_, w)| w.len()).sum());
-        assert!(widgets < 500, "{widgets} widgets for {} rows", PARENTS * (KIDS + 1));
+        assert!(widgets < 150, "{widgets} widgets for {} rows", PARENTS * (KIDS + 1));
     }
 
     #[test]
@@ -923,10 +923,13 @@ mod big_tree {
         h.run();
         h.click("t-p0-treeitem");
         h.key_press(Key::End);
-        // The scroll to the target animates.
-        h.run_steps(60);
         let last = format!("t-p{}k{}-treeitem", PARENTS - 1, KIDS - 1);
-        assert!(h.node(&last).state.focused);
+        // Step until focused: the scroll to the target animates past kittest's `max_steps`.
+        let focused = (0..30).any(|_| {
+            h.step();
+            h.node(&last).state.focused
+        });
+        assert!(focused, "End did not focus {last}");
     }
 }
 

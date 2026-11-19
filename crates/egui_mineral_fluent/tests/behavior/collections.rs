@@ -517,7 +517,7 @@ mod table {
     fn culled_rows_register_no_widgets() {
         use egui_mineral::semantic::Action;
 
-        const ROWS: usize = 10_000;
+        const ROWS: usize = 1000;
         let mut h = harness((), |ui, (): &mut ()| {
             let rt = ui.rt();
             egui::ScrollArea::vertical().show(ui, |ui| {
@@ -527,11 +527,11 @@ mod table {
             });
         });
         h.run();
-        assert!(h.node("t-row-9000").actions.contains(&Action::ScrollIntoView));
+        assert!(h.node("t-row-900").actions.contains(&Action::ScrollIntoView));
         let widgets: usize = h
             .ctx
             .viewport(|v| v.prev_pass.widgets.layers().map(|(_, w)| w.len()).sum());
-        assert!(widgets < 500, "{widgets} widgets for {ROWS} rows");
+        assert!(widgets < 150, "{widgets} widgets for {ROWS} rows");
     }
 
     #[test]

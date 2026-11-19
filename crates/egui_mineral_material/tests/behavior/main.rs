@@ -5,6 +5,7 @@
 mod support;
 
 mod actions;
+mod agent;
 mod composites;
 mod containment;
 mod coverage;
@@ -19,6 +20,7 @@ mod overlays;
 mod pan;
 mod prelude_glob;
 mod response_contract;
+mod route;
 mod selection;
 mod shell;
 mod tree_view;

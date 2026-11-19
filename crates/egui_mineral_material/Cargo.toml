@@ -65,9 +65,5 @@ required-features = ["unstable-spec", "icu", "bundled-icons"]
 name = "behavior"
 required-features = ["icu", "bundled-icons"]
 
-[[test]]
-name = "agent"
-required-features = ["icu", "bundled-icons"]
-
 [lints]
 workspace = true
