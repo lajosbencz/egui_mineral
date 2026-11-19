@@ -5,7 +5,7 @@ use crate::kit::state::TempState;
 /// Last size stored for `id`; on first appearance requests a discard so the measured pass is shown instead.
 pub fn size_or_discard(ctx: &Context, id: Id) -> Option<Vec2> {
     let size = Vec2::try_load(ctx, id);
-    if size.is_none() {
+    if size.is_none() && ctx.current_pass_index() == 0 {
         ctx.request_discard("mineral: unsized container");
     }
     size
