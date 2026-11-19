@@ -39,7 +39,7 @@ Module map, config, commands and release. Overview: [WORKSPACE.md](../WORKSPACE.
 
 The [`justfile`](../justfile) is the single source of the checks; [`ci.yml`](../.github/workflows/ci.yml) and [`hygiene.yml`](../.github/workflows/hygiene.yml) call its recipes. `just tools` installs the tools, `just ci` runs every blocking check, `just --list` shows the parts (`check`: fmt, clippy matrix, nextest, ICU4X trimmed data, docs, package; `hygiene`: typos, deny, ast-grep, machete, workflow lints; non-blocking: `spec`, `api-diff`). Tool pins live in the justfile, outside Dependabot. Crate READMEs (`crates/*/README.md`) are generated from their `lib.rs` docs: edit the docs, then `just readme`. CI verifies pull requests; on master it only builds, when manifests, lockfile, toolchain or workflow change, to refresh the caches pull requests restore.
 
-Not in CI: `cargo bench -p egui_mineral`, `cargo run -p showcase` (F12: inspector).
+Not in CI: `cargo bench -p egui_mineral`, `cargo run -p showcase` (F12: inspector), `just hotpatch` (the showcase under `dx`: edits inside UI functions apply live, struct layout changes need a restart).
 
 ## Release
 

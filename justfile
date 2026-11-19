@@ -11,6 +11,7 @@ public_api_version := "0.52.0"
 cargo_edit_version := "0.13.14"
 zizmor_version := "1.32.0"
 ast_grep_version := "0.51.2"
+dx_version := "0.7.10"
 # Release asset digests of the downloaded binaries, CI only.
 ast_grep_sha256 := "40604c21c38d4c7581c56bdddeef277c56bf3c0113620aa96e78ae87e82366df"
 actionlint_version := "1.7.12"
@@ -147,8 +148,9 @@ api-diff base head="HEAD":
 # Every Hygiene job
 hygiene: typos deny rules machete workflows
 
-# Native showcase under `dx` subsecond hot-patching; needs `cargo install dioxus-cli --version 0.7.10 --locked`
+# Native showcase under `dx` subsecond hot-patching (dioxus-cli `dx_version`)
 hotpatch:
+    @dx --version | grep -q ' {{ dx_version }}' || { echo "needs dioxus-cli {{ dx_version }}: cargo install dioxus-cli --version {{ dx_version }} --locked"; exit 1; }
     dx serve --hotpatch --platform linux --package showcase --features hotpatch
 
 # CI runs crate-ci/typos
