@@ -29,7 +29,7 @@ use std::path::Path;
 /// [`PlatformClipboard`] (`platform-clipboard`) and [`PlatformNotifier`] (`platform-notify`)
 /// only with their feature.
 ///
-/// Native clipboard, file read and writer-creation work runs on the app's [`BlockingSpawner`].
+/// Native clipboard, file read and writer-creation work runs on the app's `bus::BlockingSpawner`.
 #[derive(Clone)]
 #[cfg_attr(target_arch = "wasm32", derive(Default))]
 pub struct NativePlatform {

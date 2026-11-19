@@ -752,7 +752,7 @@ impl<'a> Avatar<'a> {
         let radius = self.radius(rect);
         if self.active == AvatarActive::Active {
             if self.appearance.shadow() {
-                paint::shadow(&p, rect, radius, self.elevation(), false, t);
+                paint::shadow(&p, rect, radius, self.elevation(), t);
             }
             if self.appearance.ring() {
                 let w = d::ring_width(size) * unit;

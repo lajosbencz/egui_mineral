@@ -382,7 +382,7 @@ impl Handle<'_> {
         // useThumbStyles: `strokeWidthThin` `colorNeutralForeground4` border, `shadow4`, `strokeWidthThick` ring.
         let thumb = Rect::from_center_size(thumb_center, vec2(cp::THUMB_SIZE, cp::THUMB_SIZE));
         let circle = CornerRadius::from(BORDER_RADIUS_CIRCULAR);
-        paint::shadow(p, thumb, circle, Elevation::E4, false, t);
+        paint::shadow(p, thumb, circle, Elevation::E4, t);
         let fill = if self.channel == Some(Channel::Alpha) {
             t.color(ColorNeutralBackground1)
         } else {

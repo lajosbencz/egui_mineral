@@ -45,9 +45,8 @@ pub(crate) fn icon(p: &Painter, center: Pos2, icon: FluentIcon, filled: bool, si
     p.galley(center - vec2(g.size().x / 2.0, mid_y), g, color);
 }
 
-pub(crate) fn shadow(p: &Painter, rect: Rect, r: CornerRadius, level: Elevation, brand: bool, t: &Tokens) {
-    let tint = if brand { ShadowTint::Brand } else { ShadowTint::Neutral };
-    for layer in t.shadow(level, tint) {
+pub(crate) fn shadow(p: &Painter, rect: Rect, r: CornerRadius, level: Elevation, t: &Tokens) {
+    for layer in t.shadow(level, ShadowTint::Neutral) {
         p.add(layer.as_shape(rect, r));
     }
 }

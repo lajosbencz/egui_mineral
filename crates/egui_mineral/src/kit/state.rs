@@ -90,7 +90,7 @@ impl<T> Memo<T> {
     }
 }
 
-/// Passes a widget state may go untouched before it is evicted; egui never frees temp data itself.
+// Passes; egui never frees temp data itself.
 const EVICT_AFTER: u64 = 3600;
 const SWEEP_EVERY: u64 = 600;
 
@@ -121,8 +121,6 @@ impl<S> Default for Touched<S> {
     }
 }
 
-/// Stores widget `state` under `id` and evicts states of type `S` untouched for [`EVICT_AFTER`] passes, so rows
-/// that vanished do not accumulate. Zero-sized states are not stored, they come back as `Default`.
 pub(crate) fn store_evicting<S: Clone + Send + Sync + 'static>(ctx: &Context, pass: u64, id: Id, state: S) {
     if size_of::<S>() == 0 {
         return;

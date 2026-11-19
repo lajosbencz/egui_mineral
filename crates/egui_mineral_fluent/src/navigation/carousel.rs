@@ -214,7 +214,7 @@ impl CarouselUi<'_, '_> {
         if elevated {
             let card_rect = rect.shrink(inset);
             let radius = Radius::XLarge.on(card_rect);
-            paint::shadow(self.ui.painter(), card_rect, radius, Elevation::E16, false, &t);
+            paint::shadow(self.ui.painter(), card_rect, radius, Elevation::E16, &t);
         }
         let (_, response) = self.ui.allocate_exact_size(rect.size(), Sense::hover());
         let key = AgentKey::Kind("carouselcard").id(&self.salt.child(index));

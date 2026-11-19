@@ -249,7 +249,7 @@ impl MineralWidget for Image<'_> {
         }
         .on(rect);
         if self.shadow {
-            paint::shadow(ui.painter(), rect, radius, Elevation::E4, false, &t);
+            paint::shadow(ui.painter(), rect, radius, Elevation::E4, &t);
         }
         match self.load(ui, rect.size()) {
             Load::Ready(id, natural) => {

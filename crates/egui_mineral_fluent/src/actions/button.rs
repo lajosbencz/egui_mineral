@@ -751,7 +751,7 @@ impl MineralWidget for PushButton<'_> {
 
         if i.focused && self.appearance == ButtonAppearance::Primary {
             // react-button useRootFocusStyles.primary `shadow2`
-            paint::shadow(p, rect, r, Elevation::E2, false, &t);
+            paint::shadow(p, rect, r, Elevation::E2, &t);
         }
         p.rect_filled(rect, r, look.fill);
         let stroke_rect = match (self.join, dir) {

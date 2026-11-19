@@ -65,7 +65,7 @@ fn declared_modals_id(ctx: &Context) -> Id {
     Id::unique(("mineral::declared_modals", ctx.viewport_id()))
 }
 
-/// Marks `layer` as a modal shown this pass; egui reports it as [`top_modal`] only from the next pass.
+// egui reports a modal as `top_modal` only from the next pass.
 pub(crate) fn declare_modal(ctx: &Context, layer: LayerId) {
     let (pass, id) = (ctx.cumulative_pass_nr(), declared_modals_id(ctx));
     ctx.data_mut(|d| {
@@ -82,7 +82,6 @@ pub(crate) fn declare_modal(ctx: &Context, layer: LayerId) {
     });
 }
 
-/// `layer` is [`top_modal`] or was passed to [`declare_modal`] this pass.
 pub(crate) fn is_modal(ctx: &Context, layer: LayerId) -> bool {
     let (pass, id) = (ctx.cumulative_pass_nr(), declared_modals_id(ctx));
     top_modal(ctx) == Some(layer)

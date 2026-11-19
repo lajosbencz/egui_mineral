@@ -507,7 +507,7 @@ impl MineralWidget for TabItem<'_> {
 
         if i.focused {
             let p = ui.painter();
-            paint::shadow(p, rect, radius, Elevation::E4, false, &t);
+            paint::shadow(p, rect, radius, Elevation::E4, &t);
             p.rect_stroke(
                 rect,
                 radius,
