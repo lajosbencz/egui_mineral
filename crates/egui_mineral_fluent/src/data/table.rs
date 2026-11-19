@@ -663,12 +663,18 @@ fn run(
         geo: &geo,
         order: &order,
     };
-    for r in 0..shown {
+    let drawn = (stop.filter(|s| *s < visible.start).into_iter())
+        .chain(visible.clone())
+        .chain(stop.filter(|s| *s >= visible.end));
+    for r in drawn {
         let Some(data) = order.data(r) else { continue };
-        if visible.contains(&r) || stop == Some(r) {
-            body_row(ui, &mut tb, &pass, &mut grid, &mut ev, (r, data), &mut cell);
-        } else {
-            culled_row(ui, &tb, &pass, (r, data));
+        body_row(ui, &mut tb, &pass, &mut grid, &mut ev, (r, data), &mut cell);
+    }
+    if kit::semantic::wanted(ui.ctx(), None) {
+        for r in (0..shown).filter(|r| !visible.contains(r) && stop != Some(*r)) {
+            if let Some(data) = order.data(r) {
+                culled_row(ui, &tb, &pass, (r, data));
+            }
         }
     }
     grid.finish(ui, grid_id, cells, &geo);
@@ -876,14 +882,14 @@ fn body_row(
     emit_row(ui, tb, rid, rect, data);
 }
 
-// Rows outside the viewport paint nothing but stay reachable: agents scroll them in via `ScrollIntoView`.
+// Rows outside the viewport paint nothing but stay reachable as tree-only nodes: agents scroll them in via `ScrollIntoView`.
 fn culled_row(ui: &MineralUi<'_, Fluent>, tb: &Table<'_>, pass: &Pass<'_>, (r, data): (usize, usize)) {
     let rect = pass.geo.row(r + 1);
     let rid = pass.id.with(("row", data));
-    if !kit::semantic::wanted(ui.ctx(), Some(rid)) {
-        return;
+    // A widget exists only for the pass that serves the scroll request.
+    if ui.input(|i| i.has_accesskit_action_request(rid, egui::accesskit::Action::ScrollIntoView)) {
+        ui.interact(rect, rid, Sense::hover());
     }
-    ui.interact(rect, rid, Sense::hover());
     emit_row(ui, tb, rid, rect, data);
 }
 

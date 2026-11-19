@@ -514,6 +514,27 @@ mod table {
     }
 
     #[test]
+    fn culled_rows_register_no_widgets() {
+        use egui_mineral::semantic::Action;
+
+        const ROWS: usize = 10_000;
+        let mut h = harness((), |ui, (): &mut ()| {
+            let rt = ui.rt();
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                Table::new("t", "People", columns()).show(&mut rt.ui(ui), ROWS, |ui, row, col| {
+                    ui.mineral(Text::new((("cell", row), col), "x"));
+                });
+            });
+        });
+        h.run();
+        assert!(h.node("t-row-9000").actions.contains(&Action::ScrollIntoView));
+        let widgets: usize = h
+            .ctx
+            .viewport(|v| v.prev_pass.widgets.layers().map(|(_, w)| w.len()).sum());
+        assert!(widgets < 500, "{widgets} widgets for {ROWS} rows");
+    }
+
+    #[test]
     fn agents_scroll_culled_rows_into_view() {
         use egui_mineral::{agent::AgentAction, semantic::Action};
 
