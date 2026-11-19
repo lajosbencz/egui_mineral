@@ -1,8 +1,9 @@
 # Dependabot patch and minor updates merge once the required checks pass.
-# Major ones wait for a human approval.
+# 0.MINOR is breaking: a minor bump merges only from major >= 1. Majors wait for a human approval.
 name: Dependabot auto-merge
 
-# A merge by GITHUB_TOKEN triggers no push workflows; release-plz and Pages catch up on the next push.
+# Merges with the release App token so push workflows (release-plz, Pages, caches) fire.
+# On Dependabot pull requests the secret is read from the Dependabot secret store.
 on: pull_request
 
 permissions: {}
@@ -12,18 +13,29 @@ jobs:
     if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' && github.repository == 'lajosbencz/egui_mineral' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    permissions:
-      contents: write
-      pull-requests: write
     steps:
       - id: meta
         uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
-      # fetch-metadata calls 0.9 -> 0.10 minor; Cargo and the cargo-major group call it breaking.
-      - if: >-
-          (steps.meta.outputs.update-type == 'version-update:semver-minor' ||
-          steps.meta.outputs.update-type == 'version-update:semver-patch') &&
-          steps.meta.outputs.dependency-group != 'cargo-major'
+      # Every updated dependency must qualify; an empty prevVersion fails closed.
+      - id: gate
+        env:
+          DEPS: ${{ steps.meta.outputs.updated-dependencies-json }}
+        run: |
+          ok=$(jq -r 'length > 0 and all(
+            .updateType == "version-update:semver-patch"
+            or (.updateType == "version-update:semver-minor" and (.prevVersion | test("^v?[1-9][0-9]*\\.")))
+          )' <<<"$DEPS")
+          echo "ok=$ok" >> "$GITHUB_OUTPUT"
+      - if: ${{ steps.gate.outputs.ok == 'true' }}
+        id: app
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+      - if: ${{ steps.gate.outputs.ok == 'true' }}
         run: gh pr merge --auto --squash "$PR"
         env:
           PR: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.app.outputs.token }}
