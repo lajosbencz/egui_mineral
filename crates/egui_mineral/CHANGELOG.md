@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral-v0.4.1...egui_mineral-v0.5.0) - 2026-11-19
+
+### Added
+
+- *(core)* [**breaking**] MineralWidget::pan_axis routes single-axis touch drags through PanClaim so off-axis swipes scroll the page; slider, switch and color bars migrate.
+- *(core)* [**breaking**] kit::overlay::modal builds egui::Modal on modal_area, raw-egui-area flags Modal::new.
+- *(core)* [**breaking**] embedded windows get an owned close control with a modality-sized hit target, Stylekit::paint_window_close draws its glyph, WindowSpec::show requires Stylekit.
+- *(core)* PanClaim claims a pan on one axis and relays the rest, the overshoot and the release fling to the enclosing scroll area.
+- *(core)* opt-in GlobalStyle::Kit writes the kit style and theme preference into egui's globals from the outermost pass; default stays Egui
+
+### Fixed
+
+- *(core)* request a repaint while queued agent acts wait for a tree after a non-collecting pass
+- *(core)* PanClaim relays pans and coasts through the owner widget's Ui so sibling scroll areas never take them, unserved deltas fall back to the root Ui.
+- *(core)* [**breaking**] PanClaim relays pans and coasts from the widget's own Ui, so only its nearest scrolling ancestor scrolls.
+- *(core)* library modals bind shortcuts and mnemonics in their own scope from the pass they open in.
+- *(core)* embedded WindowSpec windows get a close button with a pointer-sized hit target
+- *(core)* a popup ignores presses of its opening frame and Popover::show_at focuses the first focusable of its content.
+- *(core)* fraction digits beyond f64 precision leave the value, so snapping stays idempotent.
+
+### Other
+
+- *(material)* style() shares the per-pass token snapshot, so a mid-pass setter never mixes schemes; fix perf doc lints.
+- *(core)* input adapter translates events under ctx.input and shares the empty event slice
+- *(core)* semantic wanted check takes one ctx.data read and skips AccessKit when collecting
+- *(core)* shortcut and mnemonic duplicate detection through a hash index
+- *(core)* MineralUi fetches the pass input once and widget state is moved out of temp data instead of cloned.
+- *(core)* composites discard only for resizes over half a point and only while visible.
+- *(core)* reword PanClaim::relaying doc.
+- *(core)* rustfmt runtime imports.
+- window close control comment as spec-free quirk note.
+- regenerate egui_mineral README for the Stylekit hook.
+- *(core)* drop doc comments on crate-private pan relay items.
+- bump published crates to 0.5.0 for the dismissal behavior change.
+- *(core)* [**breaking**] overlay::dismissal ignores presses in the frame the overlay opened, outside_press_after_open covers kit-owned checks.
+
 ## [0.4.1](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral-v0.4.0...egui_mineral-v0.4.1) - 2026-11-19
 
 ### Added

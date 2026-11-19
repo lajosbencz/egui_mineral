@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral_material-v0.4.1...egui_mineral_material-v0.5.0) - 2026-11-19
+
+### Added
+
+- *(core)* [**breaking**] MineralWidget::pan_axis routes single-axis touch drags through PanClaim so off-axis swipes scroll the page; slider, switch and color bars migrate.
+- *(core)* [**breaking**] kit::overlay::modal builds egui::Modal on modal_area, raw-egui-area flags Modal::new.
+- *(core)* [**breaking**] embedded windows get an owned close control with a modality-sized hit target, Stylekit::paint_window_close draws its glyph, WindowSpec::show requires Stylekit.
+- *(material)* StatusItem::linear_progress shows a determinate or indeterminate linear indicator before the text.
+
+### Fixed
+
+- *(core)* PanClaim relays pans and coasts through the owner widget's Ui so sibling scroll areas never take them, unserved deltas fall back to the root Ui.
+- *(core)* [**breaking**] PanClaim relays pans and coasts from the widget's own Ui, so only its nearest scrolling ancestor scrolls.
+- *(material)* modal sheets and drawers declare their floating layer, so they bind in their own scope from the opening pass.
+- *(fluent)* menus opened by code in the same pass as a press survive it, and material Menu uses the core opening-frame guard.
+- *(core)* embedded WindowSpec windows get a close button with a pointer-sized hit target
+- *(material)* carousel claims only its own axis of a pan and chains the overshoot to the enclosing scroll
+- *(core)* a popup ignores presses of its opening frame and Popover::show_at focuses the first focusable of its content.
+
+### Other
+
+- *(material)* style() shares the per-pass token snapshot, so a mid-pass setter never mixes schemes; fix perf doc lints.
+- *(material,fluent)* table select-all counts the selection, carousel discards only on pass 0 and re-measures on width change and skips off-screen autoplay wakes, button group measures once, data table reuses its cell buffer.
+- *(material,fluent)* [**breaking**] ui.tokens() serves the tokens and scheme frozen for the egui pass; Material and Fluent setters apply from the next pass.
+- *(material)* TreeView locates pending, stop and selected rows in one scan and clones the visual order only for Shift-click.
+- *(material)* carousel and swipeable list rows use core PanClaim, so a vertical flick over them keeps the page coasting.
+- bump published crates to 0.5.0 for the dismissal behavior change.
+
 ## [0.4.1](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral_material-v0.4.0...egui_mineral_material-v0.4.1) - 2026-11-19
 
 ### Other

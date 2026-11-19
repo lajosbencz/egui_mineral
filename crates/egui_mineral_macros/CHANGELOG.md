@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral_macros-v0.4.0...egui_mineral_macros-v0.5.0) - 2026-11-19
+
+### Other
+
+- bump published crates to 0.5.0 for the dismissal behavior change.
+
 ## [0.4.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral_macros-v0.3.0...egui_mineral_macros-v0.4.0) - 2026-11-19
 
 ### Other
