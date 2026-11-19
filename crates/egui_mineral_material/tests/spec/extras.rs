@@ -202,3 +202,25 @@ fn date_and_tag_fields_take_density_label_visibility_and_affixes() {
     assert_eq!(p.node("t-tags").name, "Tags");
     p.text("#");
 }
+
+#[test]
+fn otp_label_sits_above_the_cells_unless_hidden() {
+    use egui_mineral_material::{extras::OtpField, spec::TypeScale};
+    let mut code = String::new();
+    let mut shown = |visible: bool| {
+        crate::support::render_zones(|ui| {
+            ui.mineral(OtpField::new("o", "Code", 4, &mut code).label_visible(visible))
+                .zones()
+        })
+    };
+    let (with, without) = (shown(true), shown(false));
+    let (visual, bare) = (
+        with.zones.expect("zones reported").visual,
+        without.zones.expect("zones reported").visual,
+    );
+    let label_h = TypeScale::BodySmall.line_height() + 4.0;
+    assert_eq!(visual.height() - bare.height(), label_h);
+    assert!(with.text("Code").bottom() <= visual.top() + label_h);
+    assert_eq!(without.node("o-otp").name, "Code");
+    assert_eq!(with.node("o-otp").name, "Code");
+}
