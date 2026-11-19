@@ -13,7 +13,7 @@ use egui_mineral_material::{
     text_inputs::{TextField, TextFieldVariant},
 };
 
-use crate::support::{MineralHarness, Mui, SCREEN, build, builder, harness, min_interactive, still};
+use crate::support::{MineralHarness, Mui, SCREEN, build, builder, harness, min_interactive, runtime, still};
 
 const KEYS: [&str; 4] = ["f-field", "o-field", "ib-button", "b-button"];
 
@@ -141,6 +141,9 @@ fn text_style_sets_the_line_spacing_of_extra_rows() {
     assert_eq!(body - small, 3.0 * gap);
 }
 
+// Narrowest phone in portrait (dp); the other window classes start at their breakpoints.
+const COMPACT_MIN: f32 = 320.0;
+
 const DL_ITEMS: [(&str, &str); 6] = [
     ("Name", "egui_mineral"),
     ("License", "GPL-3.0-or-later"),
@@ -159,7 +162,7 @@ fn description_list(layout: DescriptionLayout, columns: usize) -> DescriptionLis
 }
 
 #[test]
-fn full_width_composites_never_widen_their_page() {
+fn full_width_composites_fit_every_window_class() {
     type Add = fn(&mut Mui<'_>);
     let cases: [(&str, Add); 5] = [
         ("stepper", |ui| {
@@ -195,7 +198,9 @@ fn full_width_composites_never_widen_their_page() {
             ui.mineral(description_list(DescriptionLayout::Horizontal, 1));
         }),
     ];
-    for width in [360.0, 673.0, 1024.0] {
+    let rt = runtime(&egui::Context::default(), egui::Theme::Light);
+    let breakpoints = rt.core().policies().breakpoints.clone();
+    for width in std::iter::once(COMPACT_MIN).chain(breakpoints.iter().copied()) {
         for (name, add) in cases {
             // Settled overflow: a page scroll widens to its content, so excess compounds across passes.
             let mut h = still(vec2(width, 600.0), 0.0_f32, move |ui, over| {
