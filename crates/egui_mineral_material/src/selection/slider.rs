@@ -14,6 +14,12 @@ use egui_mineral::{
     widget::{Availability, MineralWidget, PanGate, WidgetFrame, WidgetResponse},
 };
 
+use crate::MaterialUiExt as _;
+use crate::extras::NumberField;
+use crate::text_inputs::TextFieldVariant;
+use crate::text_inputs::text_field::field_h;
+use egui_mineral::i18n::Direction;
+use egui_mineral::widget::SizeExt as _;
 use crate::widget::parts;
 use crate::{
     MaterialIcon,
@@ -29,6 +35,8 @@ use crate::{
 };
 
 const MAX_TICKS: usize = 64;
+// No MD3 value; five bodyLarge digits with the field paddings
+const VALUE_FIELD_WIDTH: f32 = 88.0;
 const OUTER_ICON: f32 = 24.0;
 const OUTER_ICON_GAP: f32 = 8.0;
 
@@ -127,6 +135,7 @@ pub struct ValueSlider<'a> {
     centered: bool,
     axis: Axis,
     icons: EndIcons,
+    value_field: bool,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -200,6 +209,7 @@ impl<'a> ValueSlider<'a> {
             centered: false,
             axis: Axis::Horizontal,
             icons: EndIcons::default(),
+            value_field: false,
         }
     }
 
@@ -218,6 +228,13 @@ impl<'a> ValueSlider<'a> {
     /// Value label text; default the locale number format.
     pub fn format(mut self, format: impl Fn(f64) -> String + 'a) -> Self {
         self.format = Some(Box::new(format));
+        self
+    }
+
+    /// Number field after the track bound to the same value, labeled and named like the slider.
+    /// Single thumb, horizontal only. Default `false`.
+    pub fn value_field(mut self, value_field: bool) -> Self {
+        self.value_field = value_field;
         self
     }
 
@@ -285,6 +302,10 @@ impl<'a> ValueSlider<'a> {
     fn cross(&self) -> f32 {
         let m = metrics(self.size);
         m.handle.max(m.track)
+    }
+
+    fn has_value_field(&self) -> bool {
+        self.value_field && self.values.len() == 1 && self.axis == Axis::Horizontal
     }
 
     fn is_centered(&self) -> bool {
@@ -597,7 +618,12 @@ impl MineralWidget for ValueSlider<'_> {
         } else {
             self.axis.main(ui.available_size())
         };
-        c.constrain(self.axis.vec2(main, self.cross())).into()
+        let cross = if self.has_value_field() {
+            self.cross().max(field_h(ui.density(), TextFieldVariant::Outlined, false))
+        } else {
+            self.cross()
+        };
+        c.constrain(self.axis.vec2(main, cross)).into()
     }
 
     fn update(
@@ -608,7 +634,8 @@ impl MineralWidget for ValueSlider<'_> {
     ) -> WidgetResponse {
         let rt = ui.rt();
         let t = ui.tokens();
-        let lay = self.slider_layout(rt, frame.zones.visual);
+        let (track, field) = self.split_value_field(rt, frame.zones.visual);
+        let lay = self.slider_layout(rt, track);
         let r = &frame.response;
         let before: Vec<f64> = self.values.to_vec();
         for v in self.values.iter_mut() {
@@ -631,6 +658,9 @@ impl MineralWidget for ValueSlider<'_> {
         self.paint_track(ui.painter(), &pc);
         self.paint_thumbs(ui, &pc);
         self.emit_thumb_nodes(rt, &pc);
+        if let Some(field) = field {
+            self.show_value_field(ui, field);
+        }
         let changed = before
             .iter()
             .zip(self.values.iter())
@@ -662,6 +692,42 @@ impl MineralWidget for ValueSlider<'_> {
 }
 
 impl ValueSlider<'_> {
+    // The track rect and, with `value_field`, the rect of the field at the end.
+    fn split_value_field(&self, rt: &Rt, visual: Rect) -> (Rect, Option<Rect>) {
+        if !self.has_value_field() {
+            return (visual, None);
+        }
+        let width = VALUE_FIELD_WIDTH.min(visual.width() / 2.0);
+        let gap = crate::adaptive::grid(2);
+        let dir = rt.i18n().direction();
+        let (track, field) = match dir {
+            Direction::Ltr => (
+                Rect::from_min_max(visual.min, pos2(visual.right() - width - gap, visual.bottom())),
+                Rect::from_min_max(pos2(visual.right() - width, visual.top()), visual.max),
+            ),
+            Direction::Rtl => (
+                Rect::from_min_max(pos2(visual.left() + width + gap, visual.top()), visual.max),
+                Rect::from_min_max(visual.min, pos2(visual.left() + width, visual.bottom())),
+            ),
+        };
+        (track, Some(field))
+    }
+
+    fn show_value_field(&mut self, ui: &mut MineralUi<'_, Material>, rect: Rect) {
+        let rt = ui.rt();
+        let (salt, range, disabled) = (self.salt.clone(), self.range, self.disabled);
+        let field = NumberField::new(salt.child("value"), self.label.clone(), range, &mut self.values[0])
+            .variant(TextFieldVariant::Outlined)
+            .label_visible(false)
+            .step_buttons(false)
+            .disabled(disabled)
+            .agent_key(StableId::of(&salt, "value"))
+            .preferred_width(rect.width());
+        ui.scope_builder(egui::UiBuilder::new().max_rect(rect), |ui| {
+            rt.ui(ui).mineral(field);
+        });
+    }
+
     fn node(&self, i18n: &I18n, id: StableId, name: String, v: f64) -> SemanticNode {
         SemanticNode::new(id, Role::Slider, name)
             .value(self.text(i18n, v))
