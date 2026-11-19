@@ -106,20 +106,19 @@ hotpatch-guard:
         exit 1
     fi
 
-# Mirrors `[package.metadata.docs.rs] features` of each crate
-docsrs_core := "icu,persist-fs,persist-json,persist-toml,platform-native,web-save-stream"
-docsrs_material := "icu,persist-fs,persist-json,persist-toml,bundled-icons,theme-file,extras,unstable-catalog,unstable-spec"
-docsrs_fluent := "icu,persist-fs,persist-json,persist-toml,bundled-icons,unstable-catalog,unstable-spec"
-
-# Doctests, rustdoc and the docs.rs build
+# Doctests, rustdoc and the docs.rs build (each crate's `[package.metadata.docs.rs]` features and targets)
 doc:
+    #!/usr/bin/env bash
+    set -euo pipefail
     cargo test --doc --workspace --features {{ test_features }}
     RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --features {{ test_features }}
     RUSTDOCFLAGS="-D warnings" cargo doc -p egui_mineral -p egui_mineral_material -p egui_mineral_fluent --no-deps --no-default-features
-    for t in x86_64-unknown-linux-gnu wasm32-unknown-unknown; do \
-        RUSTDOCFLAGS="--cfg docsrs -D warnings" cargo +{{ nightly_version }} doc -p egui_mineral --no-deps --target "$t" --features {{ docsrs_core }}; \
-        RUSTDOCFLAGS="--cfg docsrs -D warnings" cargo +{{ nightly_version }} doc -p egui_mineral_material --no-deps --target "$t" --features {{ docsrs_material }}; \
-        RUSTDOCFLAGS="--cfg docsrs -D warnings" cargo +{{ nightly_version }} doc -p egui_mineral_fluent --no-deps --target "$t" --features {{ docsrs_fluent }}; \
+    meta=$(cargo metadata --no-deps --format-version 1)
+    for c in egui_mineral egui_mineral_material egui_mineral_fluent; do
+        features=$(jq -r --arg c "$c" '.packages[] | select(.name == $c) | .metadata.docs.rs.features | join(",")' <<<"$meta")
+        for t in $(jq -r --arg c "$c" '.packages[] | select(.name == $c) | .metadata.docs.rs.targets[]' <<<"$meta"); do
+            RUSTDOCFLAGS="--cfg docsrs -D warnings" cargo +{{ nightly_version }} doc -p "$c" --no-deps --target "$t" --features "$features"
+        done
     done
 
 # Published crates; their READMEs are generated from the crate docs
