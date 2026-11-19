@@ -108,6 +108,8 @@ pub struct RangeModel {
     scale: Scale,
     #[serde(default)]
     ratio: Option<f64>,
+    #[serde(default)]
+    significant: Option<u8>,
 }
 
 #[derive(serde::Deserialize)]
@@ -120,6 +122,8 @@ struct RawRange {
     scale: Scale,
     #[serde(default)]
     ratio: Option<f64>,
+    #[serde(default)]
+    significant: Option<u8>,
 }
 
 impl TryFrom<RawRange> for RangeModel {
@@ -136,6 +140,9 @@ impl TryFrom<RawRange> for RangeModel {
         if let Some(v) = r.ratio {
             check_ratio(v)?;
         }
+        if let Some(d) = r.significant {
+            check_significant(d)?;
+        }
         Ok(Self {
             min: r.min,
             max: r.max,
@@ -143,6 +150,7 @@ impl TryFrom<RawRange> for RangeModel {
             jump: r.jump,
             scale: r.scale,
             ratio: r.ratio,
+            significant: r.significant,
         })
     }
 }
@@ -175,6 +183,16 @@ fn check_ratio(v: f64) -> Result<(), String> {
     (v.is_finite() && v > 1.0)
         .then_some(())
         .ok_or_else(|| format!("RangeModel: ratio {v} must be finite and > 1"))
+}
+
+// f64 holds 15 to 17 significant decimal digits.
+const MAX_SIGNIFICANT: u8 = 17;
+
+fn check_significant(digits: u8) -> Result<(), String> {
+    (1..=MAX_SIGNIFICANT)
+        .contains(&digits)
+        .then_some(())
+        .ok_or_else(|| format!("RangeModel: significant digits {digits} must be in 1..={MAX_SIGNIFICANT}"))
 }
 
 fn check_scale(scale: Scale, min: f64, jump: Option<f64>) -> Result<(), String> {
@@ -222,6 +240,7 @@ impl RangeModel {
             jump: None,
             scale: Scale::Linear,
             ratio: None,
+            significant: None,
         }
     }
 
@@ -259,6 +278,18 @@ impl RangeModel {
         self
     }
 
+    /// Rounds snapped values to `digits` significant digits before the `step` grid: a relative grid
+    /// for [`Scale::Log`], where `step` is absolute. Exact `min` and `max` stay reachable. Ignored
+    /// outside `1..=17`.
+    #[must_use]
+    pub fn significant(mut self, digits: u8) -> Self {
+        match check_significant(digits) {
+            Ok(()) => self.significant = Some(digits),
+            Err(e) => crate::kit::sanitize::report(format_args!("{e}; ignored")),
+        }
+        self
+    }
+
     /// Linear or logarithmic value scale. [`Scale::Log`] with `min <= 0` is ignored; with a
     /// `jump` set it drops the `jump`.
     #[must_use]
@@ -287,6 +318,11 @@ impl RangeModel {
     /// `None` is continuous.
     pub fn step_size(&self) -> Option<f64> {
         self.step
+    }
+
+    /// See [`Self::significant`].
+    pub fn significant_digits(&self) -> Option<u8> {
+        self.significant
     }
 
     /// `max - min`; 0 for a degenerate range.
@@ -321,13 +357,40 @@ impl RangeModel {
         self.limit(v)
     }
 
-    /// Clamps into bounds, then rounds to the nearest step from `min`.
+    /// Clamps into bounds, rounds to [`Self::significant`] digits, then to the nearest step from `min`.
     pub fn snap(&self, v: f64) -> f64 {
-        let v = self.limit(v);
+        let v = self.round_significant(self.limit(v));
         match self.step {
-            Some(s) => self.grid(((v - self.min) / s).round(), s).clamp(self.min, self.max),
+            Some(s) => self.grid(((v - self.min) / s).round(), s),
             None => v,
         }
+        .clamp(self.min, self.max)
+    }
+
+    #[expect(clippy::float_cmp, reason = "exact bounds are exempt from rounding")]
+    fn round_significant(&self, v: f64) -> f64 {
+        match self.significant {
+            Some(d) if v.is_finite() && v != 0.0 && v != self.min && v != self.max => {
+                // Decimal rounding through the shortest scientific form, as `grid` rounds decimals.
+                format!("{v:.prec$e}", prec = usize::from(d.saturating_sub(1)))
+                    .parse()
+                    .unwrap_or(v)
+            }
+            _ => v,
+        }
+    }
+
+    // One unit of the last significant digit away from `from`, in the decade it moves into.
+    fn significant_step(&self, from: f64, up: bool) -> Option<f64> {
+        let prec = i32::from(self.significant?.saturating_sub(1));
+        let text = format!("{:.*e}", usize::try_from(prec).ok()?, from.abs());
+        let (mantissa, exp) = text.split_once('e')?;
+        let exp: i32 = exp.parse().ok()?;
+        let decade_start = mantissa.trim_end_matches('0').trim_end_matches('.') == "1";
+        let inward = up != (from > 0.0);
+        let unit_exp = exp.checked_sub(prec)?.checked_sub(i32::from(decade_start && inward))?;
+        let unit: f64 = format!("1e{unit_exp}").parse().ok()?;
+        Some(self.snap(if up { from + unit } else { from - unit }))
     }
 
     // `min + k * step` rounded to the decimals of `min` and `step`, so 0.01 steps from -180 land
@@ -403,7 +466,12 @@ impl RangeModel {
                 } else {
                     self.arrow_step()
                 };
-                self.snap(v + n * unit)
+                let (from, next) = (self.snap(v), self.snap(v + n * unit));
+                if self.step.is_none() && (next - from).abs() < f64::EPSILON && n.abs() > 0.0 {
+                    self.significant_step(from, n > 0.0).unwrap_or(next)
+                } else {
+                    next
+                }
             }
             Scale::Log => {
                 let from = self.snap(v);
@@ -414,8 +482,10 @@ impl RangeModel {
                     None => LOG_ARROW,
                 };
                 let next = self.from_fraction(self.fraction(from) + n * unit);
+                let stalled = (next - from).abs() < f64::EPSILON && n.abs() > 0.0;
                 match self.step {
-                    Some(s) if (next - from).abs() < f64::EPSILON && n.abs() > 0.0 => self.snap(from + n.signum() * s),
+                    Some(s) if stalled => self.snap(from + n.signum() * s),
+                    None if stalled => self.significant_step(from, n > 0.0).unwrap_or(next),
                     _ => next,
                 }
             }
@@ -533,6 +603,62 @@ fn decimal_places(v: f64) -> Option<i32> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn significant_digits_grid_log_steps_and_keep_bounds_exact() {
+        let r = RangeModel::new(0.1, 100.0).scale(Scale::Log).significant(3);
+        assert_eq!(r.step_by(1.2, 1), 1.29, "1% of the track lands on 3 digits");
+        assert_eq!(r.step_by(1.29, 1), 1.38, "the next step starts from the rounded value");
+        for v in [0.123_456, 1.2, 2.749_041_183_321_324, 99.95, 12.345] {
+            assert_eq!(r.snap(r.snap(v)), r.snap(v), "snap is idempotent at {v}");
+        }
+        assert_eq!(r.snap(2.749_041_183_321_324), 2.75);
+        let wide = RangeModel::new(1.0, 20_001.0).significant(3);
+        assert_eq!(
+            wide.on_key(5.0, Key::End, Track::vertical()),
+            Some(20_001.0),
+            "max stays reachable"
+        );
+        assert_eq!(wide.snap(19_999.0), 20_000.0);
+    }
+
+    #[test]
+    fn significant_steps_never_stall_and_cross_decades() {
+        let r = RangeModel::new(0.1, 100.0)
+            .scale(Scale::Log)
+            .ratio(1.001)
+            .significant(2);
+        assert_eq!(r.step_by(1.0, 1), 1.1, "a step smaller than a digit moves one digit");
+        assert_eq!(
+            r.step_by(1.0, -1),
+            0.99,
+            "down from a decade start uses the decade below"
+        );
+        assert_eq!(r.step_by(0.99, 1), 1.0);
+        let lin = RangeModel::new(0.0, 1e6).significant(1);
+        assert_eq!(lin.step_by(1e5, 1), 2e5, "linear steps move too");
+        assert_eq!(lin.step_by(1e5, -1), 9e4);
+    }
+
+    #[test]
+    fn significant_deserializes_validated() {
+        let raw = |significant| RawRange {
+            min: 1.0,
+            max: 10.0,
+            step: None,
+            jump: None,
+            scale: Scale::Linear,
+            ratio: None,
+            significant,
+        };
+        let ok = RangeModel::try_from(raw(Some(3))).expect("3 digits");
+        assert_eq!(ok.significant_digits(), Some(3));
+        assert!(RangeModel::try_from(raw(Some(0))).is_err(), "0 digits is rejected");
+        assert!(
+            RangeModel::try_from(raw(Some(18))).is_err(),
+            "past f64 precision is rejected"
+        );
+    }
 
     #[test]
     fn snap_keys_and_track_mapping() {

@@ -1112,8 +1112,9 @@ fn range_model() -> impl Strategy<Value = RangeModel> {
         prop::option::of(f64s()),
         prop::option::of(select(vec![Scale::Linear, Scale::Log])),
         any::<bool>(),
+        prop::option::of(0u8..20),
     )
-        .prop_map(|(min, max, step, jump, scale, scale_first)| {
+        .prop_map(|(min, max, step, jump, scale, scale_first, significant)| {
             let mut r = RangeModel::new(min, max);
             if let (true, Some(s)) = (scale_first, scale) {
                 r = r.scale(s);
@@ -1123,6 +1124,9 @@ fn range_model() -> impl Strategy<Value = RangeModel> {
             }
             if let Some(j) = jump {
                 r = r.jump(j);
+            }
+            if let Some(d) = significant {
+                r = r.significant(d);
             }
             match scale {
                 Some(s) if !scale_first => r.scale(s),
@@ -1161,6 +1165,13 @@ fn check_range(r: &RangeModel, probe: f64) -> Result<(), TestCaseError> {
     );
     prop_assert!(r.step_size().is_none_or(|s| s.is_finite() && s > 0.0), "step {r:?}");
     within(r, r.snap(probe))?;
+    if r.step_size().is_none() {
+        let once = r.snap(probe);
+        prop_assert!(
+            same(r.snap(once), once),
+            "snap({probe}) = {once} is a fixed point of {r:?}"
+        );
+    }
     let f = r.fraction(probe);
     prop_assert!((0.0..=1.0).contains(&f), "fraction({probe}) = {f} for {r:?}");
     for t in [-1.0, 0.0, 0.3, 1.0, 2.0, f64::NAN, f64::INFINITY, probe] {
@@ -1187,7 +1198,7 @@ proptest! {
                 RangeOp::Snap(x) => {
                     v = r.snap(x);
                     within(&r, v)?;
-                    if x.is_finite() && x >= r.min() && x <= r.max() && r.step_size().is_none() {
+                    if x.is_finite() && x >= r.min() && x <= r.max() && r.step_size().is_none() && r.significant_digits().is_none() {
                         prop_assert!(same(v, x), "an in-range continuous value stays: {x} became {v}");
                     }
                 }

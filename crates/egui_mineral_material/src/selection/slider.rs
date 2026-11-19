@@ -137,12 +137,17 @@ struct EndIcons {
 
 egui_mineral::kit::opaque_debug!(ValueSlider<'_>);
 
-pub(crate) fn step_digits(step: Option<f64>) -> i16 {
-    step.map_or(2, |s| {
-        let s = s.to_string();
-        s.split_once('.')
-            .map_or(0, |(_, f)| i16::try_from(f.len()).map_or(6, |n| n.min(6)))
-    })
+// The step's decimals; the value's own (`None`) on a significant-digit grid; else 2.
+pub(crate) fn fraction_digits(range: &RangeModel) -> Option<i16> {
+    match range.step_size() {
+        Some(s) => Some(
+            s.to_string()
+                .split_once('.')
+                .map_or(0, |(_, f)| i16::try_from(f.len()).map_or(6, |n| n.min(6))),
+        ),
+        None if range.significant_digits().is_some() => None,
+        None => Some(2),
+    }
 }
 
 impl<'a> ValueSlider<'a> {
@@ -255,7 +260,7 @@ impl<'a> ValueSlider<'a> {
         if let Some(f) = &self.format {
             return f(v);
         }
-        i18n.format().number_lossy(v, Some(step_digits(self.range.step_size())))
+        i18n.format().number_lossy(v, fraction_digits(&self.range))
     }
 
     fn order(&mut self, moved: usize) {

@@ -345,11 +345,11 @@ fn numbers(ui: &mut Mui<'_>, s: &mut State) {
                     NumberField::new(
                         "ti-num-freq",
                         "Frequency",
-                        RangeModel::new(20.0, 20_000.0).step(1.0).scale(Scale::Log),
+                        RangeModel::new(20.0, 20_000.0).scale(Scale::Log).significant(3),
                         &mut s.number_freq,
                     )
-                    .supporting("Log scale; drag to scrub, Shift for fine")
-                    .format(|v| format!("{v:.0} Hz"))
+                    .supporting("Log scale, 3 significant digits; drag to scrub")
+                    .format(|v| format!("{v} Hz"))
                     .scrub(true)
                     .preferred_width(220.0),
                 )

@@ -20,7 +20,7 @@ use egui_mineral::{
 };
 
 use crate::actions::IconButton;
-use crate::selection::slider::step_digits;
+use crate::selection::slider::fraction_digits;
 use crate::text_inputs::{
     TextField,
     text_field::{self, field_h},
@@ -218,7 +218,7 @@ impl<'a, N: Numeric> NumberField<'a, N> {
             Some(f) => f(v),
             None => i18n
                 .format()
-                .number_lossy(v, self.snap_typed.then(|| step_digits(self.range.step_size()))),
+                .number_lossy(v, self.snap_typed.then(|| fraction_digits(&self.range)).flatten()),
         }
     }
 }

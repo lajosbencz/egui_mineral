@@ -1,7 +1,7 @@
 use egui::{Key, Modifiers, Rect, vec2};
 use egui_mineral::{
     edit::{self, EditEvent},
-    range::RangeModel,
+    range::{RangeModel, Scale},
 };
 use egui_mineral_material::{extras::NumberField, text_inputs::TextField};
 
@@ -119,6 +119,31 @@ fn number_field_escape_restores_pre_edit_value() {
     assert_eq!(h.state().value.value, 6.0, "arrow keeps focus and steps");
     h.press(Key::Escape);
     assert_eq!(h.state().value.value, 5.0, "escape restores");
+}
+
+#[test]
+fn number_field_log_steps_land_on_significant_digits_and_typing_keeps_its_own() {
+    let mut h = field(1.2, |ui, v: &mut f64| {
+        let range = RangeModel::new(0.1, 100.0).scale(Scale::Log).significant(3);
+        let r = ui.mineral(NumberField::new("n", "Gain", range, v).snap_typed(false));
+        (r.rect, None)
+    });
+    focus(&mut h);
+    h.press(Key::ArrowUp);
+    assert_eq!(h.state().value.value, 1.29, "a log step lands on 3 digits");
+    assert_eq!(
+        h.node("n-field").value.as_deref(),
+        Some("1.29"),
+        "the text shows the rounded value"
+    );
+    h.press(Key::ArrowUp);
+    assert_eq!(
+        h.state().value.value,
+        1.38,
+        "the next step starts from the rounded draft"
+    );
+    retype(&mut h, "1.2345");
+    assert_eq!(h.state().value.value, 1.2345, "typed digits stay off the grid");
 }
 
 #[test]

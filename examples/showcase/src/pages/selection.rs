@@ -343,15 +343,19 @@ fn slider(ui: &mut Mui<'_>, s: &mut State) {
                 .centered(true)
                 .preferred_width(360.0),
         );
-        caption(ui, TypeScale::LabelMedium, "Log scale (20 Hz..20 kHz)");
+        caption(
+            ui,
+            TypeScale::LabelMedium,
+            "Log scale (20 Hz..20 kHz), 3 significant digits",
+        );
         rt.ui(ui).mineral(
             ValueSlider::new(
                 "sel-slider-log",
                 "Frequency",
-                RangeModel::new(20.0, 20_000.0).scale(Scale::Log),
+                RangeModel::new(20.0, 20_000.0).scale(Scale::Log).significant(3),
                 &mut s.slider_log,
             )
-            .format(|v| format!("{v:.0} Hz"))
+            .format(|v| format!("{v} Hz"))
             .preferred_width(360.0),
         );
         caption(ui, TypeScale::LabelMedium, "End icons");
