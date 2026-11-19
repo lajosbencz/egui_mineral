@@ -1,4 +1,4 @@
-use egui::{CornerRadius, Pos2, Rangef, Rect, Sense, vec2};
+use egui::{Color32, CornerRadius, Galley, Pos2, Rangef, Rect, Sense, vec2};
 use egui_mineral::{
     edit::{EditEvent, FieldFocus},
     i18n::{Direction, I18n},
@@ -9,6 +9,7 @@ use egui_mineral::{
     semantic::{AgentKey, KeyedSalt, Role, SemanticNode},
     widget::{Availability, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
 };
+use std::sync::Arc;
 
 use super::{
     bar::digits,
@@ -209,7 +210,49 @@ impl<'a> SpinButton<'a> {
         }
     }
 
-    // Icons, unit and placeholder around the editor; the editor rect they leave.
+    fn unit_galley(&self, ui: &MineralUi<'_, Fluent>, chrome: Chrome, t: &crate::theme::Tokens) -> Option<Arc<Galley>> {
+        self.unit.as_deref().map(|u| {
+            ui.painter().layout_no_wrap(
+                u.to_owned(),
+                chrome.text_format(ui.ctx(), t).font_id,
+                chrome.placeholder_color(t),
+            )
+        })
+    }
+
+    // The unit follows the typed text on the start side, kept inside the reserved width.
+    fn paint_unit(
+        &self,
+        ui: &MineralUi<'_, Fluent>,
+        chrome: Chrome,
+        text_rect: Rect,
+        text: &str,
+        t: &crate::theme::Tokens,
+    ) {
+        let Some(unit) = self.unit_galley(ui, chrome, t) else {
+            return;
+        };
+        let dir = ui.i18n().direction();
+        let gap = chrome.metrics().gap;
+        let typed = ui
+            .painter()
+            .layout_no_wrap(
+                text.to_owned(),
+                chrome.text_format(ui.ctx(), t).font_id,
+                Color32::PLACEHOLDER,
+            )
+            .size()
+            .x
+            .min(text_rect.width());
+        let y = text_rect.center().y - unit.size().y / 2.0;
+        let x = match dir {
+            Direction::Ltr => text_rect.left() + typed + gap,
+            Direction::Rtl => text_rect.right() - typed - gap - unit.size().x,
+        };
+        ui.painter().galley(Pos2::new(x, y), unit, chrome.placeholder_color(t));
+    }
+
+    // Icons and placeholder around the editor; the editor rect they leave.
     fn paint_content(
         &self,
         ui: &MineralUi<'_, Fluent>,
@@ -242,13 +285,7 @@ impl<'a> SpinButton<'a> {
         }
         // Reserved beside the editor: the trailing icon, then the unit.
         let after_w = if self.after.is_some() { m.icon + m.gap } else { 0.0 };
-        let unit = self.unit.as_deref().map(|u| {
-            p.layout_no_wrap(
-                u.to_owned(),
-                chrome.text_format(ctx, t).font_id,
-                chrome.placeholder_color(t),
-            )
-        });
+        let unit = self.unit_galley(ui, chrome, t);
         let unit_w = unit.as_ref().map_or(0.0, |g| g.size().x + m.gap);
         let (edit_left, edit_right) = match dir {
             Direction::Ltr => (text_left, text_right - after_w - unit_w),
@@ -258,14 +295,6 @@ impl<'a> SpinButton<'a> {
             Pos2::new(edit_left, inner.top()),
             Pos2::new(edit_right.max(edit_left), inner.bottom()),
         );
-        if let Some(g) = unit {
-            let at = match dir {
-                Direction::Ltr => Pos2::new(edit_right + m.gap, inner.center().y - g.size().y / 2.0),
-                Direction::Rtl => Pos2::new(edit_left - m.gap - g.size().x, inner.center().y - g.size().y / 2.0),
-            };
-            let color = chrome.placeholder_color(t);
-            p.galley(at, g, color);
-        }
         if let Some(icon) = self.after {
             let edge = match dir {
                 Direction::Ltr => text_right - m.icon / 2.0,
@@ -396,6 +425,7 @@ impl MineralWidget for SpinButton<'_> {
         if !focused && frame.response.clicked() && !self.disabled {
             ctx.memory_mut(|m| m.request_focus(edit_id));
         }
+        self.paint_unit(ui, chrome, text_rect, pass.text_mut(), &t);
         let steps = self.step_buttons(ui, base, parts, &t);
         if !self.disabled {
             if te.changed() {
