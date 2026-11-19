@@ -1263,6 +1263,7 @@ impl Drawer {
             target
         });
         // A pan that starts on the drawer keeps dragging it after the pointer leaves the container.
+        // No MineralUi here.
         let input = rt.core().input();
         let grab = DrawerMotion::load_for(ctx, id, *open, width).grab;
         let pan = input.pan.filter(|p| {

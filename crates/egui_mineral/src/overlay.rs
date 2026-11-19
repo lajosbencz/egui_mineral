@@ -48,6 +48,7 @@ pub fn modal<T>(r: &ModalResponse<T>) -> Option<Dismiss> {
 pub fn outside_press(core: &crate::runtime::Core, inside: &[Rect]) -> bool {
     let ctx = core.ctx();
     let press = ctx.input(|i| i.pointer.any_pressed().then(|| i.pointer.press_origin()).flatten());
+    // Core only, no MineralUi.
     let tap = core.input().gestures().find_map(|g| match g {
         Gesture::Tap { pos } => Some(*pos),
         _ => None,

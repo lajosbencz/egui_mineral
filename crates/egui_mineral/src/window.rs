@@ -147,6 +147,7 @@ fn close_control<K: Stylekit>(rt: &Runtime<K>, ui: &mut Ui, salt: &KeyedSalt, vi
     crate::kit::focus::follow_press(&response);
     rt.kit().paint_window_close(ui, visual, &response);
     let layer = response.layer_id;
+    // No MineralUi in a window root.
     let tapped = rt.core().input().gestures().any(|g| {
         matches!(g, Gesture::Tap { pos }
             if hit.contains(*pos) && rt.ctx().layer_id_at(*pos).is_none_or(|l| l == layer))

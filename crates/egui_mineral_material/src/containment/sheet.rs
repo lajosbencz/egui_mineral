@@ -156,6 +156,7 @@ impl BottomSheet {
         let mut st = BottomState::load(ctx, self.id);
         let heights: Vec<f32> = self.detents.iter().map(|f| f * screen.height()).collect();
         st.detent = st.detent.min(heights.len() - 1);
+        // No MineralUi in `run`.
         if let (Some(grab), Some(pan)) = (st.grab, rt.core().input().pan) {
             st.live = Some((screen.bottom() - (pan.pos.y - grab)).clamp(0.0, screen.height()));
         }
@@ -287,7 +288,7 @@ fn paint_handle(
     let rt = ui.rt();
     let ctx = rt.ctx();
     let (zone, mut resp) = ui.allocate_exact_size(vec2(w, HANDLE_ZONE), Sense::click_and_drag());
-    rt.core().input().tap_on(&mut resp);
+    ui.pass_input().tap_on(&mut resp);
     let hid = resp.id;
     let center = zone.center();
     let i = Interaction::of(&resp, Availability::Enabled);
@@ -317,9 +318,8 @@ fn paint_handle(
             .drag_started()
             .then(|| resp.interact_pointer_pos().map_or(0.0, |p| p.y - zone.top())),
         drag_stopped: resp.drag_stopped(),
-        release_vy: rt
-            .core()
-            .input()
+        release_vy: ui
+            .pass_input()
             .pan_on(&resp)
             .filter(|p| p.ended)
             .map_or(0.0, |p| p.velocity.y),

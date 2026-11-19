@@ -18,6 +18,7 @@ impl MinTarget {
     /// Target edge in points for this pass.
     pub fn points(self, core: &crate::runtime::Core) -> f32 {
         match self {
+            // Core only, no MineralUi.
             Self::Auto => self.points_for(core, core.input().modality),
             _ => self.points_for(core, PointerKind::Mouse),
         }

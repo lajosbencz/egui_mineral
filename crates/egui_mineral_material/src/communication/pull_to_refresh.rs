@@ -181,7 +181,6 @@ impl PullToRefresh {
         response: &egui::Response,
         at_top: bool,
     ) -> bool {
-        let rt = ui.rt();
         if self.refreshing {
             *st = State::default();
             return false;
@@ -203,7 +202,7 @@ impl PullToRefresh {
             &cfg,
             PullInput {
                 at_edge: at_top,
-                drag: rt.core().input().pan_on(response).map(|p| PullDrag {
+                drag: ui.pass_input().pan_on(response).map(|p| PullDrag {
                     delta: Axis::Vertical.main(p.delta),
                     ended: p.ended,
                 }),

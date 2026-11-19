@@ -659,6 +659,7 @@ impl Menu {
         let at = if target.secondary_clicked() {
             target.interact_pointer_pos()
         } else {
+            // Core only, no MineralUi.
             core.input().gestures().find_map(|g| match g {
                 Gesture::LongPress { pos }
                     if target.rect.contains(*pos) && ctx.layer_id_at(*pos).is_none_or(|l| l == layer) =>
