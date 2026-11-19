@@ -2,8 +2,7 @@ use egui_mineral::icon::{Glyph, Icon};
 
 use crate::fonts::{FONT_FAMILY_FILLED, FONT_FAMILY_OUTLINED};
 
-/// A Material Symbols icon: one codepoint drawn from the outlined font, and from the filled font when selected
-/// or hovered. The constants live in [`icons`](crate::icons).
+/// Material Symbols codepoint, filled when selected or hovered unless [`Self::outlined`]; constants in [`icons`](crate::icons).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct MaterialIcon {
     codepoint: char,
@@ -19,7 +18,7 @@ impl MaterialIcon {
         }
     }
 
-    /// The icon drawn outlined in every state.
+    /// Outlined font in every state, the filled form is dropped.
     #[must_use]
     pub const fn outlined(self) -> Self {
         Self { filled: false, ..self }
