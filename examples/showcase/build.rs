@@ -102,7 +102,6 @@ fn metadata() -> Res<Value> {
     Ok(serde_json::from_slice(&out.stdout)?)
 }
 
-/// Packages depending on `root` directly or transitively.
 fn dependents<'a>(meta: &'a Value, root: &'a str) -> Res<HashSet<&'a str>> {
     let nodes = meta["resolve"]["nodes"].as_array().ok_or("metadata: no resolve")?;
     let edges: Vec<(&str, Vec<&str>)> = nodes
@@ -147,7 +146,7 @@ fn identifiers(src: &str, names: &mut HashSet<String>) {
     }
 }
 
-/// `pub const ICON_X: crate::MaterialIcon = crate::MaterialIcon::new("\u{e951}");` lines of `icons.rs`.
+// `pub const ICON_X: crate::MaterialIcon = crate::MaterialIcon::new("\u{e951}");` lines of `icons.rs`.
 fn codepoints(icons_rs: &str) -> HashMap<&str, char> {
     icons_rs
         .lines()
