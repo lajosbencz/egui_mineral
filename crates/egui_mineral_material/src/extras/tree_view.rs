@@ -697,8 +697,24 @@ impl<'a, N: TreeData> TreeView<'a, N> {
         p.galley(cur.peek(g.size().x, g.size().y).min, g, Color32::PLACEHOLDER);
     }
 
-    fn pending_row(state: &mut TreeState<N::Key>, row_of: impl Fn(&N::Key) -> Option<usize>) -> Option<usize> {
-        let mut pending = state.pending.as_ref().and_then(row_of);
+    // Row index of each wanted key, in one scan.
+    fn locate(rows: &[TreeRow<'a, N>], wanted: [Option<&N::Key>; 3]) -> [Option<usize>; 3] {
+        let mut found = [None; 3];
+        for (i, r) in rows.iter().enumerate() {
+            for (slot, w) in found.iter_mut().zip(wanted) {
+                if slot.is_none() && w == Some(r.node.key()) {
+                    *slot = Some(i);
+                }
+            }
+            if found.iter().zip(wanted).all(|(f, w)| f.is_some() || w.is_none()) {
+                break;
+            }
+        }
+        found
+    }
+
+    fn pending_row(state: &mut TreeState<N::Key>, found: Option<usize>) -> Option<usize> {
+        let mut pending = found;
         if pending.is_some() {
             state.pending_passes = state.pending_passes.saturating_add(1);
             if state.pending_passes > PENDING_PASSES {
@@ -733,8 +749,13 @@ impl<'a, N: TreeData> TreeView<'a, N> {
                 Self::toggle_node(out, self.expansion, key.clone());
             }
             if let (Some(m), Some(selection)) = (o.select, self.selection.as_deref_mut()) {
-                let visible = visible.get_or_insert_with(|| rows.iter().map(|r| r.node.key().clone()).collect());
-                selection.click(key.clone(), m, visible);
+                // Only Shift reads the visual order.
+                let order = if m.shift {
+                    visible.get_or_insert_with(|| rows.iter().map(|r| r.node.key().clone()).collect())
+                } else {
+                    &mut Vec::new()
+                };
+                selection.click(key.clone(), m, order);
                 out.changed = true;
             }
             if o.toggled {
@@ -837,14 +858,15 @@ impl<'a, N: TreeData> TreeView<'a, N> {
         let id = ui.make_persistent_id(self.salt.id_salt());
         let rows: Vec<TreeRow<'a, N>> = tree::flatten(self.roots, self.expansion);
         let mut state = TreeState::<N::Key>::load(ctx, id);
-        let row_of = |k: &N::Key| rows.iter().position(|r| r.node.key() == k);
-        let pending = Self::pending_row(&mut state, row_of);
-        let present = |k: &N::Key| row_of(k).is_some();
+        let selected = self.selection.as_ref().and_then(|s| s.first().cloned());
+        let wanted = [state.pending.as_ref(), state.stop.as_ref(), selected.as_ref()];
+        let found = Self::locate(&rows, wanted);
+        let pending = Self::pending_row(&mut state, found[0]);
         let stop = state
             .pending
             .clone()
-            .or_else(|| state.stop.clone().filter(present))
-            .or_else(|| self.selection.as_ref().and_then(|s| s.first().cloned()).filter(present))
+            .or_else(|| found[1].and(state.stop.clone()))
+            .or_else(|| found[2].and(selected))
             .or_else(|| rows.first().map(|r| r.node.key().clone()));
         let look = self.look(ui);
         let row_h = look.height;
