@@ -1,5 +1,6 @@
 # Per-crate config replaces the root clippy.toml (no merge); keep base options in sync.
 allow-unwrap-in-tests = true
+allow-indexing-slicing-in-tests = true
 
 disallowed-methods = [
   { path = "std::thread::spawn", reason = "docs/rules.md rule 11: apps own threads through their Spawner" },

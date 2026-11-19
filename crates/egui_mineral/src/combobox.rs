@@ -1,7 +1,7 @@
 //! <https://www.w3.org/WAI/ARIA/apg/patterns/combobox> (active-descendant model)
 // docs/rules.md rule 10: indices here outlive the frame.
-#![cfg_attr(not(test), deny(clippy::indexing_slicing))]
-#![cfg_attr(not(test), warn(clippy::arithmetic_side_effects))]
+#![deny(clippy::indexing_slicing)]
+#![warn(clippy::arithmetic_side_effects)]
 
 use egui::{Context, Key, Modifiers};
 

@@ -1,5 +1,5 @@
 // docs/rules.md rule 10: indices here outlive the frame.
-#![cfg_attr(not(test), deny(clippy::indexing_slicing))]
+#![deny(clippy::indexing_slicing)]
 #![warn(clippy::arithmetic_side_effects)]
 
 use std::ops::Range;

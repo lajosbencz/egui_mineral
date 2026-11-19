@@ -1,7 +1,7 @@
 //! Payload transport is egui's own: drop targets use `Ui::dnd_drop_zone` directly.
 // docs/rules.md rule 10: indices here outlive the frame.
-#![cfg_attr(not(test), deny(clippy::indexing_slicing))]
-#![cfg_attr(not(test), warn(clippy::arithmetic_side_effects))]
+#![deny(clippy::indexing_slicing)]
+#![warn(clippy::arithmetic_side_effects)]
 
 use egui::{CursorIcon, Id, InnerResponse, Order, Rangef, Sense, UiBuilder, Vec2};
 
@@ -254,7 +254,7 @@ mod tests {
         let from = center(&h, grab);
         h.input_mut().events.extend(crate::test_support::press(from));
         h.step();
-        h.event(Event::PointerMoved(from + egui::vec2(0.0, 30.0)));
+        h.event(Event::PointerMoved(egui::pos2(from.x, from.y + 30.0)));
         h.step();
         change(&mut h.state_mut().value.items);
         h.step();
