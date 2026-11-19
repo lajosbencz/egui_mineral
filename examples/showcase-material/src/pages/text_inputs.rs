@@ -440,8 +440,10 @@ fn otp(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
         }
         rt.ui(ui)
             .mineral(OtpField::new("ti-otp-pin", "Masked PIN", 4, &mut s.otp_pin).masked(true));
-        rt.ui(ui)
-            .mineral(OtpField::new("ti-otp-alpha", "Alphanumeric invite code", 5, &mut s.otp_alpha).charset(Charset::Alphanumeric));
+        rt.ui(ui).mineral(
+            OtpField::new("ti-otp-alpha", "Alphanumeric invite code", 5, &mut s.otp_alpha)
+                .charset(Charset::Alphanumeric),
+        );
         rt.ui(ui)
             .mineral(OtpField::new("ti-otp-err", "Wrong code", 6, &mut s.otp_error).error("Incorrect code"));
         let mut v = String::from("123");
