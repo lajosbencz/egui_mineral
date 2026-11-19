@@ -66,6 +66,7 @@ mod tests {
         assert_eq!(icon.glyph(true), icon.glyph(false));
     }
 
+    #[cfg(feature = "bundled-icons")]
     #[test]
     fn families_match_the_bundled_fonts() {
         assert_eq!(FONT_FAMILY_FILLED, egui_material_icons::FONT_FAMILY);

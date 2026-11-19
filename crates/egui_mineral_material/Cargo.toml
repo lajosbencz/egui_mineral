@@ -21,7 +21,7 @@ targets = ["x86_64-unknown-linux-gnu", "wasm32-unknown-unknown"]
 [features]
 default = ["icu", "persist-fs", "persist-toml", "bundled-icons"]
 # Material Symbols Rounded fonts (filled and outlined, 3 MB); without it use `Material::with_icon_fonts`.
-bundled-icons = []
+bundled-icons = ["dep:egui_material_icons"]
 # `egui_mineral/icu`: ICU4X locale formatting.
 icu = ["egui_mineral/icu"]
 # `egui_mineral/persist-json`: JSON codec.
@@ -42,7 +42,7 @@ egui_mineral.workspace = true
 egui.workspace = true
 serde.workspace = true
 material-colors.workspace = true
-egui_material_icons.workspace = true
+egui_material_icons = { workspace = true, optional = true }
 tracing.workspace = true
 thiserror.workspace = true
 parking_lot.workspace = true
