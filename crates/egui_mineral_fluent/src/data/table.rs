@@ -658,14 +658,17 @@ fn run(
         .then(|| grid.row(grid.focus.stop).checked_sub(1))
         .flatten()
         .filter(|r| !visible.contains(r));
-    for r in stop.into_iter().chain(visible) {
-        if let Some(data) = order.data(r) {
-            let pass = Pass {
-                id,
-                geo: &geo,
-                order: &order,
-            };
+    let pass = Pass {
+        id,
+        geo: &geo,
+        order: &order,
+    };
+    for r in 0..shown {
+        let Some(data) = order.data(r) else { continue };
+        if visible.contains(&r) || stop == Some(r) {
             body_row(ui, &mut tb, &pass, &mut grid, &mut ev, (r, data), &mut cell);
+        } else {
+            culled_row(ui, &tb, &pass, (r, data));
         }
     }
     grid.finish(ui, grid_id, cells, &geo);
@@ -870,9 +873,26 @@ fn body_row(
             Stroke::new(d::ROW_BORDER, tokens.color(ColorNeutralStroke2)),
         );
     }
+    emit_row(ui, tb, rid, rect, data);
+}
+
+// Rows outside the viewport paint nothing but stay reachable: agents scroll them in via `ScrollIntoView`.
+fn culled_row(ui: &MineralUi<'_, Fluent>, tb: &Table<'_>, pass: &Pass<'_>, (r, data): (usize, usize)) {
+    let rect = pass.geo.row(r + 1);
+    let rid = pass.id.with(("row", data));
+    if !kit::semantic::wanted(ui.ctx(), Some(rid)) {
+        return;
+    }
+    ui.interact(rect, rid, Sense::hover());
+    emit_row(ui, tb, rid, rect, data);
+}
+
+fn emit_row(ui: &MineralUi<'_, Fluent>, tb: &Table<'_>, rid: Id, rect: Rect, data: usize) {
+    let selected = tb.selection.as_ref().map(|s| s.is_selected(&data));
     semantic::emit(ui.ctx(), Some(rid), rect, || {
         let mut n = SemanticNode::new(StableId::of(&tb.salt, ("row", data)), Role::Row, "");
-        n.state.selected = selectable.then_some(selected);
+        n.state.selected = selected;
+        n.actions.push(semantic::Action::ScrollIntoView);
         n
     });
 }

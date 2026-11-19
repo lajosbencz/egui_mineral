@@ -512,4 +512,41 @@ mod table {
         let fit = (SCREEN.y / h.rect("t-row-0").height()).ceil();
         assert!(drawn > 0 && drawn as f32 <= fit, "{drawn} of {ROWS} rows drawn");
     }
+
+    #[test]
+    fn agents_scroll_culled_rows_into_view() {
+        use egui_mineral::{agent::AgentAction, semantic::Action};
+
+        const ROWS: usize = 1000;
+        const FAR: usize = 700;
+        let mut h = harness(Vec::new(), |ui, drawn: &mut Vec<usize>| {
+            drawn.clear();
+            let rt = ui.rt();
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                Table::new("t", "People", columns()).show(&mut rt.ui(ui), ROWS, |ui, row, col| {
+                    if col == 0 {
+                        drawn.push(row);
+                    }
+                    ui.mineral(Text::new((("cell", row), col), "x"));
+                });
+            });
+        });
+        h.run();
+        let far = format!("t-row-{FAR}");
+        assert!(h.node(&far).actions.contains(&Action::ScrollIntoView));
+        assert!(h.rect(&far).min.y > SCREEN.y, "row is below the viewport");
+        assert!(!h.state().value.contains(&FAR));
+        let agent = h.rt().agent(egui::ViewportId::ROOT);
+        #[expect(clippy::disallowed_methods, reason = "agent client thread, joined below")]
+        let client =
+            std::thread::spawn(move || futures_executor::block_on(agent.act(&far, AgentAction::ScrollIntoView)));
+        for _ in 0..30 {
+            h.step();
+        }
+        client.join().expect("agent thread").expect("scroll into view");
+        assert!(
+            h.state().value.contains(&FAR),
+            "row {FAR} drawn after the agent scrolled it in"
+        );
+    }
 }

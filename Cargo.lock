@@ -1431,6 +1431,7 @@ dependencies = [
  "egui",
  "egui_kittest",
  "egui_mineral",
+ "futures-executor",
  "parking_lot",
 ]
 

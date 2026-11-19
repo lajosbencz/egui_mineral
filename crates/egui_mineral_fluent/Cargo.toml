@@ -42,6 +42,7 @@ parking_lot.workspace = true
 
 [dev-dependencies]
 egui_kittest.workspace = true
+futures-executor.workspace = true
 
 [[test]]
 name = "spec"
