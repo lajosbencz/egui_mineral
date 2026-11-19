@@ -5,6 +5,8 @@ use std::path::PathBuf;
 
 use parking_lot::{Mutex, MutexGuard};
 
+#[cfg(not(target_arch = "wasm32"))]
+use super::PlatformPathPickers;
 use super::{
     FileFilter, FileReader, FileWriter, Notification, PickedFile, PlatformClipboard, PlatformError, PlatformNotifier,
     PlatformPickers, SaveOutcome,
@@ -17,6 +19,8 @@ struct Inner {
     picks: VecDeque<Vec<PickedFile>>,
     #[cfg(not(target_arch = "wasm32"))]
     paths: VecDeque<PathBuf>,
+    #[cfg(not(target_arch = "wasm32"))]
+    path_picks: VecDeque<Vec<PathBuf>>,
     saved: Vec<PickedFile>,
     notifications: Vec<Notification>,
 }
@@ -44,6 +48,13 @@ impl MemoryPlatform {
         self.inner().paths.push_back(path);
     }
 
+    /// Next result of [`PlatformPathPickers::pick_file_path`] (first path) or
+    /// [`PlatformPathPickers::pick_file_paths`]; an empty queue answers as cancelled.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn queue_path_pick(&self, paths: Vec<PathBuf>) {
+        self.inner().path_picks.push_back(paths);
+    }
+
     /// Files written through `save_file` or a closed `save_file_writer`, oldest first.
     pub fn saved(&self) -> Vec<PickedFile> {
         self.inner().saved.clone()
@@ -52,6 +63,19 @@ impl MemoryPlatform {
     /// Each `notify` call, oldest first.
     pub fn notifications(&self) -> Vec<Notification> {
         self.inner().notifications.clone()
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl PlatformPathPickers for MemoryPlatform {
+    fn pick_file_path(&self, _filter: FileFilter) -> BoxFuture<Result<Option<PathBuf>, PlatformError>> {
+        let next = self.inner().path_picks.pop_front().and_then(|v| v.into_iter().next());
+        Box::pin(async move { Ok(next) })
+    }
+
+    fn pick_file_paths(&self, _filter: FileFilter) -> BoxFuture<Result<Vec<PathBuf>, PlatformError>> {
+        let next = self.inner().path_picks.pop_front().unwrap_or_default();
+        Box::pin(async move { Ok(next) })
     }
 }
 
@@ -182,5 +206,30 @@ mod tests {
             Some("report.txt")
         );
         assert_eq!(f.file_name, None);
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn path_pickers_pop_queued_paths_then_cancel() {
+        let p = MemoryPlatform::default();
+        let (a, b) = (PathBuf::from("/a"), PathBuf::from("/b"));
+        p.queue_path_pick(vec![a.clone(), b.clone()]);
+        p.queue_path_pick(vec![a.clone(), b.clone()]);
+        let one = p.pick_file_path(FileFilter::default()).now_or_never().unwrap().unwrap();
+        assert_eq!(one, Some(a.clone()));
+        let all = p
+            .pick_file_paths(FileFilter::default())
+            .now_or_never()
+            .unwrap()
+            .unwrap();
+        assert_eq!(all, [a, b]);
+        let none = p.pick_file_path(FileFilter::default()).now_or_never().unwrap().unwrap();
+        assert_eq!(none, None);
+        let rest = p
+            .pick_file_paths(FileFilter::default())
+            .now_or_never()
+            .unwrap()
+            .unwrap();
+        assert_eq!(rest, Vec::<PathBuf>::new());
     }
 }

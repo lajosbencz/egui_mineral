@@ -182,6 +182,16 @@ pub trait PlatformPickers {
     ) -> BoxFuture<Result<Option<PathBuf>, PlatformError>>;
 }
 
+/// Async file pickers that report paths instead of contents. Native only: browsers expose no
+/// filesystem paths.
+#[cfg(not(target_arch = "wasm32"))]
+pub trait PlatformPathPickers {
+    /// Like [`PlatformPickers::pick_file`], returning only the path. `Ok(None)` when the user cancelled.
+    fn pick_file_path(&self, filter: FileFilter) -> BoxFuture<Result<Option<PathBuf>, PlatformError>>;
+    /// Like [`PlatformPickers::pick_files`], returning only the paths. Empty when the user cancelled.
+    fn pick_file_paths(&self, filter: FileFilter) -> BoxFuture<Result<Vec<PathBuf>, PlatformError>>;
+}
+
 /// Async plain-text clipboard.
 pub trait PlatformClipboard {
     /// Plain-text clipboard contents.

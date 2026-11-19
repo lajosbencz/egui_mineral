@@ -7,6 +7,8 @@ use parking_lot::Mutex;
 #[cfg(feature = "platform-clipboard")]
 use super::PlatformClipboard;
 use super::PlatformError;
+#[cfg(all(feature = "platform-pickers", not(target_arch = "wasm32")))]
+use super::PlatformPathPickers;
 #[cfg(any(
     feature = "platform-pickers",
     all(feature = "platform-clipboard", not(target_arch = "wasm32")),
@@ -86,6 +88,26 @@ mod pickers {
             d = d.set_directory(dir);
         }
         d
+    }
+}
+
+#[cfg(all(feature = "platform-pickers", not(target_arch = "wasm32")))]
+impl PlatformPathPickers for NativePlatform {
+    fn pick_file_path(&self, filter: FileFilter) -> BoxFuture<Result<Option<std::path::PathBuf>, PlatformError>> {
+        let fut = pickers::dialog(&filter).pick_file();
+        Box::pin(async move { Ok(fut.await.map(|h| h.path().to_owned())) })
+    }
+
+    fn pick_file_paths(&self, filter: FileFilter) -> BoxFuture<Result<Vec<std::path::PathBuf>, PlatformError>> {
+        let fut = pickers::dialog(&filter).pick_files();
+        Box::pin(async move {
+            Ok(fut
+                .await
+                .unwrap_or_default()
+                .into_iter()
+                .map(|h| h.path().to_owned())
+                .collect())
+        })
     }
 }
 
