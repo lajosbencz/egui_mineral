@@ -1,3 +1,70 @@
+//! Executor-agnostic command and event channels.
+//!
+//! Discrete actions and async results are one message type, folded by one `update`; undoable ones go through
+//! [`undo`](crate::undo). A todo list with async loading:
+//!
+//! ```
+//! use egui_mineral::{bus::Bus, undo::{UndoCommand, UndoStack}};
+//!
+//! #[derive(Default)]
+//! struct Todos(Vec<String>);
+//!
+//! enum Msg {
+//!     Add(String),
+//!     Loaded(Vec<String>),
+//! }
+//!
+//! enum Request {
+//!     Fetch,
+//! }
+//!
+//! struct Add(String);
+//!
+//! impl UndoCommand<Todos> for Add {
+//!     fn apply(&mut self, s: &mut Todos) {
+//!         s.0.push(self.0.clone());
+//!     }
+//!     fn revert(&mut self, s: &mut Todos) {
+//!         s.0.pop();
+//!     }
+//!     fn label(&self) -> &str {
+//!         "Add"
+//!     }
+//! }
+//!
+//! struct App {
+//!     todos: Todos,
+//!     undo: UndoStack<Todos>,
+//!     bus: Bus<Request, Msg>,
+//! }
+//!
+//! impl App {
+//!     fn update(&mut self, msg: Msg) {
+//!         match msg {
+//!             Msg::Add(text) => self.undo.execute(Add(text), &mut self.todos),
+//!             Msg::Loaded(items) => self.todos.0 = items,
+//!         }
+//!     }
+//!
+//!     /// Start of each pass, before the UI reads state.
+//!     fn drain(&mut self) {
+//!         let msgs: Vec<_> = self.bus.drain().collect();
+//!         msgs.into_iter().for_each(|m| self.update(m));
+//!     }
+//! }
+//!
+//! let ctx = egui::Context::default();
+//! let (bus, handle) = Bus::new(&ctx);
+//! let mut app = App { todos: Todos::default(), undo: UndoStack::new(100), bus };
+//! app.bus.send(Request::Fetch).ok();
+//! // The handler, on the app's executor, answers through `handle.events` and wakes the UI.
+//! handle.events.send(Msg::Loaded(vec!["a".into()])).ok();
+//! app.drain();
+//! app.update(Msg::Add("b".into()));
+//! app.undo.undo(&mut app.todos);
+//! assert_eq!(app.todos.0, ["a"]);
+//! ```
+
 use egui::{Context, ViewportId};
 use futures_channel::mpsc::{UnboundedReceiver, UnboundedSender, unbounded};
 

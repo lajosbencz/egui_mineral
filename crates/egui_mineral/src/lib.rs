@@ -1,11 +1,22 @@
-//! Unopinionated, headless core of `egui_mineral`: unified touch and pointer input, flexbox layout, behavior models
-//! (focus, selection, ranges, tables, dates, forms, routing), Fluent and ICU4X i18n, an accessibility semantic tree
-//! and an agent API. It paints nothing; stylekits such as `egui_mineral_material` supply the visuals.
+//! Headless behavior core of [egui_mineral](https://github.com/lajosbencz/egui_mineral) for
+//! [egui](https://github.com/emilk/egui). It paints nothing; a stylekit supplies the visuals. Most apps use
+//! [egui_mineral_material](https://crates.io/crates/egui_mineral_material). Depend on this crate to write a
+//! stylekit or headless widgets.
 //!
-//! Start with [`runtime::Runtime`] and [`widget::MineralWidget`]: anything yielding a [`widget::WidgetResponse`]
-//! implements it (directly or through [`widget::Composite`]) and is shown with `ui.mineral(..)` on the
-//! [`widget::MineralUi`] that [`runtime::Runtime::pass`] hands out. A [`runtime::Stylekit`] supplies policies,
-//! catalogs, setup and the style; one runtime per native window. A minimal headless pass:
+//! - Unified touch and pointer input, flexbox layout
+//! - Behavior models: focus, selection, ranges, tables, dates, forms, routing
+//! - Fluent and ICU4X i18n, right-to-left layout
+//! - An accessibility semantic tree and an agent API
+//!
+//! Targets egui 0.37 on native and wasm. Pre-1.0: any minor release may break the API.
+//!
+//! # Writing a stylekit
+//!
+//! A [`Stylekit`](runtime::Stylekit) supplies policies, catalogs, setup and the style to a
+//! [`Runtime`](runtime::Runtime), one per native window. Anything yielding a
+//! [`WidgetResponse`](widget::WidgetResponse) is a [`MineralWidget`](widget::MineralWidget), directly or through
+//! [`Composite`](widget::Composite), and is shown with `ui.mineral(..)` on the [`MineralUi`](widget::MineralUi)
+//! that [`Runtime::pass`](runtime::Runtime::pass) hands out. A minimal headless pass:
 //!
 //! ```
 //! use egui_mineral::{i18n::Catalog, policy::Policies, runtime::{Runtime, Stylekit}};
@@ -39,80 +50,19 @@
 //! # Ok::<(), egui_mineral::runtime::InitError>(())
 //! ```
 //!
-//! Cargo features; `icu` and `persist-fs` are default:
-//! - `icu`: ICU4X formatting, collation and direction (`IcuFormat`); without it [`i18n::AsciiFormat`].
-//! - `persist-fs`: file-backed [`persist`] stores.
-//! - `platform-native`: native file dialogs, clipboard and notifications for [`platform`].
-//! - `web-save-stream`: Chromium streams [`platform::FileWriter`] to disk; other browsers buffer.
+//! # Cargo features
 //!
-//! App state is the app's own struct; there is no store. Widgets borrow fields (`&mut T`) for local edits;
-//! discrete actions and [`bus`] results are one message type folded by one `update`, undoable ones through
-//! [`undo`]:
+//! | Feature | Default | Adds |
+//! |---|---|---|
+//! | `icu` | yes | ICU4X formatting, collation and direction; without it [`AsciiFormat`](i18n::AsciiFormat) |
+//! | `persist-fs` | yes | File-backed [`persist`] stores |
+//! | `platform-native` | | Native file dialogs, clipboard and notifications for [`platform`] |
+//! | `web-save-stream` | | Chromium streams [`FileWriter`](platform::FileWriter) to disk; other browsers buffer |
 //!
-//! ```
-//! use egui_mineral::{bus::Bus, undo::{UndoCommand, UndoStack}};
+//! # App state
 //!
-//! #[derive(Default)]
-//! struct Todos(Vec<String>);
-//!
-//! enum Msg {
-//!     Add(String),
-//!     Loaded(Vec<String>),
-//! }
-//!
-//! enum Request {
-//!     Fetch,
-//! }
-//!
-//! struct Add(String);
-//!
-//! impl UndoCommand<Todos> for Add {
-//!     fn apply(&mut self, s: &mut Todos) {
-//!         s.0.push(self.0.clone());
-//!     }
-//!     fn revert(&mut self, s: &mut Todos) {
-//!         s.0.pop();
-//!     }
-//!     fn label(&self) -> &str {
-//!         "Add"
-//!     }
-//! }
-//!
-//! struct App {
-//!     todos: Todos,
-//!     undo: UndoStack<Todos>,
-//!     bus: Bus<Request, Msg>,
-//! }
-//!
-//! impl App {
-//!     fn update(&mut self, msg: Msg) {
-//!         match msg {
-//!             Msg::Add(text) => self.undo.execute(Add(text), &mut self.todos),
-//!             Msg::Loaded(items) => self.todos.0 = items,
-//!         }
-//!     }
-//!
-//!     /// Start of each pass, before the UI reads state.
-//!     fn drain(&mut self) {
-//!         let msgs: Vec<_> = self.bus.drain().collect();
-//!         msgs.into_iter().for_each(|m| self.update(m));
-//!     }
-//! }
-//!
-//! let ctx = egui::Context::default();
-//! let (bus, handle) = Bus::new(&ctx);
-//! let mut app = App { todos: Todos::default(), undo: UndoStack::new(100), bus };
-//! app.bus.send(Request::Fetch).ok();
-//! // The handler, on the app's executor, answers through `handle.events` and wakes the UI.
-//! handle.events.send(Msg::Loaded(vec!["a".into()])).ok();
-//! app.drain();
-//! app.update(Msg::Add("b".into()));
-//! app.undo.undo(&mut app.todos);
-//! assert_eq!(app.todos.0, ["a"]);
-//! ```
-//!
-//! Repository: <https://github.com/lajosbencz/egui_mineral>; architecture and rules:
-//! <https://github.com/lajosbencz/egui_mineral/blob/master/docs/rules.md>.
+//! App state is the app's own struct; there is no store. Widgets borrow fields (`&mut T`); discrete actions and
+//! [`bus`] results fold through one `update`. The [`bus`] module shows the pattern, with [`undo`].
 #![cfg_attr(docsrs, feature(doc_cfg))]
 // docs/rules.md rule 10; tests may panic.
 #![cfg_attr(
@@ -232,7 +182,6 @@ macro_rules! __widget_meta {
 pub mod agent;
 /// Anchored popup placement: side, alignment, flip and shift.
 pub mod anchor;
-/// Executor-agnostic command and event channels.
 pub mod bus;
 pub mod combobox;
 /// Calendar models over `jiff`: month grids, bounds, ranges, 12-hour conversion.

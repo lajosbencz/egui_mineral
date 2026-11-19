@@ -1,11 +1,12 @@
 # Single source of the checks: .github/workflows/{ci,hygiene}.yml call these recipes.
 # Tools: `just tools`; cargo-nextest, icu4x-datagen, a nightly toolchain, cargo-deny, cargo-machete,
-# typos, ast-grep, actionlint, shellcheck, zizmor; `api-diff` also needs cargo-public-api.
+# cargo-rdme, typos, ast-grep, actionlint, shellcheck, zizmor; `api-diff` also needs cargo-public-api.
 
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
 # Tool pins, read by the workflows (`just --evaluate <name>`); Dependabot does not bump them.
 machete_version := "0.9.2"
+rdme_version := "2.2.3"
 public_api_version := "0.52.0"
 zizmor_version := "1.32.0"
 ast_grep_version := "0.51.2"
@@ -21,7 +22,7 @@ default:
 # Installs the check tools with cargo at the pinned versions, and a nightly toolchain
 tools: icu-datagen
     cargo install --locked cargo-nextest cargo-deny typos-cli
-    cargo install --locked cargo-machete@{{ machete_version }} ast-grep@{{ ast_grep_version }} zizmor@{{ zizmor_version }}
+    cargo install --locked cargo-machete@{{ machete_version }} cargo-rdme@{{ rdme_version }} ast-grep@{{ ast_grep_version }} zizmor@{{ zizmor_version }}
     rustup toolchain install nightly --profile minimal --target wasm32-unknown-unknown
     @command -v actionlint >/dev/null || echo "actionlint {{ actionlint_version }} is not on crates.io: https://github.com/rhysd/actionlint"
     @command -v shellcheck >/dev/null || echo "shellcheck is not on crates.io: install it with the system package manager"
@@ -30,7 +31,7 @@ tools: icu-datagen
 ci: check hygiene
 
 # CI "Check" job
-check: fmt clippy test icu-trimmed doc package
+check: fmt clippy test icu-trimmed doc readme-check package
 
 fmt:
     cargo fmt --all --check
@@ -71,9 +72,20 @@ doc:
     RUSTDOCFLAGS="-D warnings" cargo doc -p egui_mineral -p egui_mineral_material --no-deps --no-default-features
     RUSTDOCFLAGS="--cfg docsrs -D warnings" cargo +nightly doc -p egui_mineral -p egui_mineral_material --all-features --no-deps
 
-# Unverified: verification resolves sibling crates from crates.io, which lacks unreleased APIs
+# Published crates; their READMEs are generated from the crate docs
+readme_crates := "egui_mineral egui_mineral_material egui_mineral_macros"
+
+# Regenerates the crate READMEs from their `lib.rs` docs (intra-doc links: docs/blockers.md)
+readme:
+    for c in {{ readme_crates }}; do cargo rdme -w "$c" -r "crates/$c/README.md" --intralinks-strip-links --force; done
+
+# Fails when a crate README is stale
+readme-check:
+    for c in {{ readme_crates }}; do cargo rdme -w "$c" -r "crates/$c/README.md" --intralinks-strip-links --check; done
+
+# Unverified: verification resolves sibling crates from crates.io, which lacks unreleased APIs. Dirty: runs before committing.
 package:
-    cargo package --no-verify -p egui_mineral -p egui_mineral_macros -p egui_mineral_material
+    cargo package --no-verify --allow-dirty -p egui_mineral -p egui_mineral_macros -p egui_mineral_material
 
 # Regenerates the MD3 spec; fails when it changed (non-blocking in CI)
 spec:
