@@ -1091,6 +1091,10 @@ impl MineralWidget for Switch<'_> {
         Sense::click_and_drag()
     }
 
+    fn pan_axis(&self) -> Option<Axis> {
+        Some(Axis::Horizontal)
+    }
+
     fn access_key(&self) -> Option<Mnemonic> {
         self.mnemonic
     }

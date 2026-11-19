@@ -16,6 +16,7 @@ mod i18n;
 mod inputs;
 mod navigation;
 mod overlays;
+mod pan;
 mod prelude_glob;
 mod response_contract;
 mod selection;

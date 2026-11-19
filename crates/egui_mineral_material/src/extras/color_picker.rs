@@ -15,7 +15,7 @@ use egui::{
 use egui_mineral::widget::Availability;
 use egui_mineral::{
     kit,
-    layout::{Constraints, Measure, MinTarget},
+    layout::{Axis, Constraints, Measure, MinTarget},
     range::{RangeModel, Track},
     semantic::{NumericRange, Role, SemanticNode, StableId},
     widget::{MineralWidget, SizeExt, WidgetFrame, WidgetResponse},
@@ -548,6 +548,10 @@ impl MineralWidget for HueBar<'_> {
 
     fn sense(&self) -> Sense {
         Sense::click_and_drag()
+    }
+
+    fn pan_axis(&self) -> Option<Axis> {
+        Some(Axis::Horizontal)
     }
 
     fn min_target(&self) -> MinTarget {

@@ -11,7 +11,7 @@ use egui_mineral::{
     layout::{Axis, Constraints, Measure, MinTarget},
     range::{RangeModel, Track, nearest_thumb},
     semantic::{self, Role, SemanticNode, StableId},
-    widget::{Availability, MineralWidget, WidgetFrame, WidgetResponse},
+    widget::{Availability, MineralWidget, PanGate, WidgetFrame, WidgetResponse},
 };
 
 use crate::widget::parts;
@@ -370,7 +370,7 @@ impl ValueSlider<'_> {
 
     // The single slider's track is its Tab stop; a range slider's thumbs are one each (APG multi-thumb
     // slider), so each takes keyboard and AccessKit input.
-    fn thumbs(&self, ui: &Ui, r: &egui::Response, lay: &SliderLayout) -> Vec<egui::Response> {
+    fn thumbs(&self, ui: &Ui, r: &egui::Response, pan: PanGate, lay: &SliderLayout) -> Vec<egui::Response> {
         let (axis, m) = (lay.axis, lay.m);
         let single = self.values.len() == 1;
         let thumb_rect = |v: f64| {
@@ -386,7 +386,7 @@ impl ValueSlider<'_> {
                 } else {
                     focus::roving_sense(Sense::click_and_drag(), tab_stop(!single))
                 };
-                ui.interact(thumb_rect(*v), r.id.with(("thumb", i)), sense)
+                pan.apply(ui.interact(thumb_rect(*v), r.id.with(("thumb", i)), sense))
             })
             .collect()
     }
@@ -581,6 +581,10 @@ impl MineralWidget for ValueSlider<'_> {
         focus::roving_sense(Sense::click_and_drag(), tab_stop(self.values.len() == 1))
     }
 
+    fn pan_axis(&self) -> Option<Axis> {
+        Some(self.axis)
+    }
+
     fn min_target(&self) -> MinTarget {
         crate::adaptive::MIN_INTERACTIVE
     }
@@ -610,7 +614,7 @@ impl MineralWidget for ValueSlider<'_> {
         for v in self.values.iter_mut() {
             *v = self.range.snap(*v);
         }
-        let thumbs = self.thumbs(ui, r, &lay);
+        let thumbs = self.thumbs(ui, r, frame.pan, &lay);
         if !self.disabled {
             self.drive_input(rt, frame, state, &thumbs, &lay);
         }

@@ -145,6 +145,10 @@ macro_rules! __delegate_widget_meta {
         fn composite(&self) -> bool {
             $crate::widget::MineralWidget::composite(&self.$field)
         }
+
+        fn pan_axis(&self) -> ::core::option::Option<$crate::layout::Axis> {
+            $crate::widget::MineralWidget::pan_axis(&self.$field)
+        }
     };
 }
 

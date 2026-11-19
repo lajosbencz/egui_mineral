@@ -55,6 +55,11 @@ impl PanClaim {
         None
     }
 
+    /// A pan that started on this widget is being relayed to the enclosing scroll area.
+    pub fn relaying(&self) -> bool {
+        matches!(self.pan, Some((_, false)))
+    }
+
     /// Hands `over`, the part of a claimed frame's travel the widget could not use, to the enclosing scroll area;
     /// coasts the frame's `axis` release velocity there when anything was chained during the pan.
     pub fn chain(&mut self, core: &Core, ui: &Ui, axis: Axis, frame: &PanFrame, over: f32) {

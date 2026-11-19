@@ -4,8 +4,8 @@ use egui::{IdSalt, KeyboardShortcut, Pos2, Sense, Ui, Vec2};
 
 use crate::{
     i18n::I18n,
-    input::InputContext,
-    layout::{Constraints, Measure, MinTarget, Zones},
+    input::{InputContext, PanClaim, PointerKind},
+    layout::{Axis, Constraints, Measure, MinTarget, Zones},
     perf,
     runtime::{Core, Runtime},
     semantic::{self, SemanticNode},
@@ -26,6 +26,70 @@ pub struct WidgetFrame<'a> {
     pub tapped: Option<Pos2>,
     /// What [`MineralWidget::layout`] was measured against.
     pub constraints: Constraints,
+    /// Touch pan arbitration of this pass, active with [`MineralWidget::pan_axis`].
+    pub pan: PanGate,
+}
+
+/// Touch pan arbitration state of a widget with [`MineralWidget::pan_axis`], applied to its responses by
+/// [`Self::apply`]; inactive for mouse and pen input, and without a pan axis.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct PanGate {
+    active: bool,
+    owned: bool,
+    started: bool,
+    relaying: bool,
+}
+
+impl PanGate {
+    /// Touch input on a widget with a pan axis: drags are reported only once claimed.
+    pub fn active(&self) -> bool {
+        self.active
+    }
+
+    /// `r` as the widget may see it: while the pan is not claimed on the axis, drag state is cleared and
+    /// the press state too once the pan is relayed to the scroll area; the claiming pass reports a drag start.
+    /// The plumbing applies it to [`WidgetFrame::response`], widgets apply it to their own drag-sensing responses.
+    #[must_use]
+    pub fn apply(&self, mut r: egui::Response) -> egui::Response {
+        use egui::response::Flags;
+        if !self.active {
+            return r;
+        }
+        if self.owned {
+            if self.started {
+                r.flags |= Flags::DRAG_STARTED | Flags::DRAGGED;
+            }
+        } else {
+            r.flags
+                .remove(Flags::DRAG_STARTED | Flags::DRAGGED | Flags::DRAG_STOPPED);
+            if self.relaying {
+                r.flags.remove(Flags::IS_POINTER_BUTTON_DOWN_ON);
+            }
+        }
+        r
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+struct PanGateState {
+    claim: PanClaim,
+    owned: bool,
+}
+
+fn pan_gate(ui: &Ui, core: &Core, axis: Axis, response: &egui::Response) -> PanGate {
+    let id = response.id.with("pan-gate");
+    let mut st = ui.data(|d| d.get_temp::<PanGateState>(id)).unwrap_or_default();
+    let was_relaying = st.claim.relaying();
+    let frame = st.claim.update(ui, core, axis, response, true);
+    let gate = PanGate {
+        active: true,
+        owned: frame.is_some(),
+        started: frame.is_some() && !st.owned,
+        relaying: was_relaying || st.claim.relaying(),
+    };
+    st.owned = frame.is_some_and(|f| !f.ended);
+    ui.data_mut(|d| d.insert_temp(id, st));
+    gate
 }
 
 impl WidgetFrame<'_> {
@@ -276,6 +340,13 @@ pub trait MineralWidget {
         Sense::click()
     }
 
+    /// Axis of a single-axis drag. On touch the plumbing arbitrates it with a [`PanClaim`]: the drag state of
+    /// [`WidgetFrame::response`] is reported only once a pan is claimed on this axis, any other pan scrolls the
+    /// enclosing scroll area. Mouse input is unaffected.
+    fn pan_axis(&self) -> Option<Axis> {
+        None
+    }
+
     /// Disabled widgets sense hover only, so neither clicks nor taps reach them.
     fn enabled(&self) -> bool {
         true
@@ -363,6 +434,13 @@ fn show<K, W: MineralWidget<Kit = K>>(ui: &mut MineralUi<'_, K>, mut widget: W) 
     }
 
     let tapped = input.tap_on(&mut response);
+    let pan = match widget.pan_axis() {
+        Some(axis) if widget.enabled() && !composite && input.modality == PointerKind::Touch => {
+            pan_gate(ui, core, axis, &response)
+        }
+        _ => PanGate::default(),
+    };
+    let mut response = pan.apply(response);
     if sense.is_focusable() {
         crate::kit::focus::follow_press(&response);
     }
@@ -389,6 +467,7 @@ fn show<K, W: MineralWidget<Kit = K>>(ui: &mut MineralUi<'_, K>, mut widget: W) 
         response,
         tapped,
         constraints,
+        pan,
     };
     let frame_id = frame.response.id;
     let mut out = widget.update(ui, &frame, &mut state);

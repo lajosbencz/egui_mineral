@@ -4,7 +4,7 @@ use egui::{
 use egui_mineral::{
     i18n::I18n,
     kit,
-    layout::{Constraints, Measure, MinTarget},
+    layout::{Axis, Constraints, Measure, MinTarget},
     semantic::{AgentKey, KeyedSalt, NumericRange, Role, SemanticNode},
     widget::{Availability, Composite, Interaction, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
 };
@@ -245,6 +245,10 @@ impl MineralWidget for Handle<'_> {
         Sense::click_and_drag()
     }
 
+    fn pan_axis(&self) -> Option<Axis> {
+        self.channel.map(|_| Axis::Horizontal)
+    }
+
     fn min_target(&self) -> MinTarget {
         MinTarget::None
     }
@@ -266,7 +270,7 @@ impl MineralWidget for Handle<'_> {
         if !self.part.disabled {
             if let Some(pos) = r
                 .interact_pointer_pos()
-                .filter(|_| r.is_pointer_button_down_on() || r.clicked())
+                .filter(|_| if frame.pan.active() { r.dragged() } else { r.is_pointer_button_down_on() } || r.clicked())
             {
                 self.pointer(rect, pos, &mut v);
                 changed = true;

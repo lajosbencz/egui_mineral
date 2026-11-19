@@ -83,6 +83,10 @@ impl MineralWidget for Slider<'_> {
         self.bar.sense(1)
     }
 
+    fn pan_axis(&self) -> Option<Axis> {
+        Some(self.bar.axis)
+    }
+
     fn min_target(&self) -> MinTarget {
         MinTarget::None
     }

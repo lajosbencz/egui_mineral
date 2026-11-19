@@ -234,7 +234,9 @@ impl Bar {
                 } else {
                     focus::roving_sense(Sense::click_and_drag(), TabStop::at(single, true))
                 };
-                ui.interact(geo.thumb_rect(self.range.fraction(*v)), r.id.with(("thumb", i)), sense)
+                frame
+                    .pan
+                    .apply(ui.interact(geo.thumb_rect(self.range.fraction(*v)), r.id.with(("thumb", i)), sense))
             })
             .collect();
         let stop = |i: usize| {

@@ -12,5 +12,6 @@ mod i18n;
 mod inputs;
 mod menu;
 mod navigation;
+mod pan;
 mod semantics;
 mod surfaces;
