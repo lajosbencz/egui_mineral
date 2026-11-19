@@ -404,22 +404,13 @@ mod web {
     }
 }
 
-#[cfg(all(
-    test,
-    not(target_arch = "wasm32"),
-    not(all(
-        feature = "platform-pickers",
-        feature = "platform-clipboard",
-        feature = "platform-notify"
-    ))
-))]
+#[cfg(all(test, not(target_arch = "wasm32"), not(feature = "platform-clipboard")))]
 mod tests {
     use futures_util::FutureExt;
 
     use super::*;
 
     // Only built where a feature is off, so the constructor never reaches the OS clipboard.
-    #[cfg(not(feature = "platform-clipboard"))]
     #[test]
     fn disabled_clipboard_is_unsupported() {
         let p = NativePlatform::new().unwrap();
@@ -429,7 +420,7 @@ mod tests {
         assert!(matches!(err, PlatformError::Unsupported("platform-clipboard")), "{err}");
     }
 
-    #[cfg(all(not(feature = "platform-clipboard"), not(feature = "platform-pickers")))]
+    #[cfg(not(feature = "platform-pickers"))]
     #[test]
     fn disabled_pickers_are_unsupported() {
         let p = NativePlatform::new().unwrap();
@@ -443,7 +434,7 @@ mod tests {
         assert!(matches!(err, PlatformError::Unsupported("platform-pickers")), "{err}");
     }
 
-    #[cfg(all(not(feature = "platform-clipboard"), not(feature = "platform-notify")))]
+    #[cfg(not(feature = "platform-notify"))]
     #[test]
     fn disabled_notifications_are_unsupported() {
         let n = Notification {
