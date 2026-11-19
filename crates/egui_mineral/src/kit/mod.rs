@@ -30,13 +30,15 @@ pub use crate::__widget_meta as widget_meta;
 /// Common imports for widget authors.
 pub mod prelude {
     pub use crate::{
+        input::PanClaim,
         kit::state::TempState,
         layout::{Constraints, Measure, MinTarget},
         runtime::Stylekit,
         semantic::{Action, AgentKey, KeySalt, KeyedSalt, Role, SemanticNode, StableId},
         shortcut::Mnemonic,
         widget::{
-            Availability, Composite, Interaction, MineralUi, MineralWidget, SizeExt, WidgetFrame, WidgetResponse,
+            Availability, Composite, Interaction, MineralUi, MineralWidget, PanGate, SizeExt, WidgetFrame,
+            WidgetResponse,
         },
     };
 }

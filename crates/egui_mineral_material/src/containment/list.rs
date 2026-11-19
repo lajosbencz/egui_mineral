@@ -358,7 +358,7 @@ impl ListItem {
         }
         let pan = state
             .claim
-            .update(ui, rt.core(), egui_mineral::layout::Axis::Horizontal, r, true);
+            .update(ui, rt.core(), egui_mineral::layout::Axis::Horizontal, r);
         if let Some(pan) = pan {
             state.offset = (state.offset + pan.delta.x).clamp(min, max);
             state.rest = state.offset;

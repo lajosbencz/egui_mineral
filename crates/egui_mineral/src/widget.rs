@@ -34,17 +34,27 @@ pub struct WidgetFrame<'a> {
 /// Touch pan arbitration state of a widget with [`MineralWidget::pan_axis`], applied to its responses by
 /// [`Self::apply`]; inactive for mouse and pen input, and without a pan axis.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct PanGate {
-    active: bool,
-    owned: bool,
-    started: bool,
-    relaying: bool,
+#[must_use]
+pub struct PanGate(GateState);
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+enum GateState {
+    #[default]
+    Inactive,
+    // Pan not claimed on the axis.
+    Unclaimed,
+    // Pan relayed to the scroll area.
+    Relaying,
+    // Claimed; the claiming pass reports a drag start.
+    Claimed {
+        started: bool,
+    },
 }
 
 impl PanGate {
     /// Touch input on a widget with a pan axis: drags are reported only once claimed.
     pub fn active(&self) -> bool {
-        self.active
+        self.0 != GateState::Inactive
     }
 
     /// `r` as the widget may see it: while the pan is not claimed on the axis, drag state is cleared and
@@ -53,18 +63,19 @@ impl PanGate {
     #[must_use]
     pub fn apply(&self, mut r: egui::Response) -> egui::Response {
         use egui::response::Flags;
-        if !self.active {
-            return r;
-        }
-        if self.owned {
-            if self.started {
-                r.flags |= Flags::DRAG_STARTED | Flags::DRAGGED;
+        match self.0 {
+            GateState::Inactive => {}
+            GateState::Claimed { started } => {
+                if started {
+                    r.flags |= Flags::DRAG_STARTED | Flags::DRAGGED;
+                }
             }
-        } else {
-            r.flags
-                .remove(Flags::DRAG_STARTED | Flags::DRAGGED | Flags::DRAG_STOPPED);
-            if self.relaying {
-                r.flags.remove(Flags::IS_POINTER_BUTTON_DOWN_ON);
+            GateState::Unclaimed | GateState::Relaying => {
+                r.flags
+                    .remove(Flags::DRAG_STARTED | Flags::DRAGGED | Flags::DRAG_STOPPED);
+                if self.0 == GateState::Relaying {
+                    r.flags.remove(Flags::IS_POINTER_BUTTON_DOWN_ON);
+                }
             }
         }
         r
@@ -81,13 +92,14 @@ fn pan_gate(ui: &Ui, core: &Core, axis: Axis, response: &egui::Response) -> PanG
     let id = response.id.with("pan-gate");
     let mut st = ui.data(|d| d.get_temp::<PanGateState>(id)).unwrap_or_default();
     let was_relaying = st.claim.relaying();
-    let frame = st.claim.update(ui, core, axis, response, true);
-    let gate = PanGate {
-        active: true,
-        owned: frame.is_some(),
-        started: frame.is_some() && !st.owned,
-        relaying: was_relaying || st.claim.relaying(),
-    };
+    let frame = st.claim.update(ui, core, axis, response);
+    let gate = PanGate(if frame.is_some() {
+        GateState::Claimed { started: !st.owned }
+    } else if was_relaying || st.claim.relaying() {
+        GateState::Relaying
+    } else {
+        GateState::Unclaimed
+    });
     st.owned = frame.is_some_and(|f| !f.ended);
     ui.data_mut(|d| d.insert_temp(id, st));
     gate
