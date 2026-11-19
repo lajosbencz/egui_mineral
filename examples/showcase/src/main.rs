@@ -14,7 +14,7 @@ use egui_mineral::{
     shortcut,
 };
 pub(crate) use egui_mineral_material::{Material, Rt};
-use egui_mineral_material::{adaptive::WindowClass, color::SchemeSpec, prelude::*, scroll};
+use egui_mineral_material::{adaptive::WindowClass, color::SchemeSpec, fonts::IconFonts, prelude::*, scroll};
 use futures_util::StreamExt;
 use mineral_inspector::{Inspector, Serde};
 use pages::{Cmd, Evt, LOCALES, Page, Settings, Shared, States, VARIANTS, snack};
@@ -23,6 +23,11 @@ use spawn::AppSpawner;
 const CONTENT_MAX_W: f32 = 1040.0;
 const PALETTE: KeyboardShortcut = KeyboardShortcut::new(Modifiers::COMMAND, Key::K);
 const INSPECTOR: KeyboardShortcut = KeyboardShortcut::new(Modifiers::NONE, Key::F12);
+// Subsets written by build.rs.
+const ICON_FONTS: IconFonts = IconFonts {
+    filled: include_bytes!(concat!(env!("OUT_DIR"), "/MaterialSymbolsRounded_Filled-Regular.ttf")),
+    outlined: include_bytes!(concat!(env!("OUT_DIR"), "/MaterialSymbolsRounded-Regular.ttf")),
+};
 
 pub(crate) type Mui<'a> = MineralUi<'a, Material>;
 
@@ -44,7 +49,7 @@ struct App {
 
 impl App {
     fn new(ctx: &egui::Context) -> Result<Self, InitError> {
-        let rt = Runtime::new(ctx, Material::new(egui::Theme::Light))?;
+        let rt = Runtime::new(ctx, Material::new(egui::Theme::Light).icon_fonts(ICON_FONTS))?;
         // The navigation page binds Cmd+Q and Cmd+/- as menu commands.
         ctx.options_mut(|o| {
             o.zoom_with_keyboard = false;

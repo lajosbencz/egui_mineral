@@ -69,11 +69,11 @@ Cargo features: [docs.rs](https://docs.rs/crate/egui_mineral/latest/features).
 
 ## Release size
 
-The WASM showcase is 13.1 MB (5.1 MB gzipped), of which:
+The WASM showcase is 10.7 MB (4.1 MB gzipped). Main assets of a default build:
 
 | Asset | Size | Opt out |
 |---|---|---|
-| Material Symbols fonts, filled and outlined | 3.0 MB | disable `bundled-icons`, pass `Material::icon_fonts` (e.g. subset fonts) |
+| Material Symbols fonts, filled and outlined | 3.0 MB | disable `bundled-icons`, pass `Material::icon_fonts`; the showcase's [`build.rs`](https://github.com/lajosbencz/egui_mineral/blob/master/examples/showcase/build.rs) subsets them to the icons used (38 KB) |
 | egui text fonts | 1.4 MB | eframe's `default_fonts` feature, then your own via `egui::Context::set_fonts` |
 | ICU4X data, every CLDR locale | 0.8 MB over `en` only | `ICU4X_DATA_DIR` with your locales ([`i18n`](https://docs.rs/egui_mineral/latest/egui_mineral/i18n/)), or disable `icu` |
 

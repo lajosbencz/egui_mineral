@@ -8,7 +8,7 @@ publish = false
 
 [dependencies]
 egui_mineral = { workspace = true, features = ["platform-native", "web-save-stream"] }
-egui_mineral_material = { workspace = true, features = ["unstable-catalog", "unstable-spec"] }
+egui_mineral_material = { workspace = true, features = ["icu", "persist-fs", "unstable-catalog", "unstable-spec"] }
 mineral_inspector.workspace = true
 eframe.workspace = true
 egui.workspace = true
@@ -27,6 +27,10 @@ tracing-web.workspace = true
 wasm-bindgen-futures.workspace = true
 gloo-timers = { workspace = true, features = ["futures"] }
 web-sys = { workspace = true, features = ["Window", "Document", "Element", "HtmlCanvasElement"] }
+
+[build-dependencies]
+allsorts.workspace = true
+serde_json.workspace = true
 
 [lints]
 workspace = true
