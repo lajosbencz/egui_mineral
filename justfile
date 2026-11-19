@@ -112,7 +112,7 @@ readme-check:
 package:
     cargo package --no-verify --allow-dirty -p egui_mineral -p egui_mineral_macros -p egui_mineral_material
 
-# Published crates share 0.MINOR (MAJOR from 1.0)
+# Published crates share 0.MINOR (MAJOR from 1.0); the pinned toolchain is the workspace MSRV
 versions-check:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -120,6 +120,10 @@ versions-check:
         [.packages[] | select(.name | IN($crates | split(" ")[])) | .version | split(".") | if .[0] == "0" then .[0:2] else .[0:1] end | join(".")]
         | unique | length == 1' >/dev/null \
         || { echo "published crates differ in breaking version: run just align-breaking"; exit 1; }
+    channel=$(sed -nE 's/^channel *= *"([0-9]+\.[0-9]+)(\.[0-9]+)?"/\1/p' rust-toolchain.toml)
+    msrv=$(sed -nE '/^\[workspace\.package\]/,/^\[/s/^rust-version *= *"([0-9]+\.[0-9]+)(\.[0-9]+)?"/\1/p' Cargo.toml)
+    [ -n "$channel" ] && [ "$channel" = "$msrv" ] \
+        || { echo "rust-toolchain.toml channel (${channel:-unset}) must match workspace rust-version (${msrv:-unset}): the toolchain is the MSRV"; exit 1; }
 
 # Raises every published crate to the highest version among them when their breaking versions differ; patches stay per crate
 align-breaking:
