@@ -123,6 +123,7 @@ enum WidthChange {
 #[derive(Clone, Copy, Default)]
 struct DialogSize {
     resize: bool,
+    grew_at: Option<u64>,
     height: Option<f32>,
 }
 
@@ -560,8 +561,14 @@ impl Dialog {
             let used = ui.min_rect();
             // Shrunk content leaves the width it filled; taller content may wrap wider.
             let grew = size.height.is_some_and(|h| used.height() > h + 0.5);
+            // Growth within two frames of the last lags a frame instead of discarding again.
+            let frame = ctx.cumulative_frame_nr();
+            let continued = size.grew_at.is_some_and(|f| frame - f <= 2);
             size = DialogSize {
-                resize: !ui.is_sizing_pass() && chosen.is_none() && (natural + 0.5 < used.width() || grew),
+                resize: !ui.is_sizing_pass()
+                    && chosen.is_none()
+                    && (natural + 0.5 < used.width() || (grew && !continued)),
+                grew_at: if grew && !ui.is_sizing_pass() { Some(frame) } else { size.grew_at },
                 height: Some(used.height()),
             };
             if self.resizable && !ui.is_sizing_pass() {

@@ -371,3 +371,24 @@ fn resizable_dialog_follows_its_dragged_edge_until_reset() {
         "a double click restores content sizing"
     );
 }
+
+#[test]
+fn dialog_growing_each_frame_discards_only_the_opening_pass() {
+    let mut h = still(WIDE, Vec::<(u64, u32)>::new(), |ui, passes| {
+        let frame = ui.ctx().cumulative_frame_nr();
+        match passes.last_mut() {
+            Some((f, n)) if *f == frame => *n += 1,
+            _ => passes.push((frame, 1)),
+        }
+        let mut open = true;
+        Dialog::new("dlg", "Title")
+            .action(DialogAction::new("OK"))
+            .show_modal(ui.rt(), &mut open, |ui| ui.add_space(20.0 + 10.0 * frame as f32));
+    });
+    for _ in 0..8 {
+        h.step();
+    }
+    let per_frame: Vec<u32> = h.state().value.iter().map(|&(_, n)| n).collect();
+    let late = &per_frame[per_frame.len().saturating_sub(5)..];
+    assert!(late.iter().all(|&n| n == 1), "passes per frame while growing: {per_frame:?}");
+}
