@@ -434,18 +434,14 @@ fn numbers(ui: &mut Mui<'_>, s: &mut State) {
 fn otp(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     let rt = ui.rt();
     super::section(ui, TOPICS[2], Some(<OtpField<'static>>::META), |ui| {
-        caption(ui, TypeScale::LabelMedium, "6 digits (paste a full code to fill)");
-        let f = OtpField::new("ti-otp", "Verification code", 6, &mut s.otp);
+        let f = OtpField::new("ti-otp", "Verification code (paste a full code to fill)", 6, &mut s.otp);
         if rt.ui(ui).mineral(f).output().completed {
             shared.toast(format!("Code complete: {} digits", s.otp.len()));
         }
-        caption(ui, TypeScale::LabelMedium, "4-digit masked PIN");
         rt.ui(ui)
-            .mineral(OtpField::new("ti-otp-pin", "PIN", 4, &mut s.otp_pin).masked(true));
-        caption(ui, TypeScale::LabelMedium, "Alphanumeric");
+            .mineral(OtpField::new("ti-otp-pin", "Masked PIN", 4, &mut s.otp_pin).masked(true));
         rt.ui(ui)
-            .mineral(OtpField::new("ti-otp-alpha", "Invite code", 5, &mut s.otp_alpha).charset(Charset::Alphanumeric));
-        caption(ui, TypeScale::LabelMedium, "Error and disabled");
+            .mineral(OtpField::new("ti-otp-alpha", "Alphanumeric invite code", 5, &mut s.otp_alpha).charset(Charset::Alphanumeric));
         rt.ui(ui)
             .mineral(OtpField::new("ti-otp-err", "Wrong code", 6, &mut s.otp_error).error("Incorrect code"));
         let mut v = String::from("123");
