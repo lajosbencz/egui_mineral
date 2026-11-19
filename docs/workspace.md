@@ -47,5 +47,5 @@ Not in CI: `cargo bench -p egui_mineral`, `cargo run -p showcase` (F12: inspecto
 Paused: `release = false` in [`release-plz.toml`](../release-plz.toml) until trusted publishing is set up.
 
 Automated by [`release-plz.toml`](../release-plz.toml) and [`release-plz.yml`](../.github/workflows/release-plz.yml): merging the release pull request publishes the published crates in lockstep and tags `vX.Y.Z`. `CHANGELOG.md` is generated, never hand-edited.
-[`pages.yml`](../.github/workflows/pages.yml) deploys the static index ([`.github/pages`](../.github/pages)) with the showcase's wasm build under `material/`.
+[`pages.yml`](../.github/workflows/pages.yml) deploys, on each release, the static index ([`.github/pages`](../.github/pages)) with the showcase's wasm build under `material/`.
 [`dependabot.yml`](../.github/dependabot.yml) and [`dependabot-automerge.yml`](../.github/workflows/dependabot-automerge.yml) keep dependencies and pinned actions current.
