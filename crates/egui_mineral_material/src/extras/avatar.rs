@@ -41,6 +41,7 @@ fn paint_label(p: &Painter, center: Pos2, text: String, size: f32, color: Color3
 /// Avatar diameter of the MD3 component hosting it; any other size goes through
 /// [`SizeExt`](egui_mineral::widget::SizeExt).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum AvatarSize {
     /// `ChipsTokens.AvatarSize` (input chips too).
     Chip,

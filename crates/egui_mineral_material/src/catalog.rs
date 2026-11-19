@@ -24,6 +24,7 @@ pub enum Kit {
 
 /// Spec provenance of a component.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum Origin {
     /// Baseline MD3 component.
     Md3,
@@ -36,6 +37,7 @@ pub enum Origin {
 /// Component group of [m3.material.io](https://m3.material.io/components); `Extras` holds the
 /// [`Origin::Other`] components. Each variant is the public module of the same name.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum Category {
     /// Buttons, FABs, icon, segmented and split buttons.
     Actions,
@@ -57,7 +59,7 @@ pub enum Category {
 impl Category {
     /// Every variant, in m3.material.io order.
     #[cfg(feature = "extras")]
-    pub const ALL: [Self; 7] = [
+    pub const ALL: &'static [Self] = &[
         Self::Actions,
         Self::Communication,
         Self::Containment,
@@ -69,7 +71,7 @@ impl Category {
 
     /// Every variant, in m3.material.io order.
     #[cfg(not(feature = "extras"))]
-    pub const ALL: [Self; 6] = [
+    pub const ALL: &'static [Self] = &[
         Self::Actions,
         Self::Communication,
         Self::Containment,

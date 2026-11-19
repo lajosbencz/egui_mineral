@@ -101,6 +101,7 @@ impl NavDestination {
 
 /// When a navigation bar or rail shows destination labels.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum NavLabels {
     #[default]
     /// Every destination shows its label.

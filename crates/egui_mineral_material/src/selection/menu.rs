@@ -48,6 +48,7 @@ const SUBMENU_DELAY: Duration = Duration::from_millis(200);
 /// Menu color set (Compose `MenuDefaults.*Colors`). `Baseline` is MD3 2023; `Standard` and `Vibrant`
 /// are MD3 Expressive.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum MenuColors {
     #[default]
     /// MD3 2023 menu (`MenuDefaults.itemColors`).
@@ -189,6 +190,7 @@ fn vertical_radius(top: u8, bottom: u8) -> CornerRadius {
 
 /// Trailing slot of a [`MenuItem`]: an icon or a shortcut label.
 #[derive(Clone, Copy, Debug)]
+#[non_exhaustive]
 pub enum MenuTrailing {
     /// Trailing icon.
     Icon(Icon),

@@ -1,6 +1,7 @@
 use crate::Material;
 use crate::MaterialExt;
 use crate::Rt;
+use crate::TextAction;
 use egui_mineral::semantic::AgentKey;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::MineralUi;
@@ -53,7 +54,7 @@ pub struct EmptyPlaceholder {
     icon: Option<Icon>,
     title: String,
     description: Option<String>,
-    action: Option<String>,
+    action: Option<TextAction>,
 }
 
 /// Result of [`EmptyPlaceholder::show`].
@@ -97,8 +98,8 @@ impl EmptyPlaceholder {
     }
 
     /// Filled button below the text; reports [`EmptyPlaceholderResponse::action_clicked`].
-    pub fn action(mut self, label: impl Into<String>) -> Self {
-        self.action = Some(label.into());
+    pub fn action(mut self, action: impl Into<TextAction>) -> Self {
+        self.action = Some(action.into());
         self
     }
 
@@ -151,11 +152,14 @@ impl EmptyPlaceholder {
                 clicked = rt
                     .ui(ui)
                     .mineral(
-                        PushButton::new(self.salt.child("action"), a)
+                        PushButton::new(self.salt.child("action"), &a.label)
                             .variant(EMPTY_ACTION)
                             .agent_key(StableId::of(&self.salt, "button")),
                     )
                     .clicked();
+                if clicked {
+                    a.fire(&ctx);
+                }
             }
             ui.add_space(defaults::dialog::PADDING);
         });
@@ -169,6 +173,7 @@ impl EmptyPlaceholder {
 
 /// Change shown on a [`Statistic`], as percent or absolute.
 #[derive(Clone, Copy, Debug, PartialEq)]
+#[non_exhaustive]
 pub enum Trend {
     /// Change in percent; formatted with a percent sign.
     Percent(f64),
@@ -336,6 +341,7 @@ impl Composite for Statistic {
 
 /// Label placement of a [`DescriptionList`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
+#[non_exhaustive]
 pub enum DescriptionLayout {
     #[default]
     /// Term beside its detail.

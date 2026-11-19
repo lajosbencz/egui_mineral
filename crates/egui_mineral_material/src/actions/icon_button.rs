@@ -36,6 +36,7 @@ use crate::{
 
 /// Compose `IconButton`, `FilledIconButton`, `FilledTonalIconButton` and `OutlinedIconButton` styles.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
+#[non_exhaustive]
 pub enum IconButtonVariant {
     #[default]
     /// `IconButton`: no container.
@@ -50,6 +51,7 @@ pub enum IconButtonVariant {
 
 /// Compose `IconButtonWidthOption`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
+#[non_exhaustive]
 pub enum IconButtonWidth {
     /// Narrower than tall.
     Narrow,

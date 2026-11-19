@@ -34,7 +34,7 @@ pub enum SchemeVariant {
 
 impl SchemeVariant {
     /// Every variant.
-    pub const ALL: [Self; 9] = [
+    pub const ALL: &'static [Self] = &[
         Self::Monochrome,
         Self::Neutral,
         Self::TonalSpot,
@@ -92,7 +92,8 @@ impl FromStr for SchemeVariant {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Self::ALL
-            .into_iter()
+            .iter()
+            .copied()
             .find(|v| v.name() == s)
             .ok_or_else(|| ParseSchemeVariantError(s.to_owned()))
     }
@@ -349,7 +350,7 @@ mod tests {
 
     #[test]
     fn variant_names_roundtrip() {
-        for v in SchemeVariant::ALL {
+        for &v in SchemeVariant::ALL {
             assert_eq!(v.to_string().parse(), Ok(v));
         }
         assert_eq!("tonal_spot".parse(), Ok(SchemeVariant::TonalSpot));

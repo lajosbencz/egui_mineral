@@ -9,7 +9,7 @@ pub(crate) mod slider;
 pub(crate) mod time_picker;
 
 pub use crate::widget::vocab::{PickerModalResponse, PickerResponse};
-pub use chip::{Chip, InputChip, InputChipOutput};
+pub use chip::{Chip, ChipVariant, InputChip, InputChipOutput};
 pub use controls::{CheckButton, Radio, RadioGroup, RadioOption, Switch, SwitchState};
 pub use date_picker::{DatePicker, DateRangePicker, DisplayMode};
 pub use menu::{Menu, MenuColors, MenuItem, MenuResponse, MenuTrailing};

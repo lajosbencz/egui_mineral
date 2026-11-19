@@ -585,8 +585,8 @@ impl<'a, N: TreeData> TreeView<'a, N> {
     }
 
     /// Label type style; default [`TypeScale::BodyLarge`], the list item label.
-    pub fn label_style(mut self, label_style: TypeScale) -> Self {
-        self.label_style = label_style;
+    pub fn text_style(mut self, text_style: TypeScale) -> Self {
+        self.label_style = text_style;
         self
     }
 

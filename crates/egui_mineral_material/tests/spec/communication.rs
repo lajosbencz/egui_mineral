@@ -1,6 +1,6 @@
 use egui::{Rect, Vec2, vec2};
 use egui_mineral_material::{
-    communication::{CircularProgressIndicator, LinearProgressIndicator, PullToRefresh},
+    communication::{CircularProgressIndicator, LinearProgressIndicator, ProgressVariant, PullToRefresh},
     spec::{
         defaults::{progress_indicator, pull_to_refresh as ptr},
         tokens::{circular_progress_indicator, linear_progress_indicator},
@@ -23,7 +23,7 @@ fn progress_indicators_take_their_compose_default_sizes() {
     });
     assert_eq!(p.outer.size(), Vec2::splat(circular_progress_indicator::SIZE));
     let p = render(|ui| {
-        ui.mineral(CircularProgressIndicator::determinate("cpw", 0.5).wavy(true));
+        ui.mineral(CircularProgressIndicator::determinate("cpw", 0.5).variant(ProgressVariant::Wavy));
     });
     assert_eq!(p.outer.size(), Vec2::splat(circular_progress_indicator::WAVE_SIZE));
 }

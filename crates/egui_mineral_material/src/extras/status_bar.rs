@@ -12,6 +12,7 @@ use egui_mineral::{
 
 use crate::communication::{CircularProgressIndicator, LinearProgressIndicator, PlainTooltip};
 use crate::spec::{ColorRole, TypeScale, tokens::divider};
+use crate::text_inputs::text_field::{self, Elide};
 use crate::widget::{
     common::{self, Interaction},
     parts,
@@ -30,6 +31,7 @@ const TEXT: TypeScale = TypeScale::BodySmall;
 
 /// Progress indicator of a [`StatusItem`]: the fraction done, `None` for indeterminate.
 #[derive(Clone, Copy, Debug, PartialEq)]
+#[non_exhaustive]
 pub enum StatusProgress {
     /// Circular indicator.
     Circular(Option<f32>),
@@ -53,7 +55,7 @@ impl Lead {
 }
 
 /// Color treatment of a [`StatusItem`]; MD3 has no warning role, so there is none.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum StatusTone {
     /// Bar container and content colors.
@@ -61,6 +63,31 @@ pub enum StatusTone {
     Default,
     /// Error container and on-error-container content.
     Error,
+    /// App-chosen colors, e.g. a warning tone.
+    Custom {
+        /// Strip fill.
+        container: Color32,
+        /// Text, icon and progress color.
+        content: Color32,
+    },
+}
+
+impl StatusTone {
+    fn content(self, t: &crate::theme::Tokens) -> Color32 {
+        match self {
+            Self::Default => t.role(CONTENT),
+            Self::Error => t.role(ColorRole::OnErrorContainer),
+            Self::Custom { content, .. } => content,
+        }
+    }
+
+    fn container(self, t: &crate::theme::Tokens) -> Option<Color32> {
+        match self {
+            Self::Default => None,
+            Self::Error => Some(t.role(ColorRole::ErrorContainer)),
+            Self::Custom { container, .. } => Some(container),
+        }
+    }
 }
 
 /// Text, with an optional icon or progress indicator, in a [`StatusBar`].
@@ -72,8 +99,7 @@ pub struct StatusItem {
     tooltip: Option<String>,
     clickable: bool,
     tone: StatusTone,
-    colors: Option<(Color32, Color32)>,
-    elide: bool,
+    elide: Option<Elide>,
 }
 
 impl StatusItem {
@@ -85,8 +111,7 @@ impl StatusItem {
             tooltip: None,
             clickable: false,
             tone: StatusTone::Default,
-            colors: None,
-            elide: false,
+            elide: None,
         }
     }
 
@@ -123,17 +148,10 @@ impl StatusItem {
         self
     }
 
-    /// App-chosen strip and text colors, overriding the [`tone`](Self::tone) (e.g. a warning tone,
-    /// which MD3 lacks).
-    pub fn colors(mut self, container: Color32, content: Color32) -> Self {
-        self.colors = Some((container, content));
-        self
-    }
-
-    /// Start items only: the one that overflows ends in an ellipsis at the room left rather than
-    /// vanishing with the following items; default `false`.
-    pub fn elide(mut self, elide: bool) -> Self {
-        self.elide = elide;
+    /// Start items only: the one that overflows shrinks to the room left, `elide` choosing the part replaced by
+    /// an ellipsis, rather than vanishing with the following items. Default: it vanishes.
+    pub fn elide(mut self, elide: Elide) -> Self {
+        self.elide = Some(elide);
         self
     }
 }
@@ -209,11 +227,7 @@ impl StatusBar {
             Stroke::new(divider::THICKNESS, t.role(divider::COLOR)),
         );
 
-        let content_of = |it: &StatusItem| match (it.colors, it.tone) {
-            (Some((_, content)), _) => content,
-            (None, StatusTone::Default) => t.role(CONTENT),
-            (None, StatusTone::Error) => t.role(ColorRole::OnErrorContainer),
-        };
+        let content_of = |it: &StatusItem| it.tone.content(&t);
         let mut galleys: Vec<_> = self
             .items
             .iter()
@@ -226,7 +240,7 @@ impl StatusBar {
                 width: width(i, &galleys),
                 chrome: chrome(i),
                 at_end: self.items[i].1,
-                elide: self.items[i].0.elide,
+                elide: self.items[i].0.elide.is_some(),
             })
             .collect();
         let slots: Vec<Option<Rect>> = strip::place(rect.width(), &measured)
@@ -235,8 +249,9 @@ impl StatusBar {
             .enumerate()
             .map(|(i, (placed, (item, at_end)))| {
                 let p = placed?;
-                if let Some(room) = p.elided_room {
-                    galleys[i] = parts::type_wrapped(ui.painter(), &item.text, TEXT, content_of(item), room, 1);
+                if let Some((room, elide)) = p.elided_room.zip(item.elide) {
+                    let color = content_of(item);
+                    galleys[i] = text_field::elided_galley(ui.painter(), &item.text, TEXT, color, room, elide);
                 }
                 Some(slot(rect, dir, *at_end, p.offset, p.width))
             })
@@ -246,14 +261,8 @@ impl StatusBar {
         for (i, ((item, _), galley)) in self.items.iter().zip(galleys).enumerate() {
             let Some(r) = slots[i] else { continue };
             let content = content_of(item);
-            match (item.colors, item.tone) {
-                (Some((container, _)), _) => {
-                    ui.painter().rect_filled(r, 0, container);
-                }
-                (None, StatusTone::Error) => {
-                    ui.painter().rect_filled(r, 0, t.role(ColorRole::ErrorContainer));
-                }
-                (None, StatusTone::Default) => {}
+            if let Some(container) = item.tone.container(&t) {
+                ui.painter().rect_filled(r, 0, container);
             }
             let sense = if item.clickable { Sense::click() } else { Sense::hover() };
             let resp = ui.interact(r, id.with(i), sense);

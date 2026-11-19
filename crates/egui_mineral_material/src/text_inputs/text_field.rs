@@ -42,6 +42,7 @@ use crate::{
 
 /// Compose `TextField` and `OutlinedTextField` styles.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
+#[non_exhaustive]
 pub enum TextFieldVariant {
     #[default]
     /// `TextField`: filled container, bottom indicator line.
@@ -349,6 +350,7 @@ pub(crate) fn line_galley(p: &Painter, text: &str, scale: TypeScale, color: Colo
 
 /// Part of an overflowing one-line text replaced by an ellipsis.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum Elide {
     /// Cuts the end: `/home/user/pro...`.
     #[default]

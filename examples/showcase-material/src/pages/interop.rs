@@ -115,7 +115,7 @@ fn raw(ui: &mut Mui<'_>, s: &mut State) {
         );
         Card::new("interop-card", "Interop")
             .variant(CardVariant::Outlined)
-            .padding(Card::CONTENT_PADDING)
+            .content_padding(Card::CONTENT_PADDING)
             .show(ui, |ui| {
                 super::row(ui, |row| {
                     row.add(|ui| ui.checkbox(&mut s.checked, "egui::Checkbox"));

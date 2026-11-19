@@ -180,13 +180,7 @@ mod mirror {
         );
         ui.mineral(AvatarGroup::new("ag").avatars([Avatar::new("a", "Ann"), Avatar::new("b", "Bob")]));
         ui.mineral(Kbd::new("k", ["Ctrl", "K"]));
-        ui.mineral(Skeleton::new(
-            "sk",
-            SkeletonShape::Text {
-                lines: 3,
-                scale: TypeScale::BodyMedium,
-            },
-        ));
+        ui.mineral(Skeleton::new("sk", SkeletonShape::text(3, TypeScale::BodyMedium)));
         ui.mineral(Pagination::new("pg", 5, &mut page));
         Breadcrumbs::new("bc").item("Home").item("Docs").show(ui);
         ui.mineral(DateField::new("df", "Date", &mut date));
@@ -271,7 +265,7 @@ mod mirror {
         let containers: [(&str, Gallery); 3] = [
             ("card", |ui| {
                 Card::new("card", "Card")
-                    .width(300.0)
+                    .width(300.0..=300.0)
                     .show(ui, |ui| ui.mineral(PushButton::new("body", "Body")));
             }),
             ("accordion", |ui| {
@@ -311,7 +305,7 @@ mod mirror {
                     .show_modal(ui.rt(), &mut true, |_| ());
             }),
             ("date picker", |ui| {
-                DatePicker::new("dp", &mut Some(Date::constant(2025, 6, 10))).show_modal(ui.rt(), &mut true);
+                DatePicker::new("dp", "Date", &mut Some(Date::constant(2025, 6, 10))).show_modal(ui.rt(), &mut true);
             }),
             ("palette", |ui| {
                 CommandPalette::new("pal", [PaletteCommand::new("Save")], &mut String::new())

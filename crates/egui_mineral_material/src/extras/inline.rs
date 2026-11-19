@@ -167,8 +167,8 @@ impl TextLink {
     }
 
     /// Text role; default [`TypeScale::BodyMedium`].
-    pub fn scale(mut self, scale: TypeScale) -> Self {
-        self.scale = scale;
+    pub fn text_style(mut self, text_style: TypeScale) -> Self {
+        self.scale = text_style;
         self
     }
 

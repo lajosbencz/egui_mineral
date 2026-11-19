@@ -43,6 +43,7 @@ use crate::{
 
 /// Compose `ElevatedButton`, `Button`, `FilledTonalButton`, `OutlinedButton` and `TextButton` styles.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
+#[non_exhaustive]
 pub enum ButtonVariant {
     /// `ElevatedButton`: tonal surface with a shadow.
     Elevated,
@@ -59,6 +60,7 @@ pub enum ButtonVariant {
 
 /// [`ButtonVariant`] without [`ButtonVariant::Text`]: Compose has no text toggle or split button.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
+#[non_exhaustive]
 pub enum ContainerVariant {
     /// `ElevatedToggleButton`.
     Elevated,
@@ -84,6 +86,7 @@ impl From<ContainerVariant> for ButtonVariant {
 
 /// Placement of a [`PushButton`]'s one icon; a bare [`Icon`] is leading.
 #[derive(Clone, Copy, Debug)]
+#[non_exhaustive]
 pub enum ButtonIcon {
     /// Before the label.
     Leading(Icon),
@@ -117,6 +120,7 @@ impl From<crate::MaterialIcon> for ButtonIcon {
 
 /// Resting shape of a [`PushButton`]; toggle buttons morph between the two.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
+#[non_exhaustive]
 pub enum ButtonShape {
     #[default]
     /// Fully rounded.

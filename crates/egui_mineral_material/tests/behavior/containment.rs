@@ -254,18 +254,10 @@ fn modal_dialog_traps_tab_inside_and_returns_focus() {
 #[test]
 fn carousel_content_padding_wider_than_the_strip_keeps_keylines_valid() {
     let layouts = [
-        CarouselLayout::MultiBrowse {
-            preferred_item_width: 186.0,
-        },
-        CarouselLayout::Uncontained { item_width: 100.0 },
-        CarouselLayout::Hero {
-            preferred_item_width: None,
-            centered: true,
-        },
-        CarouselLayout::Hero {
-            preferred_item_width: None,
-            centered: false,
-        },
+        CarouselLayout::multi_browse(186.0),
+        CarouselLayout::uncontained(100.0),
+        CarouselLayout::centered_hero(),
+        CarouselLayout::hero(),
         CarouselLayout::FullScreen,
     ];
     for layout in layouts {
@@ -294,14 +286,9 @@ fn carousel_content_padding_wider_than_the_strip_keeps_keylines_valid() {
 fn carousel_survives_hostile_item_widths() {
     for w in [1e-30, -50.0, f32::NAN, f32::INFINITY] {
         let layouts = [
-            CarouselLayout::MultiBrowse {
-                preferred_item_width: w,
-            },
-            CarouselLayout::Uncontained { item_width: w },
-            CarouselLayout::Hero {
-                preferred_item_width: Some(w),
-                centered: true,
-            },
+            CarouselLayout::multi_browse(w),
+            CarouselLayout::uncontained(w),
+            CarouselLayout::centered_hero().preferred_item_width(w),
         ];
         for layout in layouts {
             let mut h = still(vec2(400.0, 300.0), (), move |ui, ()| {
@@ -333,10 +320,7 @@ struct Strip {
 
 fn hero_strip<'a>() -> Harness<'a, Strip> {
     still(vec2(400.0, 300.0), Strip::default(), |ui, s| {
-        let layout = CarouselLayout::Hero {
-            preferred_item_width: None,
-            centered: false,
-        };
+        let layout = CarouselLayout::hero();
         let r = Carousel::new("c", 6, layout).show(ui, |ui, i| {
             ui.label(i.to_string());
         });
@@ -380,10 +364,7 @@ fn carousel_drag_on_an_item_pans_and_snaps_to_the_next() {
 #[test]
 fn carousel_shrinking_mid_drag_does_not_panic() {
     let mut h = still(vec2(400.0, 300.0), 6_usize, |ui, count| {
-        let layout = CarouselLayout::Hero {
-            preferred_item_width: None,
-            centered: false,
-        };
+        let layout = CarouselLayout::hero();
         Carousel::new("c", *count, layout).show(ui, |ui, i| {
             ui.label(i.to_string());
         });
@@ -456,10 +437,7 @@ fn touch_drag(h: &mut Harness<'_, Page>, from: Pos2, step: egui::Vec2, n: u32) {
     h.step();
 }
 
-const HERO: CarouselLayout = CarouselLayout::Hero {
-    preferred_item_width: None,
-    centered: false,
-};
+const HERO: CarouselLayout = CarouselLayout::hero();
 
 #[test]
 fn carousel_vertical_touch_pan_scrolls_the_enclosing_page() {

@@ -105,7 +105,7 @@ fn dense_rows_take_the_set_row_height() {
         TreeView::new("tree", "Files", &roots, expansion)
             .row_height(40.0)
             .indent(24.0)
-            .label_style(egui_mineral_material::spec::TypeScale::LabelLarge)
+            .text_style(egui_mineral_material::spec::TypeScale::LabelLarge)
             .show(ui);
     });
     let (a, b) = (h.rect("tree-1-treeitem"), h.rect("tree-2-treeitem"));

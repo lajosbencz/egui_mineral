@@ -1,6 +1,7 @@
 use crate::Material;
 use crate::MaterialExt;
 use crate::Rt;
+use crate::TextAction;
 use egui_mineral::kit::state::TempState;
 use egui_mineral::widget::MineralUi;
 use std::sync::Arc;
@@ -14,7 +15,6 @@ use egui_mineral::{
     kit,
     motion::{self, Visibility},
     semantic::{self, Live, Role, SemanticNode, StableId},
-    shortcut::{self, ActionId},
     toast::{ToastId, ToastQueue},
 };
 
@@ -27,36 +27,12 @@ use crate::widget::{
     indication, parts,
 };
 
-/// Action button of a [`Snackbar`].
-#[derive(Clone, Debug)]
-#[must_use]
-pub struct SnackbarAction {
-    label: String,
-    command: Option<ActionId>,
-}
-
-impl SnackbarAction {
-    /// `label` is the button text.
-    pub fn new(label: impl Into<String>) -> Self {
-        Self {
-            label: label.into(),
-            command: None,
-        }
-    }
-
-    /// Pressing it fires the app command `id` ([`shortcut::fire`]).
-    pub fn command(mut self, id: impl Into<ActionId>) -> Self {
-        self.command = Some(id.into());
-        self
-    }
-}
-
 /// Payload of a queued snackbar: text, optional action and close affordance.
 #[derive(Clone, Debug)]
 #[must_use]
 pub struct Snackbar {
     text: String,
-    action: Option<SnackbarAction>,
+    action: Option<TextAction>,
     close: bool,
 }
 
@@ -71,7 +47,7 @@ impl Snackbar {
     }
 
     /// Action button reporting [`SnackbarHostResponse::action_clicked`].
-    pub fn action(mut self, action: impl Into<SnackbarAction>) -> Self {
+    pub fn action(mut self, action: impl Into<TextAction>) -> Self {
         self.action = Some(action.into());
         self
     }
@@ -210,8 +186,8 @@ fn run(rt: &Rt, queue: &mut ToastQueue<Snackbar>, agent_key: &StableId) -> Snack
             }
             if out.action {
                 queue.dismiss(s.id);
-                if let Some(command) = s.snackbar.action.as_ref().and_then(|a| a.command.as_ref()) {
-                    shortcut::fire(ctx, command);
+                if let Some(action) = &s.snackbar.action {
+                    action.fire(ctx);
                 }
                 action_clicked = Some(s.id);
             } else if out.close {

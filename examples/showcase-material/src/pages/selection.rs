@@ -361,8 +361,8 @@ fn slider(ui: &mut Mui<'_>, s: &mut State) {
         caption(ui, TypeScale::LabelMedium, "End icons");
         rt.ui(ui).mineral(
             ValueSlider::new("sel-slider-icons", "Volume", r100(), &mut s.slider_icons)
-                .icon(ICON_VOLUME_DOWN)
-                .trailing_icon(ICON_VOLUME_UP)
+                .min_icon(ICON_VOLUME_DOWN)
+                .max_icon(ICON_VOLUME_UP)
                 .preferred_width(360.0),
         );
         caption(ui, TypeScale::LabelMedium, "Disabled");
@@ -384,8 +384,8 @@ fn slider(ui: &mut Mui<'_>, s: &mut State) {
             rt.ui(ui).mineral(
                 ValueSlider::new(("sel-slider-size", i), "Sized", r100(), v)
                     .size(size)
-                    .icon(ICON_VOLUME_DOWN)
-                    .trailing_icon(ICON_VOLUME_UP)
+                    .min_icon(ICON_VOLUME_DOWN)
+                    .max_icon(ICON_VOLUME_UP)
                     .preferred_width(360.0),
             );
         }
@@ -412,7 +412,7 @@ fn chips(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
                 .mineral(
                     Chip::assist("sel-chip-assist-e", "Elevated")
                         .icon(ICON_LOCAL_CAFE)
-                        .elevated(true),
+                        .variant(ChipVariant::Elevated),
                 )
                 .clicked()
             {
@@ -430,7 +430,9 @@ fn chips(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
                 let icon = [ICON_WIFI, ICON_MUSIC_NOTE, ICON_PUBLIC][i];
                 row.mineral(Chip::filter(("sel-chip-filter", i), name, &mut s.chip_filters[i]).icon(icon));
             }
-            row.mineral(Chip::filter("sel-chip-filter-e", "Elevated", &mut s.chip_elev_filter).elevated(true));
+            row.mineral(
+                Chip::filter("sel-chip-filter-e", "Elevated", &mut s.chip_elev_filter).variant(ChipVariant::Elevated),
+            );
             row.mineral(Chip::filter("sel-chip-filter-d", "Disabled", &mut true).disabled(true));
         });
         caption(ui, TypeScale::LabelMedium, "Input (removable, selectable)");
@@ -474,7 +476,7 @@ fn suggestion_chips(ui: &mut Mui<'_>, shared: &mut Shared) {
         }
         row.mineral(Chip::suggestion("sel-chip-sug-d", "Disabled").disabled(true));
         if row
-            .mineral(Chip::suggestion("sel-chip-new", "Elevated").elevated(true))
+            .mineral(Chip::suggestion("sel-chip-new", "Elevated").variant(ChipVariant::Elevated))
             .clicked()
         {
             shared.toast("Elevated suggestion chosen");
@@ -744,19 +746,17 @@ fn dates(ui: &mut Mui<'_>, s: &mut State) {
         caption(ui, TypeScale::LabelMedium, "Docked (typed or picked)");
         super::row(ui, |row| {
             row.add(|ui| {
-                DatePicker::new("sel-date", &mut s.date_docked)
+                DatePicker::new("sel-date", "Departure", &mut s.date_docked)
                     .input_mode(DisplayMode::Input)
-                    .label("Departure")
                     .show(ui)
             });
             row.add(|ui| {
-                DatePicker::new("sel-date-bounded", &mut s.date_bounded)
+                DatePicker::new("sel-date-bounded", "2026 only", &mut s.date_bounded)
                     .bounds(DateBounds::new(
                         Some(Date::constant(2026, 1, 1)),
                         Some(Date::constant(2026, 12, 31)),
                     ))
                     .input_mode(DisplayMode::Input)
-                    .label("2026 only")
                     .show(ui)
             });
         });
@@ -786,11 +786,11 @@ fn dates(ui: &mut Mui<'_>, s: &mut State) {
                 s.date_range_open = true;
             }
         });
-        DatePicker::new("sel-date-m", &mut s.date_modal).show_modal(rt, &mut s.date_modal_open);
-        DatePicker::new("sel-date-mi", &mut s.date_input)
+        DatePicker::new("sel-date-m", "Date", &mut s.date_modal).show_modal(rt, &mut s.date_modal_open);
+        DatePicker::new("sel-date-mi", "Date", &mut s.date_input)
             .input_mode(DisplayMode::Input)
             .show_modal(rt, &mut s.date_input_open);
-        DateRangePicker::new("sel-date-mr", &mut s.date_range).show_modal(rt, &mut s.date_range_open);
+        DateRangePicker::new("sel-date-mr", "Dates", &mut s.date_range).show_modal(rt, &mut s.date_range_open);
         ui.label(format!(
             "Modal: {} / input: {} / range: {} .. {}",
             fmt_date(s.date_modal),
@@ -801,7 +801,7 @@ fn dates(ui: &mut Mui<'_>, s: &mut State) {
         super::top_row(ui, |row| {
             row.add(|ui| {
                 caption(&mut rt.ui(ui), TypeScale::LabelMedium, "Inline month grid");
-                DatePicker::new("sel-date-inline", &mut s.date_inline).show(&mut rt.ui(ui));
+                DatePicker::new("sel-date-inline", "Date", &mut s.date_inline).show(&mut rt.ui(ui));
                 ui.label(fmt_date(s.date_inline));
             });
             row.add(|ui| {
@@ -810,7 +810,7 @@ fn dates(ui: &mut Mui<'_>, s: &mut State) {
                     TypeScale::LabelMedium,
                     "Inline range (scrolling months)",
                 );
-                DateRangePicker::new("sel-date-inline-r", &mut s.date_inline_range).show(&mut rt.ui(ui));
+                DateRangePicker::new("sel-date-inline-r", "Dates", &mut s.date_inline_range).show(&mut rt.ui(ui));
                 ui.label(format!(
                     "{} .. {}",
                     fmt_date(s.date_inline_range.start()),
@@ -827,12 +827,12 @@ fn times(ui: &mut Mui<'_>, s: &mut State) {
         super::top_row(ui, |row| {
             row.add(|ui| {
                 caption(&mut rt.ui(ui), TypeScale::LabelMedium, "Inline, locale clock");
-                TimePicker::new("sel-time", &mut s.time_inline).show(&mut rt.ui(ui));
+                TimePicker::new("sel-time", "Time", &mut s.time_inline).show(&mut rt.ui(ui));
                 ui.label(s.time_inline.to_string());
             });
             row.add(|ui| {
                 caption(&mut rt.ui(ui), TypeScale::LabelMedium, "Inline, 24-hour");
-                TimePicker::new("sel-time-24", &mut s.time_24)
+                TimePicker::new("sel-time-24", "Time", &mut s.time_24)
                     .hour_cycle(HourCycle::H23)
                     .show(&mut rt.ui(ui));
                 ui.label(s.time_24.to_string());
@@ -841,13 +841,13 @@ fn times(ui: &mut Mui<'_>, s: &mut State) {
         super::top_row(ui, |row| {
             row.add(|ui| {
                 caption(&mut rt.ui(ui), TypeScale::LabelMedium, "Horizontal layout");
-                TimePicker::new("sel-time-h", &mut s.time_h)
+                TimePicker::new("sel-time-h", "Time", &mut s.time_h)
                     .axis(Axis::Horizontal)
                     .show(&mut rt.ui(ui));
             });
             row.add(|ui| {
                 caption(&mut rt.ui(ui), TypeScale::LabelMedium, "Time input");
-                TimePicker::new("sel-time-in", &mut s.time_input)
+                TimePicker::new("sel-time-in", "Time", &mut s.time_input)
                     .input_mode(DisplayMode::Input)
                     .show(&mut rt.ui(ui));
                 ui.label(s.time_input.to_string());
@@ -861,7 +861,7 @@ fn times(ui: &mut Mui<'_>, s: &mut State) {
         {
             s.time_modal_open = true;
         }
-        TimePicker::new("sel-time-m", &mut s.time_modal).show_modal(rt, &mut s.time_modal_open);
+        TimePicker::new("sel-time-m", "Time", &mut s.time_modal).show_modal(rt, &mut s.time_modal_open);
         ui.label(format!("Modal time: {}", s.time_modal));
     });
 }

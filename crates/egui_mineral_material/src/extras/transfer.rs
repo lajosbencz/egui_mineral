@@ -198,8 +198,8 @@ impl<'a> TransferList<'a> {
         Card::new(self.salt.child((key, "card")), title)
             .agent_key(StableId::of(&self.salt, (key, "card")))
             .variant(CardVariant::Outlined)
-            .width(extent.x)
-            .padding(list_padding())
+            .width(egui::Rangef::point(extent.x))
+            .content_padding(list_padding())
             .show(ui, |ui| {
                 ui.set_height((height - list_padding().sum().y).max(0.0));
                 ui.spacing_mut().item_spacing = egui::Vec2::ZERO;

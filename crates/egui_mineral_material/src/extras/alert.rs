@@ -2,6 +2,7 @@ use crate::IconSet;
 use crate::Material;
 use crate::MaterialExt;
 use crate::Rt;
+use crate::TextAction;
 use egui::{Color32, Frame, Sense, Stroke, Ui, Vec2, vec2};
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::MineralUi;
@@ -33,6 +34,7 @@ const PADDING: Vec2 = vec2(
 
 /// Status level of an [`Alert`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
+#[non_exhaustive]
 pub enum Severity {
     #[default]
     /// Neutral information.
@@ -78,6 +80,7 @@ impl Severity {
 
 /// Fill style of an [`Alert`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
+#[non_exhaustive]
 pub enum AlertVariant {
     #[default]
     /// Severity container color.
@@ -109,7 +112,7 @@ pub struct Alert {
     variant: AlertVariant,
     title: Option<String>,
     message: String,
-    actions: Vec<String>,
+    actions: Vec<TextAction>,
     dismissible: bool,
 }
 
@@ -152,14 +155,14 @@ impl Alert {
     }
 
     /// Appends a text button; reported by index in [`AlertResponse::clicked`].
-    pub fn action(mut self, label: impl Into<String>) -> Self {
-        self.actions.push(label.into());
+    pub fn action(mut self, action: impl Into<TextAction>) -> Self {
+        self.actions.push(action.into());
         self
     }
 
     /// Appends text buttons; see [`Self::action`].
-    pub fn actions(mut self, labels: impl IntoIterator<Item = impl Into<String>>) -> Self {
-        self.actions.extend(labels.into_iter().map(Into::into));
+    pub fn actions(mut self, actions: impl IntoIterator<Item = impl Into<TextAction>>) -> Self {
+        self.actions.extend(actions.into_iter().map(Into::into));
         self
     }
 
@@ -212,6 +215,9 @@ impl Alert {
             );
         }
         kit::semantic::remember_rect(&ctx, id, rect);
+        if let Some(a) = action.and_then(|i| self.actions.get(i)) {
+            a.fire(&ctx);
+        }
         AlertResponse {
             response: inner.response,
             clicked: action,
@@ -278,7 +284,7 @@ impl Alert {
                                 .actions
                                 .iter()
                                 .enumerate()
-                                .map(|(i, a)| (i, PushButton::new(self.salt.child(i), a)));
+                                .map(|(i, a)| (i, PushButton::new(self.salt.child(i), &a.label)));
                             action = crate::actions::text_actions(ui, buttons);
                         });
                     }

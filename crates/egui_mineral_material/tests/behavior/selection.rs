@@ -16,7 +16,7 @@ use crate::support::{Harness, MineralHarness, SCREEN, WIDE, build, builder, harn
 #[test]
 fn date_range_keys_cross_months() {
     let mut h = harness(WIDE, DateRange::starting(Date::constant(2024, 5, 31)), |ui, range| {
-        DateRangePicker::new("dk", range).show(ui);
+        DateRangePicker::new("dk", "Dates", range).show(ui);
     });
     // Tab lands on the range start, the list's Tab stop.
     h.press(Key::Tab);
@@ -39,7 +39,7 @@ fn date_range_bounds_after_today_show_the_first_allowed_month() {
     let before = DateRange::new(Date::constant(2024, 6, 3), Date::constant(2024, 6, 9));
     for range in [DateRange::default(), before] {
         let mut h = harness(WIDE, range, |ui, range| {
-            DateRangePicker::new("dk", range)
+            DateRangePicker::new("dk", "Dates", range)
                 .today(today)
                 .bounds(DateBounds::new(min, None))
                 .show(ui);
@@ -69,7 +69,7 @@ fn date_range_bounds_after_today_show_the_first_allowed_month() {
 fn year_menu_opens_by_key_after_bounds_pass_the_shown_year() {
     let mut h = harness(WIDE, 2020, |ui, min_year: &mut i16| {
         let mut value = None;
-        DatePicker::new("dp", &mut value)
+        DatePicker::new("dp", "Date", &mut value)
             .today(Date::constant(2025, 6, 10))
             .bounds(DateBounds::new(Some(Date::constant(*min_year, 1, 1)), None))
             .show(ui);
@@ -249,7 +249,7 @@ fn modal_picker_footer_tabs_in_reading_order_in_both_directions() {
         };
         let mut h = build(builder(WIDE), Some(Box::new(setup)), true, |ui, open: &mut bool| {
             let mut value = Some(Date::constant(2025, 6, 10));
-            DatePicker::new("dp", &mut value).show_modal(ui.rt(), open);
+            DatePicker::new("dp", "Date", &mut value).show_modal(ui.rt(), open);
         });
         h.run();
         let (cancel, confirm) = (h.rect("dp-cancel-button"), h.rect("dp-confirm-button"));

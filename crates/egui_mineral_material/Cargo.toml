@@ -20,7 +20,7 @@ targets = ["x86_64-unknown-linux-gnu", "wasm32-unknown-unknown"]
 
 [features]
 default = ["icu", "persist-fs", "persist-toml", "bundled-icons", "extras"]
-# Material Symbols Rounded fonts (filled and outlined, 3 MB); without it use `Material::with_icon_fonts`.
+# Material Symbols Rounded fonts (filled and outlined, 3 MB); without it use `Material::from_fonts`.
 bundled-icons = ["dep:egui_material_icons"]
 # `egui_mineral/icu`: ICU4X locale formatting.
 icu = ["egui_mineral/icu"]

@@ -80,6 +80,7 @@ struct State {
 #[must_use = "call .show(..)"]
 pub struct TimePicker<'a> {
     salt: KeyedSalt,
+    label: String,
     time: &'a mut Time,
     mode: DisplayMode,
     hour_cycle: Option<HourCycle>,
@@ -93,11 +94,12 @@ pub struct TimePicker<'a> {
 }
 
 impl<'a> TimePicker<'a> {
-    /// `time` is the bound value. Agent key prefix `<id_salt>`.
-    pub fn new(id_salt: impl Into<KeyedSalt>, time: &'a mut Time) -> Self {
+    /// `label` is the accessible name of the dialog, `time` the bound value. Agent key prefix `<id_salt>`.
+    pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, time: &'a mut Time) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
             salt: id_salt,
+            label: label.into(),
             time,
             mode: DisplayMode::Picker,
             hour_cycle: None,
@@ -175,6 +177,7 @@ impl<'a> TimePicker<'a> {
         ];
         Resolved {
             salt: self.salt.clone(),
+            label: self.label.clone(),
             hour24: self.hour_cycle.unwrap_or_else(|| loc.hour_cycle()) == HourCycle::H23,
             horizontal: self.axis == Axis::Horizontal,
             headlines: [
@@ -214,6 +217,7 @@ impl<'a> TimePicker<'a> {
 
 struct Resolved {
     salt: KeyedSalt,
+    label: String,
     hour24: bool,
     horizontal: bool,
     headlines: [String; 2],
@@ -383,7 +387,7 @@ impl Resolved {
         Self::place_toggle(ui, state_id, row, toggle);
         let actions = &mut ui.new_child(UiBuilder::new().id_salt("actions").max_rect(row));
         let action = dialog::confirm_cancel(&mut rt.ui(actions), &self.salt, &self.choice, true);
-        (action, headline)
+        (action, &self.label)
     }
 
     // Compose TimePickerDialogDefaults.DisplayModeToggle
@@ -1256,7 +1260,7 @@ mod tests {
 
     fn pass(ctx: &Context, rt: &crate::Rt, time: &mut Time, events: Vec<Event>) {
         crate::test_support::pass(ctx, rt, vec2(800.0, 800.0), events, |ui| {
-            TimePicker::new("tp", time).show(ui);
+            TimePicker::new("tp", "Time", time).show(ui);
         });
     }
 

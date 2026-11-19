@@ -192,7 +192,7 @@ fn status_bar(ui: &mut Mui<'_>, s: &mut State) {
             .item(StatusItem::new("Syncing").progress(StatusProgress::Linear(None)))
             .item(
                 StatusItem::new("Build failed: a long message that elides when the window narrows")
-                    .elide(true)
+                    .elide(Elide::End)
                     .tone(StatusTone::Error),
             )
             .trailing(StatusItem::new("UTF-8"))
@@ -956,7 +956,7 @@ fn search(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     let rt = ui.rt();
     super::section(ui, TOPICS[11], Some(<SearchBar<'static>>::META), |ui| {
         caption(ui, TypeScale::LabelMedium, "Default with trailing action");
-        let bar = SearchBar::new("nav-sbar", &mut s.bar_query)
+        let bar = SearchBar::new("nav-sbar", "Search", &mut s.bar_query)
             .placeholder("Search the catalog")
             .trailing_icon(ICON_MIC, "Voice search");
         let out = rt.ui(ui).mineral(bar).into_output();
@@ -968,7 +968,7 @@ fn search(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
         }
         ui.add_space(8.0);
         caption(ui, TypeScale::LabelMedium, "Back button, narrow");
-        let bar = SearchBar::new("nav-sbar-back", &mut s.back_query)
+        let bar = SearchBar::new("nav-sbar-back", "Search", &mut s.back_query)
             .back_button(true)
             .preferred_width(360.0);
         if rt.ui(ui).mineral(bar).output().leading_clicked {
@@ -978,7 +978,7 @@ fn search(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
         caption(ui, TypeScale::LabelMedium, "Disabled");
         let mut empty = String::new();
         rt.ui(ui)
-            .mineral(SearchBar::new("nav-sbar-off", &mut empty).disabled(true));
+            .mineral(SearchBar::new("nav-sbar-off", "Search", &mut empty).disabled(true));
     });
     super::section(ui, TOPICS[12], Some(<SearchView<'static>>::META), |ui| {
         rt.ui(ui).mineral(CheckButton::new(
@@ -993,7 +993,7 @@ fn search(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
         };
         let width = ui.available_width().min(720.0);
         boxed(ui, vec2(width, 420.0), |ui| {
-            let r = SearchView::new("nav-sview", &mut s.view_query)
+            let r = SearchView::new("nav-sview", "Search", &mut s.view_query)
                 .suggestions(&s.suggestions)
                 .mode(mode)
                 .max_items(5)
@@ -1014,6 +1014,7 @@ fn search(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
             .ui(ui)
             .mineral(SearchSuggestions::new(
                 "nav-suggest",
+                "Search fruit",
                 &s.suggestions,
                 &mut s.suggest_query,
             ))

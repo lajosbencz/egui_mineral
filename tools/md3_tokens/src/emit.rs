@@ -399,7 +399,14 @@ fn module_rs(sha: &str, src: &Source, roles: &Roles) -> Result<String, (usize, S
 }
 
 // Enums tracking MD3 lists that can grow.
-const NON_EXHAUSTIVE: [&str; 4] = ["ColorRole", "ShapeRole", "ShapeScale", "TypeScale"];
+const NON_EXHAUSTIVE: [&str; 6] = [
+    "ColorRole",
+    "ShapeRole",
+    "ShapeScale",
+    "TypeScale",
+    "ElevationLevel",
+    "Typeface",
+];
 
 fn enum_item(out: &mut String, doc: &str, name: &str, variants: &[(&str, String)]) {
     let attr = if NON_EXHAUSTIVE.contains(&name) {
@@ -421,11 +428,11 @@ fn all_const(out: &mut String, doc: &str, variants: &[&str]) {
     let items: Vec<String> = variants.iter().map(|v| format!("Self::{v}")).collect();
     let inline = format!("[{}]", items.join(", "));
     w!(out, "    /// {doc}\n");
-    w!(out, "    pub const ALL: [Self; {}] = ", variants.len());
+    out.push_str("    pub const ALL: &'static [Self] = ");
     if inline.len() <= ARRAY_WIDTH {
-        w!(out, "{inline};\n");
+        w!(out, "&{inline};\n");
     } else {
-        out.push_str("[\n");
+        out.push_str("&[\n");
         for item in items {
             w!(out, "        {item},\n");
         }

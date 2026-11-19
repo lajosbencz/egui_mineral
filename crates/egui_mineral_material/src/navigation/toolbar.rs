@@ -208,6 +208,7 @@ struct PairedFab {
 
 /// Compose `FloatingToolbarDefaults.standardFloatingToolbarColors` / `vibrantFloatingToolbarColors`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum ToolbarColors {
     #[default]
     /// Surface container colors (`FloatingToolbarDefaults.standardFloatingToolbarColors`).

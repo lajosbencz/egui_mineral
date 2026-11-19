@@ -215,7 +215,7 @@ fn composite_groups_have_one_tab_stop_and_arrow_between_items() {
 #[test]
 fn open_search_view_input_is_named() {
     let mut h = still(WIDE, (true, String::new()), |ui, (open, query)| {
-        SearchView::new("view", query)
+        SearchView::new("view", "Find files", query)
             .placeholder("Find")
             .show(ui, open, |_, _| ());
     });
@@ -224,8 +224,8 @@ fn open_search_view_input_is_named() {
     assert!(h.unnamed_widgets().is_empty(), "every input has an accessible name");
     assert_eq!(
         h.node("view-search").name,
-        "Find",
-        "the view input is named by its placeholder"
+        "Find files",
+        "the view input is named by its label"
     );
 }
 
@@ -295,7 +295,7 @@ fn search_view<'a>() -> Harness<'a, Search> {
         WIDE,
         (true, String::new(), 0, Vec::new(), Vec::new()),
         |ui, (open, query, submitted, picked, dismissed)| {
-            let r = SearchView::new("view", query)
+            let r = SearchView::new("view", "Search", query)
                 .suggestions(["Apple", "Banana", "Cherry"])
                 .show(ui, open, |_, _| ());
             *submitted += u32::from(r.submitted);
@@ -357,7 +357,7 @@ fn search_view_escape_and_outside_press_dismiss() {
 #[test]
 fn search_view_opened_from_the_bar_takes_keys_in_the_view() {
     let mut h = still(WIDE, (false, String::new(), Vec::new()), |ui, (open, query, picked)| {
-        let r = SearchView::new("view", query)
+        let r = SearchView::new("view", "Search", query)
             .suggestions(["Apple", "Banana", "Cherry"])
             .show(ui, open, |_, _| ());
         picked.extend(r.selected);
@@ -399,11 +399,11 @@ fn search_back_arrows_point_along_the_reading_direction() {
         (Direction::Rtl, icons::ICON_ARROW_FORWARD),
     ] {
         let bar = render_directed(direction, WIDE, |ui| {
-            ui.mineral(SearchBar::new("bar", &mut String::new()).back_button(true));
+            ui.mineral(SearchBar::new("bar", "Search", &mut String::new()).back_button(true));
         });
         bar.text(&back.codepoint().to_string());
         let view = render_directed(direction, WIDE, |ui| {
-            SearchView::new("view", &mut String::new()).show(ui, &mut true, |_, _| ());
+            SearchView::new("view", "Search", &mut String::new()).show(ui, &mut true, |_, _| ());
         });
         view.text(&back.codepoint().to_string());
     }

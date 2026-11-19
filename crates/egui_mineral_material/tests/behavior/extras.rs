@@ -11,7 +11,7 @@ use egui_mineral_material::{
 };
 
 use crate::support::{MineralHarness, SCREEN, dismissals, harness, render, render_directed};
-use egui_mineral_material::spec::ColorRole;
+use egui_mineral_material::{spec::ColorRole, text_inputs::Elide};
 
 #[test]
 fn focused_date_field_requests_ime_and_takes_soft_keyboard_input() {
@@ -169,11 +169,10 @@ fn rich_tooltip_reports_each_action_slot() {
         let mut h = harness(SCREEN, (false, false), |ui, (primary, secondary)| {
             let anchor = ui.mineral(PushButton::new("anchor", "Anchor"));
             let r = RichTooltip::new("tip", "Supporting")
-                .action("Primary")
-                .secondary_action("Secondary")
+                .actions(["Primary", "Secondary"])
                 .show(ui.rt(), anchor.response());
-            *primary |= r.action_clicked;
-            *secondary |= r.secondary_action_clicked;
+            *primary |= r.clicked == Some(0);
+            *secondary |= r.clicked == Some(1);
         });
         let anchor = h.rect("anchor-button").center();
         h.hover_at(anchor);
@@ -283,13 +282,10 @@ fn status_bar_mirrors_in_rtl() {
 }
 
 fn long_item_bar(ui: &mut crate::support::Mui<'_>, elide: bool) {
+    let item = StatusItem::new("A long log line that cannot possibly fit the narrow bar").tone(StatusTone::Error);
     StatusBar::new("status", "Status")
         .item(StatusItem::new("main"))
-        .item(
-            StatusItem::new("A long log line that cannot possibly fit the narrow bar")
-                .elide(elide)
-                .tone(StatusTone::Error),
-        )
+        .item(if elide { item.elide(Elide::End) } else { item })
         .trailing(StatusItem::new("UTF-8"))
         .show(ui);
 }
@@ -312,17 +308,17 @@ fn status_item_elides_into_the_room_left_instead_of_dropping() {
 }
 
 #[test]
-fn status_item_colors_override_the_tone_strip() {
+fn status_item_custom_tone_paints_its_strip() {
     let amber = egui::Color32::from_rgb(250, 200, 20);
+    let warning = StatusTone::Custom {
+        container: amber,
+        content: egui::Color32::BLACK,
+    };
     let pass = render(|ui| {
         StatusBar::new("status", "Status")
-            .item(StatusItem::new("Low disk").colors(amber, egui::Color32::BLACK))
+            .item(StatusItem::new("Low disk").tone(warning))
             .item(StatusItem::new("Failed").tone(StatusTone::Error))
-            .item(
-                StatusItem::new("Plain")
-                    .tone(StatusTone::Error)
-                    .colors(amber, egui::Color32::BLACK),
-            )
+            .item(StatusItem::new("Plain").tone(StatusTone::Error).tone(warning))
             .show(ui);
     });
     let strip = |c: egui::Color32| {
@@ -331,11 +327,11 @@ fn status_item_colors_override_the_tone_strip() {
             .filter(|s| matches!(&s.shape, egui::Shape::Rect(r) if r.fill == c))
             .count()
     };
-    assert_eq!(strip(amber), 2, "colors paint their strips");
+    assert_eq!(strip(amber), 2, "custom tones paint their strips");
     assert_eq!(
         pass.filled(ColorRole::ErrorContainer).len(),
         1,
-        "tone paints without colors"
+        "the error tone paints its own"
     );
 }
 

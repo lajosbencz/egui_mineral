@@ -255,7 +255,7 @@ fn outline(ui: &mut Mui<'_>, s: &mut State) {
             TreeView::new("demo-outline", "Outline", &s.tree, &mut s.outline_exp)
                 .row_height(40.0)
                 .indent(24.0)
-                .label_style(TypeScale::LabelLarge)
+                .text_style(TypeScale::LabelLarge)
                 .leading(|n| ListSlot::new().icon(n.icon))
                 .show(ui)
         })
@@ -519,7 +519,7 @@ fn link(ui: &mut Mui<'_>) {
             TextLink::new("link-md3", "Material 3 guidelines")
                 .url("https://m3.material.io/")
                 .new_tab(true)
-                .scale(TypeScale::TitleSmall),
+                .text_style(TypeScale::TitleSmall),
         );
     });
 }

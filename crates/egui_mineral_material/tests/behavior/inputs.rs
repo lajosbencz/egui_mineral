@@ -111,7 +111,7 @@ fn inline_edit_submits_on_enter_and_reverts_on_escape() {
 #[test]
 fn search_bar_reports_submit_on_enter() {
     let mut h = harness(SCREEN, (String::new(), false), |ui, (query, submitted)| {
-        *submitted |= ui.mineral(SearchBar::new("search", query)).output().submitted;
+        *submitted |= ui.mineral(SearchBar::new("search", "Search", query)).output().submitted;
     });
     h.press(Key::Tab);
     h.type_text("rust");

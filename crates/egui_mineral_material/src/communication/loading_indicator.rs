@@ -114,8 +114,19 @@ fn fill(p: &egui::Painter, center: Pos2, pts: Vec<Pos2>, color: Color32) {
     p.add(Shape::closed_line(pts, Stroke::new(1.0, color)));
 }
 
+/// Container of a [`LoadingIndicator`].
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum LoadingIndicatorVariant {
+    /// Compose `LoadingIndicator`: the bare shape.
+    #[default]
+    Standard,
+    /// Compose `ContainedLoadingIndicator`: the shape on a circular container (`LoadingIndicatorTokens.Contained*`).
+    Contained,
+}
+
 /// M3 Expressive loading indicator (Compose `LoadingIndicator`, indeterminate): a morphing shape,
-/// optionally on its container (`ContainedLoadingIndicator`). The `MaterialShapes` outlines are
+/// optionally on its container ([`LoadingIndicatorVariant::Contained`]). The `MaterialShapes` outlines are
 /// polar approximations.
 #[derive(Clone, Debug)]
 #[must_use = "show with ui.mineral(..)"]
@@ -123,7 +134,7 @@ pub struct LoadingIndicator {
     salt: KeyedSalt,
     key: AgentKey,
     label: Option<String>,
-    contained: bool,
+    variant: LoadingIndicatorVariant,
 }
 
 impl LoadingIndicator {
@@ -134,7 +145,7 @@ impl LoadingIndicator {
             key: AgentKey::Kind("loading"),
             salt: id_salt,
             label: None,
-            contained: false,
+            variant: LoadingIndicatorVariant::Standard,
         }
     }
     /// Accessible name; default the `mineral-loading` message.
@@ -142,9 +153,9 @@ impl LoadingIndicator {
         self.label = Some(label.into());
         self
     }
-    /// Draws the indicator on a circular container (`LoadingIndicatorTokens.Contained*`).
-    pub fn contained(mut self, contained: bool) -> Self {
-        self.contained = contained;
+    /// Default [`LoadingIndicatorVariant::Standard`].
+    pub fn variant(mut self, variant: LoadingIndicatorVariant) -> Self {
+        self.variant = variant;
         self
     }
     crate::widget::setters! {
@@ -164,7 +175,7 @@ impl LoadingIndicator {
         if ui.is_rect_visible(rect) {
             let t = rt.tokens();
             let p = ui.painter();
-            let active = if self.contained {
+            let active = if self.variant == LoadingIndicatorVariant::Contained {
                 p.circle_filled(rect.center(), size / 2.0, t.role(li::CONTAINED_CONTAINER_COLOR));
                 t.role(li::CONTAINED_ACTIVE_COLOR)
             } else {

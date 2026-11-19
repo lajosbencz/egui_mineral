@@ -40,6 +40,7 @@ use crate::{
 
 /// Compose `FloatingActionButtonMenu` sizes (the toggle FAB has no small size).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
+#[non_exhaustive]
 pub enum FabMenuSize {
     #[default]
     /// `FloatingActionButton` (`FabBaselineTokens`).
@@ -62,6 +63,7 @@ impl From<FabMenuSize> for FabSize {
 
 /// M3 FAB menu color sets (no surface set).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
+#[non_exhaustive]
 pub enum FabMenuColors {
     #[default]
     /// `primaryContainer` toggle, `primary` when open.

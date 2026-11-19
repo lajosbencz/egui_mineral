@@ -30,6 +30,7 @@ const RIPPLE_COLOR: ColorRole = ColorRole::OnSurface;
 
 /// Tile arrangement of an [`ImageList`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
+#[non_exhaustive]
 pub enum ImageListLayout {
     #[default]
     /// Uniform grid; tile height from [`ImageList::row_aspect`].

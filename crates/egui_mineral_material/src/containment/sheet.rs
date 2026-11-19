@@ -371,7 +371,6 @@ pub struct SideSheet {
     id: Id,
     headline: Option<String>,
     close_button: bool,
-    width: f32,
     widths: Rangef,
     resizable: bool,
     edge: Edge,
@@ -388,7 +387,6 @@ impl SideSheet {
             salt: id_salt,
             headline: None,
             close_button: true,
-            width: SIDE_WIDTH,
             widths: SIDE_WIDTHS,
             resizable: false,
             edge: Edge::End,
@@ -414,23 +412,17 @@ impl SideSheet {
         self
     }
 
-    /// Width in dp, clamped into [`Self::width_range`]; the initial width of a resizable sheet.
+    /// Width bounds in dp; default MD3 256..=400. The sheet is 360dp clamped into them, so equal bounds fix the
+    /// width. A reversed range is swapped.
     #[track_caller]
-    pub fn width(mut self, width: f32) -> Self {
-        self.width = egui_mineral::kit::sanitize::at_least(width, 0.0.., "side sheet width");
-        self
-    }
-
-    /// Width bounds in dp; default MD3 256..=400. A reversed range is swapped.
-    #[track_caller]
-    pub fn width_range(mut self, widths: impl Into<Rangef>) -> Self {
-        let w = widths.into();
-        let min = egui_mineral::kit::sanitize::at_least(w.min.min(w.max), 0.0.., "side sheet width_range");
+    pub fn width(mut self, width: impl Into<Rangef>) -> Self {
+        let w = width.into();
+        let min = egui_mineral::kit::sanitize::at_least(w.min.min(w.max), 0.0.., "side sheet width");
         self.widths = Rangef::new(min, w.max.max(w.min).max(min));
         self
     }
 
-    /// Standard and modal sheet: a drag handle on its inner edge resizes it within [`Self::width_range`]
+    /// Standard and modal sheet: a drag handle on its inner edge resizes it within [`Self::width`]
     /// (arrow keys when focused); the width persists in egui memory per sheet id. Default `false`.
     pub fn resizable(mut self, resizable: bool) -> Self {
         self.resizable = resizable;
@@ -445,8 +437,8 @@ impl SideSheet {
 
     /// Wraps the content in a vertical `ScrollArea`; default `true`. Without it the content gets
     /// the full remaining height and scrolls itself.
-    pub fn scroll(mut self, scroll: bool) -> Self {
-        self.scroll = scroll;
+    pub fn scrollable(mut self, scrollable: bool) -> Self {
+        self.scroll = scrollable;
         self
     }
 
@@ -592,9 +584,9 @@ impl SideSheet {
 
     fn persisted_width(&self, ctx: &Context, id: Id) -> f32 {
         if self.resizable {
-            ctx.data_mut(|d| *d.get_persisted_mut_or(id, self.width))
+            ctx.data_mut(|d| *d.get_persisted_mut_or(id, SIDE_WIDTH))
         } else {
-            self.width
+            SIDE_WIDTH
         }
     }
 

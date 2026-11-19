@@ -8,8 +8,8 @@ pub(crate) mod snackbar;
 pub(crate) mod tooltip;
 
 pub use badge::Badge;
-pub use loading_indicator::LoadingIndicator;
-pub use progress::{CircularProgressIndicator, LinearProgressIndicator};
+pub use loading_indicator::{LoadingIndicator, LoadingIndicatorVariant};
+pub use progress::{CircularProgressIndicator, LinearProgressIndicator, ProgressVariant};
 pub use pull_to_refresh::{PullToRefresh, PullToRefreshResponse};
-pub use snackbar::{Snackbar, SnackbarAction, SnackbarHost, SnackbarHostResponse, snackbar_queue};
+pub use snackbar::{Snackbar, SnackbarHost, SnackbarHostResponse, snackbar_queue};
 pub use tooltip::{PlainTooltip, PlainTooltipResponse, RichTooltip, RichTooltipResponse};

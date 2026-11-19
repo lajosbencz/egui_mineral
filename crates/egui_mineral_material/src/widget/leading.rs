@@ -33,6 +33,7 @@ impl fmt::Debug for LeadingPaint {
 
 /// Leading slot content of collection items: an icon or app paint.
 #[derive(Clone, Debug)]
+#[non_exhaustive]
 pub enum Leading {
     /// Material icon.
     Icon(Icon),
