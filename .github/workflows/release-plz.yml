@@ -10,7 +10,12 @@ permissions: {}
 jobs:
   release:
     name: Publish
-    if: ${{ github.repository_owner == 'lajosbencz' }}
+    # Only a merged release PR (merge commit from a release-plz-* branch, or its squashed `chore: release` title)
+    # enters the crates-io environment.
+    if: >-
+      github.repository_owner == 'lajosbencz' &&
+      (contains(github.event.head_commit.message, '/release-plz-') ||
+      startsWith(github.event.head_commit.message, 'chore: release'))
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: crates-io
