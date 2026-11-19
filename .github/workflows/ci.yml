@@ -151,8 +151,6 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-      # cargo-public-api builds rustdoc JSON with nightly.
-      - run: rustup toolchain install nightly --profile minimal --target wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           save-if: ${{ github.event_name == 'push' }}
@@ -160,6 +158,8 @@ jobs:
         with:
           tool: just@1.59.0
           fallback: none
+      # cargo-public-api builds rustdoc JSON with nightly.
+      - run: rustup toolchain install "$(just --evaluate nightly_version)" --profile minimal --target wasm32-unknown-unknown
       - id: pins
         run: echo "public-api=$(just --evaluate public_api_version)" >> "$GITHUB_OUTPUT"
       - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
