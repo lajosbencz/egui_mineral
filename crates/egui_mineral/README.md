@@ -43,6 +43,9 @@ impl Stylekit for Kit {
     fn style(&self, ctx: &egui::Context, theme: egui::Theme) -> std::sync::Arc<egui::Style> {
         ctx.style_of(theme)
     }
+    fn paint_window_close(&self, ui: &egui::Ui, visual: egui::Rect, response: &egui::Response) {
+        ui.painter().extend(egui_mineral::kit::paint::window_close(ui, visual, response));
+    }
 }
 
 let ctx = egui::Context::default();

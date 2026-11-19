@@ -49,15 +49,9 @@ pub trait Stylekit: Send + Sync + 'static {
     fn style(&self, ctx: &Context, theme: Theme) -> Arc<Style>;
     /// Paints the close glyph of an embedded [`crate::window::WindowSpec`] title bar in `visual`, the
     /// icon-sized box centered in the larger hit target of `response` (hover, press and focus state).
-    /// Defaults to [`kit::paint::window_close`](crate::kit::paint::window_close) in the colors of `ui.style()`.
-    #[expect(
-        clippy::disallowed_methods,
-        reason = "default chrome in the kit's own egui style; kits override it"
-    )]
-    fn paint_window_close(&self, ui: &Ui, visual: Rect, response: &Response) {
-        ui.painter()
-            .extend(crate::kit::paint::window_close(ui, visual, response));
-    }
+    /// Required: the core does not paint (rule 5); [`kit::paint::window_close`](crate::kit::paint::window_close)
+    /// builds the default chrome.
+    fn paint_window_close(&self, ui: &Ui, visual: Rect, response: &Response);
 }
 
 /// Failure building a [`Runtime`].
@@ -632,6 +626,8 @@ mod tests {
             style.spacing.item_spacing.x = 37.0;
             Arc::new(style)
         }
+
+        fn paint_window_close(&self, _: &Ui, _: Rect, _: &Response) {}
     }
 
     fn styled(ctx: &Context) -> Arc<Runtime<StyledKit>> {

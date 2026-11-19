@@ -45,6 +45,8 @@ impl Stylekit for TestKit {
     fn style(&self, ctx: &Context, theme: egui::Theme) -> Arc<egui::Style> {
         ctx.style_of(theme)
     }
+
+    fn paint_window_close(&self, _: &egui::Ui, _: egui::Rect, _: &egui::Response) {}
 }
 
 pub(crate) fn ctx() -> Context {
