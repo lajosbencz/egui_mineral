@@ -20,6 +20,8 @@ use super::{FileFilter, FileReader, FileWriter, PickedFile, PlatformPickers, Sav
 #[cfg(feature = "platform-notify")]
 use super::{Notification, PlatformNotifier};
 use crate::bus::BoxFuture;
+#[cfg(all(feature = "platform-pickers", not(target_arch = "wasm32")))]
+use std::path::Path;
 
 /// Desktop and browser platform services; implements [`PlatformPickers`] (`platform-pickers`),
 /// [`PlatformClipboard`] (`platform-clipboard`) and [`PlatformNotifier`] (`platform-notify`)
@@ -80,11 +82,15 @@ mod pickers {
         for t in &filter.filters {
             d = d.add_filter(&t.name, &t.extensions);
         }
-        if let Some(n) = &filter.file_name {
+        #[cfg(not(target_arch = "wasm32"))]
+        let (dir, name) = super::resolve_directory(filter, std::path::Path::is_dir, std::path::Path::is_file);
+        #[cfg(target_arch = "wasm32")]
+        let name = filter.file_name.clone();
+        if let Some(n) = name {
             d = d.set_file_name(n);
         }
         #[cfg(not(target_arch = "wasm32"))]
-        if let Some(dir) = &filter.directory {
+        if let Some(dir) = dir {
             d = d.set_directory(dir);
         }
         d
@@ -316,5 +322,78 @@ mod web {
     pub(super) fn clipboard() -> Result<web_sys::Clipboard, PlatformError> {
         let window = web_sys::window().ok_or_else(|| PlatformError::Backend("no window".into()))?;
         Ok(window.navigator().clipboard())
+    }
+}
+
+// `FileFilter::directory`: a folder as is, a file as its folder plus name, a missing path as its parent
+#[cfg(all(feature = "platform-pickers", not(target_arch = "wasm32")))]
+fn resolve_directory(
+    filter: &FileFilter,
+    is_dir: impl Fn(&Path) -> bool,
+    is_file: impl Fn(&Path) -> bool,
+) -> (Option<std::path::PathBuf>, Option<String>) {
+    let name = filter.file_name.clone();
+    let Some(path) = &filter.directory else {
+        return (None, name);
+    };
+    if is_dir(path) {
+        return (Some(path.clone()), name);
+    }
+    let parent = path.parent().filter(|p| !p.as_os_str().is_empty()).map(Path::to_owned);
+    match path.file_name() {
+        Some(file) if is_file(path) => (parent, Some(file.to_string_lossy().into_owned())),
+        _ => (parent, name),
+    }
+}
+
+#[cfg(all(test, feature = "platform-pickers", not(target_arch = "wasm32")))]
+mod tests {
+    use std::path::PathBuf;
+
+    use super::*;
+
+    fn filter() -> FileFilter {
+        FileFilter::default().file_name("n.txt")
+    }
+
+    fn resolve(f: &FileFilter, dir: bool, file: bool) -> (Option<PathBuf>, Option<String>) {
+        resolve_directory(f, |_| dir, |_| file)
+    }
+
+    #[test]
+    fn no_directory_keeps_the_name() {
+        assert_eq!(resolve(&filter(), false, false), (None, Some("n.txt".into())));
+    }
+
+    #[test]
+    fn existing_folder_is_kept() {
+        let (dir, name) = resolve(&filter().directory("/d"), true, false);
+        assert_eq!(dir, Some(PathBuf::from("/d")));
+        assert_eq!(name.as_deref(), Some("n.txt"));
+    }
+
+    #[test]
+    fn existing_file_opens_its_folder_and_proposes_it() {
+        let (dir, name) = resolve(&filter().start("/a/b.png"), false, true);
+        assert_eq!(dir, Some(PathBuf::from("/a")));
+        assert_eq!(name.as_deref(), Some("b.png"));
+    }
+
+    #[test]
+    fn missing_path_opens_its_parent_and_keeps_the_name() {
+        let (dir, name) = resolve(&filter().start("/a/b.png"), false, false);
+        assert_eq!(dir, Some(PathBuf::from("/a")));
+        assert_eq!(name.as_deref(), Some("n.txt"));
+    }
+
+    #[test]
+    fn real_files_and_folders_are_detected() {
+        let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let f = FileFilter::default().start(manifest.join("Cargo.toml"));
+        let (dir, name) = resolve_directory(&f, Path::is_dir, Path::is_file);
+        assert_eq!(dir, Some(manifest.clone()));
+        assert_eq!(name.as_deref(), Some("Cargo.toml"));
+        let f = FileFilter::default().start(&manifest);
+        assert_eq!(resolve_directory(&f, Path::is_dir, Path::is_file).0, Some(manifest));
     }
 }

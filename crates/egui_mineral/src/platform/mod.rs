@@ -81,7 +81,9 @@ pub struct FileFilter {
     pub title: Option<String>,
     /// File types offered. Empty allows all files.
     pub filters: Vec<FileType>,
-    /// Folder the dialog opens in; the OS default when `None`. Native only.
+    /// Where the dialog opens, resolved when it opens: an existing folder as is, an existing file in its folder
+    /// with its name proposed (over `file_name`), a missing path at its parent; the OS default when `None`.
+    /// Native only.
     #[cfg(not(target_arch = "wasm32"))]
     pub directory: Option<PathBuf>,
     /// File name the dialog starts with; a suggested save name overrides it.
@@ -142,6 +144,13 @@ impl FileFilter {
     #[cfg(not(target_arch = "wasm32"))]
     pub fn directory(mut self, directory: impl Into<PathBuf>) -> Self {
         self.directory = Some(directory.into());
+        self
+    }
+
+    /// Proposes `path`: the file if it still exists, else its folder (resolution of [`Self::directory`]).
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn start(mut self, path: impl Into<PathBuf>) -> Self {
+        self.directory = Some(path.into());
         self
     }
 }
