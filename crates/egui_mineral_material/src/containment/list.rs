@@ -70,6 +70,7 @@ impl SwipeAction {
 pub struct ListItemState {
     offset: f32,
     rest: f32,
+    claim: egui_mineral::input::PanClaim,
 }
 
 /// Line count of a [`ListItem`].
@@ -355,7 +356,9 @@ impl ListItem {
                 .into_iter()
                 .find(|s| self.swipe(*s).is_some_and(|a| a.removes_row));
         }
-        let pan = rt.core().input().pan_on(r);
+        let pan = state
+            .claim
+            .update(ui, rt.core(), egui_mineral::layout::Axis::Horizontal, r, true);
         if let Some(pan) = pan {
             state.offset = (state.offset + pan.delta.x).clamp(min, max);
             state.rest = state.offset;

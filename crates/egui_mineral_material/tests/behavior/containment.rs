@@ -482,3 +482,40 @@ fn fullscreen_carousel_past_the_last_item_chains_the_pan_to_the_page() {
     assert!(s.position > 4.9, "strip reached the end: {}", s.position);
     assert!(s.offset > 50.0, "page took the rest: {}", s.offset);
 }
+
+#[test]
+fn carousel_vertical_flick_keeps_the_page_coasting_after_release() {
+    let mut h = page_with_carousel(HERO, 120.0);
+    h.step();
+    let from = h.rect("c-0-item").center();
+    touch_drag(&mut h, from, vec2(0.0, -20.0), 6);
+    let released = h.state().value.offset;
+    h.run();
+    let settled = h.state().value.offset;
+    assert!(
+        settled > released + 20.0,
+        "page coasted after release: {released} -> {settled}"
+    );
+}
+
+#[test]
+fn swipeable_list_item_vertical_flick_scrolls_and_coasts_the_page() {
+    use egui_mineral_material::{containment::SwipeAction, icons::ICON_DELETE};
+    let mut h = still(vec2(400.0, 300.0), Page::default(), |ui, p| {
+        let rt = ui.rt();
+        let out = egui::ScrollArea::vertical().auto_shrink([false; 2]).show(ui, |ui| {
+            rt.ui(ui)
+                .mineral(ListItem::new("row", "Row").swipe_end(SwipeAction::new(ICON_DELETE, "Delete")));
+            ui.allocate_space(vec2(1.0, 2000.0));
+        });
+        p.offset = out.state.clamped_offset().y;
+    });
+    h.step();
+    let from = h.rect("row-list-item").center();
+    touch_drag(&mut h, from, vec2(0.0, -20.0), 6);
+    let released = h.state().value.offset;
+    h.run();
+    let settled = h.state().value.offset;
+    assert!(released > 50.0, "page followed the pan: {released}");
+    assert!(settled > released + 20.0, "page coasted: {released} -> {settled}");
+}

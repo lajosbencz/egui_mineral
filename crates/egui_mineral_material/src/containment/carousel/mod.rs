@@ -135,8 +135,7 @@ struct State {
     scroll: f32,
     start: usize,
     gesture: bool,
-    // Pan axis decided at the first pan frame: `true` is the strip's axis, `false` goes to the enclosing scroll.
-    lock: Option<bool>,
+    claim: egui_mineral::input::PanClaim,
     wheel: f32,
     target: Option<f32>,
 }
@@ -484,38 +483,16 @@ impl<'a> Carousel<'a> {
         let anim = strip.id.with("scroll");
         let mut delta = 0.0;
         let mut released = None;
-        let mut pan = if self.disabled {
-            None
-        } else {
-            rt.core().input().pan_on(response)
-        };
-        let mut forward = Vec2::ZERO;
-        match pan {
-            Some(p) => {
-                let total = p.pos - p.origin;
-                let own = *st.lock.get_or_insert(axis.main(total).abs() >= axis.cross(total).abs());
-                if !own {
-                    forward = p.delta;
-                    pan = None;
-                }
-                if p.ended {
-                    st.lock = None;
-                }
-            }
-            None => st.lock = None,
-        }
+        let pan = st.claim.update(ui, rt.core(), axis, response, !self.disabled);
         if let Some(pan) = pan {
             let step = -flip * axis.main(pan.delta);
             // Past either end the rest of the pan chains to the enclosing scroll.
             let over = st.scroll + step - (st.scroll + step).clamp(0.0, max_scroll);
-            forward += axis.vec2(-flip * over, 0.0);
+            st.claim.chain(rt.core(), ui, axis, &pan, -flip * over);
             delta += step - over;
             if pan.ended {
                 released = Some(-flip * axis.main(pan.velocity));
             }
-        }
-        if forward != Vec2::ZERO {
-            ui.scroll_with_delta_animation(forward, egui::style::ScrollAnimation::none());
         }
         let mut wheel = 0.0;
         if !self.disabled && ctx.rect_contains_pointer(ui.layer_id(), strip.rect) {
