@@ -534,7 +534,7 @@ fn form(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     super::section(ui, TOPICS[6], None, |ui| {
         // Narrow form column; the section divider keeps the full width.
         ui.scope(|ui| {
-            ui.set_max_width(420.0);
+            ui.set_max_width(ui.available_width().min(420.0));
             let r = Form::new("signup", &mut s.form)
                 .field("username", "Username", |f| {
                     f.required(true)
