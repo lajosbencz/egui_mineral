@@ -83,7 +83,7 @@ jobs:
           fallback: none
       - run: just spec
 
-  # Fails on any public API change vs the PR base, never blocks merging
+  # Fails on any public API change vs the PR base (release PRs: the last release tag), never blocks merging
   public-api:
     name: Public API diff
     if: ${{ github.event_name == 'pull_request' }}
@@ -113,7 +113,13 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: just api-diff "$BASE_SHA" "$HEAD_SHA"
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          base=$BASE_SHA
+          if [[ $HEAD_REF == release-plz-* ]]; then
+            base=$(git describe --tags --abbrev=0 --match 'v*' "$BASE_SHA" || echo "$BASE_SHA")
+          fi
+          just api-diff "$base" "$HEAD_SHA"
 
   result:
     name: CI result
