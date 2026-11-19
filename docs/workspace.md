@@ -37,11 +37,27 @@ Module map, config, commands and release. Overview: [WORKSPACE.md](../WORKSPACE.
 | [`_typos.toml`](../_typos.toml), [`rustfmt.toml`](../rustfmt.toml), [`.editorconfig`](../.editorconfig) | Spelling, formatting |
 | [`.config/nextest.toml`](../.config/nextest.toml) | Test profiles (`ci`) |
 | [`release-plz.toml`](../release-plz.toml) | Release config |
-| [`.github/workflows`](../.github/workflows) | `ci`, `hygiene`, `pages`, `release-plz`, `dependabot-automerge` |
+| [`.github/workflows`](../.github/workflows) | `ci`, `hygiene`, `showcases`, `pages`, `release-plz`, `dependabot-automerge` |
 
 ## Commands
 
-The [`justfile`](../justfile) is the single source of the checks; [`ci.yml`](../.github/workflows/ci.yml) and [`hygiene.yml`](../.github/workflows/hygiene.yml) call its recipes. `just tools` installs the tools, `just ci` runs every blocking check, `just --list` shows the parts (`check`: fmt, clippy feature matrix (cargo-hack, native and wasm32), nextest, ICU4X trimmed data, docs, package; `hygiene`: typos, deny, ast-grep, machete, workflow lints; non-blocking: `spec`; PRs only: `api-diff`, which fails on removed or changed public API unless the crate's breaking version rises). Tool pins live in the justfile, outside Dependabot. Crate READMEs (`crates/*/README.md`) are generated from their `lib.rs` docs: edit the docs, then `just readme`. CI verifies pull requests; on master it only builds, when manifests, lockfile, toolchain or workflow change, to refresh the caches pull requests restore.
+The [`justfile`](../justfile) is the single source of the checks; [`ci.yml`](../.github/workflows/ci.yml) and [`hygiene.yml`](../.github/workflows/hygiene.yml) call its recipes. `just tools` installs the tools at the pinned versions, `just ci` runs every blocking check, `just --list` shows the parts.
+
+| Recipe | Runs |
+|---|---|
+| `quick` | fmt check, default-feature clippy of the libraries, first test leg (`just fix`: fmt and `clippy --fix`) |
+| `check` | `check-clippy`, `check-test` and `check-docs`, the three parallel CI jobs |
+| `check-clippy` | `clippy`: feature matrix (cargo-hack, native and wasm32) |
+| `check-test` | `test` (nextest legs) and `icu-trimmed` |
+| `check-docs` | `doc` (doctests, rustdoc, docs.rs build from each crate's `[package.metadata.docs.rs]`), `readme-check`, `package`, `versions-check` (shared breaking version, toolchain channel equals `rust-version`), `fmt`, `hotpatch-guard`, `minimal-versions` |
+| `hygiene` | typos, deny, ast-grep, machete, workflow lints (`just workflows`: actionlint and zizmor; actionlint is a sha-checked binary pinned in the justfile, not on crates.io) |
+| `spec` | non-blocking: regenerated spec must not change |
+| `api-diff <base> [head] [release]` | PRs only: fails on removed or changed public API unless the crate's breaking version rises; `release=true` (release-plz PRs) takes each crate's base from its last `<crate>-v*` tag |
+| `showcases [public_url]` | release trunk build of both showcases, as Pages deploys them |
+
+Pins live in the justfile (`*_version`, `nightly_version`), outside Dependabot. The nightly is the one the docs.rs build, `minimal-versions` and `api-diff` use: at least a week old, bump it by hand after `just doc` and `just api-diff` pass. Crate READMEs (`crates/*/README.md`) are generated from their `lib.rs` docs: edit the docs, then `just readme`.
+
+CI verifies pull requests; ci.yml on master only builds (clippy, test, docs, the spec generators, rustdoc JSON), when manifests, lockfile, toolchain, `justfile` or the workflow change, to save the per-job caches pull requests restore. `showcases.yml` does the same for the trunk builds when `crates/` or `examples/` change. Hygiene runs on pull requests and weekly, the one scheduled job.
 
 Not in CI: `cargo bench -p egui_mineral`, `cargo run -p showcase-material`, `cargo run -p showcase-fluent` (F12: inspector), `just hotpatch` (showcase-material under `dx` with `egui_mineral/unstable-hotpatch`: edits inside UI functions apply live, struct layout changes need a restart; any app can pass that feature to `dx serve --hotpatch` on the command line).
 
@@ -50,5 +66,5 @@ Not in CI: `cargo bench -p egui_mineral`, `cargo run -p showcase-material`, `car
 Automated by [`release-plz.toml`](../release-plz.toml) and [`release-plz.yml`](../.github/workflows/release-plz.yml): merging the release pull request publishes the changed crates and tags `<crate>-vX.Y.Z` with a git release each. Each published crate has its own `crates/<crate>/CHANGELOG.md` (generated, never hand-edited).
 Versions are per crate, but the published crates share the breaking component (0.MINOR, MAJOR from 1.0): release-plz has no shared-minor option (`version_group` forces identical full versions), and bumps a dependent only by a patch. After release-plz updates its release PR, `.github/workflows/release-align.yml` runs `just align-breaking` on that branch: when one crate's breaking version rose, the others and the workspace requirements move to it; otherwise nothing changes. `just versions-check` fails a PR when they diverge. Patch releases are plain release-plz runs: workspace requirements are carets, so a patch of one crate does not release the others.
 `just minimal-versions` (nightly `-Z direct-minimal-versions`) keeps the requirement lower bounds honest; raise a bound by hand when a crate starts using a newer sibling API.
-[`pages.yml`](../.github/workflows/pages.yml) deploys, on each published crate release, the static index ([`.github/pages`](../.github/pages)) with the showcases' wasm builds under `material/` and `fluent/`.
-[`dependabot.yml`](../.github/dependabot.yml) and [`dependabot-automerge.yml`](../.github/workflows/dependabot-automerge.yml) keep dependencies and pinned actions current.
+[`pages.yml`](../.github/workflows/pages.yml) deploys, on each published crate release (a newer release cancels a running build), the static index ([`.github/pages`](../.github/pages)) with the showcases' wasm builds under `material/` and `fluent/`.
+[`dependabot.yml`](../.github/dependabot.yml) and [`dependabot-automerge.yml`](../.github/workflows/dependabot-automerge.yml) keep dependencies and pinned actions current. Auto-merge uses the release App token (so push workflows fire; the private key must also be a Dependabot secret) and takes patch updates, and minor ones only from major >= 1, since 0.MINOR is breaking.
