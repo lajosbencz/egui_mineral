@@ -6,6 +6,7 @@ pub mod focus;
 pub mod input;
 pub mod overlay;
 pub mod sanitize;
+pub mod scroll;
 pub mod semantic;
 pub mod state;
 

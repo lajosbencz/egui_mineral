@@ -4,9 +4,9 @@
 //! Metrics are Fluent spacing tokens; the handle uses the widget foreground.
 
 use crate::{Fluent, spec::tokens::geometry as g};
-use egui::{ScrollArea, UiBuilder, scroll_area::ScrollAreaOutput, style::ScrollStyle};
-use egui_mineral::semantic::KeyedSalt;
+use egui::{scroll_area::ScrollAreaOutput, style::ScrollStyle};
 use egui_mineral::widget::MineralUi;
+use egui_mineral::{kit, semantic::KeyedSalt};
 
 pub(crate) fn page_style() -> ScrollStyle {
     ScrollStyle {
@@ -38,17 +38,5 @@ pub fn page<R>(
     id_salt: impl Into<KeyedSalt>,
     add: impl FnOnce(&mut MineralUi<'_, Fluent>) -> R,
 ) -> ScrollAreaOutput<R> {
-    let rt = ui.rt();
-    let id_salt = id_salt.into().id_salt();
-    ui.scope_builder(UiBuilder::new().id_salt(id_salt), |ui| {
-        ui.spacing_mut().scroll = page_style();
-        ScrollArea::vertical()
-            .id_salt(id_salt)
-            .auto_shrink([false; 2])
-            .show(ui, |ui| {
-                ui.spacing_mut().scroll = nested_style();
-                add(&mut rt.ui(ui))
-            })
-    })
-    .inner
+    kit::scroll::page(ui, id_salt, page_style(), nested_style(), add)
 }
