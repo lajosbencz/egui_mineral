@@ -130,6 +130,7 @@ pub struct Spinner {
     salt: KeyedSalt,
     key: AgentKey,
     label: Option<String>,
+    label_visible: bool,
     size: SpinnerSize,
     position: SpinnerLabelPosition,
     appearance: SpinnerAppearance,
@@ -142,6 +143,7 @@ impl Spinner {
             salt: id_salt.into(),
             key: AgentKey::Kind("spinner"),
             label: None,
+            label_visible: true,
             size: SpinnerSize::Medium,
             position: SpinnerLabelPosition::After,
             appearance: SpinnerAppearance::Primary,
@@ -151,6 +153,12 @@ impl Spinner {
     /// Text next to the ring, also the accessible name.
     pub fn label(mut self, label: impl Into<String>) -> Self {
         self.label = Some(label.into());
+        self
+    }
+
+    /// Draws the label; default `true`. Hidden, it stays the accessible name.
+    pub fn label_visible(mut self, visible: bool) -> Self {
+        self.label_visible = visible;
         self
     }
 
@@ -182,7 +190,7 @@ impl Spinner {
     }
 
     fn galley(&self, ui: &MineralUi<'_, Fluent>, color: Color32) -> Option<Arc<Galley>> {
-        let text = self.label.as_ref()?;
+        let text = self.label.as_ref().filter(|_| self.label_visible)?;
         let format = self.size.label().format(ui.ctx(), color);
         Some(
             ui.painter()

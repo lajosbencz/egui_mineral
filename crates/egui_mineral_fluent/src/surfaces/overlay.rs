@@ -14,7 +14,7 @@ use crate::{
 
 // WAI-ARIA APG dialog pattern
 #[derive(Clone, Copy, Default)]
-pub(super) struct ModalFocus {
+pub(crate) struct ModalFocus {
     open: bool,
     enter: bool,
     since: u64,
@@ -25,7 +25,7 @@ pub(super) struct ModalFocus {
 impl TempState for ModalFocus {}
 
 impl ModalFocus {
-    pub(super) fn scope<R>(ctx: &Context, id: Id, open: &mut bool, show: impl FnOnce(&mut Self, &mut bool) -> R) -> R {
+    pub(crate) fn scope<R>(ctx: &Context, id: Id, open: &mut bool, show: impl FnOnce(&mut Self, &mut bool) -> R) -> R {
         let mut focus = Self::load(ctx, id);
         focus.sync(ctx, *open);
         let r = show(&mut focus, open);

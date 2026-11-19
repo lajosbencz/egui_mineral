@@ -3,7 +3,8 @@
 //! brand, the type ramp, geometry, shadows and motion, a theme engine and components built on the core behavior
 //! models. See every component in the [live showcase](https://lajosbencz.github.io/egui_mineral/fluent/).
 //!
-//! Components by category: [`actions`], [`inputs`], [`feedback`], [`surfaces`], [`navigation`], [`data`].
+//! Components by category: [`actions`], [`inputs`], [`feedback`], [`surfaces`], [`navigation`], [`data`], plus
+//! [`extras`] (feature `extras`).
 //!
 //! Targets egui 0.37 on native and wasm. Pre-1.0: any minor release may break the API.
 //!
@@ -69,6 +70,7 @@
 //! | `persist-toml` | yes | TOML persistence codec (`egui_mineral/persist-toml`) |
 //! | `persist-fs` | yes | Native file-backed storage (`egui_mineral/persist-fs`) |
 //! | `bundled-icons` | yes | Fluent UI System Icons resizable font (1.6 MB); without it use [`Fluent::with_icon_font`] or [`Fluent::with_icons`] |
+//! | `extras` | yes | The [`extras`] module (components beyond Fluent UI React v9) and its [`prelude`] re-exports |
 //! | `unstable-catalog` | | [`catalog`]: each component's category and React v9 styles file ([`catalog::CATALOG`]) |
 //! | `unstable-spec` | | Public [`spec::tokens`] and [`spec::defaults`]: the generated Fluent UI React v9 values, changed by every re-pin of the sources |
 //!
@@ -86,6 +88,11 @@
     doc = "[`spec::tokens`]: https://docs.rs/egui_mineral_fluent/latest/egui_mineral_fluent/spec/tokens/index.html",
     doc = "[`spec::defaults`]: https://docs.rs/egui_mineral_fluent/latest/egui_mineral_fluent/spec/defaults/index.html"
 )]
+#![cfg_attr(
+    not(feature = "extras"),
+    doc = "",
+    doc = "[`extras`]: https://docs.rs/egui_mineral_fluent/latest/egui_mineral_fluent/extras/index.html"
+)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 // docs/rules.md rule 10; tests may panic.
 #![cfg_attr(
@@ -98,6 +105,8 @@ pub mod actions;
 #[cfg(feature = "unstable-catalog")]
 pub mod catalog;
 pub mod data;
+#[cfg(feature = "extras")]
+pub mod extras;
 pub mod feedback;
 mod fluent;
 /// Font and icon installation.

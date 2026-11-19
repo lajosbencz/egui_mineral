@@ -25,6 +25,7 @@ pub(crate) struct State {
     surfaces: super::surfaces::State,
     data: super::data::State,
     navigation: super::navigation::State,
+    extras: super::extras::State,
 }
 
 pub(crate) fn actions(ui: &mut Fui<'_>, s: &mut State) {
@@ -164,6 +165,10 @@ pub(crate) fn data(ui: &mut Fui<'_>, s: &mut State) {
         .wrap(false)
         .truncate(true),
     );
+}
+
+pub(crate) fn extras(ui: &mut Fui<'_>, s: &mut State) {
+    super::extras::show(ui, &mut s.extras);
 }
 
 pub(crate) fn navigation(ui: &mut Fui<'_>, s: &mut State) {

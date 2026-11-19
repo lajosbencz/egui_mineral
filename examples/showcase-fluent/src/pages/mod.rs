@@ -2,6 +2,7 @@
 
 mod components;
 mod data;
+mod extras;
 mod feedback;
 mod foundations;
 mod inputs;
@@ -45,6 +46,7 @@ impl Page {
             Self::Category(Category::Surfaces) => "surfaces",
             Self::Category(Category::Navigation) => "navigation",
             Self::Category(Category::Data) => "data",
+            Self::Category(Category::Extras) => "extras",
         }
     }
 
@@ -85,6 +87,7 @@ pub(crate) fn show(page: Page, ui: &mut Fui<'_>, state: &mut components::State) 
         Page::Category(Category::Data) => components::data(ui, state),
         Page::Category(Category::Feedback) => components::feedback(ui, state),
         Page::Category(Category::Navigation) => components::navigation(ui, state),
+        Page::Category(Category::Extras) => components::extras(ui, state),
     }
 }
 

@@ -1,6 +1,6 @@
 use crate::MaterialUiExt as _;
-use egui_mineral::kit::state::{Memo, TempState};
-use std::collections::HashMap;
+use egui_mineral::kit::palette::{self, Entry, Labels, Row, State};
+use egui_mineral::kit::state::TempState;
 
 use crate::Material;
 use crate::MaterialExt;
@@ -11,14 +11,13 @@ use egui::{Align2, Id, KeyboardShortcut, Rangef, Rect, Sense, pos2, vec2};
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::{Availability, MineralUi};
 use egui_mineral::{
-    filter::Query,
     i18n::Direction,
     kit,
     layout::Edge,
     overlay::{self, Dismiss},
     perf::VirtualList,
     semantic::{self, Role, SemanticNode, StableId},
-    shortcut::{self, ActionId, Scope},
+    shortcut::{self, ActionId},
 };
 
 use crate::navigation::search;
@@ -96,21 +95,23 @@ impl PaletteCommand {
     }
 }
 
-#[derive(Debug, PartialEq)]
-enum Row {
-    Header(String),
-    Item { index: usize, hits: Vec<usize> },
+impl Entry for PaletteCommand {
+    fn label(&self) -> &str {
+        &self.label
+    }
+    fn heading(&self) -> Option<&str> {
+        self.group.as_deref()
+    }
+    fn is_disabled(&self) -> bool {
+        self.disabled
+    }
+    fn action(&self) -> Option<&ActionId> {
+        self.id.as_ref()
+    }
+    fn accelerator(&self) -> Option<KeyboardShortcut> {
+        self.shortcut
+    }
 }
-
-#[derive(Clone, Default)]
-struct State {
-    active: usize,
-    was_open: bool,
-    reveal: bool,
-    rows: Memo<Vec<Row>>,
-}
-
-impl TempState for State {}
 
 /// Modal fuzzy-filtered command list; non-MD3 (shadcn `Command` pattern).
 #[derive(Debug)]
@@ -167,84 +168,6 @@ impl<'a> CommandPalette<'a> {
     pub fn shortcut(mut self, shortcut: KeyboardShortcut) -> Self {
         self.shortcut = Some(shortcut);
         self
-    }
-
-    fn rows(commands: &[PaletteCommand], query: &str) -> Vec<Row> {
-        let mut matched: Vec<(usize, Vec<usize>)> = if query.trim().is_empty() {
-            (0..commands.len()).map(|i| (i, Vec::new())).collect()
-        } else {
-            Query::new(query)
-                .rank(commands.iter().enumerate().map(|(i, c)| (i, c.label.as_str())))
-                .into_iter()
-                .map(|(i, m)| (i, m.indices))
-                .collect()
-        };
-        // Groups keep their first-appearance order; the stable sort keeps match order within one.
-        let mut rank: HashMap<Option<&str>, usize> = HashMap::new();
-        for c in commands {
-            let next = rank.len();
-            rank.entry(c.group.as_deref()).or_insert(next);
-        }
-        matched.sort_by_key(|(i, _)| rank[&commands[*i].group.as_deref()]);
-        let mut rows = Vec::with_capacity(matched.len() + rank.len());
-        let mut current = None;
-        for (index, hits) in matched {
-            let g = commands[index].group.as_deref();
-            if current != Some(g) {
-                current = Some(g);
-                rows.extend(g.map(|g| Row::Header(g.to_owned())));
-            }
-            rows.push(Row::Item { index, hits });
-        }
-        rows
-    }
-
-    fn bind_shortcuts(&self, ctx: &egui::Context, id: Id, scope: Scope, open: &mut bool) {
-        if let Some(k) = self.shortcut {
-            let toggle = ActionId::from(String::from(StableId::of(&self.salt, "shortcut")));
-            shortcut::bind(ctx, Scope::Global, k, toggle.clone());
-            shortcut::bind(ctx, Scope::Modal(id.with("area")), k, toggle.clone());
-            if shortcut::take_action(ctx, &toggle) {
-                *open = !*open;
-            }
-        }
-        let mut fired = false;
-        for cmd in self.commands.iter().filter(|c| !c.disabled) {
-            if let Some(command) = &cmd.id {
-                if let Some(k) = cmd.shortcut {
-                    shortcut::bind(ctx, scope, k, command);
-                }
-                fired |= shortcut::fired(ctx, command);
-            }
-        }
-        if fired {
-            *open = false;
-        }
-    }
-
-    fn selectable(rows: &[Row], commands: &[PaletteCommand]) -> Vec<usize> {
-        rows.iter()
-            .enumerate()
-            .filter_map(|(r, row)| match row {
-                Row::Item { index, .. } if commands.get(*index).is_some_and(|c| !c.disabled) => Some(r),
-                _ => None,
-            })
-            .collect()
-    }
-
-    fn navigate(rt: &Rt, st: &mut State, rows: &[Row], items: &[usize]) -> Option<usize> {
-        let mut active = Some(st.active);
-        let step = row_parts::drive_embedded(rt.ctx(), &mut active, items.len());
-        if step.moved
-            && let Some(a) = active
-        {
-            st.active = a;
-            st.reveal = true;
-        }
-        match step.commit.and_then(|a| rows.get(*items.get(a)?)) {
-            Some(&Row::Item { index, .. }) => Some(index),
-            _ => None,
-        }
     }
 
     fn body(
@@ -389,7 +312,15 @@ impl<'a> CommandPalette<'a> {
         let ctx = rt.ctx();
         let area = kit::overlay::modal_area(rt.core(), id.with("area"));
         let scope = shortcut::scope_of(ctx, area.layer());
-        self.bind_shortcuts(ctx, id, scope, open);
+        palette::bind_shortcuts(
+            ctx,
+            &self.salt,
+            self.shortcut,
+            &self.commands,
+            scope,
+            id.with("area"),
+            open,
+        );
         let mut st = State::load(ctx, id);
         if !*open {
             if st.was_open {
@@ -405,18 +336,14 @@ impl<'a> CommandPalette<'a> {
             st.active = 0;
         }
         let rows = st.rows.get_or_compute(&(&**self.query, Labels(&self.commands)), || {
-            Self::rows(&self.commands, self.query)
+            palette::rows(&self.commands, self.query)
         });
-        let items = Self::selectable(&rows, &self.commands);
+        let items = palette::selectable(&rows, &self.commands);
         st.active = st.active.min(items.len().saturating_sub(1));
 
         let dir = rt.i18n().direction();
         // The key press that opened the palette must not run an entry.
-        let mut run = if opened {
-            None
-        } else {
-            Self::navigate(rt, &mut st, &rows, &items)
-        };
+        let mut run = if opened { None } else { st.navigate(ctx, &rows, &items) };
 
         let screen = ctx.content_rect();
         let width = defaults::search_bar::MAX_WIDTH.min(screen.width() - 2.0 * WINDOW_MARGIN);
@@ -467,14 +394,7 @@ impl<'a> CommandPalette<'a> {
             ctx.memory_mut(|m| m.request_focus(edit_id));
         }
         let dismissed = overlay::modal(&modal);
-        if let Some(command) = run.and_then(|i| self.commands[i].id.as_ref()) {
-            shortcut::fire(ctx, command);
-            run = None;
-            *open = false;
-        }
-        if dismissed.is_some() || run.is_some() {
-            *open = false;
-        }
+        palette::finish(ctx, &self.commands, &mut run, dismissed.is_some(), open);
         st.was_open = *open;
         st.store(ctx, id);
         CommandPaletteResponse {
@@ -530,18 +450,6 @@ fn group_header(ui: &mut MineralUi<'_, Material>, name: &str, width: f32, dir: D
     );
 }
 
-// Hashes what `CommandPalette::rows` reads.
-struct Labels<'a>(&'a [PaletteCommand]);
-
-impl std::hash::Hash for Labels<'_> {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        for c in self.0 {
-            (&c.label, &c.group).hash(state);
-        }
-        self.0.len().hash(state);
-    }
-}
-
 struct Commands<'a> {
     id: Id,
     salt: &'a KeyedSalt,
@@ -576,41 +484,4 @@ fn command_row(
             .shortcut(shortcut_label.clone())
     });
     resp
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn shape(rows: &[Row]) -> Vec<String> {
-        rows.iter()
-            .map(|r| match r {
-                Row::Header(g) => format!("[{g}]"),
-                Row::Item { index, .. } => index.to_string(),
-            })
-            .collect()
-    }
-
-    #[test]
-    fn rows_group_in_first_appearance_order_and_keep_match_order() {
-        let commands = [
-            PaletteCommand::new("Open file").group("File"),
-            PaletteCommand::new("Undo"),
-            PaletteCommand::new("Save file").group("File"),
-            PaletteCommand::new("Copy").group("Edit"),
-            PaletteCommand::new("Redo"),
-        ];
-        let all = CommandPalette::rows(&commands, "");
-        assert_eq!(shape(&all), ["[File]", "0", "2", "1", "4", "[Edit]", "3"]);
-        let hits = CommandPalette::rows(&commands, "file");
-        assert_eq!(
-            shape(&hits),
-            ["[File]", "0", "2"],
-            "groups without matches drop their header"
-        );
-        let Some(Row::Item { hits, .. }) = hits.get(1) else {
-            unreachable!("an item row")
-        };
-        assert_eq!(hits.len(), 4, "match indices move into the row");
-    }
 }
