@@ -944,7 +944,7 @@ fn nav_children_state_does_not_outlive_removed_categories() {
                     });
                 }
             });
-        *stored = ui.ctx().data(|d| d.count::<Vec<usize>>());
+        *stored = ui.ctx().data(egui::util::IdTypeMap::count::<Vec<usize>>);
     });
     h.run();
     h.state_mut().value.0 = 1;

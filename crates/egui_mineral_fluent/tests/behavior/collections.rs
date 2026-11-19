@@ -577,7 +577,11 @@ fn image_with_an_unloadable_uri_shows_the_failed_state() {
     use egui_mineral_fluent::data::Image;
 
     let pass = render(|ui| {
-        ui.mineral(Image::new("bad", "file:///nonexistent/missing.png").alt("Bad").size(egui::vec2(40.0, 40.0)));
+        ui.mineral(
+            Image::new("bad", "file:///nonexistent/missing.png")
+                .alt("Bad")
+                .size(egui::vec2(40.0, 40.0)),
+        );
     });
     let icon = egui_mineral_fluent::icons::ICON_IMAGE_OFF.glyph(false).to_string();
     pass.text(&icon);

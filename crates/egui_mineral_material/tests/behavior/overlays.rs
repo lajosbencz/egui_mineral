@@ -390,5 +390,8 @@ fn dialog_growing_each_frame_discards_only_the_opening_pass() {
     }
     let per_frame: Vec<u32> = h.state().value.iter().map(|&(_, n)| n).collect();
     let late = &per_frame[per_frame.len().saturating_sub(5)..];
-    assert!(late.iter().all(|&n| n == 1), "passes per frame while growing: {per_frame:?}");
+    assert!(
+        late.iter().all(|&n| n == 1),
+        "passes per frame while growing: {per_frame:?}"
+    );
 }

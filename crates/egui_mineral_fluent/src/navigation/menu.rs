@@ -801,9 +801,7 @@ fn level<R>(
     let memo_id = id.with("mineral::menu-memo");
     let loaded = Memo::try_load(&ctx, memo_id);
     let memo = loaded.unwrap_or_else(|| {
-        if ctx.current_pass_index() == 0 {
-            ctx.request_discard("mineral: unsized container");
-        }
+        (ctx.current_pass_index() == 0).then(|| ctx.request_discard("mineral: unsized container"));
         Memo::FIRST
     });
     let look = Look {

@@ -127,6 +127,20 @@ struct DialogSize {
     height: Option<f32>,
 }
 
+impl DialogSize {
+    // Shrunk content leaves the width it filled; taller content may wrap wider.
+    // Growth within two frames of the last lags a frame instead of discarding again.
+    fn measured(self, frame: u64, used: Rect, natural: f32, settled: bool) -> Self {
+        let grew = self.height.is_some_and(|h| used.height() > h + 0.5);
+        let continued = self.grew_at.is_some_and(|f| frame - f <= 2);
+        Self {
+            resize: settled && (natural + 0.5 < used.width() || (grew && !continued)),
+            grew_at: if grew && settled { Some(frame) } else { self.grew_at },
+            height: Some(used.height()),
+        }
+    }
+}
+
 impl TempState for DialogSize {}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -559,18 +573,12 @@ impl Dialog {
             }
             action = action.or_else(|| self.default_on_enter(ui));
             let used = ui.min_rect();
-            // Shrunk content leaves the width it filled; taller content may wrap wider.
-            let grew = size.height.is_some_and(|h| used.height() > h + 0.5);
-            // Growth within two frames of the last lags a frame instead of discarding again.
-            let frame = ctx.cumulative_frame_nr();
-            let continued = size.grew_at.is_some_and(|f| frame - f <= 2);
-            size = DialogSize {
-                resize: !ui.is_sizing_pass()
-                    && chosen.is_none()
-                    && (natural + 0.5 < used.width() || (grew && !continued)),
-                grew_at: if grew && !ui.is_sizing_pass() { Some(frame) } else { size.grew_at },
-                height: Some(used.height()),
-            };
+            size = size.measured(
+                ctx.cumulative_frame_nr(),
+                used,
+                natural,
+                !ui.is_sizing_pass() && chosen.is_none(),
+            );
             if self.resizable && !ui.is_sizing_pass() {
                 resized = self.resize_handle(&rt.ui(ui), used.expand(d::PADDING));
             }
