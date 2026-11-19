@@ -143,11 +143,6 @@ impl Stylekit for Fluent {
     fn style(&self, ctx: &Context, theme: Theme) -> Arc<Style> {
         self.pass_state(ctx.cumulative_pass_nr(), theme).style
     }
-
-    fn paint_window_close(&self, ui: &egui::Ui, visual: egui::Rect, response: &egui::Response) {
-        ui.painter()
-            .extend(egui_mineral::kit::paint::window_close(ui, visual, response));
-    }
 }
 
 /// Runtime of a Fluent app.

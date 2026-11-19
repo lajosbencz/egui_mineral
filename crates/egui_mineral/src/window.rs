@@ -139,13 +139,22 @@ fn to_margin(points: f32) -> i8 {
     points.clamp(0.0, f32::from(i8::MAX)) as i8
 }
 
+#[expect(
+    clippy::disallowed_methods,
+    reason = "submits the shapes the stylekit returned (rule 5)"
+)]
+fn submit(ui: &Ui, shapes: Vec<egui::Shape>) {
+    ui.painter().extend(shapes);
+}
+
 // True when activated. Taps are tested against this pass's `hit`, not the previous pass's rect like egui's click:
 // the first touch reaches this pass with the touch modality (and target) its own events set, the previous held the mouse size.
 fn close_control<K: Stylekit>(rt: &Runtime<K>, ui: &mut Ui, salt: &KeyedSalt, visual: Rect, hit: Rect) -> bool {
     let id = ui.scope_id();
     let mut response = ui.interact(hit, id, Sense::click());
     crate::kit::focus::follow_press(&response);
-    rt.kit().paint_window_close(ui, visual, &response);
+    let chrome = rt.kit().window_close(ui, visual, &response);
+    submit(ui, chrome);
     let layer = response.layer_id;
     // No MineralUi in a window root.
     let tapped = rt.core().input().gestures().any(|g| {
@@ -249,8 +258,9 @@ mod tests {
         fn style(&self, ctx: &Context, theme: egui::Theme) -> Arc<egui::Style> {
             ctx.style_of(theme)
         }
-        fn paint_window_close(&self, _: &Ui, visual: Rect, _: &egui::Response) {
+        fn window_close(&self, _: &Ui, visual: Rect, _: &egui::Response) -> Vec<egui::Shape> {
             self.0.store(visual.width().to_bits(), Ordering::Relaxed);
+            Vec::new()
         }
     }
 

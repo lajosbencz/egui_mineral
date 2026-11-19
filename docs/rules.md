@@ -9,8 +9,8 @@ Other files cite them as `docs/rules.md rule N`.
 2. State agnostic: UI reads via refs and writes via `Bus` commands. No forced MVC/Redux.
 3. No backend types (`winit`, `eframe`) in the core public API, egui/emath types are fine.
 4. No heavy work in the render path, push it to async handlers via `Bus` + `Spawner`.
-5. The core is headless: no painting, no visual styling, no string catalogs, no design-system values.
-   Stylekits paint from core responses (`SplitterResponse::handle_rect`, `ReorderOutput::indicator`, `dnd::RowView`),
+5. The core is headless: no painting of its own, no visual styling, no string catalogs, no design-system values.
+   It may submit shapes a stylekit hook returned (`Stylekit::window_close`). Stylekits paint from core responses (`SplitterResponse::handle_rect`, `ReorderOutput::indicator`, `dnd::RowView`),
    ship the catalogs for core message ids, and return their `policy::Policies` from `Stylekit::policies`.
    Configuration lives in the typed runtime (`Runtime::new(ctx, kit) -> Result<Arc<Runtime<K>>>`:
    `Core` with i18n, policies, reduced motion and per-viewport pass state, plus the kit), never in `Context` data:

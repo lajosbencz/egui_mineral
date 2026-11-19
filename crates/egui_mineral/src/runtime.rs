@@ -47,11 +47,12 @@ pub trait Stylekit: Send + Sync + 'static {
     /// Style of the runtime's root `Ui`s (window roots, areas) at `theme` ([`Core::theme`]); called per root,
     /// so keep it cheap.
     fn style(&self, ctx: &Context, theme: Theme) -> Arc<Style>;
-    /// Paints the close glyph of an embedded [`crate::window::WindowSpec`] title bar in `visual`, the
+    /// Shapes of the close glyph of an embedded [`crate::window::WindowSpec`] title bar in `visual`, the
     /// icon-sized box centered in the larger hit target of `response` (hover, press and focus state).
-    /// Required: the core does not paint (rule 5); [`kit::paint::window_close`](crate::kit::paint::window_close)
-    /// builds the default chrome.
-    fn paint_window_close(&self, ui: &Ui, visual: Rect, response: &Response);
+    /// Defaults to [`kit::paint::window_close`](crate::kit::paint::window_close) in the colors of `ui.style()`.
+    fn window_close(&self, ui: &Ui, visual: Rect, response: &Response) -> Vec<egui::Shape> {
+        crate::kit::paint::window_close(ui, visual, response)
+    }
 }
 
 /// Failure building a [`Runtime`].
@@ -626,8 +627,6 @@ mod tests {
             style.spacing.item_spacing.x = 37.0;
             Arc::new(style)
         }
-
-        fn paint_window_close(&self, _: &Ui, _: Rect, _: &Response) {}
     }
 
     fn styled(ctx: &Context) -> Arc<Runtime<StyledKit>> {

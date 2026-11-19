@@ -155,11 +155,6 @@ impl Stylekit for Material {
     fn style(&self, ctx: &Context, theme: Theme) -> Arc<Style> {
         self.pass_snapshot(ctx.cumulative_pass_nr(), theme).1
     }
-
-    fn paint_window_close(&self, ui: &egui::Ui, visual: egui::Rect, response: &egui::Response) {
-        ui.painter()
-            .extend(egui_mineral::kit::paint::window_close(ui, visual, response));
-    }
 }
 
 /// Runtime of a Material app.
