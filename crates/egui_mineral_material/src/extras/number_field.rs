@@ -3,7 +3,7 @@ use crate::MaterialUiExt as _;
 use crate::Rt;
 use crate::adaptive::Density;
 use crate::text_inputs::text_field::FieldChrome;
-use egui::{Align, Context, CursorIcon, Event, Id, Layout, Modifiers, MouseWheelUnit, Ui, Vec2, emath::Numeric, vec2};
+use egui::{Align, Context, CursorIcon, Event, Id, Layout, MouseWheelUnit, Ui, Vec2, emath::Numeric, vec2};
 use egui_mineral::kit::state::TempState;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::semantic::StableId;
@@ -253,7 +253,7 @@ impl<N: Numeric> Composite for NumberField<'_, N> {
         edit.set_snap(self.snap_typed);
         let mut pass = edit.begin(self.range, before, focus, &fmt);
         let mut scrubbed = false;
-        let mut stepped = focused && !self.disabled && consume_step_keys(ctx, &mut pass);
+        let mut stepped = focused && !self.disabled && pass.consume_step_keys(ctx);
         let mut event = escape.then(|| cancel_edit(ctx, &mut pass, edit_id)).flatten();
         let v = pass.value();
 
@@ -270,7 +270,7 @@ impl<N: Numeric> Composite for NumberField<'_, N> {
             height,
         } = self.row_metrics(ui.density(), foot, total, gap);
         let scrub_sense = (self.scrub && !disabled && !focused)
-            .then(|| number::scrub_sense(&rt.core().input()))
+            .then(|| number::scrub_sense(&ui.pass_input()))
             .flatten();
         let step = |ui: &mut Ui, b: IconButton, foot: Vec2| {
             ui.allocate_ui_with_layout(vec2(foot.x, height), Layout::top_down(Align::Center), |ui| {
@@ -367,16 +367,6 @@ fn apply_steps(pass: &mut number::NumberPass<'_>, buttons: i64, wheel: i64) -> b
     stepped
 }
 
-fn consume_step_keys(ctx: &Context, pass: &mut number::NumberPass<'_>) -> bool {
-    let mut stepped = false;
-    for k in NumberEdit::STEP_KEYS {
-        while ctx.input_mut(|i| i.consume_key(Modifiers::NONE, k)) {
-            stepped |= pass.step_key(k);
-        }
-    }
-    stepped
-}
-
 // One step per line or page notch; point deltas (trackpads) step once per `line_scroll_speed`.
 // Consumes the scroll so an enclosing scroll area stays put.
 fn wheel_steps(ctx: &Context, id: Id, over_focused: bool) -> i64 {
@@ -416,9 +406,8 @@ struct RowMetrics {
 }
 
 fn scrub_handle(ui: &MineralUi<'_, Material>, rect: egui::Rect, id: Id, sense: egui::Sense) -> egui::Response {
-    let rt = ui.rt();
     let mut handle = ui.interact(rect, id, sense);
-    rt.core().input().tap_on(&mut handle);
+    ui.pass_input().tap_on(&mut handle);
     if handle.hovered() || handle.dragged() {
         ui.ctx().set_cursor_icon(CursorIcon::ResizeHorizontal);
     }

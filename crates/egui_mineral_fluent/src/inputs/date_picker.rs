@@ -1,3 +1,4 @@
+use crate::tokens::ShadowTint;
 use egui::{CornerRadius, Frame, Margin, Stroke};
 use egui_mineral::{
     anchor::{Align, Anchor, Side},
@@ -236,7 +237,7 @@ impl Composite for DatePicker<'_> {
                         .stroke(Stroke::new(dp::POPUP_BORDER, t.color(ColorTransparentStroke)))
                         .corner_radius(CornerRadius::from(g::BORDER_RADIUS_MEDIUM))
                         .inner_margin(Margin::ZERO)
-                        .shadow(t.shadow(Elevation::E16, false)[0])
+                        .shadow(t.shadow(Elevation::E16, ShadowTint::Neutral)[0])
                         .show(ui, |ui| rt.ui(ui).mineral(self.calendar(&mut picked)).changed())
                         .inner
                 });

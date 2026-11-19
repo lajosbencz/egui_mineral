@@ -5,9 +5,9 @@
 //! Bar metrics follow Compose Multiplatform desktop `defaultScrollbarStyle` (8dp thick, 16dp min handle).
 
 use crate::Material;
-use egui::{ScrollArea, UiBuilder, scroll_area::ScrollAreaOutput, style::ScrollStyle};
-use egui_mineral::semantic::KeyedSalt;
+use egui::{scroll_area::ScrollAreaOutput, style::ScrollStyle};
 use egui_mineral::widget::MineralUi;
+use egui_mineral::{kit, semantic::KeyedSalt};
 
 const THICKNESS: f32 = 8.0;
 const MIN_HANDLE: f32 = 16.0;
@@ -43,17 +43,5 @@ pub fn page<R>(
     id_salt: impl Into<KeyedSalt>,
     add: impl FnOnce(&mut MineralUi<'_, Material>) -> R,
 ) -> ScrollAreaOutput<R> {
-    let rt = ui.rt();
-    let id_salt = id_salt.into().id_salt();
-    ui.scope_builder(UiBuilder::new().id_salt(id_salt), |ui| {
-        ui.spacing_mut().scroll = page_style();
-        ScrollArea::vertical()
-            .id_salt(id_salt)
-            .auto_shrink([false; 2])
-            .show(ui, |ui| {
-                ui.spacing_mut().scroll = nested_style();
-                add(&mut rt.ui(ui))
-            })
-    })
-    .inner
+    kit::scroll::page(ui, id_salt, page_style(), nested_style(), add)
 }

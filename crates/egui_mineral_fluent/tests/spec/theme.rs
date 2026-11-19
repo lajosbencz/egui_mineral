@@ -2,7 +2,7 @@ use egui::{Color32, Theme, ThemePreference};
 use egui_mineral_fluent::{
     BrandRamp, BrandStep, ColorToken, FluentExt,
     spec::tokens::brand::BRAND_WEB,
-    theme::{Elevation, Radius, Scheme, Tokens},
+    theme::{Elevation, Radius, Scheme, ShadowTint, Tokens},
 };
 
 use crate::support::runtime;
@@ -59,7 +59,7 @@ fn every_token_resolves_in_every_scheme() {
 #[test]
 fn shadows_and_radii_follow_the_tokens() {
     let t = Tokens::new(Scheme::WebLight, BRAND_WEB);
-    let [ambient, key] = t.shadow(Elevation::E8, false);
+    let [ambient, key] = t.shadow(Elevation::E8, ShadowTint::Neutral);
     assert_eq!(ambient.color, t.color(ColorToken::ColorNeutralShadowAmbient));
     assert_eq!((key.offset, key.blur), ([0, 4], 8));
     assert_eq!(Radius::Medium.points(), 4.0);
@@ -90,4 +90,25 @@ fn a_setter_mid_pass_applies_from_the_next_pass() {
             Scheme::HighContrast
         ]
     );
+}
+
+#[test]
+fn set_brand_mid_pass_keeps_style_for_the_pass() {
+    use egui_mineral::runtime::Stylekit;
+    let ctx = egui::Context::default();
+    let rt = runtime(&ctx, Theme::Light);
+    let mut styles = Vec::new();
+    for _ in 0..2 {
+        ctx.run_ui(egui::RawInput::default(), |_| {
+            styles.push(rt.kit().style(&ctx, Theme::Light));
+            rt.kit()
+                .set_brand(&ctx, BrandRamp([Color32::from_rgb(200, 10, 10); 16]));
+            styles.push(rt.kit().style(&ctx, Theme::Light));
+        })
+        .textures_delta
+        .clear();
+    }
+    assert!(std::sync::Arc::ptr_eq(&styles[0], &styles[1]), "frozen within pass 1");
+    assert!(!std::sync::Arc::ptr_eq(&styles[1], &styles[2]), "new brand from pass 2");
+    assert!(std::sync::Arc::ptr_eq(&styles[2], &styles[3]), "frozen within pass 2");
 }

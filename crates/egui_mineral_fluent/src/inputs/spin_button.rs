@@ -1,10 +1,10 @@
-use egui::{Context, CornerRadius, Modifiers, Pos2, Rangef, Rect, Sense, vec2};
+use egui::{CornerRadius, Pos2, Rangef, Rect, Sense, vec2};
 use egui_mineral::{
     edit::{EditEvent, FieldFocus},
     i18n::{Direction, I18n},
     kit::{self, state::TempState},
     layout::{Constraints, Measure, MinTarget},
-    number::{NumberEdit, NumberPass, NumberSource},
+    number::{NumberEdit, NumberSource},
     range::RangeModel,
     semantic::{AgentKey, KeyedSalt, Role, SemanticNode},
     widget::{Availability, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
@@ -244,7 +244,7 @@ impl MineralWidget for SpinButton<'_> {
         let fmt = |v: f64| self.text(rt.i18n(), v);
         let mut edit = NumberEdit::load_or(ctx, state_id, || NumberEdit::new(self.range, before, fmt));
         let mut pass = edit.begin(self.range, before, FieldFocus::of(focused || escape), &fmt);
-        let mut stepped = focused && !self.disabled && consume_step_keys(ctx, &mut pass);
+        let mut stepped = focused && !self.disabled && pass.consume_step_keys(ctx);
         let mut event = escape
             .then(|| {
                 ctx.memory_mut(|m| m.surrender_focus(edit_id));
@@ -352,14 +352,4 @@ fn corner(up: bool, dir: Direction) -> CornerRadius {
         (false, Direction::Rtl) => (0, 0, r, 0),
     };
     CornerRadius { nw, ne, sw, se }
-}
-
-fn consume_step_keys(ctx: &Context, pass: &mut NumberPass<'_>) -> bool {
-    let mut stepped = false;
-    for k in NumberEdit::STEP_KEYS {
-        while ctx.input_mut(|i| i.consume_key(Modifiers::NONE, k)) {
-            stepped |= pass.step_key(k);
-        }
-    }
-    stepped
 }

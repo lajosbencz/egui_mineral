@@ -66,7 +66,7 @@ fn declared_modals_id(ctx: &Context) -> Id {
 }
 
 /// Marks `layer` as a modal shown this pass; egui reports it as [`top_modal`] only from the next pass.
-pub fn declare_modal(ctx: &Context, layer: LayerId) {
+pub(crate) fn declare_modal(ctx: &Context, layer: LayerId) {
     let (pass, id) = (ctx.cumulative_pass_nr(), declared_modals_id(ctx));
     ctx.data_mut(|d| {
         let m = d.get_temp_mut_or_default::<DeclaredModals>(id);
@@ -83,7 +83,7 @@ pub fn declare_modal(ctx: &Context, layer: LayerId) {
 }
 
 /// `layer` is [`top_modal`] or was passed to [`declare_modal`] this pass.
-pub fn is_modal(ctx: &Context, layer: LayerId) -> bool {
+pub(crate) fn is_modal(ctx: &Context, layer: LayerId) -> bool {
     let (pass, id) = (ctx.cumulative_pass_nr(), declared_modals_id(ctx));
     top_modal(ctx) == Some(layer)
         || ctx.data(|d| {
@@ -422,11 +422,6 @@ pub fn dismissal(core: &Core, layer: LayerId, inside: &[Rect], return_focus: Opt
     dismiss
 }
 
-/// [`outside_press`] that ignores the frame in which the overlay `id` opened. Same call contract as [`dismissal`].
-pub fn outside_press_after_open(core: &Core, id: Id, inside: &[Rect]) -> bool {
-    !opening_frame(core.ctx(), id) && outside_press(core, inside)
-}
-
 #[derive(Clone, Copy, Default)]
 struct OpenedAt {
     pass: Option<u64>,
@@ -436,7 +431,7 @@ struct OpenedAt {
 impl TempState for OpenedAt {}
 
 // True in the frame of the first pass after a gap in calls for `id`.
-fn opening_frame(ctx: &Context, id: Id) -> bool {
+pub(crate) fn opening_frame(ctx: &Context, id: Id) -> bool {
     let key = id.with("mineral::opened-at");
     let (pass, frame) = (ctx.cumulative_pass_nr(), ctx.cumulative_frame_nr());
     let mut st = OpenedAt::load(ctx, key);

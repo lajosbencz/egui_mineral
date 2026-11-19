@@ -1,3 +1,4 @@
+use crate::tokens::ShadowTint;
 use std::sync::Arc;
 
 use egui::{Color32, CornerRadius, FontId, Galley, Painter, Pos2, Rect, Stroke, TextFormat, pos2, vec2};
@@ -45,7 +46,8 @@ pub(crate) fn icon(p: &Painter, center: Pos2, icon: FluentIcon, filled: bool, si
 }
 
 pub(crate) fn shadow(p: &Painter, rect: Rect, r: CornerRadius, level: Elevation, brand: bool, t: &Tokens) {
-    for layer in t.shadow(level, brand) {
+    let tint = if brand { ShadowTint::Brand } else { ShadowTint::Neutral };
+    for layer in t.shadow(level, tint) {
         p.add(layer.as_shape(rect, r));
     }
 }

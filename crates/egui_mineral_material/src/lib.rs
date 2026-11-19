@@ -142,10 +142,4 @@ pub use widget::{
     vocab::{IconAction, SelectionResponse, Size},
 };
 
-pub(crate) fn tr(i18n: &egui_mineral::i18n::I18n, id: &str) -> String {
-    i18n.tr(id, &[])
-}
-
-pub(crate) fn tr_or(i18n: &egui_mineral::i18n::I18n, over: Option<&str>, id: &str) -> String {
-    over.map_or_else(|| tr(i18n, id), str::to_owned)
-}
+pub(crate) use egui_mineral::kit::i18n::{tr, tr_or};

@@ -230,7 +230,7 @@ impl Card {
         let rect = content.min_rect() + self.padding;
         card.advance_cursor_after_rect(rect);
         let mut response = card.response();
-        rt.core().input().tap_on(&mut response);
+        ui.pass_input().tap_on(&mut response);
         drop(card);
         ui.advance_cursor_after_rect(rect);
 

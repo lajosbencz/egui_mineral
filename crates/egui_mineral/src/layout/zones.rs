@@ -18,7 +18,15 @@ impl MinTarget {
     /// Target edge in points for this pass.
     pub fn points(self, core: &crate::runtime::Core) -> f32 {
         match self {
-            Self::Auto => core.policies().target.for_pointer(core.input().modality),
+            Self::Auto => self.points_for(core, core.input().modality),
+            _ => self.points_for(core, PointerKind::Mouse),
+        }
+    }
+
+    /// [`Self::points`] with the pass's `modality` already at hand, skipping the input lookup.
+    pub fn points_for(self, core: &crate::runtime::Core, modality: PointerKind) -> f32 {
+        match self {
+            Self::Auto => core.policies().target.for_pointer(modality),
             Self::Points(v) => v,
             Self::None => 0.0,
         }

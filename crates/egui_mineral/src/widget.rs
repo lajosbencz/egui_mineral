@@ -34,17 +34,27 @@ pub struct WidgetFrame<'a> {
 /// Touch pan arbitration state of a widget with [`MineralWidget::pan_axis`], applied to its responses by
 /// [`Self::apply`]; inactive for mouse and pen input, and without a pan axis.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct PanGate {
-    active: bool,
-    owned: bool,
-    started: bool,
-    relaying: bool,
+#[must_use]
+pub struct PanGate(GateState);
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+enum GateState {
+    #[default]
+    Inactive,
+    // Pan not claimed on the axis.
+    Unclaimed,
+    // Pan relayed to the scroll area.
+    Relaying,
+    // Claimed; the claiming pass reports a drag start.
+    Claimed {
+        started: bool,
+    },
 }
 
 impl PanGate {
     /// Touch input on a widget with a pan axis: drags are reported only once claimed.
     pub fn active(&self) -> bool {
-        self.active
+        self.0 != GateState::Inactive
     }
 
     /// `r` as the widget may see it: while the pan is not claimed on the axis, drag state is cleared and
@@ -53,18 +63,19 @@ impl PanGate {
     #[must_use]
     pub fn apply(&self, mut r: egui::Response) -> egui::Response {
         use egui::response::Flags;
-        if !self.active {
-            return r;
-        }
-        if self.owned {
-            if self.started {
-                r.flags |= Flags::DRAG_STARTED | Flags::DRAGGED;
+        match self.0 {
+            GateState::Inactive => {}
+            GateState::Claimed { started } => {
+                if started {
+                    r.flags |= Flags::DRAG_STARTED | Flags::DRAGGED;
+                }
             }
-        } else {
-            r.flags
-                .remove(Flags::DRAG_STARTED | Flags::DRAGGED | Flags::DRAG_STOPPED);
-            if self.relaying {
-                r.flags.remove(Flags::IS_POINTER_BUTTON_DOWN_ON);
+            GateState::Unclaimed | GateState::Relaying => {
+                r.flags
+                    .remove(Flags::DRAG_STARTED | Flags::DRAGGED | Flags::DRAG_STOPPED);
+                if self.0 == GateState::Relaying {
+                    r.flags.remove(Flags::IS_POINTER_BUTTON_DOWN_ON);
+                }
             }
         }
         r
@@ -77,17 +88,18 @@ struct PanGateState {
     owned: bool,
 }
 
-fn pan_gate(ui: &Ui, core: &Core, axis: Axis, response: &egui::Response) -> PanGate {
+fn pan_gate<K>(ui: &MineralUi<'_, K>, axis: Axis, response: &egui::Response) -> PanGate {
     let id = response.id.with("pan-gate");
     let mut st = ui.data(|d| d.get_temp::<PanGateState>(id)).unwrap_or_default();
     let was_relaying = st.claim.relaying();
-    let frame = st.claim.update(ui, core, axis, response, true);
-    let gate = PanGate {
-        active: true,
-        owned: frame.is_some(),
-        started: frame.is_some() && !st.owned,
-        relaying: was_relaying || st.claim.relaying(),
-    };
+    let frame = st.claim.update(ui, axis, response);
+    let gate = PanGate(if frame.is_some() {
+        GateState::Claimed { started: !st.owned }
+    } else if was_relaying || st.claim.relaying() {
+        GateState::Relaying
+    } else {
+        GateState::Unclaimed
+    });
     st.owned = frame.is_some_and(|f| !f.ended);
     ui.data_mut(|d| d.insert_temp(id, st));
     gate
@@ -287,7 +299,8 @@ impl<'a, K> MineralUi<'a, K> {
         }
     }
 
-    fn pass_input(&self) -> Rc<InputContext> {
+    /// Input of this pass, read once per `MineralUi` ([`Core::input`] locks per call).
+    pub fn pass_input(&self) -> Rc<InputContext> {
         Rc::clone(self.input.get_or_init(|| Rc::new(self.rt.core().input())))
     }
 
@@ -413,7 +426,7 @@ fn show<K, W: MineralWidget<Kit = K>>(ui: &mut MineralUi<'_, K>, mut widget: W) 
     let min = if composite {
         0.0
     } else {
-        widget.min_target().points(ui.core())
+        widget.min_target().points_for(core, input.modality)
     };
     // Height is unbounded: horizontal layouts report only the current row height as available.
     let constraints = Constraints::loose(Vec2::new(ui.available_width(), f32::INFINITY));
@@ -441,14 +454,14 @@ fn show<K, W: MineralWidget<Kit = K>>(ui: &mut MineralUi<'_, K>, mut widget: W) 
         emit_node(&ctx, out.response.id, zones.hit, || {
             node_of(core, &widget, &out, &state, access_key, accelerator)
         });
-        ui.data_mut(|d| d.insert_temp(id, state));
+        crate::kit::state::store_evicting(&ctx, ctx.cumulative_pass_nr(), id, state);
         return out;
     }
 
     let tapped = input.tap_on(&mut response);
     let pan = match widget.pan_axis() {
         Some(axis) if widget.enabled() && !composite && input.modality == PointerKind::Touch => {
-            pan_gate(ui, core, axis, &response)
+            pan_gate(ui, axis, &response)
         }
         _ => PanGate::default(),
     };
@@ -492,7 +505,7 @@ fn show<K, W: MineralWidget<Kit = K>>(ui: &mut MineralUi<'_, K>, mut widget: W) 
     emit_node(&ctx, out.response.id, zones.hit, || {
         node_of(core, &widget, &out, &state, access_key, accelerator)
     });
-    ui.data_mut(|d| d.insert_temp(id, state));
+    crate::kit::state::store_evicting(&ctx, ctx.cumulative_pass_nr(), id, state);
     out
 }
 

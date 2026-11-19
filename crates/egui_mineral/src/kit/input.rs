@@ -13,7 +13,7 @@ pub fn interact<K>(ui: &MineralUi<'_, K>, rect: Rect, id: Id, sense: Sense, avai
         Sense::hover()
     };
     let mut r = ui.interact(rect, id, sense);
-    ui.core().input().tap_on(&mut r);
+    ui.pass_input().tap_on(&mut r);
     if sense.is_focusable() {
         super::focus::follow_press(&r);
     }

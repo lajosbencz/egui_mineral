@@ -5,7 +5,7 @@ use egui_mineral::shortcut;
 use egui_mineral_material::MaterialExt;
 use egui_mineral_material::{
     catalog::Component,
-    extras::MenuPath,
+    extras::{MenuPath, StatusProgress},
     icons::{
         ICON_ADD, ICON_ARROW_BACK, ICON_BOOKMARK, ICON_CALL_SPLIT, ICON_CONTENT_COPY, ICON_CONTENT_CUT,
         ICON_CONTENT_PASTE, ICON_DELETE, ICON_EDIT, ICON_EXPLORE, ICON_FAVORITE, ICON_FORMAT_BOLD, ICON_FORMAT_ITALIC,
@@ -180,10 +180,14 @@ fn status_bar(ui: &mut Mui<'_>, s: &mut State) {
     super::section(ui, TOPICS[14], Some(StatusBar::META), |ui| {
         let r = StatusBar::new("nav-status", "Editor status")
             .item(StatusItem::new("main").icon(ICON_CALL_SPLIT).clickable(true))
-            .item(StatusItem::new("Indexing").progress(None).tooltip("Background task"))
+            .item(
+                StatusItem::new("Indexing")
+                    .progress(StatusProgress::Circular(None))
+                    .tooltip("Background task"),
+            )
             .trailing(StatusItem::new(format!("Zoom {}%", s.zoom)).clickable(true))
-            .item(StatusItem::new("Uploading").linear_progress(Some(0.4)))
-            .item(StatusItem::new("Syncing").linear_progress(None))
+            .item(StatusItem::new("Uploading").progress(StatusProgress::Linear(Some(0.4))))
+            .item(StatusItem::new("Syncing").progress(StatusProgress::Linear(None)))
             .item(
                 StatusItem::new("Build failed: a long message that elides when the window narrows")
                     .elide(true)

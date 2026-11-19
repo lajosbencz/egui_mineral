@@ -483,7 +483,12 @@ impl<'a> Carousel<'a> {
         let anim = strip.id.with("scroll");
         let mut delta = 0.0;
         let mut released = None;
-        let pan = st.claim.update(ui, rt.core(), axis, response, !self.disabled);
+        let pan = if self.disabled {
+            st.claim.reset();
+            None
+        } else {
+            st.claim.update(ui, axis, response)
+        };
         if let Some(pan) = pan {
             let step = -flip * axis.main(pan.delta);
             // Past either end the rest of the pan chains to the enclosing scroll.

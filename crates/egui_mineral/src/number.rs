@@ -166,6 +166,17 @@ impl NumberPass<'_> {
         parsed.is_some()
     }
 
+    /// Consumes every pending [`NumberEdit::STEP_KEYS`] press from `ctx`'s input and steps once per press; `true` when any stepped.
+    pub fn consume_step_keys(&mut self, ctx: &Context) -> bool {
+        let mut stepped = false;
+        for k in NumberEdit::STEP_KEYS {
+            while ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, k)) {
+                stepped |= self.step_key(k);
+            }
+        }
+        stepped
+    }
+
     /// Handles a key of [`NumberEdit::STEP_KEYS`]; `false` for any other.
     pub fn step_key(&mut self, key: Key) -> bool {
         let Some(v) = NumberEdit::STEP_KEYS

@@ -10,6 +10,7 @@ use egui_mineral::{
     widget::{Availability, Interaction, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
 };
 
+use super::menu::text_width;
 use crate::ColorToken::{
     ColorNeutralBackground1, ColorNeutralBackground1Hover, ColorNeutralBackground1Pressed, ColorNeutralForeground2,
     ColorNeutralForeground2BrandSelected, ColorNeutralForeground2Hover, ColorNeutralForeground2Pressed,
@@ -361,11 +362,6 @@ impl Memo {
             egui_mineral::motion::request_frame(ctx);
         }
     }
-}
-
-fn text_width(ui: &MineralUi<'_, Fluent>, text: &str, ramp: TypeRamp) -> f32 {
-    let job = LayoutJob::single_section(text.to_owned(), ramp.format(ui.ctx(), egui::Color32::PLACEHOLDER));
-    ui.painter().layout_job(job).size().x
 }
 
 impl MenuGridCell {

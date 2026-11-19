@@ -440,6 +440,12 @@ impl MineralWidget for RowWidget<'_> {
     }
 
     fn semantics(&self, i18n: &I18n, _: &WidgetResponse<RowOut>, (): &()) -> Option<SemanticNode> {
+        Some(self.node(i18n))
+    }
+}
+
+impl RowWidget<'_> {
+    fn node(&self, i18n: &I18n) -> SemanticNode {
         let mut n = SemanticNode::new(self.key.clone(), Role::TreeItem, self.label)
             .clickable(Availability::disabled_if(self.disabled));
         n.depth = self.depth + 1;
@@ -457,7 +463,7 @@ impl MineralWidget for RowWidget<'_> {
         if self.loading {
             n.value = Some(crate::tr(i18n, "mineral-tree-loading"));
         }
-        Some(n)
+        n
     }
 }
 
@@ -597,6 +603,25 @@ impl<'a, N: TreeData> TreeView<'a, N> {
             gap,
             font: self.label_style,
         }
+    }
+
+    // A row dropped inside a collapsed parent opens it.
+    fn expand_drop_target(&mut self, out: &mut TreeViewResponse<N::Key>) {
+        if let Some(m) = &out.moved
+            && m.position == DropPosition::Inside
+            && !self.expansion.is_expanded(&m.target)
+        {
+            self.expansion.expand(m.target.clone());
+            out.expanded = Some(m.target.clone());
+        }
+    }
+
+    // Off-screen row: tree-only node under the id the drawn row would have.
+    fn emit_culled(&self, ui: &Ui, rows: &[TreeRow<'a, N>], (i, rect): (usize, Rect), look: RowLook, i18n: &I18n) {
+        let Some(row) = rows.get(i) else { return };
+        let widget = self.row_widget(row, look, focus::TabStop::Skip);
+        let rid = ui.scope_id().with(widget.id_salt());
+        kit::semantic::emit_culled(ui, rid, rect, || widget.node(i18n));
     }
 
     fn row_widget(&self, row: &TreeRow<'a, N>, look: RowLook, tab_stop: focus::TabStop) -> RowWidget<'a> {
@@ -891,42 +916,47 @@ impl<'a, N: TreeData> TreeView<'a, N> {
         let scope = self.salt.child("rows");
         egui_mineral::layout::child(ui, scope, area, rt.i18n().direction().column(), |ui| {
             ui.spacing_mut().item_spacing.y = 0.0;
-            VirtualList::uniform(self.salt.child("rows"), row_h).show(ui, rows.len(), |ui, i| {
-                if std::mem::take(&mut first)
-                    && let Some(p) = pending
-                {
-                    let top = ui.cursor().min.y + (p as f32 - i as f32) * row_h;
-                    ui.scroll_to_rect(
-                        Rect::from_min_size(pos2(ui.cursor().min.x, top), vec2(1.0, row_h)),
-                        None,
-                    );
-                    #[expect(clippy::disallowed_methods, reason = "one pass to apply the pending scroll-to-row")]
-                    ctx.request_repaint();
-                }
-                let row = &rows[i];
-                let key = row.node.key();
-                let tab_stop = if stop.as_ref() == Some(key) {
-                    focus::TabStop::Stop
-                } else {
-                    focus::TabStop::Skip
-                };
-                let w = self.row_widget(row, look, tab_stop);
-                let r = self.row_response(&mut rt.ui(ui), w, key, id, reorderable.then_some(dim));
-                rendered.push((i, r.rect));
-                if pending == Some(i) {
-                    ctx.memory_mut(|m| m.request_focus(r.id));
-                    state.pending = None;
-                }
-                if r.has_focus() {
-                    focused = Some((i, r.id));
-                    state.stop = Some(key.clone());
-                }
-                let (resp, o) = r.into_parts();
-                out.rows.insert(key.clone(), resp);
-                if o.toggle || o.select.is_some() || o.activated || o.toggled || o.action.is_some() {
-                    events.push((i, o));
-                }
-            });
+            VirtualList::uniform(self.salt.child("rows"), row_h).show_culled(
+                ui,
+                rows.len(),
+                |ui, i| {
+                    if std::mem::take(&mut first)
+                        && let Some(p) = pending
+                    {
+                        let top = ui.cursor().min.y + (p as f32 - i as f32) * row_h;
+                        ui.scroll_to_rect(
+                            Rect::from_min_size(pos2(ui.cursor().min.x, top), vec2(1.0, row_h)),
+                            None,
+                        );
+                        #[expect(clippy::disallowed_methods, reason = "one pass to apply the pending scroll-to-row")]
+                        ctx.request_repaint();
+                    }
+                    let row = &rows[i];
+                    let key = row.node.key();
+                    let tab_stop = if stop.as_ref() == Some(key) {
+                        focus::TabStop::Stop
+                    } else {
+                        focus::TabStop::Skip
+                    };
+                    let w = self.row_widget(row, look, tab_stop);
+                    let r = self.row_response(&mut rt.ui(ui), w, key, id, reorderable.then_some(dim));
+                    rendered.push((i, r.rect));
+                    if pending == Some(i) {
+                        ctx.memory_mut(|m| m.request_focus(r.id));
+                        state.pending = None;
+                    }
+                    if r.has_focus() {
+                        focused = Some((i, r.id));
+                        state.stop = Some(key.clone());
+                    }
+                    let (resp, o) = r.into_parts();
+                    out.rows.insert(key.clone(), resp);
+                    if o.toggle || o.select.is_some() || o.activated || o.toggled || o.action.is_some() {
+                        events.push((i, o));
+                    }
+                },
+                |ui, i, rect| self.emit_culled(ui, &rows, (i, rect), look, rt.i18n()),
+            );
         });
         if reorderable {
             out.moved = self.drop_target(ui, id, area, &rows, &rendered);
@@ -937,13 +967,7 @@ impl<'a, N: TreeData> TreeView<'a, N> {
             kit::focus::lock_arrows(ctx, fid, kit::focus::Arrows::Both);
             self.navigate(rt, &rows, cur, &mut state, &mut out);
         }
-        if let Some(m) = &out.moved
-            && m.position == DropPosition::Inside
-            && !self.expansion.is_expanded(&m.target)
-        {
-            self.expansion.expand(m.target.clone());
-            out.expanded = Some(m.target.clone());
-        }
+        self.expand_drop_target(&mut out);
         state.store(ctx, id);
         if out.expanded.is_some() || out.collapsed.is_some() {
             out.changed = true;

@@ -25,7 +25,19 @@ pub fn modal_area(core: &Core, id: Id) -> Area {
 
 /// [`egui::Modal`] on [`modal_area`]; use for every library modal.
 pub fn modal(core: &Core, id: Id) -> egui::Modal {
-    egui::Modal::new(id).area(modal_area(core, id))
+    modal_on(core, id, modal_area(core, id))
+}
+
+/// [`egui::Modal`] on `area`, whose layer counts as modal like [`modal_area`]'s; for modals with a custom area.
+pub fn modal_on(core: &Core, id: Id, area: Area) -> egui::Modal {
+    crate::overlay::declare_modal(core.ctx(), area.layer());
+    egui::Modal::new(id).area(area)
+}
+
+/// [`crate::overlay::outside_press`] that ignores the frame in which the overlay `id` opened. Same call contract as
+/// [`crate::overlay::dismissal`].
+pub fn outside_press_after_open(core: &Core, id: Id, inside: &[egui::Rect]) -> bool {
+    !crate::overlay::opening_frame(core.ctx(), id) && crate::overlay::outside_press(core, inside)
 }
 
 fn setup(core: &Core, area: Area) -> Area {

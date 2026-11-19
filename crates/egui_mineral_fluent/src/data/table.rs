@@ -884,25 +884,23 @@ fn body_row(
     emit_row(ui, tb, rid, rect, data);
 }
 
-// Rows outside the viewport paint nothing but stay reachable as tree-only nodes: agents scroll them in via `ScrollIntoView`.
 fn culled_row(ui: &MineralUi<'_, Fluent>, tb: &Table<'_>, pass: &Pass<'_>, (r, data): (usize, usize)) {
-    let rect = pass.geo.row(r + 1);
     let rid = pass.id.with(("row", data));
-    // A widget exists only for the pass that serves the scroll request.
-    if ui.input(|i| i.has_accesskit_action_request(rid, egui::accesskit::Action::ScrollIntoView)) {
-        ui.interact(rect, rid, Sense::hover());
-    }
-    emit_row(ui, tb, rid, rect, data);
+    kit::semantic::emit_culled(ui, rid, pass.geo.row(r + 1), || row_node(tb, data));
 }
 
 fn emit_row(ui: &MineralUi<'_, Fluent>, tb: &Table<'_>, rid: Id, rect: Rect, data: usize) {
-    let selected = tb.selection.as_ref().map(|s| s.is_selected(&data));
     semantic::emit(ui.ctx(), Some(rid), rect, || {
-        let mut n = SemanticNode::new(StableId::of(&tb.salt, ("row", data)), Role::Row, "");
-        n.state.selected = selected;
+        let mut n = row_node(tb, data);
         n.actions.push(semantic::Action::ScrollIntoView);
         n
     });
+}
+
+fn row_node(tb: &Table<'_>, data: usize) -> SemanticNode {
+    let mut n = SemanticNode::new(StableId::of(&tb.salt, ("row", data)), Role::Row, "");
+    n.state.selected = tb.selection.as_ref().map(|s| s.is_selected(&data));
+    n
 }
 
 fn place<R>(ui: &mut egui::Ui, rect: Rect, add: impl FnOnce(&mut egui::Ui) -> R) -> R {

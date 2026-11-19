@@ -2,7 +2,7 @@ use egui::{Align2, FontId, Sense, Stroke, StrokeKind, vec2};
 use egui_mineral_fluent::{
     ColorToken, FluentExt,
     data::Text,
-    theme::{Elevation, Radius},
+    theme::{Elevation, Radius, ShadowTint},
     typography::TypeRamp,
 };
 
@@ -31,7 +31,7 @@ pub(crate) fn show(ui: &mut Fui<'_>) {
         for level in Elevation::ALL {
             let (rect, _) = ui.allocate_exact_size(TILE, Sense::hover());
             let r = Radius::Medium.on(rect);
-            for layer in t.shadow(level, false) {
+            for layer in t.shadow(level, ShadowTint::Neutral) {
                 ui.painter().add(layer.as_shape(rect, r));
             }
             ui.painter()

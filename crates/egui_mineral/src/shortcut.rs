@@ -418,7 +418,7 @@ pub fn take_item(ctx: &Context, item: Id) -> bool {
 }
 
 /// Scope for a widget on `layer`: its own [`Scope::Modal`] when `layer` is a modal
-/// ([`crate::overlay::is_modal`], from the pass it opens in), else [`Scope::Global`]. A covered modal keeps its
+/// (`overlay::is_modal`, from the pass it opens in), else [`Scope::Global`]. A covered modal keeps its
 /// scope, which is inactive until it is on top again.
 pub fn scope_of(ctx: &Context, layer: LayerId) -> Scope {
     if crate::overlay::is_modal(ctx, layer) {

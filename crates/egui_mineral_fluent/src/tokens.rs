@@ -175,16 +175,25 @@ impl Tokens {
         self.colors.get(token as usize).copied().unwrap_or(Color32::PLACEHOLDER)
     }
 
-    /// egui shadows of `level`: ambient then key layer, neutral or brand colored.
-    pub fn shadow(&self, level: Elevation, brand: bool) -> [egui::Shadow; 2] {
-        let (ambient, key) = if brand {
-            (ColorToken::ColorBrandShadowAmbient, ColorToken::ColorBrandShadowKey)
-        } else {
-            (ColorToken::ColorNeutralShadowAmbient, ColorToken::ColorNeutralShadowKey)
+    /// egui shadows of `level`: ambient then key layer, colored by `tint`.
+    pub fn shadow(&self, level: Elevation, tint: ShadowTint) -> [egui::Shadow; 2] {
+        let (ambient, key) = match tint {
+            ShadowTint::Brand => (ColorToken::ColorBrandShadowAmbient, ColorToken::ColorBrandShadowKey),
+            ShadowTint::Neutral => (ColorToken::ColorNeutralShadowAmbient, ColorToken::ColorNeutralShadowKey),
         };
         let s = level.shadow();
         [layer(s.ambient, self.color(ambient)), layer(s.key, self.color(key))]
     }
+}
+
+/// Color family of a shadow.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum ShadowTint {
+    /// Neutral shadow colors.
+    #[default]
+    Neutral,
+    /// Brand shadow colors.
+    Brand,
 }
 
 fn layer(l: crate::spec::ShadowLayer, color: Color32) -> egui::Shadow {

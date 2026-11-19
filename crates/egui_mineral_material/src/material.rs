@@ -6,6 +6,7 @@ use std::sync::{
 use egui::{Context, Style, Theme};
 use egui_mineral::{
     i18n::Catalog,
+    kit::state::PassCache,
     policy::Policies,
     runtime::{Runtime, Stylekit},
     widget::MineralUi,
@@ -26,7 +27,7 @@ use crate::{
 pub struct Material {
     tokens: Mutex<TokenStore>,
     // Tokens frozen for one egui pass: setters apply from the next pass, no frame mixes two token sets.
-    pass: Mutex<Option<PassSnapshot>>,
+    pass: PassCache<Theme, (Arc<Tokens>, Arc<Style>)>,
     density: AtomicI8,
     icons: Icons,
 }
@@ -36,14 +37,6 @@ enum Icons {
     #[cfg(feature = "bundled-icons")]
     Bundled,
     Custom(IconFonts),
-}
-
-#[derive(Debug)]
-struct PassSnapshot {
-    pass: u64,
-    theme: Theme,
-    tokens: Arc<Tokens>,
-    style: Arc<Style>,
 }
 
 impl Material {
@@ -61,7 +54,7 @@ impl Material {
     fn with_icons(contrast: Contrast, icons: Icons) -> Self {
         Self {
             tokens: Mutex::new(TokenStore::new(SchemeSpec::default().contrast(contrast))),
-            pass: Mutex::new(None),
+            pass: PassCache::default(),
             density: AtomicI8::new(Density::DEFAULT.step()),
             icons,
         }
@@ -74,24 +67,10 @@ impl Material {
 
     // Tokens and style of one store state for the whole egui pass.
     fn pass_snapshot(&self, pass: u64, theme: Theme) -> (Arc<Tokens>, Arc<Style>) {
-        let mut cache = self.pass.lock();
-        if let Some(c) = &*cache
-            && c.pass == pass
-            && c.theme == theme
-        {
-            return (Arc::clone(&c.tokens), Arc::clone(&c.style));
-        }
-        let (tokens, style) = {
+        self.pass.get_or_insert(pass, theme, || {
             let store = self.tokens.lock();
             (store.tokens(theme), store.style(theme))
-        };
-        *cache = Some(PassSnapshot {
-            pass,
-            theme,
-            tokens: Arc::clone(&tokens),
-            style: Arc::clone(&style),
-        });
-        (tokens, style)
+        })
     }
 
     /// Makes `tokens` current for `tokens.theme()`; the other brightness and the preference stay.

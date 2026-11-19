@@ -27,19 +27,26 @@ const CONTAINER: ColorRole = ColorRole::SurfaceContainer;
 const CONTENT: ColorRole = ColorRole::OnSurfaceVariant;
 const TEXT: TypeScale = TypeScale::BodySmall;
 
+/// Progress indicator of a [`StatusItem`]: the fraction done, `None` for indeterminate.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum StatusProgress {
+    /// Circular indicator.
+    Circular(Option<f32>),
+    /// Linear indicator, fixed at 48dp wide.
+    Linear(Option<f32>),
+}
+
 #[derive(Clone, Copy, Debug)]
 enum Lead {
     Icon(MaterialIcon),
-    // `None`: indeterminate
-    Progress(Option<f32>),
-    Linear(Option<f32>),
+    Progress(StatusProgress),
 }
 
 impl Lead {
     fn width(self) -> f32 {
         match self {
-            Self::Icon(_) | Self::Progress(_) => ICON,
-            Self::Linear(_) => LINEAR,
+            Self::Icon(_) | Self::Progress(StatusProgress::Circular(_)) => ICON,
+            Self::Progress(StatusProgress::Linear(_)) => LINEAR,
         }
     }
 }
@@ -82,24 +89,16 @@ impl StatusItem {
         }
     }
 
-    /// Icon before the text; replaces a [`progress`](Self::progress).
+    /// Icon before the text; replaces a [`progress`](Self::progress) indicator.
     pub fn icon(mut self, icon: MaterialIcon) -> Self {
         self.lead = Some(Lead::Icon(icon));
         self
     }
 
-    /// Circular progress before the text: the fraction done, `None` for indeterminate; replaces an
-    /// [`icon`](Self::icon). The indicator is named by the item text, agent key
-    /// `<id_salt>-<index>-progress`.
-    pub fn progress(mut self, value: Option<f32>) -> Self {
-        self.lead = Some(Lead::Progress(value));
-        self
-    }
-
-    /// Linear progress before the text, fixed at 48dp wide: the fraction done, `None` for indeterminate; replaces an
-    /// [`icon`](Self::icon) or [`progress`](Self::progress). Named and keyed like [`progress`](Self::progress).
-    pub fn linear_progress(mut self, value: Option<f32>) -> Self {
-        self.lead = Some(Lead::Linear(value));
+    /// Progress indicator before the text; replaces an [`icon`](Self::icon). The indicator is named by the item
+    /// text, agent key `<id_salt>-<index>-progress`.
+    pub fn progress(mut self, progress: StatusProgress) -> Self {
+        self.lead = Some(Lead::Progress(progress));
         self
     }
 
@@ -273,8 +272,8 @@ impl StatusBar {
                 let c = pos2(dir.start_x(inner, Rangef::point(lead.width() / 2.0)), r.center().y);
                 match lead {
                     Lead::Icon(icon) => common::icon(ui.painter(), c, icon, ICON, content),
-                    Lead::Progress(value) => self.progress(ui, i, &item.text, value, c),
-                    Lead::Linear(value) => self.linear(ui, i, &item.text, value, c),
+                    Lead::Progress(StatusProgress::Circular(value)) => self.progress(ui, i, &item.text, value, c),
+                    Lead::Progress(StatusProgress::Linear(value)) => self.linear(ui, i, &item.text, value, c),
                 }
                 x = dir.start_x(inner, Rangef::point(lead.width() + ICON_GAP));
             }

@@ -126,13 +126,7 @@ impl<'a> Rating<'a> {
     }
 
     fn value_at(&self, rect: Rect, p: Pos2, dir: Direction) -> f64 {
-        let dx =
-            RangeModel::new(0.0, f64::from(rect.width())).value_at(rect.x_range(), p.x, Track::horizontal(dir)) as f32;
-        let cell = self.cell().0.x;
-        let i = (dx / cell).floor().clamp(0.0, f32::from(self.max.get()) - 1.0);
-        let frac = ((dx - i * cell) / cell).clamp(0.0, 1.0);
-        let v = f64::from(i) + if self.half && frac < 0.5 { 0.5 } else { 1.0 };
-        self.model().snap(v)
+        egui_mineral::kit::rating::value_at(rect, p, dir, self.cell().0.x, self.max.get(), self.half)
     }
 
     fn text(&self, i18n: &egui_mineral::i18n::I18n, v: f64) -> String {

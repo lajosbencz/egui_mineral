@@ -10,7 +10,7 @@ use crate::ColorToken::{
     ColorNeutralStroke1Hover, ColorNeutralStroke1Pressed, ColorNeutralStroke1Selected, ColorNeutralStroke2,
     ColorStatusDangerForeground1, ColorStatusWarningForeground1, ColorTransparentStroke,
 };
-pub use crate::tokens::{Elevation, Radius, Scheme, Tokens};
+pub use crate::tokens::{Elevation, Radius, Scheme, ShadowTint, Tokens};
 use crate::{BrandRamp, ColorToken, spec::tokens::geometry, typography::TypeRamp};
 
 #[derive(Debug)]
@@ -105,9 +105,9 @@ fn apply_style(style: &mut Style, t: &Tokens) {
     v.selection.bg_fill = c(ColorBrandBackground);
     v.selection.stroke = Stroke::new(thin, c(ColorNeutralForegroundOnBrand));
     v.text_cursor.stroke = Stroke::new(thin, c(ColorNeutralForeground1));
-    let [_, key] = t.shadow(Elevation::E16, false);
+    let [_, key] = t.shadow(Elevation::E16, ShadowTint::Neutral);
     v.window_shadow = key;
-    let [_, key] = t.shadow(Elevation::E8, false);
+    let [_, key] = t.shadow(Elevation::E8, ShadowTint::Neutral);
     v.popup_shadow = key;
 
     let w = &mut v.widgets;
