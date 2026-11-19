@@ -138,6 +138,7 @@ pub(crate) const LOCALES: [&str; 5] = ["en-US", "de-DE", "hu-HU", "ja-JP", "ar-E
 pub(crate) struct Settings {
     pub(crate) theme: usize,
     pub(crate) high_contrast: bool,
+    pub(crate) global_kit: bool,
     pub(crate) seed: [u8; 3],
     pub(crate) variant: usize,
     pub(crate) density: i8,
@@ -148,6 +149,8 @@ pub(crate) struct Settings {
 struct RawSettings {
     theme: usize,
     high_contrast: bool,
+    #[serde(default)]
+    global_kit: bool,
     seed: [u8; 3],
     variant: usize,
     density: i8,
@@ -173,6 +176,7 @@ impl TryFrom<RawSettings> for Settings {
         Ok(Self {
             theme: r.theme,
             high_contrast: r.high_contrast,
+            global_kit: r.global_kit,
             seed: r.seed,
             variant: r.variant,
             density: r.density,
@@ -187,6 +191,7 @@ impl Default for Settings {
         Self {
             theme: 0,
             high_contrast: false,
+            global_kit: false,
             seed: [s.r(), s.g(), s.b()],
             variant: 0,
             density: 0,

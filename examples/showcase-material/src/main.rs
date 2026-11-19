@@ -125,6 +125,11 @@ impl App {
             .variant(VARIANTS[s.variant].0);
         rt.kit().apply(ctx, spec);
         rt.core().set_preference(THEMES[s.theme].0);
+        rt.core().set_global_style(if s.global_kit {
+            egui_mineral::runtime::GlobalStyle::Kit
+        } else {
+            egui_mineral::runtime::GlobalStyle::Egui
+        });
         rt.kit().set_density(Density::new(s.density));
         if self.applied.as_ref().is_none_or(|a| a.locale != s.locale) {
             rt.i18n().set_locale(LOCALES[s.locale]).expect("LOCALES are valid tags");

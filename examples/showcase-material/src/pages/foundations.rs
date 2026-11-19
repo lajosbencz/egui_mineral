@@ -142,6 +142,12 @@ fn theme(ui: &mut Mui<'_>, shared: &mut Shared) {
         s.theme = t;
     }
     ui.add_space(8.0);
+    SettingRow::new("set-global-row", "Style egui globals")
+        .supporting("Tooltips, popups and window decorations follow the kit")
+        .show(ui, |ui, label| {
+            ui.mineral(Switch::new("set-global", label, &mut s.global_kit).label_visible(false))
+        });
+    ui.add_space(8.0);
     SettingRow::new("set-contrast-row", "High contrast")
         .supporting("Maximum contrast between roles")
         .show(ui, |ui, label| {

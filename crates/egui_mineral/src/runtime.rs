@@ -58,6 +58,21 @@ pub enum InitError {
     Stylekit(#[source] Box<dyn std::error::Error + Send + Sync>),
 }
 
+/// Scope of a runtime's styling beyond its own `Ui`s: egui's root tooltips, popups and window decorations
+/// read egui's global state ([`Core::set_global_style`]).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum GlobalStyle {
+    /// egui's global style and theme stay the app's (the default).
+    #[default]
+    Egui,
+    /// Each outermost pass writes [`Runtime::style`] into egui's style of the shown theme when it differs, and
+    /// the runtime's preference into egui's, which syncs the native window theme (`Options::sync_window_theme`,
+    /// on by default) per viewport, also on an OS flip under `System`. Nested passes never write. Leaving
+    /// `Kit` restores nothing. Runtimes sharing a `Context` should not all use `Kit`.
+    Kit,
+}
+
 struct PassState {
     adapter: InputAdapter,
     input: InputContext,
@@ -185,6 +200,7 @@ pub struct Core {
     collect_semantics: AtomicBool,
     input_history: AtomicUsize,
     preference: Mutex<ThemePreference>,
+    global_style: Mutex<GlobalStyle>,
 }
 
 crate::kit::opaque_debug!(Core);
@@ -223,6 +239,18 @@ impl Core {
     #[expect(clippy::disallowed_methods, reason = "one pass after the theme changed")]
     pub fn set_preference(&self, preference: ThemePreference) {
         *self.preference.lock() = preference;
+        self.ctx.request_repaint();
+    }
+
+    /// What egui-global state this runtime styles; [`GlobalStyle::Egui`] by default.
+    pub fn global_style(&self) -> GlobalStyle {
+        *self.global_style.lock()
+    }
+
+    /// Takes effect in the next pass.
+    #[expect(clippy::disallowed_methods, reason = "one pass after the setting changed")]
+    pub fn set_global_style(&self, global_style: GlobalStyle) {
+        *self.global_style.lock() = global_style;
         self.ctx.request_repaint();
     }
 
@@ -296,6 +324,7 @@ impl<K: Stylekit> Runtime<K> {
             collect_semantics: AtomicBool::new(false),
             input_history: AtomicUsize::new(0),
             preference: Mutex::new(ThemePreference::System),
+            global_style: Mutex::new(GlobalStyle::Egui),
         };
         Ok(Arc::new(Self {
             core,
@@ -342,10 +371,31 @@ impl<K> Runtime<K> {
             outer,
         };
         self.begin_pass(viewport);
-        ui.set_style(self.style());
+        let style = self.style();
+        if outer.is_none() {
+            self.sync_global(&style);
+        }
+        ui.set_style(style);
         let r = self.add_hot(ui, add);
         self.end_pass(viewport);
         r
+    }
+
+    fn sync_global(&self, style: &Arc<Style>) {
+        let core = &self.core;
+        if core.global_style() != GlobalStyle::Kit {
+            return;
+        }
+        let ctx = &core.ctx;
+        let theme = core.theme();
+        let current = ctx.style_of(theme);
+        if !Arc::ptr_eq(&current, style) && *current != **style {
+            ctx.set_style_of(theme, Arc::clone(style));
+        }
+        let preference = core.preference();
+        if ctx.options(|o| o.theme_preference) != preference {
+            ctx.set_theme(preference);
+        }
     }
 
     #[cfg(not(all(feature = "unstable-hotpatch", not(target_arch = "wasm32"))))]
@@ -361,7 +411,8 @@ impl<K> Runtime<K> {
         subsecond::call(|| add.take().map(|add| add(&mut MineralUi::new(ui, self)))).expect("hot closure ran once")
     }
 
-    /// Kit style for root `Ui`s and frames built outside one; egui's global style stays the app's.
+    /// Kit style for root `Ui`s and frames built outside one; egui's global style stays the app's unless
+    /// [`Core::set_global_style`] says [`GlobalStyle::Kit`].
     pub fn style(&self) -> Arc<Style> {
         (self.style)(&self.kit, &self.core.ctx, self.core.theme())
     }
@@ -497,6 +548,110 @@ mod tests {
         assert_eq!(rt.theme(), ctx.system_theme().unwrap_or(fallback));
         rt.core().set_preference(ThemePreference::Dark);
         assert_eq!(rt.theme(), Theme::Dark);
+    }
+
+    struct StyledKit;
+
+    impl Stylekit for StyledKit {
+        fn policies(&self, _: &Context) -> Policies {
+            crate::test_support::policies()
+        }
+
+        fn catalogs(&self) -> &'static [Catalog] {
+            &[]
+        }
+
+        fn setup(&self, _: &Context) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+            Ok(())
+        }
+
+        fn style(&self, ctx: &Context, theme: Theme) -> Arc<Style> {
+            let mut style = (*ctx.style_of(theme)).clone();
+            style.spacing.item_spacing.x = 37.0;
+            Arc::new(style)
+        }
+    }
+
+    fn styled(ctx: &Context) -> Arc<Runtime<StyledKit>> {
+        Runtime::new(ctx, StyledKit).expect("runtime")
+    }
+
+    fn themes_sent(out: &egui::FullOutput) -> Vec<egui::SystemTheme> {
+        out.viewport_output
+            .values()
+            .flat_map(|v| &v.commands)
+            .filter_map(|c| match c {
+                egui::ViewportCommand::SetTheme(t) => Some(*t),
+                _ => None,
+            })
+            .collect()
+    }
+
+    fn pass_once(ctx: &Context, rt: &Runtime<StyledKit>) -> egui::FullOutput {
+        run(ctx, input(vec![]), |ui| rt.pass(ui, |_| {}))
+    }
+
+    #[test]
+    fn kit_global_style_writes_style_and_theme_once() {
+        let ctx = ctx();
+        let rt = styled(&ctx);
+        assert_eq!(rt.core().global_style(), GlobalStyle::Egui);
+        pass_once(&ctx, &rt);
+        assert_ne!(
+            ctx.global_style().spacing.item_spacing.x,
+            37.0,
+            "default leaves egui alone"
+        );
+        rt.core().set_global_style(GlobalStyle::Kit);
+        rt.core().set_preference(ThemePreference::Dark);
+        let out = pass_once(&ctx, &rt);
+        assert_eq!(ctx.style_of(Theme::Dark).spacing.item_spacing.x, 37.0);
+        assert_eq!(ctx.options(|o| o.theme_preference), ThemePreference::Dark);
+        assert_eq!(themes_sent(&out), [egui::SystemTheme::Dark]);
+        let written = ctx.style_of(Theme::Dark);
+        let out = pass_once(&ctx, &rt);
+        assert!(Arc::ptr_eq(&written, &ctx.style_of(Theme::Dark)), "style rewritten");
+        assert!(themes_sent(&out).is_empty(), "theme resent");
+        rt.core().set_preference(ThemePreference::Light);
+        let out = pass_once(&ctx, &rt);
+        assert_eq!(themes_sent(&out), [egui::SystemTheme::Light]);
+        assert_eq!(ctx.style_of(Theme::Light).spacing.item_spacing.x, 37.0);
+    }
+
+    #[test]
+    fn kit_global_style_follows_an_os_flip_under_system() {
+        let ctx = ctx();
+        let rt = styled(&ctx);
+        rt.core().set_global_style(GlobalStyle::Kit);
+        let with_os = |theme| {
+            let mut raw = input(vec![]);
+            raw.system_theme = Some(theme);
+            run(&ctx, raw, |ui| rt.pass(ui, |_| {}))
+        };
+        with_os(Theme::Light);
+        assert_eq!(ctx.style_of(Theme::Light).spacing.item_spacing.x, 37.0);
+        assert_ne!(ctx.style_of(Theme::Dark).spacing.item_spacing.x, 37.0);
+        let out = with_os(Theme::Dark);
+        assert_eq!(rt.theme(), Theme::Dark);
+        assert_eq!(
+            ctx.style_of(Theme::Dark).spacing.item_spacing.x,
+            37.0,
+            "flip restyles the new theme"
+        );
+        assert!(
+            themes_sent(&out).is_empty(),
+            "System stays SystemDefault, the window follows the OS"
+        );
+    }
+
+    #[test]
+    fn nested_pass_leaves_globals_alone() {
+        let ctx = ctx();
+        let host = runtime(&ctx);
+        let inner = styled(&ctx);
+        inner.core().set_global_style(GlobalStyle::Kit);
+        run(&ctx, input(vec![]), |ui| host.pass(ui, |ui| inner.pass(ui, |_| {})));
+        assert_ne!(ctx.global_style().spacing.item_spacing.x, 37.0);
     }
 
     #[test]

@@ -100,6 +100,8 @@ impl App {
         let ctx = rt.ctx();
         let kit = rt.kit();
         rt.core().set_preference(THEMES[s.theme].0);
+        rt.core()
+            .set_global_style(egui_mineral_fluent::egui_mineral::runtime::GlobalStyle::Kit);
         kit.set_high_contrast(ctx, s.high_contrast);
         let brands = brands();
         if let Some((_, brand)) = brands.get(s.brand) {
