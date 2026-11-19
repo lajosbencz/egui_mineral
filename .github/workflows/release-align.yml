@@ -1,0 +1,65 @@
+name: Release align
+
+# release-plz versions crates one by one; the published crates share 0.MINOR (MAJOR from 1.0).
+# Raises the others on the release PR branch when one crate's breaking version rose.
+on:
+  workflow_call:
+    inputs:
+      pr:
+        description: release-plz `pr` output (JSON)
+        type: string
+        required: true
+    secrets:
+      app-private-key:
+        required: true
+
+permissions: {}
+
+jobs:
+  align:
+    name: Align
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - id: branch
+        env:
+          PR: ${{ inputs.pr }}
+        run: echo "head=$(jq -rn --argjson pr "${PR:-null}" '$pr.head_branch // empty')" >> "$GITHUB_OUTPUT"
+      - if: ${{ steps.branch.outputs.head != '' }}
+        id: app
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.app-private-key }}
+          permission-contents: write
+      - if: ${{ steps.branch.outputs.head != '' }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.branch.outputs.head }}
+          persist-credentials: false
+      - if: ${{ steps.branch.outputs.head != '' }}
+        run: rustup toolchain install
+      - if: ${{ steps.branch.outputs.head != '' }}
+        uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        with:
+          tool: just@1.59.0
+          fallback: none
+      - if: ${{ steps.branch.outputs.head != '' }}
+        id: pins
+        run: echo "cargo-edit=$(just --evaluate cargo_edit_version)" >> "$GITHUB_OUTPUT"
+      - if: ${{ steps.branch.outputs.head != '' }}
+        uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        with:
+          tool: cargo-edit@${{ steps.pins.outputs.cargo-edit }}
+          fallback: cargo-install
+      - if: ${{ steps.branch.outputs.head != '' }}
+        env:
+          BRANCH: ${{ steps.branch.outputs.head }}
+          TOKEN: ${{ steps.app.outputs.token }}
+        run: |
+          just align-breaking
+          git diff --quiet && exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "chore: align published crates on one breaking version"
+          git push "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:${BRANCH}"

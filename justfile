@@ -113,7 +113,16 @@ versions-check:
     cargo metadata --no-deps --format-version 1 | jq -e --arg crates "{{ readme_crates }}" '
         [.packages[] | select(.name | IN($crates | split(" ")[])) | .version | split(".") | if .[0] == "0" then .[0:2] else .[0:1] end | join(".")]
         | unique | length == 1' >/dev/null \
-        || { echo "published crates differ in breaking version: run just bump-breaking <version>"; exit 1; }
+        || { echo "published crates differ in breaking version: run just align-breaking"; exit 1; }
+
+# Raises every published crate to the highest version among them when their breaking versions differ; patches stay per crate
+align-breaking:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    just versions-check >/dev/null 2>&1 && exit 0
+    v=$(cargo metadata --no-deps --format-version 1 | jq -r --arg crates "{{ readme_crates }}" \
+        '.packages[] | select(.name | IN($crates | split(" ")[])) | .version' | sort -V | tail -n1)
+    just bump-breaking "$v"
 
 # Sets every published crate to <version> (a breaking release, e.g. 0.3.0) and the workspace dependency requirements
 bump-breaking version:

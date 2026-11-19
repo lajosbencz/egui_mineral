@@ -1,5 +1,5 @@
 # https://release-plz.dev/docs/config
-# Versions are per crate; 0.MINOR is kept in lockstep by `just bump-breaking` and `just versions-check`.
+# Versions are per crate; release-align.yml raises the others when one crate's 0.MINOR rises.
 [workspace]
 git_release_enable = true
 git_tag_enable = true

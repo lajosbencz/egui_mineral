@@ -44,6 +44,8 @@ jobs:
     concurrency:
       group: release-plz-${{ github.ref }}
       cancel-in-progress: false
+    outputs:
+      pr: ${{ steps.release-plz.outputs.pr }}
     steps:
       - id: app
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
@@ -57,8 +59,21 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - run: rustup toolchain install
-      - uses: release-plz/action@66b324fd6c72d05d2a08568492ecdd62bfb8a62b # v0.5.148
+      - id: release-plz
+        uses: release-plz/action@66b324fd6c72d05d2a08568492ecdd62bfb8a62b # v0.5.148
         with:
           command: release-pr
         env:
           GITHUB_TOKEN: ${{ steps.app.outputs.token }}
+
+  align:
+    name: Align breaking versions
+    needs: pr
+    if: ${{ needs.pr.outputs.pr != '' }}
+    permissions: {}
+    # actionlint does not parse `$/` yet.
+    uses: ./.github/workflows/release-align.yml # zizmor: ignore[self-repository]
+    with:
+      pr: ${{ needs.pr.outputs.pr }}
+    secrets:
+      app-private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
