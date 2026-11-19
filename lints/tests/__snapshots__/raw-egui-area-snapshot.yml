@@ -40,3 +40,13 @@ snapshots:
       style: secondary
       start: 30
       end: 55
+  "fn f(id: Id) {\n    let modal = egui::Modal::new(id);\n}\n":
+    labels:
+    - source: egui::Modal::new(id)
+      style: primary
+      start: 31
+      end: 51
+    - source: egui::Modal::new
+      style: secondary
+      start: 31
+      end: 47

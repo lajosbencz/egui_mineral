@@ -1075,6 +1075,7 @@ mod tests {
         let register = |ui: &mut egui::Ui| {
             bind(ui.ctx(), Scope::Global, SAVE, "global.save");
             bind(ui.ctx(), Scope::Modal(modal), SAVE, "modal.save");
+            // ast-grep-ignore: raw-egui-area
             Modal::new(modal).show(ui.ctx(), |_| {});
         };
         step(&rt, vec![], register);
@@ -1086,6 +1087,7 @@ mod tests {
 
         let only_global = |ui: &mut egui::Ui| {
             bind(ui.ctx(), Scope::Global, SAVE, "global.save");
+            // ast-grep-ignore: raw-egui-area
             Modal::new(modal).show(ui.ctx(), |_| {});
         };
         step(&rt, vec![], only_global);

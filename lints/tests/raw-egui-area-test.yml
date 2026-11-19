@@ -6,7 +6,7 @@ valid:
     }
   - |
     fn f(core: &Core, id: Id) {
-        let modal = Modal::new(id).area(kit::overlay::modal_area(core, id));
+        let modal = kit::overlay::modal(core, id);
     }
 invalid:
   - |
@@ -24,4 +24,8 @@ invalid:
   - |
     fn f(id: Id) {
         let area = Modal::default_area(id);
+    }
+  - |
+    fn f(id: Id) {
+        let modal = egui::Modal::new(id);
     }

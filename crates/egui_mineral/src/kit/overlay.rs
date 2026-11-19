@@ -23,6 +23,11 @@ pub fn modal_area(core: &Core, id: Id) -> Area {
     area
 }
 
+/// [`egui::Modal`] on [`modal_area`]; use for every library modal.
+pub fn modal(core: &Core, id: Id) -> egui::Modal {
+    egui::Modal::new(id).area(modal_area(core, id))
+}
+
 fn setup(core: &Core, area: Area) -> Area {
     area.fade_in(!core.motion().reduced())
         .layout(core.i18n().direction().column())

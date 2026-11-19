@@ -204,8 +204,7 @@ impl ModalStack {
         let mut closed = Vec::new();
         for &id in &self.stack {
             // The default frame reads the app-wide style.
-            let r = egui::Modal::new(id)
-                .area(crate::kit::overlay::modal_area(rt.core(), id))
+            let r = crate::kit::overlay::modal(rt.core(), id)
                 .frame(Frame::popup(&rt.style()))
                 .show(rt.ctx(), |ui| content(&mut rt.ui(ui), id));
             if r.inner || r.should_close() {

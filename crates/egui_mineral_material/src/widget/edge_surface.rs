@@ -35,7 +35,7 @@ impl EdgeSurface<'_> {
             .role(Role::Dialog)
             .accessible_name(self.name);
         if let Some(scrim) = self.scrim {
-            let r = egui::Modal::new(self.id)
+            let r = egui_mineral::kit::overlay::modal(rt.core(), self.id)
                 .frame(Frame::NONE)
                 .backdrop_color(scrim)
                 .area(area)

@@ -575,7 +575,7 @@ mod tests {
                     return;
                 }
                 let rt = ui.rt();
-                let modal = egui::Modal::new(Id::unique("dialog")).show(rt.ctx(), |ui| {
+                let modal = crate::kit::overlay::modal(rt.core(), Id::unique("dialog")).show(rt.ctx(), |ui| {
                     let (rect, trigger) = ui.allocate_exact_size(vec2(40.0, 20.0), Sense::click());
                     s.trigger = Some(rect);
                     s.open |= trigger.is_pointer_button_down_on();

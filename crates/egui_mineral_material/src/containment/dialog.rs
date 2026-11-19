@@ -739,7 +739,7 @@ impl FullScreenDialog {
         let mut action = None;
         let mut closed = false;
         // Compose TopAppBar in a Dialog (MD3 full-screen dialog)
-        let r = egui::Modal::new(self.id)
+        let r = egui_mineral::kit::overlay::modal(rt.core(), self.id)
             .area(
                 egui_mineral::kit::overlay::modal_area(rt.core(), self.id)
                     .anchor(egui::Align2::LEFT_TOP, egui::Vec2::ZERO),
