@@ -591,7 +591,8 @@ mod tests {
                     .shapes
                     .iter()
                     .filter_map(|c| match &c.shape {
-                        egui::Shape::Text(t) if t.galley.text().contains("use of widget ID") => {
+                        // "First use of {what} ID", "Second use of ...", "Double use of ..."
+                        egui::Shape::Text(t) if t.galley.text().contains(" use of ") => {
                             Some(t.galley.text().to_owned())
                         }
                         _ => None,
