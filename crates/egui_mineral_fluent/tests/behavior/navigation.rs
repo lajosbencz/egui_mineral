@@ -882,3 +882,50 @@ fn carousel_autoplay_starts_paused_and_stops_under_reduced_motion() {
     }
     assert_eq!(h.state().value, at, "reduced motion stops autoplay");
 }
+
+mod big_tree {
+    use super::*;
+
+    const PARENTS: usize = 100;
+    const KIDS: usize = 99;
+
+    fn big() -> Harness<'static, Expansion<String>> {
+        let roots: Vec<TreeItem> = (0..PARENTS)
+            .map(|p| {
+                TreeItem::new(format!("p{p}"), format!("Parent {p}"))
+                    .nested((0..KIDS).map(|k| TreeItem::new(format!("p{p}k{k}"), format!("Kid {k}"))))
+            })
+            .collect();
+        let open = (0..PARENTS).map(|p| format!("p{p}")).collect();
+        harness(open, move |ui, open| {
+            let rt = ui.rt();
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                Tree::items("t", "Big", &roots, open).show(&mut rt.ui(ui));
+            });
+        })
+    }
+
+    #[test]
+    fn culled_rows_register_no_widgets() {
+        let mut h = big();
+        h.run();
+        let last = format!("t-p{}k{}-treeitem", PARENTS - 1, KIDS - 1);
+        assert!(h.node(&last).actions.contains(&Action::ScrollIntoView));
+        let widgets: usize = h
+            .ctx
+            .viewport(|v| v.prev_pass.widgets.layers().map(|(_, w)| w.len()).sum());
+        assert!(widgets < 500, "{widgets} widgets for {} rows", PARENTS * (KIDS + 1));
+    }
+
+    #[test]
+    fn end_focuses_the_culled_last_row() {
+        let mut h = big();
+        h.run();
+        h.click("t-p0-treeitem");
+        h.key_press(Key::End);
+        // The scroll to the target animates.
+        h.run_steps(60);
+        let last = format!("t-p{}k{}-treeitem", PARENTS - 1, KIDS - 1);
+        assert!(h.node(&last).state.focused);
+    }
+}

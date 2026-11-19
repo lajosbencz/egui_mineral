@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use egui::{Id, Key, Rangef, Rect, Sense, Stroke, StrokeKind, Ui, UiBuilder, pos2, text::LayoutJob, vec2};
+use egui::{Key, Rangef, Rect, Sense, Stroke, StrokeKind, Ui, UiBuilder, pos2, text::LayoutJob, vec2};
 use egui_mineral::{
     expand::Expansion,
     focus::{self, Typeahead},
@@ -270,6 +270,24 @@ struct Spans {
     content: f32,
 }
 
+fn height_of(layout: &ItemLayout, size: Size) -> f32 {
+    let small = size == Size::Small;
+    let min = if small { d::MIN_HEIGHT_SMALL } else { d::MIN_HEIGHT };
+    match layout {
+        ItemLayout::Plain(_) => min,
+        ItemLayout::Persona(p) => {
+            let (block, ..) = d::PERSONA_MAIN_PADDING;
+            let ramp = if small { TypeRamp::Caption1 } else { TypeRamp::Body1 };
+            let desc = if p.description.is_some() {
+                TypeRamp::Caption1.line_height()
+            } else {
+                0.0
+            };
+            min.max(2.0 * block + ramp.line_height() + desc)
+        }
+    }
+}
+
 impl Row<'_> {
     fn small(&self) -> bool {
         self.size == Size::Small
@@ -284,23 +302,7 @@ impl Row<'_> {
     }
 
     fn height(&self) -> f32 {
-        let min = if self.small() {
-            d::MIN_HEIGHT_SMALL
-        } else {
-            d::MIN_HEIGHT
-        };
-        match &self.layout {
-            ItemLayout::Plain(_) => min,
-            ItemLayout::Persona(p) => {
-                let (block, ..) = d::PERSONA_MAIN_PADDING;
-                let desc = if p.description.is_some() {
-                    TypeRamp::Caption1.line_height()
-                } else {
-                    0.0
-                };
-                min.max(2.0 * block + self.text().line_height() + desc)
-            }
-        }
+        height_of(&self.layout, self.size)
     }
 
     // useRootStyles `leaf`/`branch` `paddingLeft`, then the expand icon, selector and content slots, in order
@@ -622,10 +624,16 @@ impl MineralWidget for Row<'_> {
     }
 
     fn semantics(&self, _: &I18n, response: &WidgetResponse<RowOut>, (): &()) -> Option<SemanticNode> {
+        Some(self.node(response.has_focus()))
+    }
+}
+
+impl Row<'_> {
+    fn node(&self, focused: bool) -> SemanticNode {
         let mut n = SemanticNode::new(AgentKey::Kind("treeitem").id(&self.salt), Role::TreeItem, self.label)
             .clickable(Availability::Enabled);
         n.depth = self.depth + 1;
-        n.state.focused = response.has_focus();
+        n.state.focused = focused;
         if self.selection != TreeSelection::None {
             n.state.checked = Some(self.check);
         }
@@ -637,13 +645,23 @@ impl MineralWidget for Row<'_> {
                 Action::Expand
             });
         }
-        Some(n)
+        n
     }
+}
+
+const ROW_SCOPE: &str = "row";
+
+struct Drawn {
+    row: usize,
+    out: RowOut,
+    response: egui::Response,
 }
 
 #[derive(Clone)]
 struct TreeState<K> {
     stop: Option<K>,
+    // The Tab stop is focused and scrolled into view on the next pass.
+    reveal: bool,
     typeahead: Typeahead,
 }
 
@@ -651,6 +669,7 @@ impl<K> Default for TreeState<K> {
     fn default() -> Self {
         Self {
             stop: None,
+            reveal: false,
             typeahead: Typeahead::default(),
         }
     }
@@ -796,7 +815,24 @@ impl<'a, N: TreeData> Tree<'a, N> {
         }
     }
 
-    /// Shows the visible rows.
+    fn row(&self, i: usize, row: &TreeRow<'a, N>, layout: ItemLayout, stop: usize) -> Row<'a> {
+        let node = row.node;
+        Row {
+            salt: self.salt.child(node.key().clone()),
+            label: node.label(),
+            layout,
+            depth: row.depth,
+            branch: row.has_children,
+            expanded: row.expanded,
+            check: self.check_of(node),
+            selection: self.selection,
+            size: self.size,
+            appearance: self.appearance,
+            tab_stop: focus::TabStop::at(i, stop),
+        }
+    }
+
+    /// Shows the visible rows; rows outside the clip rect are never laid out as widgets.
     pub fn show(mut self, ui: &mut MineralUi<'_, Fluent>) -> TreeResponse<N::Key> {
         let rt = ui.rt();
         let ctx = rt.ctx();
@@ -809,35 +845,63 @@ impl<'a, N: TreeData> Tree<'a, N> {
             .and_then(|k| rows.iter().position(|r| r.node.key() == k))
             .unwrap_or(0);
         let dir = rt.i18n().direction();
-        let mut ids: Vec<Id> = Vec::with_capacity(rows.len());
-        let mut outs: Vec<RowOut> = Vec::with_capacity(rows.len());
-        let mut responses: Vec<egui::Response> = Vec::with_capacity(rows.len());
+        // Row tops from the top of the tree; the last entry is the end of the final gap.
+        let mut tops: Vec<f32> = Vec::with_capacity(rows.len() + 1);
+        let mut y = 0.0;
+        for row in &rows {
+            tops.push(y);
+            y += height_of(&(self.layout)(row.node), self.size) + d::ROW_GAP;
+        }
+        tops.push(y);
+        let total = (y - d::ROW_GAP).max(0.0);
+        let mut drawn: Vec<Drawn> = Vec::new();
         let group = ui
             .push_id(self.salt.id_salt(), |ui: &mut Ui| {
-                ui.scope_builder(UiBuilder::new().layout(dir.column()), |ui| {
-                    ui.spacing_mut().item_spacing.y = d::ROW_GAP;
-                    for (i, row) in rows.iter().enumerate() {
-                        let node = row.node;
-                        let widget = Row {
-                            salt: self.salt.child(node.key().clone()),
-                            label: node.label(),
-                            layout: (self.layout)(node),
-                            depth: row.depth,
-                            branch: row.has_children,
-                            expanded: row.expanded,
-                            check: self.check_of(node),
-                            selection: self.selection,
-                            size: self.size,
-                            appearance: self.appearance,
-                            tab_stop: focus::TabStop::at(i, stop),
-                        };
-                        let (response, out) = rt.ui(ui).mineral(widget).into_parts();
-                        ids.push(response.id);
-                        outs.push(out);
-                        responses.push(response);
+                let width = ui.available_width();
+                let (area, group) = ui.allocate_exact_size(vec2(width, total), Sense::hover());
+                let clip = ui.clip_rect();
+                let first = tops
+                    .get(1..)
+                    .unwrap_or_default()
+                    .partition_point(|t| area.min.y + t - d::ROW_GAP < clip.min.y);
+                let end = tops
+                    .get(..rows.len())
+                    .unwrap_or_default()
+                    .partition_point(|t| area.min.y + t <= clip.max.y);
+                let visible = first..end.max(first);
+                // The Tab stop's row is shown wherever it is, so Tab still reaches the tree.
+                let extra = Some(stop).filter(|s| *s < rows.len() && !visible.contains(s));
+                let rect_of = |i: usize| {
+                    let top = tops.get(i).copied().unwrap_or_default();
+                    let bottom = tops.get(i.saturating_add(1)).copied().unwrap_or(top);
+                    Rect::from_min_max(
+                        pos2(area.min.x, area.min.y + top),
+                        pos2(area.max.x, area.min.y + bottom - d::ROW_GAP),
+                    )
+                };
+                let order = (extra.filter(|s| *s < visible.start).into_iter())
+                    .chain(visible.clone())
+                    .chain(extra.filter(|s| *s >= visible.end));
+                for i in order {
+                    let Some(row) = rows.get(i) else { continue };
+                    let widget = self.row(i, row, (self.layout)(row.node), stop);
+                    let rect = rect_of(i);
+                    let mut child =
+                        ui.new_child(UiBuilder::new().max_rect(rect).layout(dir.column()).id_salt(ROW_SCOPE));
+                    let (response, out) = rt.ui(&mut child).mineral(widget).into_parts();
+                    if state.reveal && i == stop {
+                        state.reveal = false;
+                        ctx.memory_mut(|m| m.request_focus(response.id));
+                        ui.scroll_to_rect(rect, None);
                     }
-                })
-                .response
+                    drawn.push(Drawn { row: i, out, response });
+                }
+                if kit::semantic::wanted(ctx, None) {
+                    for i in (0..rows.len()).filter(|i| !visible.contains(i) && extra != Some(*i)) {
+                        self.emit_culled(ui, &rows, i, stop, rect_of(i));
+                    }
+                }
+                group
             })
             .inner;
 
@@ -850,26 +914,12 @@ impl<'a, N: TreeData> Tree<'a, N> {
             activated: None,
             rows: BTreeMap::new(),
         };
-        for (i, o) in outs.iter().enumerate() {
-            let Some(row) = rows.get(i) else { continue };
-            let node = row.node;
-            if o.toggle {
-                self.toggle(&mut out, node.key().clone());
-            }
-            if o.check {
-                self.apply_check(node);
-                out.checked = Some(node.key().clone());
-                out.changed = true;
-            }
-            if o.activate {
-                out.activated = Some(node.key().clone());
-            }
+        self.apply(&rows, &drawn, &mut out);
+        if let Some(cur) = drawn.iter().position(|d| d.response.has_focus()) {
+            self.navigate(rt, &rows, &drawn, cur, &mut state, &mut out);
         }
-        if let Some(cur) = responses.iter().position(egui::Response::has_focus) {
-            self.navigate(rt, &rows, cur, &ids, &mut state, &mut out);
-        }
-        for (row, response) in rows.iter().zip(responses) {
-            out.rows.insert(row.node.key().clone(), response);
+        for (row, d) in drawn.into_iter().filter_map(|d| Some((rows.get(d.row)?, d))) {
+            out.rows.insert(row.node.key().clone(), d.response);
         }
         state.store(ctx, id);
         let (key, label) = (self.key.id(&self.salt), self.label);
@@ -882,26 +932,66 @@ impl<'a, N: TreeData> Tree<'a, N> {
         out
     }
 
+    // Tree-only node; same id as the drawn row's, whose child ui scope is `ROW_SCOPE` under `ui`.
+    fn emit_culled(&self, ui: &Ui, rows: &[TreeRow<'a, N>], i: usize, stop: usize, rect: Rect) {
+        let Some(row) = rows.get(i) else { return };
+        let widget = self.row(i, row, (self.layout)(row.node), stop);
+        let rid = ui.scope_id().with(ROW_SCOPE).with(widget.id_salt());
+        // A widget exists only for the pass that serves a scroll request.
+        if ui.input(|inp| inp.has_accesskit_action_request(rid, egui::accesskit::Action::ScrollIntoView)) {
+            ui.interact(rect, rid, Sense::hover());
+        }
+        semantic::emit(ui.ctx(), Some(rid), rect, || {
+            let mut n = widget.node(false);
+            n.actions.push(Action::ScrollIntoView);
+            n
+        });
+    }
+
+    fn apply(&mut self, rows: &[TreeRow<'a, N>], drawn: &[Drawn], out: &mut TreeResponse<N::Key>) {
+        for d in drawn {
+            let Some(row) = rows.get(d.row) else { continue };
+            let node = row.node;
+            if d.out.toggle {
+                self.toggle(out, node.key().clone());
+            }
+            if d.out.check {
+                self.apply_check(node);
+                out.checked = Some(node.key().clone());
+                out.changed = true;
+            }
+            if d.out.activate {
+                out.activated = Some(node.key().clone());
+            }
+        }
+    }
+
     fn navigate(
         &mut self,
         rt: &crate::Rt,
         rows: &[TreeRow<'a, N>],
+        drawn: &[Drawn],
         cur: usize,
-        ids: &[Id],
         state: &mut TreeState<N::Key>,
         out: &mut TreeResponse<N::Key>,
     ) {
         let ctx = rt.ctx();
         let dir = rt.i18n().direction();
-        if let Some(row) = rows.get(cur) {
+        let Some(&Drawn {
+            row: cur_row,
+            ref response,
+            ..
+        }) = drawn.get(cur)
+        else {
+            return;
+        };
+        if let Some(row) = rows.get(cur_row) {
             state.stop = Some(row.node.key().clone());
         }
-        if let Some(fid) = ids.get(cur) {
-            kit::focus::lock_arrows(ctx, *fid, kit::focus::Arrows::Both);
-        }
+        kit::focus::lock_arrows(ctx, response.id, kit::focus::Arrows::Both);
         let mut jump = None;
         for k in kit::input::plain_key_presses(ctx) {
-            match tree::on_key(rows, jump.unwrap_or(cur), k, dir) {
+            match tree::on_key(rows, jump.unwrap_or(cur_row), k, dir) {
                 Some(TreeNav::Focus(j)) => jump = Some(j),
                 Some(TreeNav::Expand(j) | TreeNav::Collapse(j)) => {
                     if let Some(r) = rows.get(j) {
@@ -914,14 +1004,18 @@ impl<'a, N: TreeData> Tree<'a, N> {
         if jump.is_none() {
             jump = state
                 .typeahead
-                .update(rt.core(), Some(cur), rows.iter().map(|r| r.node.label()));
+                .update(rt.core(), Some(cur_row), rows.iter().map(|r| r.node.label()));
         }
         if let Some(j) = jump
-            && let Some(target) = ids.get(j)
+            && let Some(r) = rows.get(j)
         {
-            ctx.memory_mut(|m| m.request_focus(*target));
-            if let Some(r) = rows.get(j) {
-                state.stop = Some(r.node.key().clone());
+            state.stop = Some(r.node.key().clone());
+            if let Some(target) = drawn.iter().find(|d| d.row == j) {
+                ctx.memory_mut(|m| m.request_focus(target.response.id));
+            } else {
+                state.reveal = true;
+                #[expect(clippy::disallowed_methods, reason = "one pass to draw and focus the culled target")]
+                ctx.request_repaint();
             }
         }
     }
