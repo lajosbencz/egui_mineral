@@ -113,6 +113,22 @@ impl Stylekit for Fluent {
         let scheme = self.scheme(theme);
         self.tokens.lock().style(scheme)
     }
+
+    fn paint_window_close(&self, ui: &egui::Ui, visual: egui::Rect, response: &egui::Response) {
+        let visuals = ui.style().interact(response);
+        let p = ui.painter();
+        if response.hovered() || response.is_pointer_button_down_on() {
+            p.circle_filled(visual.center(), visual.width() / 2.0, visuals.weak_bg_fill);
+        }
+        let arm = visual.width() / 4.0;
+        let c = visual.center();
+        for d in [egui::vec2(arm, arm), egui::vec2(arm, -arm)] {
+            p.line_segment([c - d, c + d], visuals.fg_stroke);
+        }
+        if response.has_focus() {
+            p.circle_stroke(c, visual.width() / 2.0 + 2.0, ui.visuals().selection.stroke);
+        }
+    }
 }
 
 /// Runtime of a Fluent app.

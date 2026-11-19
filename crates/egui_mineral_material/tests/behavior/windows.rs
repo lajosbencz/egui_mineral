@@ -215,7 +215,7 @@ fn embedded_window_runtimes_keep_their_trees() {
             .map_or_default(|t| t.nodes.iter().map(|n| n.id.key().to_owned()).collect())
     };
     assert_eq!(keys(&two.a), ["a-first-button", "a-last-button"]);
-    assert_eq!(keys(&two.b), ["b-only-button"]);
+    assert_eq!(keys(&two.b), ["b-only-button", "second-close"]);
 }
 
 #[test]

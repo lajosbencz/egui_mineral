@@ -5,6 +5,7 @@
 mineral-ok = OK
 mineral-cancel = Cancel
 mineral-close = Close
+mineral-window-close = Close window
 mineral-back = Back
 mineral-menu = Open navigation menu
 mineral-menu-close = Close navigation menu

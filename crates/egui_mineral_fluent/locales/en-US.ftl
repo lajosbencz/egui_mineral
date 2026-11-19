@@ -60,6 +60,7 @@ mineral-presence-with-out-of-office = { $status }, out of office
 mineral-dismiss = Dismiss
 mineral-dialog-close = Close
 mineral-drawer-close = Close
+mineral-window-close = Close window
 mineral-teaching-previous = Previous
 mineral-teaching-next = Next
 mineral-teaching-done = Done

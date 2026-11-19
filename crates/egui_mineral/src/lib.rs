@@ -36,6 +36,7 @@
 //!     fn style(&self, ctx: &egui::Context, theme: egui::Theme) -> std::sync::Arc<egui::Style> {
 //!         ctx.style_of(theme)
 //!     }
+//!     fn paint_window_close(&self, _: &egui::Ui, _: egui::Rect, _: &egui::Response) {}
 //! }
 //!
 //! let ctx = egui::Context::default();

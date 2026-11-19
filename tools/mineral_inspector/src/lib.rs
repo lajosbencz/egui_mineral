@@ -5,7 +5,7 @@ use egui::{
 };
 use egui_mineral::{
     input::{Gesture, UnifiedInputEvent},
-    runtime::Runtime,
+    runtime::{Runtime, Stylekit},
     semantic::{SemanticTree, serialize},
     shortcut::{self, ActionId, Scope},
     window::WindowSpec,
@@ -142,16 +142,16 @@ impl Inspector {
 
     /// Call each pass from the window to inspect, after its UI; requests semantics and input history only while
     /// open.
-    pub fn show<K>(&mut self, rt: &Runtime<K>) {
+    pub fn show<K: Stylekit>(&mut self, rt: &Runtime<K>) {
         self.show_inner(rt, None);
     }
 
     /// [`Self::show`] plus a State tab over `state` (wrap serde types in [`Serde`]).
-    pub fn show_with_state<K>(&mut self, rt: &Runtime<K>, state: &mut dyn InspectState) {
+    pub fn show_with_state<K: Stylekit>(&mut self, rt: &Runtime<K>, state: &mut dyn InspectState) {
         self.show_inner(rt, Some(state));
     }
 
-    fn show_inner<K>(&mut self, rt: &Runtime<K>, mut state: Option<&mut dyn InspectState>) {
+    fn show_inner<K: Stylekit>(&mut self, rt: &Runtime<K>, mut state: Option<&mut dyn InspectState>) {
         let ctx = rt.ctx();
         let target = ctx.viewport_id();
         if self.open {
@@ -212,7 +212,7 @@ fn toggled(ctx: &Context, shortcut: KeyboardShortcut) -> bool {
     shortcut::take_action(ctx, &TOGGLE)
 }
 
-fn body<K>(
+fn body<K: Stylekit>(
     ui: &mut Ui,
     tab: &mut Tab,
     rt: &Runtime<K>,
@@ -297,7 +297,7 @@ fn perf(ui: &mut Ui, cpu: Option<Duration>) {
     ui.label(format!("Frame: {}", ui.ctx().cumulative_frame_nr()));
 }
 
-fn input_view<K>(ui: &mut Ui, rt: &Runtime<K>, target: ViewportId) {
+fn input_view<K: Stylekit>(ui: &mut Ui, rt: &Runtime<K>, target: ViewportId) {
     let ctx = ui.ctx().clone();
     let input = rt.core().input();
     let recent = rt.recent_input(target);

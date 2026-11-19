@@ -15,7 +15,9 @@ use std::{
     },
 };
 
-use egui::{Context, Id, Pos2, RawInput, Style, Theme, ThemePreference, Ui, Vec2, ViewportId, ViewportIdMap};
+use egui::{
+    Context, Id, Pos2, RawInput, Rect, Response, Style, Theme, ThemePreference, Ui, Vec2, ViewportId, ViewportIdMap,
+};
 use parking_lot::{Mutex, MutexGuard};
 
 use crate::{
@@ -45,6 +47,9 @@ pub trait Stylekit: Send + Sync + 'static {
     /// Style of the runtime's root `Ui`s (window roots, areas) at `theme` ([`Core::theme`]); called per root,
     /// so keep it cheap.
     fn style(&self, ctx: &Context, theme: Theme) -> Arc<Style>;
+    /// Paints the close glyph of an embedded [`crate::window::WindowSpec`] title bar in `visual`, the
+    /// icon-sized box centered in the larger hit target of `response` (hover, press and focus state).
+    fn paint_window_close(&self, ui: &Ui, visual: Rect, response: &Response);
 }
 
 /// Failure building a [`Runtime`].
@@ -586,6 +591,8 @@ mod tests {
             style.spacing.item_spacing.x = 37.0;
             Arc::new(style)
         }
+
+        fn paint_window_close(&self, _: &Ui, _: egui::Rect, _: &egui::Response) {}
     }
 
     fn styled(ctx: &Context) -> Arc<Runtime<StyledKit>> {
