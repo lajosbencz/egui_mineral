@@ -5,7 +5,7 @@ mod spawn;
 
 use std::{sync::Arc, time::Duration};
 
-use egui::{CentralPanel, Key, KeyboardShortcut, Modifiers, Panel, Ui, scroll_area::ScrollAreaOutput};
+use egui::{CentralPanel, Key, KeyboardShortcut, Modifiers, Panel, scroll_area::ScrollAreaOutput};
 use egui_mineral::{
     bus::{Bus, SpawnerExt},
     i18n::Direction,
@@ -13,6 +13,7 @@ use egui_mineral::{
     runtime::Runtime,
     shortcut,
 };
+use egui_mineral_eframe::{EframeApp, MineralApp};
 pub(crate) use egui_mineral_material::{Material, Rt};
 use egui_mineral_material::{adaptive::WindowClass, color::SchemeSpec, fonts::IconFonts, prelude::*, scroll};
 use futures_util::StreamExt;
@@ -35,13 +36,7 @@ const ICON_FONTS: IconFonts = IconFonts::new(
     include_bytes!(concat!(env!("OUT_DIR"), "/MaterialSymbolsRounded-Regular.ttf")),
 );
 
-// The runtime sits beside the state it shows: `let rt = &self.rt;` borrows one field, `self.shell` the other.
-struct App {
-    rt: Arc<Rt>,
-    shell: Shell,
-    #[cfg(not(target_arch = "wasm32"))]
-    _executor: tokio::runtime::Runtime,
-}
+type App = EframeApp<Material, Shell>;
 
 struct Shell {
     router: Router<Page>,
@@ -54,80 +49,72 @@ struct Shell {
     palette_open: bool,
     palette_query: String,
     commands: Vec<PaletteCommand>,
+    #[cfg(not(target_arch = "wasm32"))]
+    _executor: tokio::runtime::Runtime,
 }
 
-impl App {
-    fn new(ctx: &egui::Context) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
-        let rt = Runtime::new(ctx, Material::from_fonts(ICON_FONTS.fonts()))?;
-        #[cfg(not(target_arch = "wasm32"))]
-        let executor = tokio::runtime::Builder::new_multi_thread().enable_time().build()?;
-        #[cfg(not(target_arch = "wasm32"))]
-        let spawner = Arc::new(AppSpawner::new(executor.handle().clone()));
-        #[cfg(target_arch = "wasm32")]
-        let spawner = Arc::new(AppSpawner::new());
-        // The navigation page binds Cmd+Q and Cmd+/- as menu commands.
-        ctx.options_mut(|o| {
-            o.zoom_with_keyboard = false;
-            o.quit_shortcuts.clear();
-        });
-        let (bus, mut handle) = Bus::<Cmd, Evt>::new(ctx);
-        spawner.spawn_future(async move {
-            while let Some(cmd) = handle.commands.next().await {
-                match cmd {
-                    Cmd::Work { id, millis } => {
-                        spawn::sleep(Duration::from_millis(millis)).await;
-                        if handle.events.send(Evt::Done { id }).is_err() {
-                            break;
-                        }
+fn new_app(ctx: &egui::Context) -> Result<App, Box<dyn std::error::Error + Send + Sync>> {
+    let rt = Runtime::new(ctx, Material::from_fonts(ICON_FONTS.fonts()))?;
+    #[cfg(not(target_arch = "wasm32"))]
+    let executor = tokio::runtime::Builder::new_multi_thread().enable_time().build()?;
+    #[cfg(not(target_arch = "wasm32"))]
+    let spawner = Arc::new(AppSpawner::new(executor.handle().clone()));
+    #[cfg(target_arch = "wasm32")]
+    let spawner = Arc::new(AppSpawner::new());
+    // The navigation page binds Cmd+Q and Cmd+/- as menu commands.
+    ctx.options_mut(|o| {
+        o.zoom_with_keyboard = false;
+        o.quit_shortcuts.clear();
+    });
+    let (bus, mut handle) = Bus::<Cmd, Evt>::new(ctx);
+    spawner.spawn_future(async move {
+        while let Some(cmd) = handle.commands.next().await {
+            match cmd {
+                Cmd::Work { id, millis } => {
+                    spawn::sleep(Duration::from_millis(millis)).await;
+                    if handle.events.send(Evt::Done { id }).is_err() {
+                        break;
                     }
                 }
             }
-        });
-        // Keyed by the page; a page's topics share its key.
-        let mut commands: Vec<PaletteCommand> = Page::ALL
-            .iter()
-            .flat_map(|&p| {
-                std::iter::once(PaletteCommand::new(p.title()).icon(p.icon()).group("Pages"))
-                    .chain(p.topics().iter().map(move |t| PaletteCommand::new(*t).group(p.title())))
-                    .map(move |c| c.key(p))
-            })
-            .collect();
-        // Same commands and shortcuts as the View menu on the navigation page.
-        for i in [pages::navigation::ZOOM_IN, pages::navigation::ZOOM_OUT] {
-            let (id, key, label) = &pages::navigation::COMMANDS[i];
-            commands.push(PaletteCommand::new(*label).group("View").command(id, *key));
         }
-        let shell = Shell {
-            router: Router::new(Page::Foundations),
-            inspector: Inspector::default(),
-            shared: Shared {
-                settings: Settings::default(),
-                toasts: egui_mineral_material::communication::snackbar_queue(),
-                bus,
-                done: Vec::new(),
-                platform: Vec::new(),
-                spawner,
-            },
-            pages: States::default(),
-            applied: None,
-            drawer_open: false,
-            rail_expanded: true,
-            palette_open: false,
-            palette_query: String::new(),
-            commands,
-        };
-        Ok(Self {
-            rt,
-            shell,
-            #[cfg(not(target_arch = "wasm32"))]
-            _executor: executor,
+    });
+    // Keyed by the page; a page's topics share its key.
+    let mut commands: Vec<PaletteCommand> = Page::ALL
+        .iter()
+        .flat_map(|&p| {
+            std::iter::once(PaletteCommand::new(p.title()).icon(p.icon()).group("Pages"))
+                .chain(p.topics().iter().map(move |t| PaletteCommand::new(*t).group(p.title())))
+                .map(move |c| c.key(p))
         })
+        .collect();
+    // Same commands and shortcuts as the View menu on the navigation page.
+    for i in [pages::navigation::ZOOM_IN, pages::navigation::ZOOM_OUT] {
+        let (id, key, label) = &pages::navigation::COMMANDS[i];
+        commands.push(PaletteCommand::new(*label).group("View").command(id, *key));
     }
-
-    fn show(&mut self, ui: &mut Ui) -> ScrollAreaOutput<()> {
-        let rt = &self.rt;
-        self.shell.show(rt, ui)
-    }
+    let shell = Shell {
+        router: Router::new(Page::Foundations),
+        inspector: Inspector::default(),
+        shared: Shared {
+            settings: Settings::default(),
+            toasts: egui_mineral_material::communication::snackbar_queue(),
+            bus,
+            done: Vec::new(),
+            platform: Vec::new(),
+            spawner,
+        },
+        pages: States::default(),
+        applied: None,
+        drawer_open: false,
+        rail_expanded: true,
+        palette_open: false,
+        palette_query: String::new(),
+        commands,
+        #[cfg(not(target_arch = "wasm32"))]
+        _executor: executor,
+    };
+    Ok(EframeApp::new(rt, shell))
 }
 
 impl Shell {
@@ -229,7 +216,8 @@ impl Shell {
 }
 
 impl Shell {
-    fn show(&mut self, rt: &Rt, ui: &mut Ui) -> ScrollAreaOutput<()> {
+    fn page(&mut self, ui: &mut MaterialUi<'_>) -> ScrollAreaOutput<()> {
+        let rt = ui.rt();
         let ctx = rt.ctx();
         self.inspector.toggle_on(ctx, INSPECTOR);
         self.apply_settings(rt);
@@ -244,10 +232,7 @@ impl Shell {
             }
         }
 
-        let page = rt.pass(ui, |ui| self.body(ui));
-        self.inspector
-            .show_with_state(rt, &mut Serde(&mut self.shared.settings));
-        page
+        self.body(ui)
     }
 
     fn body(&mut self, ui: &mut MaterialUi<'_>) -> ScrollAreaOutput<()> {
@@ -316,12 +301,19 @@ impl Shell {
     }
 }
 
-impl eframe::App for App {
-    fn ui(&mut self, ui: &mut Ui, frame: &mut eframe::Frame) {
-        self.shell
-            .inspector
-            .set_cpu_time(frame.info().cpu_usage.map(std::time::Duration::from_secs_f32));
-        self.show(ui);
+impl MineralApp<Material> for Shell {
+    fn ui(&mut self, ui: &mut MaterialUi<'_>) {
+        self.page(ui);
+    }
+
+    fn frame(&mut self, frame: &mut eframe::Frame) {
+        self.inspector
+            .set_cpu_time(frame.info().cpu_usage.map(Duration::from_secs_f32));
+    }
+
+    fn after_pass(&mut self, rt: &Rt) {
+        self.inspector
+            .show_with_state(rt, &mut Serde(&mut self.shared.settings));
     }
 }
 
@@ -337,7 +329,7 @@ fn main() -> eframe::Result {
     eframe::run_native(
         "egui_mineral showcase",
         eframe::NativeOptions::default(),
-        Box::new(|cc| Ok(Box::new(App::new(&cc.egui_ctx)?))),
+        Box::new(|cc| Ok(Box::new(new_app(&cc.egui_ctx)?))),
     )
 }
 
@@ -370,7 +362,7 @@ mod web {
         wasm_bindgen::{JsCast, JsValue},
     };
 
-    use super::App;
+    use super::new_app;
 
     const CANVAS_ID: &str = "showcase-canvas";
     const STATUS_ID: &str = "showcase-status";
@@ -397,7 +389,7 @@ mod web {
             .start(
                 canvas,
                 WebOptions::default(),
-                Box::new(|cc| Ok(Box::new(App::new(&cc.egui_ctx)?))),
+                Box::new(|cc| Ok(Box::new(new_app(&cc.egui_ctx)?))),
             )
             .await
             .map_err(|e: JsValue| format!("{e:?}"))?;
@@ -449,11 +441,11 @@ mod tests {
     #[test]
     fn rail_click_navigates() {
         let ctx = egui::Context::default();
-        let mut app = App::new(&ctx).expect("showcase app");
-        app.rt.core().motion().set_reduced(true);
-        let agent = app.rt.agent(egui::ViewportId::ROOT);
+        let mut app = new_app(&ctx).expect("showcase app");
+        app.rt().core().motion().set_reduced(true);
+        let agent = app.rt().agent(egui::ViewportId::ROOT);
         let target = Page::ALL[2];
-        assert_ne!(*app.shell.router.current(), target);
+        assert_ne!(*app.app().router.current(), target);
         let session = std::thread::spawn(move || {
             futures_executor::block_on(async {
                 agent.snapshot().await?;
@@ -474,7 +466,14 @@ mod tests {
             .expect("agent thread")
             .unwrap_or_else(|e: AgentError| panic!("{e}"));
         settle(&mut app, &ctx);
-        assert_eq!(*app.shell.router.current(), target);
+        assert_eq!(*app.app().router.current(), target);
+    }
+
+    fn show_page(app: &mut App, ui: &mut egui::Ui) -> ScrollAreaOutput<()> {
+        let rt = Arc::clone(app.rt());
+        let page = rt.pass(ui, |ui| app.app_mut().page(ui));
+        app.app_mut().after_pass(&rt);
+        page
     }
 
     fn step(app: &mut App, ctx: &egui::Context, events: Vec<egui::Event>) -> Vec<egui::ViewportCommand> {
@@ -514,7 +513,7 @@ mod tests {
     }
 
     fn menu_item_open(app: &App, key: &str) -> bool {
-        app.rt
+        app.rt()
             .tree(egui::ViewportId::ROOT)
             .expect("semantic tree collected")
             .find_key(key)
@@ -525,10 +524,10 @@ mod tests {
         let ctx = egui::Context::default();
         // Material enables mnemonics off Apple platforms.
         ctx.set_os(egui::os::OperatingSystem::Nix);
-        let mut app = App::new(&ctx).expect("showcase app");
-        app.rt.core().motion().set_reduced(true);
-        app.rt.set_collect_semantics(true);
-        app.shell.navigate(Page::Navigation);
+        let mut app = new_app(&ctx).expect("showcase app");
+        app.rt().core().motion().set_reduced(true);
+        app.rt().set_collect_semantics(true);
+        app.app_mut().navigate(Page::Navigation);
         settle(&mut app, &ctx);
         (ctx, app)
     }
@@ -543,11 +542,11 @@ mod tests {
         });
         settle(&mut app, &ctx);
         assert!(
-            shortcut::mnemonics_visible(app.rt.core()),
+            shortcut::mnemonics_visible(app.rt().core()),
             "keyboard-opened menu reveals mnemonics"
         );
         let new = app
-            .rt
+            .rt()
             .tree(egui::ViewportId::ROOT)
             .and_then(|t| t.find_key("nav-mb-file-file-new-menu-item").cloned())
             .expect("menu item in tree");
@@ -556,14 +555,14 @@ mod tests {
 
         step(&mut app, &ctx, press(Key::N, Modifiers::NONE));
         step_until(&mut app, &ctx, "New activating", |a| {
-            a.shell.pages.navigation.last_action == "Command: New"
+            a.app().pages.navigation.last_action == "Command: New"
         });
         settle(&mut app, &ctx);
         assert!(
             !menu_item_open(&app, "nav-mb-file-file-new-menu-item"),
             "menu closes after activation"
         );
-        assert!(!shortcut::mnemonics_visible(app.rt.core()));
+        assert!(!shortcut::mnemonics_visible(app.rt().core()));
     }
 
     #[test]
@@ -572,10 +571,10 @@ mod tests {
         let command = Modifiers::COMMAND | Modifiers::CTRL;
         step(&mut app, &ctx, press(Key::Plus, command));
         step_until(&mut app, &ctx, "Zoom in firing", |a| {
-            a.shell.pages.navigation.last_action == "Command: Zoom in"
+            a.app().pages.navigation.last_action == "Command: Zoom in"
         });
         assert!(!menu_item_open(&app, "nav-mb-view-0-menu-item"));
-        assert_eq!(app.shell.pages.navigation.zoom, 110);
+        assert_eq!(app.app().pages.navigation.zoom, 110);
     }
 
     #[test]
@@ -595,7 +594,7 @@ mod tests {
             closed |= matches!(cmd, egui::ViewportCommand::Close);
         }
         assert!(closed, "Quit command did not close the viewport");
-        assert_eq!(app.shell.pages.navigation.last_action, "Command: Quit");
+        assert_eq!(app.app().pages.navigation.last_action, "Command: Quit");
     }
 
     macro_rules! every_page_holds_up {
@@ -643,14 +642,14 @@ mod tests {
         let fresh = |locale, density, zoom| {
             let ctx = egui::Context::default();
             ctx.set_zoom_factor(zoom);
-            let mut app = App::new(&ctx).expect("showcase app");
-            app.rt.set_collect_semantics(true);
-            app.shell.shared.settings.locale = locale;
-            app.shell.shared.settings.density = density;
+            let mut app = new_app(&ctx).expect("showcase app");
+            app.rt().set_collect_semantics(true);
+            app.app_mut().shared.settings.locale = locale;
+            app.app_mut().shared.settings.density = density;
             (ctx, app)
         };
         let classes: Vec<egui::Vec2> = std::iter::once(COMPACT_MIN)
-            .chain(fresh(0, 0, 1.0).1.rt.core().policies().breakpoints.iter().copied())
+            .chain(fresh(0, 0, 1.0).1.rt().core().policies().breakpoints.iter().copied())
             .map(|w| egui::vec2(w, 900.0))
             .collect();
         let mut failed = Vec::new();
@@ -686,7 +685,7 @@ mod tests {
     }
 
     fn check(ctx: &egui::Context, app: &mut App, page: Page, size: egui::Vec2, width: bool) -> BTreeSet<String> {
-        app.shell.navigate(page);
+        app.app_mut().navigate(page);
         let mut problems = BTreeSet::new();
         let mut over = 0.0;
         for _ in 0..if width { SETTLE } else { 2 } {
@@ -695,7 +694,7 @@ mod tests {
                 ..RawInput::default()
             };
             let mut out = ctx.run_ui(raw, |ui| {
-                let page = app.show(ui);
+                let page = show_page(app, ui);
                 over = page.content_size.x - page.inner_rect.width();
             });
             out.textures_delta.clear();
@@ -711,7 +710,7 @@ mod tests {
         if width && over > 0.5 {
             problems.insert(format!("{over:.1} px too wide"));
         }
-        let tree = app.rt.tree(egui::ViewportId::ROOT).expect("semantic tree collected");
+        let tree = app.rt().tree(egui::ViewportId::ROOT).expect("semantic tree collected");
         let mut seen = HashSet::new();
         problems.extend(
             tree.nodes

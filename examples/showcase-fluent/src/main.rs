@@ -2,9 +2,8 @@
 
 mod pages;
 
-use std::sync::Arc;
-
-use egui::{CentralPanel, Color32, Key, KeyboardShortcut, Modifiers, Panel, Ui, scroll_area::ScrollAreaOutput};
+use egui::{CentralPanel, Color32, Key, KeyboardShortcut, Modifiers, Panel, scroll_area::ScrollAreaOutput};
+use egui_mineral_eframe::{EframeApp, MineralApp};
 use egui_mineral_fluent::{
     BrandRamp,
     egui_mineral::{
@@ -105,11 +104,7 @@ fn material_icons() -> IconSet {
     set
 }
 
-// The runtime sits beside the state it shows: `let rt = &self.rt;` borrows one field, `self.shell` the other.
-struct App {
-    rt: Arc<Rt>,
-    shell: Shell,
-}
+type App = EframeApp<Fluent, Shell>;
 
 struct Shell {
     page: Page,
@@ -119,26 +114,17 @@ struct Shell {
     state: pages::State,
 }
 
-impl App {
-    fn new(ctx: &egui::Context) -> Result<Self, InitError> {
-        let rt = Runtime::new(ctx, kit(ctx))?;
-        rt.i18n().add_resource(&Catalog::new("en-US", msg::SOURCE))?;
-        Ok(Self {
-            rt,
-            shell: Shell {
-                page: Page::Foundations,
-                inspector: Inspector::default(),
-                settings: Settings::default(),
-                applied: None,
-                state: pages::State::default(),
-            },
-        })
-    }
-
-    fn show(&mut self, ui: &mut Ui) -> ScrollAreaOutput<()> {
-        let rt = &self.rt;
-        self.shell.show(rt, ui)
-    }
+fn new_app(ctx: &egui::Context) -> Result<App, InitError> {
+    let rt = Runtime::new(ctx, kit(ctx))?;
+    rt.i18n().add_resource(&Catalog::new("en-US", msg::SOURCE))?;
+    let shell = Shell {
+        page: Page::Foundations,
+        inspector: Inspector::default(),
+        settings: Settings::default(),
+        applied: None,
+        state: pages::State::default(),
+    };
+    Ok(EframeApp::new(rt, shell))
 }
 
 impl Shell {
@@ -223,12 +209,11 @@ impl Shell {
         });
     }
 
-    fn show(&mut self, rt: &Rt, ui: &mut Ui) -> ScrollAreaOutput<()> {
+    fn page(&mut self, ui: &mut FluentUi<'_>) -> ScrollAreaOutput<()> {
+        let rt = ui.rt();
         self.inspector.toggle_on(rt.ctx(), INSPECTOR);
         self.apply_settings(rt);
-        let page = rt.pass(ui, |ui| self.body(ui));
-        self.inspector.show(rt);
-        page
+        self.body(ui)
     }
 
     fn body(&mut self, ui: &mut FluentUi<'_>) -> ScrollAreaOutput<()> {
@@ -260,12 +245,18 @@ impl Shell {
     }
 }
 
-impl eframe::App for App {
-    fn ui(&mut self, ui: &mut Ui, frame: &mut eframe::Frame) {
-        self.shell
-            .inspector
+impl MineralApp<Fluent> for Shell {
+    fn ui(&mut self, ui: &mut FluentUi<'_>) {
+        self.page(ui);
+    }
+
+    fn frame(&mut self, frame: &mut eframe::Frame) {
+        self.inspector
             .set_cpu_time(frame.info().cpu_usage.map(std::time::Duration::from_secs_f32));
-        self.show(ui);
+    }
+
+    fn after_pass(&mut self, rt: &Rt) {
+        self.inspector.show(rt);
     }
 }
 
@@ -281,7 +272,7 @@ fn main() -> eframe::Result {
     eframe::run_native(
         "egui_mineral Fluent showcase",
         eframe::NativeOptions::default(),
-        Box::new(|cc| Ok(Box::new(App::new(&cc.egui_ctx)?))),
+        Box::new(|cc| Ok(Box::new(new_app(&cc.egui_ctx)?))),
     )
 }
 
@@ -314,7 +305,7 @@ mod web {
         wasm_bindgen::{JsCast, JsValue},
     };
 
-    use super::App;
+    use super::new_app;
 
     const CANVAS_ID: &str = "showcase-canvas";
     const STATUS_ID: &str = "showcase-status";
@@ -341,7 +332,7 @@ mod web {
             .start(
                 canvas,
                 WebOptions::default(),
-                Box::new(|cc| Ok(Box::new(App::new(&cc.egui_ctx)?))),
+                Box::new(|cc| Ok(Box::new(new_app(&cc.egui_ctx)?))),
             )
             .await
             .map_err(|e: JsValue| format!("{e:?}"))?;
@@ -422,14 +413,23 @@ mod tests {
         let fresh = |locale, high_contrast, zoom| {
             let ctx = egui::Context::default();
             ctx.set_zoom_factor(zoom);
-            let mut app = App::new(&ctx).expect("showcase app");
-            app.rt.set_collect_semantics(true);
-            app.shell.settings.locale = locale;
-            app.shell.settings.high_contrast = high_contrast;
+            let mut app = new_app(&ctx).expect("showcase app");
+            app.rt().set_collect_semantics(true);
+            app.app_mut().settings.locale = locale;
+            app.app_mut().settings.high_contrast = high_contrast;
             (ctx, app)
         };
         let classes: Vec<egui::Vec2> = std::iter::once(COMPACT_MIN)
-            .chain(fresh(0, false, 1.0).1.rt.core().policies().breakpoints.iter().copied())
+            .chain(
+                fresh(0, false, 1.0)
+                    .1
+                    .rt()
+                    .core()
+                    .policies()
+                    .breakpoints
+                    .iter()
+                    .copied(),
+            )
             .map(|w| egui::vec2(w, 900.0))
             .collect();
         let mut failed = Vec::new();
@@ -465,7 +465,7 @@ mod tests {
     }
 
     fn check(ctx: &egui::Context, app: &mut App, page: Page, size: egui::Vec2, width: bool) -> BTreeSet<String> {
-        app.shell.navigate(page);
+        app.app_mut().navigate(page);
         let mut problems = BTreeSet::new();
         let mut over = 0.0;
         for _ in 0..if width { SETTLE } else { 2 } {
@@ -474,7 +474,9 @@ mod tests {
                 ..RawInput::default()
             };
             let mut out = ctx.run_ui(raw, |ui| {
-                let page = app.show(ui);
+                let rt = std::sync::Arc::clone(app.rt());
+                let page = rt.pass(ui, |ui| app.app_mut().page(ui));
+                app.app_mut().after_pass(&rt);
                 over = page.content_size.x - page.inner_rect.width();
             });
             out.textures_delta.clear();
@@ -489,7 +491,7 @@ mod tests {
         if width && over > 0.5 {
             problems.insert(format!("{over:.1} px too wide"));
         }
-        let tree = app.rt.tree(egui::ViewportId::ROOT).expect("semantic tree collected");
+        let tree = app.rt().tree(egui::ViewportId::ROOT).expect("semantic tree collected");
         let mut seen = HashSet::new();
         problems.extend(
             tree.nodes

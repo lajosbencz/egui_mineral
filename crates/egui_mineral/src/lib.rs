@@ -57,7 +57,8 @@
 //! # Borrowing the runtime
 //!
 //! [`Runtime::new`](runtime::Runtime::new) returns an `Arc<Runtime<K>>`; a pass borrows it (`let rt = &self.rt;`)
-//! beside disjoint borrows of the app's state fields, without cloning the `Arc` per frame.
+//! beside disjoint borrows of the app's state fields, without cloning the `Arc` per frame. eframe apps skip this
+//! with [egui_mineral_eframe](https://crates.io/crates/egui_mineral_eframe), which owns the runtime.
 //!
 //! # Cargo features
 //!

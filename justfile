@@ -71,6 +71,9 @@ clippy:
         cargo hack clippy -p "$c" --each-feature --exclude-features unstable-hotpatch --all-targets -- -D warnings; \
         cargo hack clippy -p "$c" --each-feature --exclude-features unstable-hotpatch --target wasm32-unknown-unknown -- -D warnings; \
     done
+    # eframe needs a renderer, and winit a Linux windowing backend
+    cargo hack clippy -p egui_mineral_eframe --feature-powerset --at-least-one-of glow,wgpu --at-least-one-of wayland,x11 --all-targets -- -D warnings
+    cargo hack clippy -p egui_mineral_eframe --feature-powerset --at-least-one-of glow,wgpu --target wasm32-unknown-unknown -- -D warnings
     cargo clippy --workspace --all-targets --all-features -- -D warnings
     cargo clippy -p showcase-material --target wasm32-unknown-unknown -- -D warnings
     cargo clippy -p showcase-fluent --target wasm32-unknown-unknown -- -D warnings
@@ -138,7 +141,7 @@ doc:
     done
 
 # Published crates; their READMEs are generated from the crate docs
-readme_crates := "egui_mineral egui_mineral_material egui_mineral_macros"
+readme_crates := "egui_mineral egui_mineral_material egui_mineral_macros egui_mineral_eframe"
 
 # Regenerates the crate READMEs from their `lib.rs` docs (intra-doc links: docs/blockers.md)
 readme:
@@ -150,7 +153,7 @@ readme-check:
 
 # Unverified: verification resolves sibling crates from crates.io, which lacks unreleased APIs. Dirty: runs before committing.
 package:
-    cargo package --no-verify --allow-dirty -p egui_mineral -p egui_mineral_macros -p egui_mineral_material
+    cargo package --no-verify --allow-dirty -p egui_mineral -p egui_mineral_macros -p egui_mineral_material -p egui_mineral_eframe
 
 # Published crates share 0.MINOR (MAJOR from 1.0); the pinned toolchain is the workspace MSRV
 versions-check:
@@ -177,7 +180,7 @@ align-breaking:
 # Sets every published crate to <version> (a breaking release, e.g. 0.3.0) and the workspace dependency requirements
 bump-breaking version:
     for c in {{ readme_crates }}; do cargo set-version -p "$c" "{{ version }}"; done
-    sed -i -E '/^egui_mineral(_macros|_material)? = /s/version = "[^"]*"/version = "{{ version }}"/' Cargo.toml
+    sed -i -E '/^egui_mineral(_macros|_material|_eframe)? = /s/version = "[^"]*"/version = "{{ version }}"/' Cargo.toml
     cargo update --workspace
 
 # Lower bounds of the direct dependencies hold (nightly -Z direct-minimal-versions, lockfile restored)
@@ -226,10 +229,14 @@ api-diff base head="HEAD" release="false":
         git show "$1:crates/$2/Cargo.toml" | awk '/^\[features\]/ { f = 1; next } /^\[/ { f = 0 } f && /^[a-z0-9_-]+ *=/ { print $1 }' \
             | grep -v '^unstable' | grep -vx default | sort
     }
-    for crate in egui_mineral egui_mineral_material; do
+    for crate in egui_mineral egui_mineral_material egui_mineral_eframe; do
     base="{{ base }}"
     if [ "{{ release }}" = true ]; then
         base=$(git describe --tags --abbrev=0 --match "$crate-v*" "{{ base }}" 2>/dev/null || echo "{{ base }}")
+    fi
+    if ! git cat-file -e "$base:crates/$crate/Cargo.toml" 2>/dev/null; then
+        echo "\`$crate\`: new crate, no base" | tee -a "$summary"
+        continue
     fi
     features=$(comm -12 <(features "$base" "$crate") <(features "{{ head }}" "$crate") | paste -sd, -)
     deny=(--deny removed --deny changed)

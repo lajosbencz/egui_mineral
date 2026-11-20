@@ -11,6 +11,7 @@ egui_mineral_fluent = { workspace = true, features = ["icu", "bundled-icons", "e
 egui_mineral_material = { workspace = true, features = ["bundled-icons"] }
 mineral_inspector.workspace = true
 # glow: a smaller web bundle than eframe's default wgpu.
+egui_mineral_eframe = { workspace = true, features = ["glow", "wayland", "x11"] }
 eframe = { workspace = true, features = ["accesskit", "clipboard", "default_fonts", "glow", "links", "system_fonts", "wayland", "web_screen_reader", "x11"] }
 egui.workspace = true
 tracing.workspace = true

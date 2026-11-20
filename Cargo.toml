@@ -3,6 +3,7 @@ resolver = "3"
 members = [
     "crates/egui_mineral",
     "crates/egui_mineral_macros",
+    "crates/egui_mineral_eframe",
     "crates/egui_mineral_material",
     "crates/egui_mineral_fluent",
     "examples/showcase-fluent",
@@ -26,6 +27,7 @@ categories = ["gui", "accessibility"]
 [workspace.dependencies]
 egui_mineral = { path = "crates/egui_mineral", version = "0.6.0", default-features = false }
 egui_mineral_macros = { path = "crates/egui_mineral_macros", version = "0.6.0" }
+egui_mineral_eframe = { path = "crates/egui_mineral_eframe", version = "0.6.0", default-features = false }
 egui_mineral_material = { path = "crates/egui_mineral_material", version = "0.6.0", default-features = false }
 egui_mineral_fluent = { path = "crates/egui_mineral_fluent", default-features = false }
 mineral_inspector = { path = "tools/mineral_inspector" }

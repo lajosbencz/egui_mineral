@@ -7,7 +7,7 @@ Other files cite them as `docs/rules.md rule N`.
 
 1. No C dependencies in the core. [`deny.toml`](../deny.toml) bans known offenders.
 2. State agnostic: UI reads via refs and writes via `Bus` commands. No forced MVC/Redux.
-3. No backend types (`winit`, `eframe`) in the core public API, egui/emath types are fine.
+3. No backend types (`winit`, `eframe`) in the core public API, egui/emath types are fine. `egui_mineral_eframe` is the only library depending on eframe.
 4. No heavy work in the render path, push it to async handlers via `Bus` + `Spawner`.
 5. The core is headless: no painting of its own, no visual styling, no string catalogs, no design-system values.
    It may submit shapes a stylekit hook returned (`Stylekit::window_close`). Stylekits paint from core responses (`SplitterResponse::handle_rect`, `ReorderOutput::indicator`, `dnd::RowView`),
