@@ -50,7 +50,7 @@ const CAROUSELS: [(CarouselLayout, &str); 5] = [
 const TEXTURE_COUNT: usize = 8;
 const TEX: usize = 64;
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, egui_mineral::semantic::KeySalt)]
 enum RowAction {
     Top,
     Bottom,
@@ -258,12 +258,12 @@ fn dialogs(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     });
     let r = Dialog::new("dlg-basic", "Discard draft?")
         .supporting("The draft will be lost. This cannot be undone.")
-        .action(DialogAction::new("Cancel").mnemonic('c'))
-        .action(DialogAction::new("Discard").mnemonic('d'))
-        .default_action(1)
+        .action("cancel", DialogAction::new("Cancel").mnemonic('c'))
+        .action("discard", DialogAction::new("Discard").mnemonic('d'))
+        .default_action("discard")
         .show_modal(rt, &mut s.dialog_basic, |_| {});
     if let Some(a) = r.clicked {
-        shared.toast(format!("Dialog action {}", a.index()));
+        shared.toast(format!("Dialog action {a}"));
     }
     if let Some(d) = r.dismissed {
         shared.toast(format!("Dialog dismissed: {d:?}"));
@@ -272,9 +272,9 @@ fn dialogs(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
         .icon(ICON_SETTINGS)
         .resizable(true)
         .supporting("Enter in the name field saves; Enter in the notes field adds a line.")
-        .action(DialogAction::new("Cancel"))
-        .action(DialogAction::new("Save").disabled(s.dialog_name.trim().is_empty()))
-        .default_action(1)
+        .action("cancel", "Cancel")
+        .action("save", DialogAction::new("Save").disabled(s.dialog_name.trim().is_empty()))
+        .default_action("save")
         .show_modal(rt, &mut s.dialog_icon, |ui| {
             ui.mineral(TextField::new("dlg-name", "Name", &mut s.dialog_name).preferred_width(260.0));
             ui.mineral(
@@ -284,16 +284,16 @@ fn dialogs(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
             );
         });
     if let Some(a) = r.clicked {
-        shared.toast(format!("Dialog action {}", a.index()));
+        shared.toast(format!("Dialog action {a}"));
     }
     let r = Dialog::full_screen("dlg-full", "New event")
-        .confirm(DialogAction::new("Save"))
+        .confirm("save", "Save")
         .enter_confirms(true)
         .show_modal(rt, &mut s.dialog_full, |ui| {
             ui.label("Full-screen content area. The confirm button is in the header.");
         });
     if let Some(a) = r.clicked {
-        shared.toast(format!("Full-screen action {}", a.index()));
+        shared.toast(format!("Full-screen action {a}"));
     }
 }
 
@@ -575,14 +575,12 @@ fn reorder(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
         }
         if Menu::context_requested(rt, row) {
             let menu = Menu::new(("reorder-menu", i), "Row actions")
-                .item(MenuItem::new("Move to top").key(RowAction::Top).disabled(i == 0))
+                .item(RowAction::Top, MenuItem::new("Move to top").disabled(i == 0))
                 .item(
-                    MenuItem::new("Move to bottom")
-                        .key(RowAction::Bottom)
-                        .disabled(i + 1 == rows.len()),
+                    RowAction::Bottom,
+                    MenuItem::new("Move to bottom").disabled(i + 1 == rows.len()),
                 );
-            let clicked = menu.show_context(rt, row).clicked;
-            moved = match clicked.as_ref().and_then(Clicked::key::<RowAction>) {
+            moved = match menu.show_context(rt, row).clicked {
                 Some(RowAction::Top) => Some(Reorder { from: i, to: 0 }),
                 Some(RowAction::Bottom) => Some(Reorder {
                     from: i,

@@ -371,7 +371,7 @@ fn extended_fab(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
 
 fn fab_menu(ui: &mut MaterialUi<'_>, shared: &mut Shared) {
     let rt = ui.rt();
-    section(ui, TOPICS[4], Some(FabMenu::META), |ui| {
+    section(ui, TOPICS[4], Some(<FabMenu<()>>::META), |ui| {
         ui.label("Opens upward from the bottom end of the box.");
         let width = ui.available_width();
         let (rect, _) = ui.allocate_exact_size(vec2(width, 300.0), egui::Sense::hover());
@@ -386,13 +386,13 @@ fn fab_menu(ui: &mut MaterialUi<'_>, shared: &mut Shared) {
         let r = FabMenu::new("fab-menu", ICON_ADD, "Actions")
             .colors(FabMenuColors::PrimaryContainer)
             .items([
-                FabMenuItem::new(ICON_CAMERA, "Camera"),
-                FabMenuItem::new(ICON_IMAGE, "Gallery"),
-                FabMenuItem::new(ICON_CONTENT_COPY, "Duplicate"),
+                ("camera", FabMenuItem::new(ICON_CAMERA, "Camera")),
+                ("gallery", FabMenuItem::new(ICON_IMAGE, "Gallery")),
+                ("duplicate", FabMenuItem::new(ICON_CONTENT_COPY, "Duplicate")),
             ])
             .show(&mut rt.ui(&mut inner));
-        if let Some(i) = r.clicked {
-            shared.toast(format!("FAB menu item {}", i.index()));
+        if let Some(item) = r.clicked {
+            shared.toast(format!("FAB menu item {item}"));
         }
     });
 }
@@ -401,23 +401,19 @@ fn button_group(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     section(
         ui,
         TOPICS[5],
-        Some(<ButtonGroup<'static, core::convert::Infallible>>::META),
+        Some(<ButtonGroup<'static, ()>>::META),
         |ui| {
             sub(ui, "Standard, plain actions");
             let r = ButtonGroup::new("grp-std", "Actions")
-                .items([
-                    ButtonGroupItem::new("Copy"),
-                    ButtonGroupItem::new("Paste"),
-                    ButtonGroupItem::new("Cut"),
-                ])
+                .items([("copy", "Copy"), ("paste", "Paste"), ("cut", "Cut")])
                 .button_variant(ContainerVariant::Tonal)
                 .show(ui);
-            if let Some(i) = r.clicked {
-                shared.toast(format!("Group item {}", i.index()));
+            if let Some(item) = r.clicked {
+                shared.toast(format!("Group item {item}"));
             }
             sub(ui, "Standard, single selection (mixed text/icon)");
             ButtonGroup::multi("grp-single", "Alignment", &mut s.group_single)
-                .toggles(
+                .items(
                     [
                         ButtonGroupItem::new("Left").icon(ICON_EDIT),
                         ButtonGroupItem::new("Star").icon(ICON_STAR).label_visible(false),
@@ -431,7 +427,7 @@ fn button_group(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
             sub(ui, "Standard, multi selection, sizes");
             for (i, (sz, name)) in SIZES.into_iter().enumerate().take(3) {
                 ButtonGroup::multi(("grp-multi", i), name, &mut s.group_multi)
-                    .toggles(
+                    .items(
                         [
                             ButtonGroupItem::new("Bold").icon(ICON_FORMAT_BOLD).label_visible(false),
                             ButtonGroupItem::new("Italic")
@@ -451,7 +447,7 @@ fn button_group(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
             sub(ui, "Connected, single selection");
             ButtonGroup::multi("grp-conn", "Period", &mut s.group_connected)
                 .variant(ButtonGroupVariant::Connected)
-                .toggles(
+                .items(
                     [
                         ButtonGroupItem::new("Day"),
                         ButtonGroupItem::new("Week"),
@@ -466,7 +462,7 @@ fn button_group(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
             sub(ui, "Disabled");
             ButtonGroup::new("grp-dis", "Disabled")
                 .variant(ButtonGroupVariant::Connected)
-                .items([ButtonGroupItem::new("One"), ButtonGroupItem::new("Two")])
+                .items([(1, "One"), (2, "Two")])
                 .disabled(true)
                 .show(ui);
         },
@@ -506,9 +502,9 @@ fn split_button(ui: &mut MaterialUi<'_>, s: &mut State) {
     section(ui, TOPICS[7], Some(SplitButton::META), |ui| {
         let menu = || {
             Menu::new("split-menu", "More save options")
-                .item(MenuItem::new("Save as").leading(ICON_SAVE))
-                .item(MenuItem::new("Duplicate").leading(ICON_CONTENT_COPY))
-                .item(MenuItem::new("Archive").leading(ICON_ARCHIVE).disabled(true))
+                .item("save as", MenuItem::new("Save as").leading(ICON_SAVE))
+                .item("duplicate", MenuItem::new("Duplicate").leading(ICON_CONTENT_COPY))
+                .item("archive", MenuItem::new("Archive").leading(ICON_ARCHIVE).disabled(true))
         };
         sub(ui, "Variants");
         super::row(ui, |row| {
@@ -523,7 +519,7 @@ fn split_button(ui: &mut MaterialUi<'_>, s: &mut State) {
                     s.last_menu = format!("{name} main action");
                 }
                 if let Some(m) = r.clicked {
-                    s.last_menu = format!("{name} menu item {}", m.index());
+                    s.last_menu = format!("{name} menu item {m}");
                 }
             }
         });
@@ -535,7 +531,7 @@ fn split_button(ui: &mut MaterialUi<'_>, s: &mut State) {
                     s.last_menu = format!("{name} size main action");
                 }
                 if let Some(m) = r.clicked {
-                    s.last_menu = format!("{name} size menu item {}", m.index());
+                    s.last_menu = format!("{name} size menu item {m}");
                 }
             }
         });

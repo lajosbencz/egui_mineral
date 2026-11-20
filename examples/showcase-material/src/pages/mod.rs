@@ -287,7 +287,7 @@ pub(crate) fn choice(ui: &mut MaterialUi<'_>, id: &'static str, label: &str, lab
     let mut sel = Selection::single().required(true).with([current]);
     ButtonGroup::multi(id, label, &mut sel)
         .variant(ButtonGroupVariant::Connected)
-        .toggles(labels.iter().map(|l| ButtonGroupItem::new(*l)).enumerate())
+        .items(labels.iter().map(|l| ButtonGroupItem::new(*l)).enumerate())
         .show(ui);
     sel.first().copied().unwrap_or(current)
 }

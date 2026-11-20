@@ -25,7 +25,7 @@ pub use crate::extras::{
     ColorPicker, ColorSpace, Combobox, ComboboxOutput, CommandPalette, CommandPaletteResponse, DataTable,
     DataTableResponse, DateField, DateFieldState, DescriptionItem, DescriptionLayout, DescriptionList,
     EmptyPlaceholder, EmptyPlaceholderResponse, FileDropZone, FileDropZoneOutput, FloatingPanel, HoverCard, ImageList,
-    ImageListLayout, ImageListResponse, ImageTile, InlineEdit, InlineEditOutput, Kbd, MenuPath, MenuStrip,
+    ImageListLayout, ImageListResponse, ImageTile, InlineEdit, InlineEditOutput, Kbd, MenuStrip,
     MenuStripResponse, NumberField, NumberFieldOutput, OtpField, OtpFieldOutput, Pagination, PaletteCommand, Popover,
     Rating, ReorderableList, ReorderableListResponse, SettingRow, SettingRowResponse, Severity, Skeleton,
     SkeletonShape, SplitPane, Statistic, StatusBar, StatusBarResponse, StatusItem, StatusProgress, StatusTone,

@@ -6,6 +6,7 @@ use crate::actions::button::{Elevation, Surface};
 use egui_mineral::i18n::I18n;
 use egui_mineral::kit::state::TempState;
 use egui_mineral::overlay::Dismiss;
+use egui_mineral::select::ItemKey;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::MineralUi;
 
@@ -14,7 +15,6 @@ use egui::{
 };
 use egui_mineral::widget::Availability;
 use egui_mineral::{
-    action::Clicked,
     focus::RovingFocus,
     i18n::Direction,
     layout::{Axis, Constraints, Measure},
@@ -93,21 +93,20 @@ fn checked_roles(color: FabMenuColors) -> (ColorRole, ColorRole) {
     }
 }
 
-/// Item of a [`FabMenu`] (`FloatingActionButtonMenuItem`); click-only.
+/// Item of a [`FabMenu`] (`FloatingActionButtonMenuItem`); click-only, the menu pairs it with its value.
 #[derive(Clone, Debug)]
 #[must_use]
 pub struct FabMenuItem {
     icon: Icon,
     label: String,
     command: Option<ActionId>,
-    action_key: Option<egui_mineral::action::ActionKey>,
     disabled: bool,
     salt: Option<egui_mineral::semantic::KeyedSalt>,
 }
 
 impl FabMenuItem {
     crate::widget::setters! {
-        /// Default the [`Self::command`] action, else the index.
+        /// Default the [`Self::command`] action, else the item's value.
         item_salt
     }
 
@@ -117,14 +116,9 @@ impl FabMenuItem {
             icon: icon.into(),
             label: label.into(),
             command: None,
-            action_key: None,
             disabled: false,
             salt: None,
         }
-    }
-
-    crate::widget::setters! {
-        action_key
     }
 
     /// Activation fires the app action `id` ([`shortcut::fire`]) instead of reporting the item as clicked.
@@ -154,12 +148,11 @@ fn stagger(rt: &crate::Rt, id: Id, target: usize) -> usize {
 /// Result of [`FabMenu::show`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct FabMenuResponse {
+pub struct FabMenuResponse<A> {
     /// Toggle FAB response.
     pub response: Response,
-    /// Item without a [`FabMenuItem::command`] clicked this frame, with its [`FabMenuItem::key`]; clicking
-    /// closes the menu.
-    pub clicked: Option<Clicked>,
+    /// Value of the item without a [`FabMenuItem::command`] clicked this frame; clicking closes the menu.
+    pub clicked: Option<A>,
     /// Menu state after this frame.
     pub open: bool,
     /// Why the menu closed this frame without an item click.
@@ -169,18 +162,19 @@ pub struct FabMenuResponse {
 /// MD3 FAB menu: a FAB that expands into a list of actions (Compose `FloatingActionButtonMenu`).
 #[derive(Clone, Debug)]
 #[must_use = "call .show(..)"]
-pub struct FabMenu {
+pub struct FabMenu<A> {
     salt: KeyedSalt,
     icon: Icon,
     label: String,
-    items: Vec<FabMenuItem>,
+    items: Vec<(A, FabMenuItem)>,
     size: FabMenuSize,
     color: FabMenuColors,
     disabled: bool,
 }
 
-impl FabMenu {
-    /// `icon` shows while closed, `label` is the toggle's accessible name; agent key prefix `<id_salt>`.
+impl<A: ItemKey> FabMenu<A> {
+    /// `icon` shows while closed, `label` is the toggle's accessible name; agent key prefix `<id_salt>`. `A` is the
+    /// item values' type.
     pub fn new(id_salt: impl Into<KeyedSalt>, icon: impl Into<Icon>, label: impl Into<String>) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
@@ -199,15 +193,15 @@ impl FabMenu {
         agent_key(salt)
     }
 
-    /// Appends one item.
-    pub fn item(mut self, item: impl Into<FabMenuItem>) -> Self {
-        self.items.push(item.into());
+    /// Appends the item reporting `value`.
+    pub fn item(mut self, value: A, item: impl Into<FabMenuItem>) -> Self {
+        self.items.push((value, item.into()));
         self
     }
 
-    /// Appends items.
-    pub fn items(mut self, items: impl IntoIterator<Item = impl Into<FabMenuItem>>) -> Self {
-        self.items.extend(items.into_iter().map(Into::into));
+    /// Appends `(value, item)` pairs.
+    pub fn items(mut self, items: impl IntoIterator<Item = (A, impl Into<FabMenuItem>)>) -> Self {
+        self.items.extend(items.into_iter().map(|(v, i)| (v, i.into())));
         self
     }
 
@@ -229,7 +223,7 @@ impl FabMenu {
     }
 
     /// Paints the toggle and, while open, the item list above it.
-    pub fn show(self, ui: &mut MineralUi<'_, Material>) -> FabMenuResponse {
+    pub fn show(self, ui: &mut MineralUi<'_, Material>) -> FabMenuResponse<A> {
         let rt = ui.rt();
         let ctx = rt.ctx();
         let base = ui.make_persistent_id(self.salt.id_salt());
@@ -273,7 +267,7 @@ impl FabMenu {
             let (rect, ids, hit) = self.items_area(rt, base, fab_rect, &reveal, open);
             menu_rect = rect;
             if let Some(i) = hit {
-                match &self.items[i].command {
+                match &self.items[i].1.command {
                     Some(c) => shortcut::fire(ctx, c),
                     None => clicked = Some(i),
                 }
@@ -285,7 +279,7 @@ impl FabMenu {
                 ctx.memory_mut(|m| m.request_focus(*first));
             }
             if open {
-                RovingFocus::new(Axis::Vertical).update(rt.core(), &ids, |i| !self.items[i].disabled);
+                RovingFocus::new(Axis::Vertical).update(rt.core(), &ids, |i| !self.items[i].1.disabled);
             }
             if open {
                 let layer = egui::LayerId::new(Order::Foreground, items_id(base));
@@ -304,7 +298,7 @@ impl FabMenu {
         self.announce(ctx, base, menu_rect, open);
         FabMenuResponse {
             response: fab.into_response(),
-            clicked: crate::widget::clicked(&self.items, clicked, |i| i.action_key.as_ref()),
+            clicked: clicked.and_then(|i| self.items.get(i)).map(|(v, _)| v.clone()),
             open,
             dismissed,
         }
@@ -336,8 +330,8 @@ impl FabMenu {
                 ui.spacing_mut().item_spacing.y = m::LIST_ITEM_BETWEEN_SPACE;
                 ui.with_layout(Layout::top_down(align), |ui| {
                     let mut ids = Vec::with_capacity(self.items.len());
-                    for (i, (item, &(width, alpha))) in self.items.iter().zip(reveal).enumerate() {
-                        let own = crate::widget::item_salt(&self.salt, item.salt.as_ref(), item.command.as_ref(), i);
+                    for (i, ((value, item), &(width, alpha))) in self.items.iter().zip(reveal).enumerate() {
+                        let own = crate::widget::action_salt(&self.salt, item.salt.as_ref(), item.command.as_ref(), value);
                         let r = rt.ui(ui).mineral(Row {
                             key: StableId::of(&own, "fab-menu-item"),
                             salt: own,

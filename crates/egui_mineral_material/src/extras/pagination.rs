@@ -3,7 +3,7 @@ use crate::MaterialExt;
 use crate::MaterialUiExt as _;
 use crate::msg;
 use egui::{Color32, CornerRadius, Rect, Sense, Ui, Vec2, vec2};
-use egui_mineral::action::{ActionKey, Clicked};
+use egui_mineral::select::ItemKey;
 use egui_mineral::i18n::I18n;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::Availability;
@@ -363,32 +363,24 @@ impl MineralWidget for Crumb<'_> {
 /// Result of [`Breadcrumbs::show`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct BreadcrumbsResponse {
+pub struct BreadcrumbsResponse<K> {
     /// Trail response.
     pub response: egui::Response,
-    /// Item clicked this frame.
-    pub clicked: Option<Clicked>,
+    /// Value of the item clicked this frame.
+    pub clicked: Option<K>,
 }
 
-/// One step of [`Breadcrumbs`]; reported by [`BreadcrumbsResponse::clicked`] with its index and key.
+/// One step of [`Breadcrumbs`]; the trail pairs it with its value. A label converts.
 #[derive(Clone, Debug)]
 #[must_use]
 pub struct BreadcrumbItem {
     label: String,
-    action_key: Option<ActionKey>,
 }
 
 impl BreadcrumbItem {
     /// `label` is the visible text and accessible name.
     pub fn new(label: impl Into<String>) -> Self {
-        Self {
-            label: label.into(),
-            action_key: None,
-        }
-    }
-
-    crate::widget::setters! {
-        action_key
+        Self { label: label.into() }
     }
 }
 
@@ -407,16 +399,16 @@ impl From<String> for BreadcrumbItem {
 /// Path trail collapsing past `max_items`; non-MD3 (MUI `Breadcrumbs` pattern).
 #[derive(Clone, Debug)]
 #[must_use = "call .show(..)"]
-pub struct Breadcrumbs {
+pub struct Breadcrumbs<K> {
     salt: KeyedSalt,
     label: Option<String>,
-    items: Vec<BreadcrumbItem>,
+    items: Vec<(K, BreadcrumbItem)>,
     max_items: usize,
     disabled: bool,
 }
 
-impl Breadcrumbs {
-    /// Collapses past 8 items; agent key prefix `<id_salt>`.
+impl<K: ItemKey> Breadcrumbs<K> {
+    /// Collapses past 8 items; agent key prefix `<id_salt>`; `K` is the item values' type.
     pub fn new(id_salt: impl Into<KeyedSalt>) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
@@ -439,15 +431,15 @@ impl Breadcrumbs {
         self
     }
 
-    /// Appends one path item; the last is marked current.
-    pub fn item(mut self, item: impl Into<BreadcrumbItem>) -> Self {
-        self.items.push(item.into());
+    /// Appends the path item reporting `value`; the last is marked current.
+    pub fn item(mut self, value: K, item: impl Into<BreadcrumbItem>) -> Self {
+        self.items.push((value, item.into()));
         self
     }
 
-    /// Appends path items; see [`Self::item`].
-    pub fn items(mut self, items: impl IntoIterator<Item = impl Into<BreadcrumbItem>>) -> Self {
-        self.items.extend(items.into_iter().map(Into::into));
+    /// Appends `(value, item)` pairs; see [`Self::item`].
+    pub fn items(mut self, items: impl IntoIterator<Item = (K, impl Into<BreadcrumbItem>)>) -> Self {
+        self.items.extend(items.into_iter().map(|(v, i)| (v, i.into())));
         self
     }
 
@@ -468,7 +460,7 @@ impl Breadcrumbs {
 
     fn collapse(&self, ui: &MineralUi<'_, Material>) -> Option<(usize, usize)> {
         let n = self.items.len();
-        let widths: Vec<f32> = self.items.iter().map(|i| crumb_width(ui, &i.label)).collect();
+        let widths: Vec<f32> = self.items.iter().map(|(_, i)| crumb_width(ui, &i.label)).collect();
         let avail = ui.available_width();
         let sep_w = CRUMB.metrics().icon;
         // The overflow icon button reserves its minimum interactive size.
@@ -493,7 +485,7 @@ impl Breadcrumbs {
     }
 
     /// Lays out the trail on one row.
-    pub fn show(self, ui: &mut MineralUi<'_, Material>) -> BreadcrumbsResponse {
+    pub fn show(self, ui: &mut MineralUi<'_, Material>) -> BreadcrumbsResponse<K> {
         let rt = ui.rt();
         let ctx = rt.ctx();
         let t = rt.tokens();
@@ -522,11 +514,13 @@ impl Breadcrumbs {
             };
             let current_name = crate::tr(rt.i18n(), msg::BREADCRUMBS_CURRENT);
             let crumb = |ui: &mut Ui, i: usize| {
+                let (value, item) = &self.items[i];
+                let own = crate::widget::action_salt(&self.salt, None, None, value);
                 rt.ui(ui)
                     .mineral(Crumb {
-                        salt: self.salt.child(("crumb", i)),
-                        key: StableId::of(&self.salt, (i, "link")),
-                        label: &self.items[i].label,
+                        salt: own.child("crumb"),
+                        key: StableId::of(&own, "link"),
+                        label: &item.label,
                         current: (i + 1 == n).then_some(current_name.as_str()),
                         disabled: self.disabled,
                     })
@@ -554,12 +548,11 @@ impl Breadcrumbs {
                             .disabled(self.disabled)
                             .agent_key(StableId::of(&self.salt, "more-button")),
                     );
-                    let mut menu = Menu::new(self.salt.child("more"), label).emit_anchor(false);
-                    for i in hidden.clone() {
-                        menu = menu.item(MenuItem::new(&self.items[i].label));
-                    }
-                    if let Some(k) = menu.show(rt, anchor.response()).clicked {
-                        out = Some(hidden.start + k.index());
+                    let menu = Menu::new(self.salt.child("more"), label)
+                        .emit_anchor(false)
+                        .items(hidden.clone().map(|i| (i, MenuItem::new(&self.items[i].1.label))));
+                    if let Some(i) = menu.show(rt, anchor.response()).clicked {
+                        out = Some(i);
                     }
                     for i in n - after..n {
                         separator(ui);
@@ -571,7 +564,7 @@ impl Breadcrumbs {
         kit::nodes::remember_rect(ctx, id, r.response.rect);
         BreadcrumbsResponse {
             response: r.response,
-            clicked: out.map(|i| Clicked::new(i, self.items.get(i).and_then(|it| it.action_key.clone()))),
+            clicked: out.and_then(|i| self.items.get(i)).map(|(v, _)| v.clone()),
         }
     }
 }

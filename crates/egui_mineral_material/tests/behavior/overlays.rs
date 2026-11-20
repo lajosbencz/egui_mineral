@@ -142,7 +142,7 @@ fn picker_modals_emit_a_dialog_node_named_by_their_label() {
 fn fab_menu_reports_escape_and_outside_dismissal() {
     let mut h = still(WIDE, Vec::new(), |ui, seen: &mut Vec<Dismiss>| {
         let r = FabMenu::new("m", ICON_ADD, "Actions")
-            .item(FabMenuItem::new(ICON_MAIL, "Mail"))
+            .item(0, FabMenuItem::new(ICON_MAIL, "Mail"))
             .show(ui);
         seen.extend(r.dismissed);
     });
@@ -300,7 +300,7 @@ fn dialog_follows_its_content_width() {
                         instead of keeping the narrow width it had for the short text before.";
     let mut h = still(WIDE, (0_u8, 0.0), |ui, (content, width)| {
         let mut open = true;
-        let dialog = Dialog::new("dlg", "Title").action(DialogAction::new("OK"));
+        let dialog = Dialog::new("dlg", "Title").action(0, DialogAction::new("OK"));
         let r = dialog.show_modal(ui.rt(), &mut open, |ui| match content {
             0 => ui.add(egui::Label::new("A one-line label wider than the minimum dialog width").extend()),
             1 => ui.label("Short"),
@@ -331,7 +331,7 @@ fn dialog_width_bounds_fix_or_cap_it() {
             let mut open = true;
             let r = Dialog::new("dlg", "Title")
                 .width(bounds.clone())
-                .action(DialogAction::new("OK"))
+                .action(0, DialogAction::new("OK"))
                 .show_modal(ui.rt(), &mut open, |ui| ui.label(content.repeat(4)));
             *width = r.response.map_or(0.0, |r| r.rect.width());
         });
@@ -347,7 +347,7 @@ fn resizable_dialog_follows_its_dragged_edge_until_reset() {
         let mut open = true;
         let r = Dialog::new("dlg", "Title")
             .resizable(true)
-            .action(DialogAction::new("OK"))
+            .action(0, DialogAction::new("OK"))
             .show_modal(ui.rt(), &mut open, |ui| ui.label("Short"));
         *width = r.response.map_or(0.0, |r| r.rect.width());
     });
@@ -386,7 +386,7 @@ fn dialog_growing_each_frame_discards_only_the_opening_pass() {
         }
         let mut open = true;
         Dialog::new("dlg", "Title")
-            .action(DialogAction::new("OK"))
+            .action(0, DialogAction::new("OK"))
             .show_modal(ui.rt(), &mut open, |ui| ui.add_space(20.0 + 10.0 * frame as f32));
     });
     for _ in 0..8 {

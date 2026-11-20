@@ -73,8 +73,8 @@ fn enter_with_focus(focus: Option<&str>) -> Option<usize> {
     };
     let mut h = harness(WIDE, form, |ui, form| {
         let r = Dialog::new("dlg", "Rename")
-            .action(DialogAction::new("Cancel"))
-            .action(DialogAction::new("Save"))
+            .action(0, DialogAction::new("Cancel"))
+            .action(1, DialogAction::new("Save"))
             .default_action(1)
             .show_modal(ui.rt(), &mut form.open, |ui| {
                 ui.add(
@@ -90,7 +90,7 @@ fn enter_with_focus(focus: Option<&str>) -> Option<usize> {
             });
         form.action = form
             .action
-            .or(r.clicked.as_ref().map(egui_mineral::action::Clicked::index));
+            .or(r.clicked);
     });
     if let Some(f) = focus {
         let id = if f.ends_with("-button") {

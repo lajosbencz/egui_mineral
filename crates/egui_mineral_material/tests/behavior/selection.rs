@@ -91,7 +91,7 @@ fn menu_reports_every_dismissal() {
     let mut h = still(WIDE, Vec::new(), |ui, seen: &mut Vec<Dismiss>| {
         let anchor = ui.mineral(PushButton::new("anchor", "Open")).into_response();
         let r = Menu::new("menu", "Menu")
-            .item(MenuItem::new("Item"))
+            .item(0, MenuItem::new("Item"))
             .show(ui.rt(), &anchor);
         seen.extend(r.dismissed);
     });
@@ -116,11 +116,13 @@ fn menu_item_trailing_shortcut_is_exposed_and_icon_is_not() {
         let anchor = ui.mineral(PushButton::new("anchor", "Open")).into_response();
         Menu::new("menu", "Menu")
             .item(
+                0,
                 MenuItem::new("Save")
                     .command("file.save")
                     .trailing(KeyboardShortcut::new(Modifiers::COMMAND, Key::S)),
             )
             .item(
+                1,
                 MenuItem::new("Share")
                     .leading(icons::ICON_MAIL)
                     .trailing(icons::ICON_SHARE),
@@ -185,12 +187,12 @@ fn menu_keys_move_focus_and_enter_activates() {
     let mut h = still(WIDE, None, |ui, clicked: &mut Option<usize>| {
         let anchor = ui.mineral(PushButton::new("anchor", "Open")).into_response();
         let r = Menu::new("menu", "Menu")
-            .item(MenuItem::new("Apple"))
-            .item(MenuItem::new("Banana").disabled(true))
-            .item(MenuItem::new("Cherry"))
-            .item(MenuItem::new("Date"))
+            .item(0, MenuItem::new("Apple"))
+            .item(1, MenuItem::new("Banana").disabled(true))
+            .item(2, MenuItem::new("Cherry"))
+            .item(3, MenuItem::new("Date"))
             .show(ui.rt(), &anchor);
-        *clicked = clicked.or(r.clicked.as_ref().map(egui_mineral::action::Clicked::index));
+        *clicked = clicked.or(r.clicked);
     });
     let item = |i: usize| format!("menu-{i}-menu-item");
     h.click("anchor-button");
@@ -220,8 +222,8 @@ fn escape_closes_the_focused_submenu_first() {
     let mut h = still(WIDE, Vec::new(), |ui, seen: &mut Vec<Dismiss>| {
         let anchor = ui.mineral(PushButton::new("anchor", "Open")).into_response();
         let r = Menu::new("menu", "Menu")
-            .item(MenuItem::new("Share").submenu(|m| m.item(MenuItem::new("Mail")).item(MenuItem::new("Link"))))
-            .item(MenuItem::new("Print"))
+            .submenu(0, "Share", |m| m.item(1, "Mail").item(2, "Link"))
+            .item(3, MenuItem::new("Print"))
             .show(ui.rt(), &anchor);
         seen.extend(r.dismissed);
     });
@@ -275,7 +277,7 @@ fn keyboard_open_focuses_the_first_item() {
     let mut h = still(WIDE, (), |ui, ()| {
         let anchor = ui.mineral(PushButton::new("anchor", "Open")).into_response();
         Menu::new("menu", "Menu")
-            .item(MenuItem::new("Apple"))
+            .item(0, MenuItem::new("Apple"))
             .show(ui.rt(), &anchor);
     });
     h.click("anchor-button");
@@ -293,7 +295,7 @@ fn context_menu_opens_on_the_menu_key() {
     let mut h = still(WIDE, (), |ui, ()| {
         let target = ui.mineral(PushButton::new("target", "Target")).into_response();
         Menu::new("ctx", "Actions")
-            .item(MenuItem::new("Rename"))
+            .item(0, MenuItem::new("Rename"))
             .show_context(ui.rt(), &target);
     });
     h.click("target-button");
@@ -312,10 +314,10 @@ fn menu_shown_at_a_rect_follows_the_app_open_state() {
                 *open = !*open;
             }
             let r = Menu::new("at", "More")
-                .item(MenuItem::new("Copy"))
-                .item(MenuItem::new("Paste"))
+                .item(0, MenuItem::new("Copy"))
+                .item(1, MenuItem::new("Paste"))
                 .show_at(ui.rt(), more.rect, open);
-            *clicked = clicked.or(r.clicked.as_ref().map(egui_mineral::action::Clicked::index));
+            *clicked = clicked.or(r.clicked);
         },
     );
     h.click("more-button");
@@ -333,8 +335,8 @@ fn menu_shown_at_a_rect_follows_the_app_open_state() {
 fn f10_and_a_lone_alt_toggle_focus_to_the_menu_strip() {
     let mut h = still(WIDE, (), |ui, ()| {
         MenuStrip::new("strip")
-            .menu(Menu::new("file", "File").item(MenuItem::new("Open")))
-            .menu(Menu::new("edit", "Edit").item(MenuItem::new("Copy")))
+            .menu(Menu::new("file", "File").item(0, MenuItem::new("Open")))
+            .menu(Menu::new("edit", "Edit").item(0, MenuItem::new("Copy")))
             .show(ui);
         ui.mineral(PushButton::new("other", "Other"));
     });
@@ -354,8 +356,8 @@ fn f10_and_a_lone_alt_toggle_focus_to_the_menu_strip() {
 fn escape_after_switching_menus_returns_focus_to_the_open_title() {
     let mut h = still(WIDE, (), |ui, ()| {
         MenuStrip::new("strip")
-            .menu(Menu::new("file", "File").item(MenuItem::new("Open")))
-            .menu(Menu::new("edit", "Edit").item(MenuItem::new("Copy")))
+            .menu(Menu::new("file", "File").item(0, MenuItem::new("Open")))
+            .menu(Menu::new("edit", "Edit").item(0, MenuItem::new("Copy")))
             .show(ui);
         ui.mineral(PushButton::new("other", "Other"));
     });
@@ -379,7 +381,7 @@ fn menu_item_tooltip_describes_the_item() {
     let mut h = still(WIDE, (), |ui, ()| {
         let anchor = ui.mineral(PushButton::new("anchor", "Open")).into_response();
         Menu::new("menu", "Menu")
-            .item(MenuItem::new("Export").tooltip("Writes a PDF"))
+            .item(0, MenuItem::new("Export").tooltip("Writes a PDF"))
             .show(ui.rt(), &anchor);
     });
     h.click("anchor-button");
@@ -445,19 +447,24 @@ fn control_rows_fit_list_rows_at_every_density() {
 }
 
 #[test]
-fn menu_reports_item_keys_through_submenus() {
-    let mut h = still(WIDE, Vec::new(), |ui, seen: &mut Vec<(usize, Option<String>)>| {
+fn menu_reports_item_values_through_submenus() {
+    let mut h = still(WIDE, Vec::new(), |ui, seen: &mut Vec<&'static str>| {
         let anchor = ui.mineral(PushButton::new("anchor", "Open")).into_response();
         let r = Menu::new("menu", "Menu")
-            .item(MenuItem::new("Plain"))
-            .item(MenuItem::new("More").submenu(|m| m.item(MenuItem::new("Nested").key("nested"))))
-            .item(MenuItem::new("Last").key("last"))
+            .item("plain", "Plain")
+            .submenu("more", "More", |m| m.item("nested", "Nested"))
+            .item("last", "Last")
             .show(ui.rt(), &anchor);
-        seen.extend(r.clicked.map(|c| (c.index(), c.key::<&str>().map(|k| (*k).to_owned()))));
+        seen.extend(r.clicked);
     });
     h.click("anchor-button");
-    h.click("menu-0-menu-item");
+    h.click("menu-plain-menu-item");
     h.click("anchor-button");
-    h.click("menu-3-menu-item");
-    assert_eq!(h.state().value, [(0, None), (3, Some("last".to_owned()))]);
+    h.press(Key::ArrowDown);
+    h.press(Key::ArrowDown);
+    h.press(Key::ArrowRight);
+    h.press(Key::Enter);
+    h.click("anchor-button");
+    h.click("menu-last-menu-item");
+    assert_eq!(h.state().value, ["plain", "nested", "last"]);
 }

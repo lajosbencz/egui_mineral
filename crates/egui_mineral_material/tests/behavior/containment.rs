@@ -85,7 +85,7 @@ fn reorderable_rows_click_and_open_context_menu() {
             }
             if Menu::context_requested(ui.rt(), row) {
                 Menu::new(("menu", i), "Menu")
-                    .item(MenuItem::new("Item"))
+                    .item(0, MenuItem::new("Item"))
                     .show_context(ui.rt(), row);
                 s.menu_open |= Menu::is_context_open(&row.ctx, row);
             }
@@ -143,7 +143,7 @@ fn clicked_row_keeps_focus_while_moving_with_alt_arrow() {
 fn dialog_reports_escape_and_outside_dismissal() {
     let h = still(WIDE, (true, None), |ui, (open, dismissed)| {
         let r = Dialog::new("dlg", "Title")
-            .action(DialogAction::new("OK"))
+            .action(0, DialogAction::new("OK"))
             .show_modal(ui.rt(), open, |_| ());
         *dismissed = dismissed.or(r.dismissed);
     });
@@ -215,9 +215,9 @@ fn modal_dialog_traps_tab_inside_and_returns_focus() {
             *open = true;
         }
         Dialog::new("dlg", "Title")
-            .action(DialogAction::new("Cancel"))
-            .action(DialogAction::new("Later"))
-            .action(DialogAction::new("OK"))
+            .action(0, DialogAction::new("Cancel"))
+            .action(1, DialogAction::new("Later"))
+            .action(2, DialogAction::new("OK"))
             .show_modal(ui.rt(), open, |_| ());
     });
     let inside = ["dlg-0-action-button", "dlg-1-action-button", "dlg-2-action-button"];

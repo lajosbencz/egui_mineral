@@ -95,7 +95,7 @@ fn cases() -> [(&'static str, Add, f32, Visual); 13] {
             "split button",
             |ui| {
                 scope(ui, |ui| {
-                    SplitButton::new("sp", "Go", Menu::new("m", "More").item("A")).show(ui);
+                    SplitButton::new("sp", "Go", Menu::new("m", "More").item(0, "A")).show(ui);
                 })
             },
             24.0,

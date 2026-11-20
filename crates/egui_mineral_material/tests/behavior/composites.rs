@@ -26,11 +26,11 @@ use crate::support::{MineralHarness, SCREEN, WIDE, harness, still};
 fn split_button_reports_the_leading_click_and_menu_pick() {
     let mut h = still(WIDE, (0, None, false), |ui, (leading, picked, open)| {
         let menu = Menu::new("more", "More")
-            .item(MenuItem::new("Draft"))
-            .item(MenuItem::new("Copy"));
+            .item(0, MenuItem::new("Draft"))
+            .item(1, MenuItem::new("Copy"));
         let r = SplitButton::new("send", "Send", menu).show(ui);
         *leading += usize::from(r.leading_clicked);
-        *picked = picked.or(r.clicked.as_ref().map(egui_mineral::action::Clicked::index));
+        *picked = picked.or(r.clicked);
         *open = r.open;
     });
     h.click("send-button");
@@ -138,10 +138,9 @@ fn breadcrumbs_report_the_clicked_ancestor() {
     let mut h = still(WIDE, Vec::new(), |ui, seen: &mut Vec<usize>| {
         seen.extend(
             Breadcrumbs::new("bc")
-                .items(["Home", "Docs", "Page"])
+                .items(["Home", "Docs", "Page"].into_iter().enumerate())
                 .show(ui)
-                .clicked
-                .map(|c| c.index()),
+                .clicked,
         );
     });
     h.click("bc-1-link");
@@ -154,7 +153,7 @@ fn breadcrumbs_with_nothing_to_hide_show_every_crumb_once() {
     for items in [vec!["Home"], vec!["Home", "Page"]] {
         let n = items.len();
         let mut h = still(vec2(30.0, 100.0), items, |ui, items| {
-            Breadcrumbs::new("bc").items(items.clone()).show(ui);
+            Breadcrumbs::new("bc").items(items.clone().into_iter().enumerate()).show(ui);
         });
         h.run();
         let keys: Vec<_> = h.tree().nodes.iter().map(|n| n.id.key().to_owned()).collect();

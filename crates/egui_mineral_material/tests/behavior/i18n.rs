@@ -132,7 +132,7 @@ mod mirror {
         ui.mineral(Kbd::new("k", ["Ctrl", "K"]));
         ui.mineral(Skeleton::new("sk", SkeletonShape::text(3, TypeScale::BodyMedium)));
         ui.mineral(Pagination::new("pg", 5, &mut page));
-        Breadcrumbs::new("bc").item("Home").item("Docs").show(ui);
+        Breadcrumbs::new("bc").item(0, "Home").item(1, "Docs").show(ui);
         ui.mineral(DateField::new("df", "Date", &mut date));
         ui.mineral(TagsField::new("tg", "Tags", &mut tags));
         ui.mineral(InlineEdit::new("ie", "Label", &mut text));
@@ -145,7 +145,7 @@ mod mirror {
         expansion.expand(1);
         let mut selection = Selection::multiple();
         let roots = [TreeNode::branch(1, "root", vec![TreeNode::leaf(2, "child")])];
-        let menu = Menu::new("more", "More").item(MenuItem::new("Draft"));
+        let menu = Menu::new("more", "More").item(0, MenuItem::new("Draft"));
         SplitButton::new("send", "Send", menu).show(ui);
         TopAppBar::new("bar", "Title")
             .actions([(0, IconAction::new(ICON_EDIT, "Edit")), (1, IconAction::new(ICON_SHARE, "Share"))])
@@ -175,8 +175,8 @@ mod mirror {
             .item(1, NavDestination::new(ICON_MAIL, "Mail"))
             .show(ui);
         MenuStrip::new("strip")
-            .menu(Menu::new("file", "File").item(MenuItem::new("Open")))
-            .menu(Menu::new("edit", "Edit").item(MenuItem::new("Copy")))
+            .menu(Menu::new("file", "File").item(0, MenuItem::new("Open")))
+            .menu(Menu::new("edit", "Edit").item(0, MenuItem::new("Copy")))
             .show(ui);
         FloatingToolbar::new("tb", "Edit")
             .actions([(0, IconAction::new(ICON_EDIT, "Edit")), (1, IconAction::new(ICON_SHARE, "Share"))])
@@ -245,7 +245,7 @@ mod mirror {
         let overlays: [(&str, Gallery); 5] = [
             ("full-screen dialog", |ui| {
                 Dialog::full_screen("fs", "Edit")
-                    .confirm("Save")
+                    .confirm(0, "Save")
                     .show_modal(ui.rt(), &mut true, |_| ());
             }),
             ("drawer", |ui| {

@@ -24,7 +24,7 @@ pub(crate) const TOPICS: &[&str] = &[
 const ROWS: usize = 1_000;
 const NAMES: [&str; 8] = ["Ada", "Grace", "Linus", "Margaret", "Dennis", "Barbara", "Ken", "Radia"];
 const TEAMS: [&str; 4] = ["Platform", "Design", "Runtime", "Docs"];
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, egui_mineral::semantic::KeySalt)]
 enum NodeAction {
     Details,
     Delete,
@@ -289,10 +289,9 @@ fn tree(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     for (key, row) in r.rows.iter() {
         if Menu::context_requested(rt, row) {
             let menu = Menu::new(("tree-menu", *key), "Node actions")
-                .item(MenuItem::new("Details").key(NodeAction::Details))
-                .item(MenuItem::new("Delete").key(NodeAction::Delete));
-            let clicked = menu.show_context(rt, row).clicked;
-            match clicked.as_ref().and_then(Clicked::key::<NodeAction>) {
+                .item(NodeAction::Details, "Details")
+                .item(NodeAction::Delete, "Delete");
+            match menu.show_context(rt, row).clicked {
                 Some(NodeAction::Details) => shared.toast(format!("Node {key}")),
                 Some(NodeAction::Delete) => remove_node(&mut s.tree, *key),
                 None => {}

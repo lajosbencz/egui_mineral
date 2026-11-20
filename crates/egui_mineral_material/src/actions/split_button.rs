@@ -11,7 +11,7 @@ use std::f32::consts::PI;
 use egui::{KeyboardShortcut, Response, vec2};
 use egui_mineral::widget::Availability;
 use egui_mineral::{
-    action::Clicked,
+    action::{ActionValue, NoAction},
     layout::{Constraints, Measure, MinTarget},
     semantic::{Role, SemanticNode, StableId},
     widget::{MineralWidget, WidgetFrame, WidgetResponse},
@@ -82,13 +82,13 @@ fn metrics(size: Size) -> Metrics {
 /// Result of [`SplitButton::show`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct SplitButtonResponse {
+pub struct SplitButtonResponse<A = NoAction> {
     /// Leading (main) button response.
     pub response: Response,
     /// Main button clicked this frame.
     pub leading_clicked: bool,
-    /// Clicked menu item, as [`MenuResponse::clicked`](crate::selection::MenuResponse::clicked).
-    pub clicked: Option<Clicked>,
+    /// Value of the clicked menu item, as [`MenuResponse::clicked`](crate::selection::MenuResponse::clicked).
+    pub clicked: Option<A>,
     /// Menu state after this frame.
     pub open: bool,
 }
@@ -96,11 +96,11 @@ pub struct SplitButtonResponse {
 /// M3 Expressive split button. The trailing part opens `menu`; while open it turns into a
 /// circle and its chevron flips.
 #[must_use = "call .show(..)"]
-pub struct SplitButton {
+pub struct SplitButton<A = NoAction> {
     salt: KeyedSalt,
     label: String,
     icon: Option<Icon>,
-    menu: Menu,
+    menu: Menu<A>,
     menu_label: Option<String>,
     variant: ContainerVariant,
     size: Size,
@@ -108,11 +108,11 @@ pub struct SplitButton {
     shortcut: Option<KeyboardShortcut>,
 }
 
-egui_mineral::kit::opaque_debug!(SplitButton);
+egui_mineral::kit::opaque_debug!(SplitButton<A>);
 
-impl SplitButton {
+impl<A: ActionValue> SplitButton<A> {
     /// `label` is the main button text; `menu` opens from the trailing button; agent key prefix `<id_salt>`.
-    pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, menu: Menu) -> Self {
+    pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, menu: Menu<A>) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
             salt: id_salt,
@@ -168,7 +168,7 @@ impl SplitButton {
     }
 
     /// Paints both parts and the menu while open.
-    pub fn show(self, ui: &mut MineralUi<'_, Material>) -> SplitButtonResponse {
+    pub fn show(self, ui: &mut MineralUi<'_, Material>) -> SplitButtonResponse<A> {
         let rt = ui.rt();
         let mut m = metrics(self.size);
         // The default size is dense down to its glyphs with padding, like `IconButton`.

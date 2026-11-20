@@ -20,7 +20,7 @@ fn preludes_glob_with_egui() {
         |ui: &mut MineralUi<'_, Material>, b: &mut Bound| {
             ui.add(Label::new("egui"));
             MenuStrip::new("strip")
-                .menu(Menu::new("file", "File").item(MenuItem::new("Open")))
+                .menu(Menu::new("file", "File").item(0, MenuItem::new("Open")))
                 .show(ui);
             ui.mineral(
                 PushButton::new("push", "Push")

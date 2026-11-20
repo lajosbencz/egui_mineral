@@ -6,7 +6,6 @@ use egui_mineral::select::ItemKey;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::MineralUi;
 use egui_mineral::{
-    action::Clicked,
     focus::{self, RovingFocus, TabStop},
     kit::choice::Choice,
     layout::{Axis, Constraints},
@@ -28,7 +27,7 @@ use crate::{
 };
 use egui_mineral::select::SelectionResponse;
 
-/// Entry of a [`ButtonGroup`].
+/// Button of a [`ButtonGroup`]; the group pairs it with its value. A label converts.
 #[derive(Clone, Debug)]
 #[must_use]
 pub struct ButtonGroupItem {
@@ -37,12 +36,11 @@ pub struct ButtonGroupItem {
     icon: Option<Icon>,
     disabled: bool,
     salt: Option<egui_mineral::semantic::KeyedSalt>,
-    action_key: Option<egui_mineral::action::ActionKey>,
 }
 
 impl ButtonGroupItem {
     crate::widget::setters! {
-        /// Default the index.
+        /// Default the item's value.
         item_salt
     }
 
@@ -54,12 +52,7 @@ impl ButtonGroupItem {
             icon: None,
             disabled: false,
             salt: None,
-            action_key: None,
         }
-    }
-
-    crate::widget::setters! {
-        action_key
     }
 
     /// `false` with an [`icon`](Self::icon) makes an icon-only button; the label stays for
@@ -85,8 +78,8 @@ impl ButtonGroupItem {
 pub struct ButtonGroupResponse<K> {
     /// Toggle outcome of a [`ButtonGroup::multi`] group.
     pub selection: Option<SelectionResponse<K>>,
-    /// Button clicked this frame, with its [`ButtonGroupItem::key`].
-    pub clicked: Option<Clicked>,
+    /// Value of the button clicked this frame.
+    pub clicked: Option<K>,
 }
 
 /// MD3 button group types.
@@ -106,7 +99,7 @@ pub enum ButtonGroupVariant {
 pub struct ButtonGroup<'a, K> {
     salt: KeyedSalt,
     label: String,
-    items: Vec<ButtonGroupItem>,
+    items: Vec<(K, ButtonGroupItem)>,
     connected: bool,
     size: Option<Size>,
     button_variant: ContainerVariant,
@@ -115,46 +108,32 @@ pub struct ButtonGroup<'a, K> {
     disabled: bool,
 }
 
-impl ButtonGroup<'_, core::convert::Infallible> {
+impl<'a, K: ItemKey> ButtonGroup<'a, K> {
     /// Click-only buttons; `label` is the group's accessible name; item agent keys are `<id_salt>-<item>-button`,
-    /// `<item>` the item's `salt(..)`, else its index.
+    /// `<item>` the item's `salt(..)`, else its value.
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>) -> Self {
         Self::with(id_salt.into(), label, None)
     }
 
-    /// Appends one button.
-    pub fn item(mut self, item: impl Into<ButtonGroupItem>) -> Self {
-        self.items.push(item.into());
-        self
-    }
-
-    /// Appends buttons; labels convert into [`ButtonGroupItem`].
-    pub fn items(mut self, items: impl IntoIterator<Item = impl Into<ButtonGroupItem>>) -> Self {
-        self.items.extend(items.into_iter().map(Into::into));
-        self
-    }
-}
-
-impl<'a, K: ItemKey> ButtonGroup<'a, K> {
-    /// Toggle buttons whose values `selection` holds; a [`Selection::single`] makes a radio group. Add the
-    /// buttons with [`Self::toggle`].
+    /// Toggle buttons whose values `selection` holds; a [`Selection::single`] makes a radio group.
     pub fn multi(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selection: &'a mut Selection<K>) -> Self {
         Self::with(id_salt.into(), label, Some(Choice::multi(selection)))
     }
 
-    /// Appends one toggle button carrying `value`.
-    pub fn toggle(mut self, value: K, item: impl Into<ButtonGroupItem>) -> Self {
+    /// Appends the button carrying `value`: reported in [`ButtonGroupResponse::clicked`], toggled in a
+    /// [`Self::multi`] group.
+    pub fn item(mut self, value: K, item: impl Into<ButtonGroupItem>) -> Self {
         if let Some(c) = &mut self.choice {
-            c.push(value);
+            c.push(value.clone());
         }
-        self.items.push(item.into());
+        self.items.push((value, item.into()));
         self
     }
 
-    /// Appends `(value, button)` pairs.
-    pub fn toggles(mut self, items: impl IntoIterator<Item = (K, impl Into<ButtonGroupItem>)>) -> Self {
+    /// Appends `(value, button)` pairs; see [`Self::item`].
+    pub fn items(mut self, items: impl IntoIterator<Item = (K, impl Into<ButtonGroupItem>)>) -> Self {
         for (value, item) in items {
-            self = self.toggle(value, item);
+            self = self.item(value, item);
         }
         self
     }
@@ -210,12 +189,8 @@ impl<'a, K: ItemKey> ButtonGroup<'a, K> {
         disabled
     }
 
-    fn button(&self, i: usize, item: &ButtonGroupItem) -> PushButton<'static> {
-        // Toggle items are keyed by value, click-only items by position.
-        let own = match self.choice.as_ref().and_then(|c| c.value(i)) {
-            Some(value) => crate::widget::item_salt(&self.salt, item.salt.as_ref(), None, value),
-            None => crate::widget::item_salt(&self.salt, item.salt.as_ref(), None, i),
-        };
+    fn button(&self, i: usize, value: &K, item: &ButtonGroupItem) -> PushButton<'static> {
+        let own = crate::widget::action_salt(&self.salt, item.salt.as_ref(), None, value);
         let key = StableId::of(&own, "button");
         let mut b = PushButton::new(own, item.label.clone())
             .agent_key(key)
@@ -297,13 +272,13 @@ impl<'a, K: ItemKey> ButtonGroup<'a, K> {
         let pressed_key = id.with("pressed");
         let last_pressed = Option::<usize>::load(ctx, pressed_key);
         let len = self.items.len();
-        let enabled = |i: usize| !self.disabled && !self.items[i].disabled;
+        let enabled = |i: usize| !self.disabled && !self.items[i].1.disabled;
 
         let mut buttons: Vec<PushButton> = self
             .items
             .iter()
             .enumerate()
-            .map(|(i, it)| self.button(i, it))
+            .map(|(i, (v, it))| self.button(i, v, it))
             .collect();
         // Selection groups (radio or toggle) are one Tab stop with arrow roving; plain click groups keep a
         // stop per button, as in a standard APG button row.
@@ -376,7 +351,7 @@ impl<'a, K: ItemKey> ButtonGroup<'a, K> {
         });
         ButtonGroupResponse {
             selection,
-            clicked: crate::widget::clicked(&self.items, clicked, |i| i.action_key.as_ref()),
+            clicked: clicked.and_then(|i| self.items.get(i)).map(|(v, _)| v.clone()),
         }
     }
 

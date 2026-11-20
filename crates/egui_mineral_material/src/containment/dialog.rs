@@ -3,7 +3,8 @@ use crate::MaterialExt;
 use crate::Rt;
 use crate::msg;
 use egui::{Align, Color32, Frame, Id, Layout, Margin, Rangef, Rect, Sense, Ui, UiBuilder, pos2, vec2};
-use egui_mineral::action::Clicked;
+use egui_mineral::action::{self, ActionValue, NoAction, Widen};
+use egui_mineral::select::ItemKey;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::MineralUi;
 use egui_mineral::{
@@ -221,7 +222,7 @@ macro_rules! picker_label_setters {
 }
 pub(crate) use picker_label_setters;
 
-/// Action button of a [`Dialog`].
+/// Action button of a [`Dialog`]; the dialog pairs it with the app value it reports. A label converts.
 #[derive(Clone, Debug)]
 #[must_use]
 pub struct DialogAction {
@@ -229,12 +230,11 @@ pub struct DialogAction {
     mnemonic: Option<Mnemonic>,
     disabled: bool,
     salt: Option<egui_mineral::semantic::KeyedSalt>,
-    action_key: Option<egui_mineral::action::ActionKey>,
 }
 
 impl DialogAction {
     crate::widget::setters! {
-        /// Default the index.
+        /// Default the action's value.
         item_salt
     }
 
@@ -245,12 +245,7 @@ impl DialogAction {
             mnemonic: None,
             disabled: false,
             salt: None,
-            action_key: None,
         }
-    }
-
-    crate::widget::setters! {
-        action_key
     }
 
     /// Alt+letter activates the action while the dialog is the topmost modal.
@@ -275,14 +270,14 @@ impl DialogAction {
 /// MD3 basic dialog (Compose `AlertDialog`); modal. [`Dialog::full_screen`] builds the full-screen kind.
 #[derive(Clone, Debug)]
 #[must_use = "call .show_modal(..)"]
-pub struct Dialog {
+pub struct Dialog<A = NoAction> {
     salt: KeyedSalt,
     id: Id,
     headline: String,
     icon: Option<Icon>,
     supporting: Option<String>,
-    actions: Vec<DialogAction>,
-    default_action: Option<usize>,
+    actions: Vec<(A, DialogAction)>,
+    default_action: Option<A>,
     width: Rangef,
     resizable: bool,
 }
@@ -290,18 +285,18 @@ pub struct Dialog {
 /// Result of [`Dialog::show_modal`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct DialogResponse<R> {
+pub struct DialogResponse<R, A = NoAction> {
     /// `None` while closed.
     pub response: Option<egui::Response>,
     /// Output of the content closure; `None` while closed.
     pub inner: Option<R>,
-    /// Clicked action, with its [`DialogAction::key`].
-    pub clicked: Option<Clicked>,
+    /// Value of the clicked action.
+    pub clicked: Option<A>,
     /// Why it closed without an action.
     pub dismissed: Option<Dismiss>,
 }
 
-impl<R> DialogResponse<R> {
+impl<R, A> DialogResponse<R, A> {
     fn closed() -> Self {
         Self {
             response: None,
@@ -386,12 +381,12 @@ impl<W: Clone + Send + Sync + 'static> PickerModal<'_, W> {
     }
 }
 
-fn run_modal<R>(
+fn run_modal<R, A>(
     id: Id,
     ctx: &egui::Context,
     open: &mut bool,
-    run: impl FnOnce(&mut ModalFocus) -> DialogResponse<R>,
-) -> DialogResponse<R> {
+    run: impl FnOnce(&mut ModalFocus) -> DialogResponse<R, A>,
+) -> DialogResponse<R, A> {
     ModalFocus::scope(ctx, focus_id(id), open, None, |focus, open| {
         if !*open {
             return DialogResponse::closed();
@@ -421,6 +416,14 @@ impl Dialog {
         }
     }
 
+    /// Full-screen dialog: a top app bar with a close button, the headline and one confirm action.
+    pub fn full_screen(id_salt: impl Into<KeyedSalt>, headline: impl Into<String>) -> FullScreenDialog {
+        FullScreenDialog::new(id_salt, headline)
+    }
+}
+
+impl<A: ActionValue> Dialog<A> {
+
     /// End-edge handle resizes the dialog within [`Self::width`] (arrow keys when focused);
     /// the chosen width persists in egui memory and replaces content sizing until a double click
     /// on the handle. Default `false`.
@@ -437,11 +440,6 @@ impl Dialog {
         let min = egui_mineral::kit::sanitize::at_least(w.min.min(w.max), 0.0.., "width");
         self.width = Rangef::new(min, w.max.max(w.min).max(min));
         self
-    }
-
-    /// Full-screen dialog: a top app bar with a close button, the headline and one confirm action.
-    pub fn full_screen(id_salt: impl Into<KeyedSalt>, headline: impl Into<String>) -> FullScreenDialog {
-        FullScreenDialog::new(id_salt, headline)
     }
 
     crate::widget::setters! {
@@ -462,25 +460,43 @@ impl Dialog {
     }
 
     fn action_salt(&self, index: usize) -> KeyedSalt {
-        let own = self.actions.get(index).and_then(|a| a.salt.as_ref());
-        crate::widget::item_salt(&self.salt, own, None, index).child("action")
+        self.actions.get(index).map_or_else(
+            || self.salt.child("action"),
+            |(v, a)| crate::widget::action_salt(&self.salt, a.salt.as_ref(), None, v).child("action"),
+        )
     }
 
-    /// Appends one text button to the action row.
-    pub fn action(mut self, action: impl Into<DialogAction>) -> Self {
-        self.actions.push(action.into());
-        self
+    /// Appends the text button reporting `value` to the action row.
+    pub fn action<B: ItemKey>(self, value: B, action: impl Into<DialogAction>) -> Dialog<B>
+    where
+        A: Widen<B>,
+    {
+        self.actions([(value, action)])
     }
 
-    /// Appends text buttons; labels convert into [`DialogAction`].
-    pub fn actions(mut self, actions: impl IntoIterator<Item = impl Into<DialogAction>>) -> Self {
-        self.actions.extend(actions.into_iter().map(Into::into));
-        self
+    /// Appends `(value, text button)` pairs; labels convert into [`DialogAction`].
+    pub fn actions<B: ItemKey>(self, actions: impl IntoIterator<Item = (B, impl Into<DialogAction>)>) -> Dialog<B>
+    where
+        A: Widen<B>,
+    {
+        let mut dialog = Dialog {
+            salt: self.salt,
+            id: self.id,
+            headline: self.headline,
+            icon: self.icon,
+            supporting: self.supporting,
+            actions: action::widen(self.actions),
+            default_action: self.default_action.map(Widen::widen),
+            width: self.width,
+            resizable: self.resizable,
+        };
+        dialog.actions.extend(actions.into_iter().map(|(v, a)| (v, a.into())));
+        dialog
     }
 
-    /// Action that Enter triggers, see [`Self::show_modal`]; an out-of-range index becomes the last action.
-    pub fn default_action(mut self, default_action: usize) -> Self {
-        self.default_action = Some(default_action);
+    /// Value of the action that Enter triggers, see [`Self::show_modal`]; a value of no action sets none.
+    pub fn default_action(mut self, value: A) -> Self {
+        self.default_action = Some(value);
         self
     }
 
@@ -495,23 +511,25 @@ impl Dialog {
         rt: &Rt,
         open: &mut bool,
         add: impl FnOnce(&mut MineralUi<'_, Material>) -> R,
-    ) -> DialogResponse<R> {
+    ) -> DialogResponse<R, A> {
         let ctx = rt.ctx();
         self.id = kit::scoped_id(rt.core(), self.id);
         run_modal(self.id, ctx, open, |focus| self.run(rt, focus, add))
     }
 
+    fn default_index(&self) -> Option<usize> {
+        let value = self.default_action.as_ref()?;
+        self.actions.iter().position(|(v, _)| v == value)
+    }
+
     fn run<R>(
-        mut self,
+        self,
         rt: &Rt,
         focus: &mut ModalFocus,
         add: impl FnOnce(&mut MineralUi<'_, Material>) -> R,
-    ) -> DialogResponse<R> {
+    ) -> DialogResponse<R, A> {
         use defaults::dialog as d;
         let ctx = rt.ctx();
-        self.default_action = self
-            .default_action
-            .and_then(|i| egui_mineral::kit::sanitize::index(i, self.actions.len(), "default_action"));
         let t = rt.tokens();
         let mut action = None;
         let size_id = self.id.with("mineral::dialog_size");
@@ -561,15 +579,15 @@ impl Dialog {
             }
             if !self.actions.is_empty() {
                 let initial = self
-                    .default_action
-                    .or_else(|| self.actions.iter().position(|a| !a.disabled));
+                    .default_index()
+                    .or_else(|| self.actions.iter().position(|(_, a)| !a.disabled));
                 let row;
                 (action, row) = text_actions_end(
                     &mut rt.ui(ui),
                     self.actions
                         .iter()
                         .enumerate()
-                        .map(|(idx, a)| (idx, a.button(self.action_salt(idx))))
+                        .map(|(idx, (_, a))| (idx, a.button(self.action_salt(idx))))
                         .collect(),
                     |row| {
                         if let Some(i) = initial {
@@ -606,7 +624,7 @@ impl Dialog {
         DialogResponse {
             response: Some(r.response),
             inner: Some(r.inner),
-            clicked: crate::widget::clicked(&self.actions, action, |a| a.action_key.as_ref()),
+            clicked: action.and_then(|i| self.actions.get(i)).map(|(v, _)| v.clone()),
             dismissed,
         }
     }
@@ -675,8 +693,8 @@ impl Dialog {
     }
 
     fn default_on_enter(&self, ui: &Ui) -> Option<usize> {
-        let i = self.default_action?;
-        (self.actions.get(i).is_some_and(|a| !a.disabled) && kit::layer::default_action_pressed(ui)).then_some(i)
+        let i = self.default_index()?;
+        (self.actions.get(i).is_some_and(|(_, a)| !a.disabled) && kit::layer::default_action_pressed(ui)).then_some(i)
     }
 }
 
@@ -684,12 +702,12 @@ impl Dialog {
 /// over the content; modal.
 #[derive(Clone, Debug)]
 #[must_use = "call .show_modal(..)"]
-pub struct FullScreenDialog {
+pub struct FullScreenDialog<A = NoAction> {
     salt: KeyedSalt,
     id: Id,
     headline: String,
     supporting: Option<String>,
-    confirm: Option<DialogAction>,
+    confirm: Option<(A, DialogAction)>,
     enter_confirms: bool,
 }
 
@@ -705,6 +723,9 @@ impl FullScreenDialog {
             enter_confirms: false,
         }
     }
+}
+
+impl<A: ActionValue> FullScreenDialog<A> {
 
     crate::widget::setters! {
         /// Replaces the `<id_salt>` key prefix.
@@ -717,10 +738,16 @@ impl FullScreenDialog {
         self
     }
 
-    /// Text button at the end of the header; reported in `clicked` with index 0 and its [`DialogAction::key`].
-    pub fn confirm(mut self, action: impl Into<DialogAction>) -> Self {
-        self.confirm = Some(action.into());
-        self
+    /// Text button at the end of the header, reporting `value` in `clicked`.
+    pub fn confirm<B: ItemKey>(self, value: B, action: impl Into<DialogAction>) -> FullScreenDialog<B> {
+        FullScreenDialog {
+            salt: self.salt,
+            id: self.id,
+            headline: self.headline,
+            supporting: self.supporting,
+            confirm: Some((value, action.into())),
+            enter_confirms: self.enter_confirms,
+        }
     }
 
     /// Unmodified Enter triggers an enabled confirm action, see [`Dialog::show_modal`].
@@ -736,14 +763,14 @@ impl FullScreenDialog {
         rt: &Rt,
         open: &mut bool,
         add: impl FnOnce(&mut MineralUi<'_, Material>) -> R,
-    ) -> DialogResponse<R> {
+    ) -> DialogResponse<R, A> {
         let ctx = rt.ctx();
         self.id = kit::scoped_id(rt.core(), self.id);
         run_modal(self.id, ctx, open, |focus| self.run(rt, focus, add))
     }
 
     fn confirm_on_enter(&self, ui: &Ui) -> Option<usize> {
-        let enabled = self.confirm.as_ref().is_some_and(|a| !a.disabled);
+        let enabled = self.confirm.as_ref().is_some_and(|(_, a)| !a.disabled);
         (self.enter_confirms && enabled && kit::layer::default_action_pressed(ui)).then_some(0)
     }
 
@@ -752,7 +779,7 @@ impl FullScreenDialog {
         rt: &Rt,
         focus: &mut ModalFocus,
         add: impl FnOnce(&mut MineralUi<'_, Material>) -> R,
-    ) -> DialogResponse<R> {
+    ) -> DialogResponse<R, A> {
         use defaults::dialog as d;
         let ctx = rt.ctx();
         let t = rt.tokens();
@@ -809,7 +836,7 @@ impl FullScreenDialog {
         DialogResponse {
             response: Some(r.response),
             inner: Some(r.inner),
-            clicked: action.map(|i| Clicked::new(i, self.confirm.as_ref().and_then(|a| a.action_key.clone()))),
+            clicked: action.and(self.confirm.as_ref()).map(|(v, _)| v.clone()),
             dismissed,
         }
     }
@@ -834,7 +861,7 @@ impl FullScreenDialog {
         let mut action = None;
         let title_start = app_bar::LEADING_SPACE + slot + bar::TITLE_HORIZONTAL_PADDING;
         let mut title_end = app_bar::TRAILING_SPACE + bar::TITLE_HORIZONTAL_PADDING;
-        if let Some(a) = &self.confirm {
+        if let Some((v, a)) = &self.confirm {
             // The end half of the bar, inside the trailing space.
             let w = head.width() / 2.0 - app_bar::TRAILING_SPACE;
             let x0 = dir
@@ -843,7 +870,8 @@ impl FullScreenDialog {
             let slot = Rect::from_min_size(pos2(x0, head.top()), vec2(w, head.height()));
             let layout = dir.reversed().row();
             let resp = egui_mineral::layout::child(&mut rt.ui(ui), "confirm", slot, layout, |ui| {
-                ui.mineral(a.button(self.salt.child((0, "action"))).variant(ButtonVariant::Text))
+                let own = crate::widget::action_salt(&self.salt, a.salt.as_ref(), None, v).child("action");
+                ui.mineral(a.button(own).variant(ButtonVariant::Text))
             });
             if resp.inner.clicked() {
                 action = Some(0);

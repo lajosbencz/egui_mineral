@@ -6,6 +6,7 @@ use crate::adaptive::Density;
 use egui_mineral::i18n::I18n;
 use egui_mineral::kit::state::TempState;
 use egui_mineral::layout::Edge;
+use egui_mineral::select::ItemKey;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::MineralUi;
 use std::time::Duration;
@@ -16,7 +17,7 @@ use egui::{
 };
 use egui_mineral::widget::Availability;
 use egui_mineral::{
-    action::Clicked,
+    action::{ActionValue, NoAction, Widen},
     anchor::{Align, Anchor, SafeTriangle, Side, Surroundings},
     focus::{self, Modality, RovingFocus, Typeahead},
     i18n::Direction,
@@ -218,7 +219,7 @@ impl From<KeyboardShortcut> for MenuTrailing {
     }
 }
 
-/// Entry of a [`Menu`].
+/// Item of a [`Menu`]; the menu pairs it with the app value it reports. A label converts.
 #[must_use]
 pub struct MenuItem {
     label: String,
@@ -226,12 +227,10 @@ pub struct MenuItem {
     leading: Option<Leading>,
     trailing: Option<MenuTrailing>,
     command: Option<ActionId>,
-    action_key: Option<egui_mineral::action::ActionKey>,
     mnemonic: Option<Mnemonic>,
     tooltip: Option<String>,
     selected: bool,
     disabled: bool,
-    submenu: Vec<Entry>,
     salt: Option<egui_mineral::semantic::KeyedSalt>,
 }
 
@@ -239,7 +238,7 @@ egui_mineral::kit::opaque_debug!(MenuItem);
 
 impl MenuItem {
     crate::widget::setters! {
-        /// Default the [`Self::command`] action, else the index; [`Self::agent_key`] overrides only the key.
+        /// Default the [`Self::command`] action, else the item's value; [`Self::agent_key`] overrides only the key.
         item_salt
     }
 
@@ -251,18 +250,12 @@ impl MenuItem {
             leading: None,
             trailing: None,
             command: None,
-            action_key: None,
             mnemonic: None,
             tooltip: None,
             selected: false,
             disabled: false,
             salt: None,
-            submenu: Vec::new(),
         }
-    }
-
-    crate::widget::setters! {
-        action_key
     }
 
     /// Overrides the `<menu-key>-<item>-menu-item` default (`<item>` from [`Self::salt`]).
@@ -313,12 +306,15 @@ impl MenuItem {
         disabled
     }
 
-    /// Nested menu opened from this item; `build` gets an empty [`Menu`].
-    pub fn submenu(mut self, build: impl FnOnce(Menu) -> Menu) -> Self {
-        self.submenu = build(Menu::new("submenu", "")).resolved().entries;
-        self
-    }
+}
 
+struct Row<A> {
+    value: A,
+    item: MenuItem,
+    submenu: Vec<Entry<A>>,
+}
+
+impl<A> Row<A> {
     fn has_submenu(&self) -> bool {
         !self.submenu.is_empty()
     }
@@ -328,40 +324,57 @@ impl MenuItem {
     clippy::large_enum_variant,
     reason = "entries are mostly items; boxing allocates per item per pass"
 )]
-enum Entry {
-    Item(MenuItem),
+enum Entry<A> {
+    Item(Row<A>),
     Divider,
     Group(Option<String>),
 }
 
-fn disable_all(entries: &mut [Entry]) {
-    for e in entries {
-        if let Entry::Item(i) = e {
-            i.disabled = true;
-            disable_all(&mut i.submenu);
+impl<A> Entry<A> {
+    fn widen<B>(self) -> Entry<B>
+    where
+        A: Widen<B>,
+    {
+        match self {
+            Self::Item(r) => Entry::Item(Row {
+                value: r.value.widen(),
+                item: r.item,
+                submenu: r.submenu.into_iter().map(Entry::widen).collect(),
+            }),
+            Self::Divider => Entry::Divider,
+            Self::Group(l) => Entry::Group(l),
         }
     }
 }
 
-fn item_at<'e>(entries: &'e [Entry], target: usize, next: &mut usize) -> Option<&'e MenuItem> {
+fn disable_all<A>(entries: &mut [Entry<A>]) {
     for e in entries {
-        let Entry::Item(i) = e else { continue };
+        if let Entry::Item(r) = e {
+            r.item.disabled = true;
+            disable_all(&mut r.submenu);
+        }
+    }
+}
+
+fn value_at<'e, A>(entries: &'e [Entry<A>], target: usize, next: &mut usize) -> Option<&'e A> {
+    for e in entries {
+        let Entry::Item(r) = e else { continue };
         if *next == target {
-            return Some(i);
+            return Some(&r.value);
         }
         *next += 1;
-        if let Some(found) = item_at(&i.submenu, target, next) {
+        if let Some(found) = value_at(&r.submenu, target, next) {
             return Some(found);
         }
     }
     None
 }
 
-fn count(entries: &[Entry]) -> usize {
+fn count<A>(entries: &[Entry<A>]) -> usize {
     entries
         .iter()
         .map(|e| match e {
-            Entry::Item(i) => 1 + count(&i.submenu),
+            Entry::Item(r) => 1 + count(&r.submenu),
             _ => 0,
         })
         .sum()
@@ -383,12 +396,11 @@ struct Geometry {
 /// Result of [`Menu::show`], [`Menu::show_context`] and [`Menu::show_at`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct MenuResponse {
+pub struct MenuResponse<A = NoAction> {
     /// Menu surface; `None` while closed.
     pub response: Option<Response>,
-    /// Clicked item without a [`MenuItem::command`], with its [`MenuItem::key`]; command items fire their
-    /// command instead.
-    pub clicked: Option<Clicked>,
+    /// Value of the clicked item without a [`MenuItem::command`]; command items fire their command instead.
+    pub clicked: Option<A>,
     /// Why it closed without an activation.
     pub dismissed: Option<Dismiss>,
 }
@@ -444,20 +456,20 @@ impl Default for MenuState {
     }
 }
 
-/// MD3 menu. Item indices returned by the `show*` methods count every item in declaration
-/// order, nested submenu items included (submenu parents do not activate).
+/// MD3 menu of `(value, item)` rows; the `show*` methods report the value of the activated item, nested
+/// submenu items included (submenu parents do not activate).
 #[must_use = "call .show(..)"]
-pub struct Menu {
+pub struct Menu<A = NoAction> {
     salt: KeyedSalt,
     pub(crate) label: String,
     pub(crate) mnemonic: Option<Mnemonic>,
-    entries: Vec<Entry>,
+    entries: Vec<Entry<A>>,
     style: MenuColors,
     emit_anchor: bool,
     pub(crate) disabled: bool,
 }
 
-egui_mineral::kit::opaque_debug!(Menu);
+egui_mineral::kit::opaque_debug!(Menu<A>);
 
 impl Menu {
     /// `label` is the accessible name of the menu; agent key prefix `<id_salt>`.
@@ -471,6 +483,50 @@ impl Menu {
             emit_anchor: true,
             disabled: false,
         }
+    }
+
+    /// Dropdown opened by [`Self::show`] on `anchor` is open.
+    pub fn is_open(ctx: &egui::Context, anchor: &Response) -> bool {
+        MenuState::try_load(ctx, dropdown_id(anchor)).is_some_and(|st| st.open)
+    }
+
+    /// Context menu opened by [`Self::show_context`] on `target` is open.
+    pub fn is_context_open(ctx: &egui::Context, target: &Response) -> bool {
+        MenuState::try_load(ctx, context_id(target)).is_some_and(|st| st.open)
+    }
+
+    /// [`Self::show_context`] on `target` is needed this pass: open, or opening (secondary click,
+    /// long press, Shift+F10, Menu key). Lets per-row context menus be built only when used:
+    /// `if Menu::context_requested(rt, &r) { menu.show_context(rt, &r); }`. Item shortcuts of a menu
+    /// built this way are bound only while it is shown.
+    pub fn context_requested(rt: &Rt, target: &Response) -> bool {
+        Self::is_context_open(&target.ctx, target) || Self::context_trigger(rt.core(), target, false).is_some()
+    }
+}
+
+impl<A: ActionValue> Menu<A> {
+    pub(crate) fn widen<B>(self) -> Menu<B>
+    where
+        A: Widen<B>,
+    {
+        Menu {
+            salt: self.salt,
+            label: self.label,
+            mnemonic: self.mnemonic,
+            entries: self.entries.into_iter().map(Entry::widen).collect(),
+            style: self.style,
+            emit_anchor: self.emit_anchor,
+            disabled: self.disabled,
+        }
+    }
+
+    pub(crate) fn push(mut self, value: A, item: impl Into<MenuItem>) -> Self {
+        self.entries.push(Entry::Item(Row {
+            value,
+            item: item.into(),
+            submenu: Vec::new(),
+        }));
+        self
     }
 
     crate::widget::setters! {
@@ -496,16 +552,41 @@ impl Menu {
         self
     }
 
-    /// Appends one item.
-    pub fn item(mut self, item: impl Into<MenuItem>) -> Self {
-        self.entries.push(Entry::Item(item.into()));
-        self
+    /// Appends the item reporting `value`.
+    pub fn item<B: ItemKey>(self, value: B, item: impl Into<MenuItem>) -> Menu<B>
+    where
+        A: Widen<B>,
+    {
+        self.widen().push(value, item)
     }
 
-    /// Appends items.
-    pub fn items(mut self, items: impl IntoIterator<Item = impl Into<MenuItem>>) -> Self {
-        self.entries.extend(items.into_iter().map(|i| Entry::Item(i.into())));
-        self
+    /// Appends `(value, item)` pairs.
+    pub fn items<B: ItemKey>(self, items: impl IntoIterator<Item = (B, impl Into<MenuItem>)>) -> Menu<B>
+    where
+        A: Widen<B>,
+    {
+        items.into_iter().fold(self.widen(), |m, (v, i)| m.push(v, i))
+    }
+
+    /// Appends `item` opening a nested menu; `build` fills an empty menu of the same values. `value` identifies the
+    /// parent row, which does not activate.
+    pub fn submenu<B: ItemKey>(
+        self,
+        value: B,
+        item: impl Into<MenuItem>,
+        build: impl FnOnce(Menu<B>) -> Menu<B>,
+    ) -> Menu<B>
+    where
+        A: Widen<B>,
+    {
+        let sub = build(Menu::new("submenu", "").widen()).resolved().entries;
+        let mut menu = self.widen();
+        menu.entries.push(Entry::Item(Row {
+            value,
+            item: item.into(),
+            submenu: sub,
+        }));
+        menu
     }
 
     /// Divider between items.
@@ -537,7 +618,7 @@ impl Menu {
         self
     }
 
-    fn width(&self, rt: &Rt, density: Density, entries: &[Entry]) -> f32 {
+    fn width(&self, rt: &Rt, density: Density, entries: &[Entry<A>]) -> f32 {
         use defaults::menu as d;
         let ctx = rt.ctx();
         let m = self.style.metrics(density);
@@ -548,16 +629,16 @@ impl Menu {
         let rows: Vec<_> = entries
             .iter()
             .filter_map(|e| match e {
-                Entry::Item(i) => Some(i),
+                Entry::Item(r) => Some((&r.item, r.has_submenu())),
                 _ => None,
             })
-            .map(|i| {
+            .map(|(i, has_submenu)| {
                 let lead = if i.leading.is_some() || (i.selected && self.style.expressive()) {
                     icon
                 } else {
                     0.0
                 };
-                let (trail, shortcut) = match (&i.trailing, i.has_submenu()) {
+                let (trail, shortcut) = match (&i.trailing, has_submenu) {
                     (Some(MenuTrailing::Shortcut(s)), _) => (m.gap, Some(job(&shortcut::label(ctx, s), None))),
                     (Some(MenuTrailing::Icon(_)), _) | (None, true) => (icon, None),
                     (None, false) => (0.0, None),
@@ -583,20 +664,21 @@ impl Menu {
         Self::bind_level(ctx, scope, &self.entries)
     }
 
-    fn bind_level(ctx: &Context, scope: Scope, entries: &[Entry]) -> bool {
+    fn bind_level(ctx: &Context, scope: Scope, entries: &[Entry<A>]) -> bool {
         let mut fired = false;
         for entry in entries {
-            let Entry::Item(item) = entry else { continue };
+            let Entry::Item(row) = entry else { continue };
+            let item = &row.item;
             if let Some(command) = &item.command
                 && !item.disabled
-                && !item.has_submenu()
+                && !row.has_submenu()
             {
                 if let Some(MenuTrailing::Shortcut(shortcut)) = item.trailing {
                     shortcut::bind(ctx, scope, shortcut, command);
                 }
                 fired |= shortcut::fired(ctx, command);
             }
-            fired |= Self::bind_level(ctx, scope, &item.submenu);
+            fired |= Self::bind_level(ctx, scope, &row.submenu);
         }
         fired
     }
@@ -609,7 +691,7 @@ impl Menu {
         }
     }
 
-    fn geometry(&self, rt: &Rt, density: Density, entries: &[Entry]) -> Geometry {
+    fn geometry(&self, rt: &Rt, density: Density, entries: &[Entry<A>]) -> Geometry {
         use defaults::menu as d;
         let width = self.width(rt, density, entries);
         let exp = self.style.expressive();
@@ -662,24 +744,6 @@ impl Menu {
         }
     }
 
-    /// Dropdown opened by [`Self::show`] on `anchor` is open.
-    pub fn is_open(ctx: &egui::Context, anchor: &Response) -> bool {
-        MenuState::try_load(ctx, dropdown_id(anchor)).is_some_and(|st| st.open)
-    }
-
-    /// Context menu opened by [`Self::show_context`] on `target` is open.
-    pub fn is_context_open(ctx: &egui::Context, target: &Response) -> bool {
-        MenuState::try_load(ctx, context_id(target)).is_some_and(|st| st.open)
-    }
-
-    /// [`Self::show_context`] on `target` is needed this pass: open, or opening (secondary click,
-    /// long press, Shift+F10, Menu key). Lets per-row context menus be built only when used:
-    /// `if Menu::context_requested(rt, &r) { menu.show_context(rt, &r); }`. Item shortcuts of a menu
-    /// built this way are bound only while it is shown.
-    pub fn context_requested(rt: &Rt, target: &Response) -> bool {
-        Self::is_context_open(&target.ctx, target) || Self::context_trigger(rt.core(), target, false).is_some()
-    }
-
     fn context_trigger(core: &egui_mineral::runtime::Core, target: &Response, consume: bool) -> Option<Rect> {
         let ctx = &target.ctx;
         let layer = target.layer_id;
@@ -718,7 +782,7 @@ impl Menu {
     }
 
     /// Dropdown below `anchor`, toggled by its clicks.
-    pub fn show(self, rt: &Rt, anchor: &Response) -> MenuResponse {
+    pub fn show(self, rt: &Rt, anchor: &Response) -> MenuResponse<A> {
         let this = self.resolved();
         let ctx = anchor.ctx.clone();
         let id = dropdown_id(anchor);
@@ -762,7 +826,7 @@ impl Menu {
     }
 
     /// Context menu at the pointer on secondary click or long press, or below `target` on Shift+F10 or the Menu key.
-    pub fn show_context(self, rt: &Rt, target: &Response) -> MenuResponse {
+    pub fn show_context(self, rt: &Rt, target: &Response) -> MenuResponse<A> {
         let this = self.resolved();
         let ctx = target.ctx.clone();
         let id = context_id(target);
@@ -791,7 +855,7 @@ impl Menu {
     /// [`ToolbarResponse::actions`](crate::navigation::ToolbarResponse::actions) or
     /// `TreeAction::rect`. Closing (an item, Escape, an outside press other than
     /// on `anchor`) clears `open`. State is keyed by the menu's `id_salt` alone, unique per window.
-    pub fn show_at(self, rt: &Rt, anchor: Rect, open: &mut bool) -> MenuResponse {
+    pub fn show_at(self, rt: &Rt, anchor: Rect, open: &mut bool) -> MenuResponse<A> {
         let this = self.resolved();
         let ctx = rt.ctx().clone();
         let id = kit::scoped_id(rt.core(), Id::unique(("mineral::menu_at", this.salt.id_salt())));
@@ -819,13 +883,8 @@ impl Menu {
         }
     }
 
-    pub(crate) fn clicked(&self, index: Option<usize>) -> Option<Clicked> {
-        index.map(|i| {
-            Clicked::new(
-                i,
-                item_at(&self.entries, i, &mut 0).and_then(|item| item.action_key.clone()),
-            )
-        })
+    pub(crate) fn clicked(&self, index: Option<usize>) -> Option<A> {
+        index.and_then(|i| value_at(&self.entries, i, &mut 0).cloned())
     }
 
     pub(crate) fn open(st: &mut MenuState, anchor: Rect, focus: Option<FocusTarget>) {
@@ -836,22 +895,22 @@ impl Menu {
         st.focus = focus.map(|f| (0, f));
     }
 
-    fn level_entries<'e>(&'e self, path: &[usize], level: usize) -> Option<&'e [Entry]> {
-        let mut entries: &[Entry] = &self.entries;
+    fn level_entries<'e>(&'e self, path: &[usize], level: usize) -> Option<&'e [Entry<A>]> {
+        let mut entries: &[Entry<A>] = &self.entries;
         for &e in path.get(..level)? {
             match entries.get(e) {
-                Some(Entry::Item(i)) if i.has_submenu() => entries = &i.submenu,
+                Some(Entry::Item(r)) if r.has_submenu() => entries = &r.submenu,
                 _ => return None,
             }
         }
         Some(entries)
     }
 
-    fn child_base(entries: &[Entry], base: usize, entry: usize) -> usize {
+    fn child_base(entries: &[Entry<A>], base: usize, entry: usize) -> usize {
         base + entries[..entry]
             .iter()
             .map(|e| match e {
-                Entry::Item(i) => 1 + count(&i.submenu),
+                Entry::Item(r) => 1 + count(&r.submenu),
                 _ => 0,
             })
             .sum::<usize>()
@@ -987,7 +1046,7 @@ impl Menu {
         }
     }
 
-    fn paint_level(&self, lr: &mut LevelRun<'_, '_>, ui: &mut MineralUi<'_, Material>, geo: &Geometry, rect: Rect) {
+    fn paint_level(&self, lr: &mut LevelRun<'_, '_, A>, ui: &mut MineralUi<'_, Material>, geo: &Geometry, rect: Rect) {
         let rt = ui.rt();
         let t = lr.fr.t;
         ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
@@ -1052,7 +1111,7 @@ impl Menu {
 
     fn show_row(
         &self,
-        lr: &mut LevelRun<'_, '_>,
+        lr: &mut LevelRun<'_, '_, A>,
         ui: &mut MineralUi<'_, Material>,
         e: usize,
         in_group: InGroup,
@@ -1068,11 +1127,12 @@ impl Menu {
             ..
         } = *lr;
         let ctx = fr.ctx;
-        let Entry::Item(item) = &entries[e] else { return };
+        let Entry::Item(row) = &entries[e] else { return };
+        let item = &row.item;
         let index = Self::child_base(entries, base, e) - 1;
         let resp = ui
             .scope_builder(UiBuilder::new().max_rect(slot), |ui| {
-                let own = crate::widget::item_salt(&self.salt, item.salt.as_ref(), item.command.as_ref(), index);
+                let own = crate::widget::action_salt(&self.salt, item.salt.as_ref(), item.command.as_ref(), &row.value);
                 rt.ui(ui).mineral(MenuRow {
                     salt: own.child("row"),
                     key: item.key.clone().unwrap_or_else(|| StableId::of(&own, "menu-item")),
@@ -1080,7 +1140,7 @@ impl Menu {
                     width: slot.width(),
                     style: self.style,
                     in_group,
-                    expanded: item.has_submenu().then_some(open_child == Some(e)),
+                    expanded: row.has_submenu().then_some(open_child == Some(e)),
                 })
             })
             .inner;
@@ -1097,7 +1157,7 @@ impl Menu {
             shortcut::take_item(ctx, resp.id)
         });
         if resp.clicked() || key_hit {
-            if item.has_submenu() {
+            if row.has_submenu() {
                 lr.st.path.truncate(level);
                 lr.st.path.push(e);
                 lr.st.pending.cancel();
@@ -1116,7 +1176,7 @@ impl Menu {
                     .zip(fr.pointer)
                     .is_some_and(|((s, a), p)| SafeTriangle::new(a, s).contains(p))
             });
-            let want = item.has_submenu().then_some(e);
+            let want = row.has_submenu().then_some(e);
             if want == open_child {
                 lr.st.pending.cancel();
             } else if !toward_child {
@@ -1129,7 +1189,7 @@ impl Menu {
         rt: &Rt,
         fr: &Frame<'_>,
         st: &mut MenuState,
-        lf: &LevelFocus<'_>,
+        lf: &LevelFocus<'_, A>,
         key_level: &mut Option<KeyLevel>,
     ) {
         let ctx = fr.ctx;
@@ -1143,7 +1203,7 @@ impl Menu {
         {
             let selected = enabled
                 .iter()
-                .position(|x| matches!(&entries[x.0], Entry::Item(i) if i.selected));
+                .position(|x| matches!(&entries[x.0], Entry::Item(r) if r.item.selected));
             let start = match pos {
                 FocusTarget::Last => enabled.len().checked_sub(1),
                 FocusTarget::SelectedOrFirst => selected.or((!enabled.is_empty()).then_some(0)),
@@ -1196,7 +1256,7 @@ impl Menu {
             let fwd = fr.dir.forward_key();
             let entries = self.level_entries(&st.path, l).unwrap_or(&[]);
             for key in kit::interact::plain_key_presses(ctx) {
-                let is_parent = matches!(entries.get(entry_of[f]), Some(Entry::Item(i)) if i.has_submenu());
+                let is_parent = matches!(entries.get(entry_of[f]), Some(Entry::Item(r)) if r.has_submenu());
                 match key {
                     k if k == fwd && is_parent => {
                         st.path.truncate(l);
@@ -1299,9 +1359,9 @@ impl<'a> Frame<'a> {
     }
 }
 
-struct LevelRun<'a, 'e> {
+struct LevelRun<'a, 'e, A> {
     fr: &'a Frame<'a>,
-    entries: &'e [Entry],
+    entries: &'e [Entry<A>],
     level: usize,
     base: usize,
     open_child: Option<usize>,
@@ -1312,9 +1372,9 @@ struct LevelRun<'a, 'e> {
 }
 
 #[derive(Clone, Copy)]
-struct LevelFocus<'a> {
+struct LevelFocus<'a, A> {
     level: usize,
-    entries: &'a [Entry],
+    entries: &'a [Entry<A>],
     enabled: &'a [(usize, Id, &'a str)],
 }
 
@@ -1444,7 +1504,7 @@ impl MineralWidget for MenuRow<'_> {
                 None
             }
             Some(MenuTrailing::Icon(glyph)) => Some(glyph),
-            None => item.has_submenu().then_some(match dir {
+            None => self.expanded.is_some().then_some(match dir {
                 Direction::Ltr => ui.icons().arrow_right,
                 Direction::Rtl => ui.icons().arrow_left,
             }),

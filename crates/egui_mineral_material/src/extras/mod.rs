@@ -60,7 +60,7 @@ pub use floating_panel::FloatingPanel;
 pub use image_list::{ImageList, ImageListLayout, ImageListResponse, ImageTile};
 pub use inline::{Kbd, TextLink};
 pub use inline_edit::{InlineEdit, InlineEditOutput};
-pub use menu_strip::{MenuPath, MenuStrip, MenuStripResponse};
+pub use menu_strip::{MenuStrip, MenuStripResponse};
 pub use number_field::{NumberField, NumberFieldOutput};
 pub use otp::{OtpField, OtpFieldOutput};
 pub use pagination::{BreadcrumbItem, Breadcrumbs, BreadcrumbsResponse, Pagination};

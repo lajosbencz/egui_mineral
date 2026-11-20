@@ -4,7 +4,7 @@ use egui_mineral::shortcut;
 use egui_mineral_material::MaterialExt;
 use egui_mineral_material::{
     catalog::Component,
-    extras::{MenuPath, StatusProgress},
+    extras::StatusProgress,
     icons::{
         ICON_ADD, ICON_ARROW_BACK, ICON_BOOKMARK, ICON_CALL_SPLIT, ICON_CONTENT_COPY, ICON_CONTENT_CUT,
         ICON_CONTENT_PASTE, ICON_DELETE, ICON_EDIT, ICON_EXPLORE, ICON_FAVORITE, ICON_FORMAT_BOLD, ICON_FORMAT_ITALIC,
@@ -440,10 +440,10 @@ fn app_bar_overflow(ui: &mut MaterialUi<'_>, shared: &mut Shared) {
         .show(ui);
     if let Some(share) = r.actions.get(&"share") {
         let menu = Menu::new("nav-appbar-share-menu", "Share")
-            .item(MenuItem::new("Mail").leading(ICON_MAIL))
-            .item(MenuItem::new("Copy link").leading(ICON_CONTENT_COPY));
-        if let Some(i) = menu.show(rt, share).clicked {
-            shared.toast(format!("Share via item {}", i.index()));
+            .item("mail", MenuItem::new("Mail").leading(ICON_MAIL))
+            .item("copy link", MenuItem::new("Copy link").leading(ICON_CONTENT_COPY));
+        if let Some(via) = menu.show(rt, share).clicked {
+            shared.toast(format!("Share via {via}"));
         }
     }
     if r.clicked != Some("share") {
@@ -683,45 +683,44 @@ fn command_item(i: usize) -> MenuItem {
     MenuItem::new(*label).command(id).trailing(*key)
 }
 
-fn edit_menu(id: impl Into<KeyedSalt>, s: &State) -> Menu {
-    Menu::new(id, "Edit")
-        .mnemonic('e')
-        .item(command_item(CUT).leading(ICON_CONTENT_CUT).mnemonic('t'))
-        .item(command_item(COPY).leading(ICON_CONTENT_COPY).mnemonic('c'))
-        .item(command_item(PASTE).leading(ICON_CONTENT_PASTE).mnemonic('p'))
-        .divider()
-        .item(MenuItem::new("Checked").mnemonic('k').selected(s.menu_checked))
-        .item(MenuItem::new("Share").trailing(ICON_SHARE).mnemonic('s').submenu(|m| {
-            m.item(MenuItem::new("Mail").leading(ICON_MAIL).mnemonic('m')).item(
-                MenuItem::new("Copy link")
-                    .leading(ICON_CONTENT_COPY)
-                    .mnemonic('l')
-                    .disabled(true),
-            )
-        }))
+fn command_label(i: usize) -> &'static str {
+    COMMANDS[i].2
 }
 
-const EDIT_ITEMS: [&str; 7] = [
-    "Cut",
-    "Copy",
-    "Paste",
-    "Checked",
-    "Share",
-    "Share > Mail",
-    "Share > Copy link",
-];
-const FILE_ITEMS: [&str; 6] = ["New", "Open", "Recent", "report.md", "notes.txt", "Quit"];
+fn edit_menu(id: impl Into<KeyedSalt>, s: &State) -> Menu<&'static str> {
+    Menu::new(id, "Edit")
+        .mnemonic('e')
+        .item(command_label(CUT), command_item(CUT).leading(ICON_CONTENT_CUT).mnemonic('t'))
+        .item(command_label(COPY), command_item(COPY).leading(ICON_CONTENT_COPY).mnemonic('c'))
+        .item(command_label(PASTE), command_item(PASTE).leading(ICON_CONTENT_PASTE).mnemonic('p'))
+        .divider()
+        .item("Checked", MenuItem::new("Checked").mnemonic('k').selected(s.menu_checked))
+        .submenu(
+            "Share",
+            MenuItem::new("Share").trailing(ICON_SHARE).mnemonic('s'),
+            |m| {
+                m.item("Share > Mail", MenuItem::new("Mail").leading(ICON_MAIL).mnemonic('m'))
+                    .item(
+                        "Share > Copy link",
+                        MenuItem::new("Copy link")
+                            .leading(ICON_CONTENT_COPY)
+                            .mnemonic('l')
+                            .disabled(true),
+                    )
+            },
+        )
+}
 const SWATCHES: [(&str, [u8; 3]); 3] = [
     ("Red", [0xd3, 0x2f, 0x2f]),
     ("Green", [0x38, 0x8e, 0x3c]),
     ("Blue", [0x19, 0x76, 0xd2]),
 ];
 
-fn edit_picked(s: &mut State, origin: &str, item: usize) {
-    if item == 3 {
+fn edit_picked(s: &mut State, origin: &str, item: &str) {
+    if item == "Checked" {
         s.menu_checked = !s.menu_checked;
     }
-    s.last_action = format!("{origin}: {}", EDIT_ITEMS.get(item).unwrap_or(&"?"));
+    s.last_action = format!("{origin}: {item}");
 }
 
 pub(crate) fn run_commands(rt: &Rt, s: &mut State, shared: &mut Shared) {
@@ -754,14 +753,8 @@ pub(crate) fn run_commands(rt: &Rt, s: &mut State, shared: &mut Shared) {
     }
 }
 
-fn menubar_picked(s: &mut State, shared: &mut Shared, menu: usize, item: usize) {
-    s.last_action = match menu {
-        1 => {
-            edit_picked(s, "Menu bar", item);
-            s.last_action.clone()
-        }
-        _ => format!("Menu bar: {}", FILE_ITEMS.get(item).unwrap_or(&"?")),
-    };
+fn menubar_picked(s: &mut State, shared: &mut Shared, item: &str) {
+    edit_picked(s, "Menu bar", item);
     shared.toast(s.last_action.clone());
 }
 
@@ -781,7 +774,7 @@ fn menus(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
                     .mineral(PushButton::new(("nav-menu-anchor", i), label).variant(ButtonVariant::Tonal))
                     .into_response();
                 if let Some(item) = edit_menu(("nav-menu", i), s).colors(style).show(rt, &anchor).clicked {
-                    edit_picked(s, label, item.index());
+                    edit_picked(s, label, item);
                 }
             }
             let anchor = row
@@ -790,13 +783,13 @@ fn menus(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
             let mut grouped = Menu::new("nav-menu-groups", "Groups")
                 .colors(MenuColors::Vibrant)
                 .group_label("Sort by")
-                .item(MenuItem::new("Name").selected(s.menu_selected == 0))
-                .item(MenuItem::new("Date").selected(s.menu_selected == 1))
+                .item(0, MenuItem::new("Name").selected(s.menu_selected == 0))
+                .item(1, MenuItem::new("Date").selected(s.menu_selected == 1))
                 .group_label("View")
-                .item(MenuItem::new("List"))
-                .item(MenuItem::new("Grid"))
+                .item(2, "List")
+                .item(3, "Grid")
                 .group_label("Accent");
-            for (name, [r, g, b]) in SWATCHES {
+            for (i, (name, [r, g, b])) in SWATCHES.into_iter().enumerate() {
                 let swatch = LeadingPaint::new(move |p, slot, _| {
                     p.circle_filled(
                         slot.center(),
@@ -804,9 +797,9 @@ fn menus(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
                         egui::Color32::from_rgb(r, g, b),
                     );
                 });
-                grouped = grouped.item(MenuItem::new(name).leading(swatch));
+                grouped = grouped.item(4 + i, MenuItem::new(name).leading(swatch));
             }
-            if let Some(item) = grouped.show(rt, &anchor).clicked.as_ref().map(Clicked::index) {
+            if let Some(item) = grouped.show(rt, &anchor).clicked {
                 if item < 2 {
                     s.menu_selected = item;
                 }
@@ -826,7 +819,7 @@ fn menus(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
             t.color.on_surface,
         );
         if let Some(item) = edit_menu("nav-menu-context", s).show_context(rt, &target).clicked {
-            edit_picked(s, "Context", item.index());
+            edit_picked(s, "Context", item);
         }
         ui.label(format!("Last activated: {}", s.last_action));
     });
@@ -835,48 +828,42 @@ fn menus(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
             .menu(
                 Menu::new("nav-mb-file", "File")
                     .mnemonic('f')
-                    .item(command_item(NEW).mnemonic('n'))
-                    .item(command_item(OPEN).mnemonic('o'))
-                    .item(
-                        MenuItem::new("Recent")
-                            .mnemonic('r')
-                            .submenu(|m| m.item(MenuItem::new("report.md")).item(MenuItem::new("notes.txt"))),
-                    )
+                    .item(command_label(NEW), command_item(NEW).mnemonic('n'))
+                    .item(command_label(OPEN), command_item(OPEN).mnemonic('o'))
+                    .submenu("Recent", MenuItem::new("Recent").mnemonic('r'), |m| {
+                        m.item("report.md", "report.md").item("notes.txt", "notes.txt")
+                    })
                     .divider()
-                    .item(command_item(QUIT).mnemonic('q')),
+                    .item(command_label(QUIT), command_item(QUIT).mnemonic('q')),
             )
             .menu(edit_menu("nav-mb-edit", s))
             .menu(
                 Menu::new("nav-mb-view", "View")
                     .mnemonic('v')
-                    .item(command_item(ZOOM_IN).mnemonic('i'))
-                    .item(command_item(ZOOM_OUT).mnemonic('o'))
-                    .item(MenuItem::new("Full screen").disabled(true)),
+                    .item(command_label(ZOOM_IN), command_item(ZOOM_IN).mnemonic('i'))
+                    .item(command_label(ZOOM_OUT), command_item(ZOOM_OUT).mnemonic('o'))
+                    .item("Full screen", MenuItem::new("Full screen").disabled(true)),
             );
-        if let Some(MenuPath { menu, item }) = bar.show(ui).clicked {
-            menubar_picked(s, shared, menu, item.index());
+        if let Some(item) = bar.show(ui).clicked {
+            menubar_picked(s, shared, item);
         }
         ui.label(format!("Zoom: {}%", s.zoom));
     });
 }
 
 fn paging(ui: &mut MaterialUi<'_>, s: &mut State) {
-    super::section(ui, TOPICS[8], Some(Breadcrumbs::META), |ui| {
+    super::section(ui, TOPICS[8], Some(<Breadcrumbs<()>>::META), |ui| {
         let path = ["Home", "Library", "Data", "2026", "Reports", "Q3", "Summary"];
         caption(ui, TypeScale::LabelMedium, "Full path");
-        let mut b = Breadcrumbs::new("nav-crumbs");
-        for p in path {
-            b = b.item(p);
-        }
-        if let Some(i) = b.show(ui).clicked.map(|c| c.index()) {
+        let b = Breadcrumbs::new("nav-crumbs").items(path.into_iter().enumerate());
+        if let Some(i) = b.show(ui).clicked {
             s.crumbs = i;
         }
         caption(ui, TypeScale::LabelMedium, "Collapsed with max_items = 4");
-        let mut b = Breadcrumbs::new("nav-crumbs-max").max_items(4);
-        for p in path {
-            b = b.item(p);
-        }
-        if let Some(i) = b.show(ui).clicked.map(|c| c.index()) {
+        let b = Breadcrumbs::new("nav-crumbs-max")
+            .max_items(4)
+            .items(path.into_iter().enumerate());
+        if let Some(i) = b.show(ui).clicked {
             s.crumbs = i;
         }
         ui.label(format!("Last crumb: {}", path.get(s.crumbs).unwrap_or(&"?")));

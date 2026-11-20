@@ -128,11 +128,13 @@ fn button_group<'a>(
             ButtonGroupItem::new("A"),
             ButtonGroupItem::new("B").disabled(true),
             ButtonGroupItem::new("C"),
-        ];
+        ]
+        .into_iter()
+        .enumerate();
         if let Some(s) = selection {
             ButtonGroup::multi("grp", "Letters", s)
                 .variant(variant)
-                .toggles(items.into_iter().enumerate())
+                .items(items)
                 .show(ui);
         } else {
             ButtonGroup::new("grp", "Letters")
@@ -234,7 +236,7 @@ fn radio_space_selects_the_focused_radio() {
 fn standard_button_group_wraps_when_narrow() {
     let h = harness(vec2(200.0, 400.0), (), |ui, ()| {
         ButtonGroup::new("grp", "Words")
-            .items(["Alpha", "Bravo", "Charlie", "Delta"].map(ButtonGroupItem::new))
+            .items(["Alpha", "Bravo", "Charlie", "Delta"].into_iter().enumerate())
             .show(ui);
     });
     let (first, last) = (h.rect("grp-0-button"), h.rect("grp-3-button"));
@@ -407,23 +409,18 @@ fn segmented_button_value_binds_the_segment_value() {
 }
 
 #[test]
-fn button_group_reports_the_item_key() {
+fn button_group_reports_the_item_value() {
     let mut h = harness(SCREEN, None, |ui, clicked| {
         let r = ButtonGroup::new("grp", "Actions")
-            .items([ButtonGroupItem::new("Copy").key("copy"), ButtonGroupItem::new("Paste")])
+            .item("copy", "Copy")
+            .item("paste", ButtonGroupItem::new("Paste").salt(1))
             .show(ui);
         if r.clicked.is_some() {
             *clicked = r.clicked;
         }
     });
-    h.click("grp-0-button");
-    let copy = h.state().value.clone();
-    assert_eq!(copy.as_ref().and_then(|c| c.key::<&str>().copied()), Some("copy"));
+    h.click("grp-copy-button");
+    assert_eq!(h.state().value, Some("copy"));
     h.click("grp-1-button");
-    let paste = h.state().value.clone();
-    assert_eq!(
-        paste.map(|c| (c.index(), c.key::<&str>().is_none())),
-        Some((1, true)),
-        "an item without a key"
-    );
+    assert_eq!(h.state().value, Some("paste"), "an own salt keys the button, the value still reports");
 }

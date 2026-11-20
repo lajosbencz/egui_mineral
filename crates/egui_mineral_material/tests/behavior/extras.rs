@@ -377,7 +377,7 @@ fn popover_opened_by_a_menu_pick_survives_the_picking_press() {
             *menu = !*menu;
         }
         let picked = Menu::new("m", "More")
-            .item(MenuItem::new("Rename"))
+            .item(0, MenuItem::new("Rename"))
             .show_at(ui.rt(), more.rect, menu)
             .clicked;
         *pop |= picked.is_some();
@@ -416,14 +416,14 @@ fn menu_opened_by_a_menu_pick_survives_the_picking_press() {
             *first = !*first;
         }
         let picked = Menu::new("a", "More")
-            .item(MenuItem::new("Rename"))
+            .item(0, MenuItem::new("Rename"))
             .show_at(ui.rt(), more.rect, first)
             .clicked;
         *second |= picked.is_some();
         ui.add_space(200.0);
         let target = ui.mineral(PushButton::new("target", "Target")).response().rect;
         Menu::new("b", "Target")
-            .item(MenuItem::new("Copy"))
+            .item(0, MenuItem::new("Copy"))
             .show_at(ui.rt(), target, second);
     });
     h.click("more-button");

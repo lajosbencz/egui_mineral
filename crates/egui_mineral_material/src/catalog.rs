@@ -143,6 +143,16 @@ macro_rules! meta {
             };
         }
     };
+    ($ty:ident <$($g:ident),+>, $category:ident, $origin:expr, $spec:expr) => {
+        impl<$($g),+> Component for $ty<$($g),+> {
+            const META: ComponentMeta = ComponentMeta {
+                name: stringify!($ty),
+                category: Category::$category,
+                origin: $origin,
+                spec: $spec,
+            };
+        }
+    };
 }
 
 // Only the prelude: a cataloged type that it does not export fails to compile here.
@@ -423,7 +433,7 @@ meta!(
 );
 
 meta!(
-    FabMenu,
+    FabMenu<A>,
     Actions,
     Origin::Md3Expressive,
     "https://m3.material.io/components/fab-menu/specs"
@@ -691,7 +701,7 @@ mod extras {
     );
 
     meta!(
-        Breadcrumbs,
+        Breadcrumbs<K>,
         Extras,
         Origin::Other(&[
             Kit::Mui,
@@ -869,10 +879,10 @@ pub const CATALOG: &[ComponentMeta] = &[
     <DateRangePicker<'static>>::META,
     <TimePicker<'static>>::META,
     Carousel::META,
-    <ButtonGroup<'static, core::convert::Infallible>>::META,
+    <ButtonGroup<'static, ()>>::META,
     <SegmentedButton<'static, ()>>::META,
     SplitButton::META,
-    FabMenu::META,
+    <FabMenu<()>>::META,
     <DockedToolbar<'static>>::META,
     <FloatingToolbar<'static>>::META,
     LoadingIndicator::META,
@@ -928,7 +938,7 @@ pub const CATALOG: &[ComponentMeta] = &[
     #[cfg(feature = "extras")]
     <Stepper<'static>>::META,
     #[cfg(feature = "extras")]
-    Breadcrumbs::META,
+    <Breadcrumbs<()>>::META,
     #[cfg(feature = "extras")]
     Avatar::META,
     #[cfg(feature = "extras")]

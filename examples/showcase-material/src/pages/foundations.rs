@@ -424,7 +424,7 @@ fn motion_demo(ui: &mut MaterialUi<'_>, s: &mut State) {
     let mut sel = s.group.clone();
     ButtonGroup::multi("motion-group", "Duration group", &mut sel)
         .variant(ButtonGroupVariant::Connected)
-        .toggles(DURATION_GROUPS.iter().map(|g| ButtonGroupItem::new(*g)).enumerate())
+        .items(DURATION_GROUPS.iter().map(|g| ButtonGroupItem::new(*g)).enumerate())
         .show(ui);
     s.group = sel;
     let g = s.group.first().copied().unwrap_or(1);

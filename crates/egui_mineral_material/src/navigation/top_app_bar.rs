@@ -381,7 +381,7 @@ impl<'a, A: ActionValue> TopAppBar<'a, A> {
                 },
             )
             .inner;
-            let mut menu = Menu::new(self.salt.child("overflow"), label).emit_anchor(false);
+            let mut menu = Menu::new(self.salt.child("overflow"), label).emit_anchor(false).widen::<A>();
             for (v, a) in self.actions.iter().skip(shown) {
                 let own = crate::widget::action_salt(&self.salt, a.salt.as_ref(), a.command.as_ref(), v).child("action");
                 let mut item = MenuItem::new(&a.label)
@@ -394,10 +394,10 @@ impl<'a, A: ActionValue> TopAppBar<'a, A> {
                 if let Some(sel) = a.selected {
                     item = item.selected(sel);
                 }
-                menu = menu.item(item);
+                menu = menu.push(v.clone(), item);
             }
-            if let Some(k) = menu.show(rt, &anchor).clicked {
-                out.clicked = self.actions.get(shown + k.index()).map(|(v, _)| v.clone());
+            if let Some(v) = menu.show(rt, &anchor).clicked {
+                out.clicked = Some(v);
             }
             out.overflow = Some(anchor);
             end += row.slot;

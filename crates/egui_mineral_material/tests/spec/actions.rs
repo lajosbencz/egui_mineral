@@ -147,7 +147,7 @@ fn fab_menu_button_keeps_the_menu_padding() {
     use egui_mineral_material::spec::defaults::fab_menu;
     let p = render(|ui| {
         FabMenu::new("m", ICON_ADD, "Actions")
-            .item(FabMenuItem::new(ICON_MAIL, "Mail"))
+            .item(0, FabMenuItem::new(ICON_MAIL, "Mail"))
             .show(ui);
     });
     let fab = p.one(ColorRole::PrimaryContainer);

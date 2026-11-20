@@ -517,16 +517,18 @@ impl<'a, K: ItemKey> DataTable<'a, K> {
                         .icon(ButtonIcon::Trailing(ui.icons().arrow_drop_down))
                         .disabled(disabled),
                 );
-                let mut menu = Menu::new(
+                let menu = Menu::new(
                     salt.child("page-size-menu"),
                     crate::tr(rt.i18n(), msg::TABLE_ROWS_PER_PAGE),
                 )
-                .emit_anchor(false);
-                for s in sizes {
-                    menu = menu.item(MenuItem::new(fmt.count(*s)).selected(*s == paging.size()));
-                }
-                if let Some(k) = menu.show(rt, anchor.response()).clicked {
-                    paging.set_size(sizes[k.index()]);
+                .emit_anchor(false)
+                .items(
+                    sizes
+                        .iter()
+                        .map(|&s| (s, MenuItem::new(fmt.count(s)).selected(s == paging.size()))),
+                );
+                if let Some(size) = menu.show(rt, anchor.response()).clicked {
+                    paging.set_size(size);
                 }
                 parts::type_label(
                     ui,

@@ -11,11 +11,12 @@ use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::Availability;
 use egui_mineral::widget::MineralUi;
 use egui_mineral::{
-    action::Clicked,
+    action::{ActionValue, NoAction, Widen},
     anchor::{Align, Side},
     focus::{self, RovingFocus},
     kit,
     layout::Axis,
+    select::ItemKey,
     semantic::{self, Role, SemanticNode, StableId},
     shortcut::{self, Scope, Trigger},
 };
@@ -33,37 +34,28 @@ use crate::selection::{
 const BAR_H: f32 = 40.0;
 const BAR_INSET: f32 = 4.0;
 
-/// Item of a [`MenuStrip`]: menu index on the bar, item index within that [`Menu`].
-#[derive(Clone, Debug, PartialEq)]
-pub struct MenuPath {
-    /// Menu index on the bar.
-    pub menu: usize,
-    /// Item as the menu's [`MenuResponse::clicked`](crate::selection::MenuResponse::clicked) reports it.
-    pub item: Clicked,
-}
-
 /// Result of [`MenuStrip::show`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct MenuStripResponse {
+pub struct MenuStripResponse<A = NoAction> {
     /// Bar response.
     pub response: Response,
     /// Open menu surface; `None` while all menus are closed.
     pub popup: Option<Response>,
-    /// Clicked item without a [`MenuItem::command`](crate::selection::MenuItem::command).
-    pub clicked: Option<MenuPath>,
+    /// Value of the clicked item without a [`MenuItem::command`](crate::selection::MenuItem::command).
+    pub clicked: Option<A>,
 }
 
 /// Horizontal menu bar over [`Menu`]s with APG menubar keyboard behavior; non-MD3.
 #[must_use = "call .show(..)"]
-pub struct MenuStrip {
+pub struct MenuStrip<A = NoAction> {
     salt: KeyedSalt,
     label: Option<String>,
     disabled: bool,
-    menus: Vec<Menu>,
+    menus: Vec<Menu<A>>,
 }
 
-egui_mineral::kit::opaque_debug!(MenuStrip);
+egui_mineral::kit::opaque_debug!(MenuStrip<A>);
 
 impl MenuStrip {
     /// Horizontal row of menu titles; agent key prefix `<id_salt>`.
@@ -76,6 +68,9 @@ impl MenuStrip {
             menus: Vec::new(),
         }
     }
+}
+
+impl<A: ActionValue> MenuStrip<A> {
 
     crate::widget::setters! {
         /// Replaces the `<id_salt>` key prefix.
@@ -93,20 +88,31 @@ impl MenuStrip {
         disabled
     }
 
-    /// Appends a menu; its label is the bar title, its mnemonic opens it.
-    pub fn menu(mut self, menu: impl Into<Menu>) -> Self {
-        self.menus.push(menu.into());
-        self
+    /// Appends a menu; its label is the bar title, its mnemonic opens it. Every menu reports the same value type.
+    pub fn menu<B: ItemKey>(self, menu: Menu<B>) -> MenuStrip<B>
+    where
+        A: Widen<B>,
+    {
+        self.menus([menu])
     }
 
     /// Appends menus; see [`Self::menu`].
-    pub fn menus(mut self, menus: impl IntoIterator<Item = impl Into<Menu>>) -> Self {
-        self.menus.extend(menus.into_iter().map(Into::into));
-        self
+    pub fn menus<B: ItemKey>(self, menus: impl IntoIterator<Item = Menu<B>>) -> MenuStrip<B>
+    where
+        A: Widen<B>,
+    {
+        let mut strip = MenuStrip {
+            salt: self.salt,
+            label: self.label,
+            disabled: self.disabled,
+            menus: self.menus.into_iter().map(Menu::widen).collect(),
+        };
+        strip.menus.extend(menus);
+        strip
     }
 
     /// Paints the bar and the open menu.
-    pub fn show(mut self, ui: &mut MineralUi<'_, Material>) -> MenuStripResponse {
+    pub fn show(mut self, ui: &mut MineralUi<'_, Material>) -> MenuStripResponse<A> {
         let rt = ui.rt();
         let disabled = self.disabled;
         self.menus = self
@@ -151,8 +157,8 @@ impl MenuStrip {
             let mut st = MenuState::load(&ctx, menu_id);
             let place = common::popup_anchor(Side::Bottom, Align::Start);
             let out = self.menus[i].run(rt, menu_id, &mut st, place, Some(rect), bar_resp.layer_id);
-            if let Some(item) = self.menus[i].clicked(out.activated) {
-                result = Some(MenuPath { menu: i, item });
+            if let Some(value) = self.menus[i].clicked(out.activated) {
+                result = Some(value);
             }
             menu = out.panel;
             let still_open = st.open;
@@ -300,7 +306,7 @@ impl MenuStrip {
     fn reopen(ctx: &Context, id: Id, i: usize, anchor: Rect, focus: Option<FocusTarget>) {
         let menu_id = id.with(("menu", i));
         let mut st = MenuState::default();
-        Menu::open(&mut st, anchor, focus);
+        Menu::<A>::open(&mut st, anchor, focus);
         st.store(ctx, menu_id);
     }
 }

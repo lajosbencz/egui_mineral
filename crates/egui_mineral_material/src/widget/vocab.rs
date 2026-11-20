@@ -1,5 +1,5 @@
 use egui_mineral::{
-    action::{ActionKey, ActionValue, Clicked},
+    action::ActionValue,
     semantic::KeyedSalt,
     shortcut::ActionId,
 };
@@ -104,14 +104,6 @@ impl TextAction {
             egui_mineral::shortcut::fire(ctx, command);
         }
     }
-}
-
-pub(crate) fn clicked<T>(
-    items: &[T],
-    index: Option<usize>,
-    key: impl FnOnce(&T) -> Option<&ActionKey>,
-) -> Option<Clicked> {
-    index.map(|i| Clicked::new(i, items.get(i).and_then(key).cloned()))
 }
 
 // Item salt of an action collection item: its own salt, else its command, else its value.
