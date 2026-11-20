@@ -20,6 +20,8 @@ Other files cite them as `docs/rules.md rule N`.
    Core types carry no design defaults either (`ToastQueue::new` takes its values, `Spring` and `Fling` are literal-constructed).
    Every `set_x` has an `x` getter. Stylekits never do gesture math.
 6. Touch targets: widgets go through `MineralUi::mineral`, which allocates the `Zones` (visual box, reserved margin, minimum hit target).
+   The target is the widget's `MinTarget` resolved by `Policies::target` and adjusted by `Stylekit::min_target` (Material: 4dp less per density step);
+   parts a widget hit-tests itself ask `MineralUi::target`, never `MinTarget::points`.
 7. Agent parity: agents act through raw egui input (AccessKit action requests, pointer, keys)
    injected by the runtime's egui input plugin (every viewport, no app wiring),
    the same path as screen readers and real input.
@@ -56,6 +58,7 @@ The ast-grep rules in [`lints/rules`](../lints/rules):
 - `data-mut-get-temp`: `get_temp` under `data(..)`, `data_mut` only to write or `remove_temp`.
 - `restating-doc`, `private-doc`, `ui-literal`, `raw-egui-widget`: comment (doc comments on public items only), i18n-literal and raw-widget conventions.
 - `raw-egui-area`: no `Area::new` or `Modal::default_area` outside `kit::overlay`, use `kit::overlay::area` and `modal_area`.
+- `min-target-points`: no `MinTarget::points` / `points_for` in the material crate, use `MineralUi::target` or `adaptive::min_interactive(density)`.
 - `color-role-resolve`: no `ROLE.resolve(&t.color)` in the material crate, use `Tokens::role` / `role_alpha`.
 - `stable-id-display-text`: `StableId::new` keys never include label/name/title text.
 

@@ -13,7 +13,7 @@ use egui_mineral::widget::MineralUi;
 use egui_mineral::{
     edit::{EditEvent, FieldFocus},
     input::button_steps,
-    layout::{Constraints, MinTarget},
+    layout::Constraints,
     number::{self, NumberEdit, NumberSource},
     range::{RangeModel, Track},
     widget::{SizeExt, WidgetResponse},
@@ -168,16 +168,11 @@ impl<'a, N: Numeric> NumberField<'a, N> {
         agent_key(salt)
     }
 
-    fn buttons(&self, rt: &Rt, density: Density, v: f64) -> (IconButton<'_>, IconButton<'_>) {
+    fn buttons(&self, rt: &Rt, v: f64) -> (IconButton<'_>, IconButton<'_>) {
         let button = |salt: &'static str, icon, msg: &str, key: &'static str, at_end: bool| {
             IconButton::new(self.salt.child(salt), icon, tr(rt.i18n(), msg))
                 .agent_key(StableId::of(&self.salt, key))
                 .disabled(self.disabled || at_end)
-                .hit_target(if density.step() < 0 {
-                    MinTarget::None
-                } else {
-                    crate::adaptive::MIN_INTERACTIVE
-                })
         };
         (
             button(
@@ -284,8 +279,8 @@ impl<N: Numeric> Composite for NumberField<'_, N> {
         let gap = crate::adaptive::grid(1);
         let dir = rt.i18n().direction();
         let disabled = self.disabled;
-        let buttons = self.step_buttons.then(|| self.buttons(rt, ui.density(), v));
-        let foot = buttons.as_ref().map(|(dec, _)| dec.footprint(rt, ui.density()));
+        let buttons = self.step_buttons.then(|| self.buttons(rt, v));
+        let foot = buttons.as_ref().map(|(dec, _)| dec.footprint(ui.density()));
         let RowMetrics {
             field_w,
             field_top,

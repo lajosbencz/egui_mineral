@@ -1,5 +1,6 @@
 use crate::Material;
 use crate::MaterialExt;
+use crate::MaterialUiExt as _;
 use egui_mineral::i18n::I18n;
 use egui_mineral::kit::state::{Memo, TempState};
 use egui_mineral::semantic::KeyedSalt;
@@ -572,8 +573,12 @@ impl MineralWidget for HueBar<'_> {
         MIN_INTERACTIVE
     }
 
-    fn layout(&self, _ui: &MineralUi<'_, Material>, c: Constraints, (): &Self::State) -> Measure {
-        c.constrain(vec2(self.width, slider::HANDLE_HEIGHT)).into()
+    fn layout(&self, ui: &MineralUi<'_, Material>, c: Constraints, (): &Self::State) -> Measure {
+        let handle = ui.density().dense_to(
+            slider::HANDLE_HEIGHT,
+            slider::INACTIVE_TRACK_HEIGHT + crate::adaptive::CONTENT_PAD,
+        );
+        c.constrain(vec2(self.width, handle)).into()
     }
 
     fn update(&mut self, ui: &mut MineralUi<'_, Material>, frame: &WidgetFrame<'_>, (): &mut ()) -> WidgetResponse {
@@ -629,7 +634,7 @@ impl MineralWidget for HueBar<'_> {
         } else {
             t.role(slider::HANDLE_COLOR)
         };
-        let handle = Rect::from_center_size(pos2(x, y), vec2(handle_w, slider::HANDLE_HEIGHT));
+        let handle = Rect::from_center_size(pos2(x, y), vec2(handle_w, rect.height()));
         p.rect_filled(handle, CornerRadius::from(handle_w / 2.0), handle_color);
         kit::input::hover_cursor(rt.core(), r, Availability::disabled_if(self.disabled));
         WidgetResponse::new(r.clone(), ()).with_changed((*self.hue - before).abs() > f64::EPSILON)

@@ -6,6 +6,7 @@ use crate::{
     kit,
     layout::{Axis, MinTarget, Zones},
     range::{RangeModel, Track},
+    runtime::Stylekit,
     semantic::{self, AgentKey, KeyedSalt, Role, SemanticNode, StableId},
     widget::{Availability, MineralUi},
 };
@@ -137,7 +138,7 @@ impl Splitter {
     }
 
     /// Lays out both panes and the handle in the available rect; drag, keys and AccessKit move the split.
-    pub fn show<K, A, B>(
+    pub fn show<K: Stylekit, A, B>(
         self,
         ui: &mut MineralUi<'_, K>,
         first: impl FnOnce(&mut MineralUi<'_, K>) -> A,
@@ -159,7 +160,7 @@ impl Splitter {
             (rect.top(), rect.bottom())
         };
         // The gap between panes is the handle's footprint, so its hit zone never overlaps them.
-        let gap = Zones::new(egui::Vec2::splat(self.handle).into(), MinTarget::Auto.points(rt.core()))
+        let gap = Zones::new(egui::Vec2::splat(self.handle).into(), ui.target(MinTarget::Auto))
             .outer
             .width();
         let total = (hi - lo - gap).max(0.0);

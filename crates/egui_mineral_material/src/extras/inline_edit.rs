@@ -154,7 +154,7 @@ impl InlineEdit<'_> {
                 rt.icons().close,
                 tr(rt.i18n(), "mineral-inline-cancel"),
             );
-            let button = submit.footprint(rt, density);
+            let button = submit.footprint(density);
             let edit_w = (width - 2.0 * (button.x + ui.spacing().item_spacing.x)).max(button.x);
             let (rect, _) = ui.allocate_exact_size(vec2(edit_w, h), egui::Sense::hover());
             let format = self.style.format(ui.ctx(), colors.input);

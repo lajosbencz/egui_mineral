@@ -1,7 +1,6 @@
 use crate::Material;
 use crate::MaterialExt;
 use crate::MaterialUiExt as _;
-use crate::Rt;
 use crate::adaptive::Density;
 use egui::{
     Color32, Event, Frame, Margin, Rect, Stroke, StrokeKind, TextEdit, UiBuilder, pos2,
@@ -29,9 +28,9 @@ const CELL_FONT: TypeScale = TypeScale::HeadlineSmall;
 const DOT_RADIUS: f32 = CELL_FONT.size() / 4.0;
 
 // Minimum interactive width, text field height
-fn cell_size(rt: &Rt, density: Density) -> egui::Vec2 {
+fn cell_size(density: Density) -> egui::Vec2 {
     vec2(
-        text_field::icon_slot(rt, density),
+        text_field::icon_slot(density),
         text_field::field_h(density, TextFieldVariant::Outlined, false).max(CELL_FONT.line_height() + 8.0),
     )
 }
@@ -178,7 +177,7 @@ impl<'a> OtpField<'a> {
         let mut supporting = None;
         let mut label = None;
         for i in 0..self.len {
-            let cell = Self::cell(rt, ui.density(), rect, i);
+            let cell = Self::cell(ui.density(), rect, i);
             let current = active == Some(i);
             let state = FieldState {
                 focused: current,
@@ -233,8 +232,8 @@ impl<'a> OtpField<'a> {
         }
     }
 
-    fn cell(rt: &Rt, density: Density, rect: Rect, i: usize) -> Rect {
-        let size = cell_size(rt, density);
+    fn cell(density: Density, rect: Rect, i: usize) -> Rect {
+        let size = cell_size(density);
         Rect::from_min_size(pos2(rect.left() + i as f32 * (size.x + CELL_GAP), rect.top()), size)
     }
 }
@@ -260,7 +259,7 @@ impl MineralWidget for OtpField<'_> {
 
     fn layout(&self, ui: &MineralUi<'_, Material>, c: Constraints, (): &Self::State) -> Measure {
         let n = self.len as f32;
-        let cell = cell_size(ui.rt(), ui.density());
+        let cell = cell_size(ui.density());
         let error_h = if self.error.is_some() {
             text_field::support_h()
         } else {
@@ -282,7 +281,7 @@ impl MineralWidget for OtpField<'_> {
         let rt = ui.rt();
         let ctx = rt.ctx();
         let full = frame.zones.visual;
-        let cell = cell_size(rt, ui.density());
+        let cell = cell_size(ui.density());
         let rect = Rect::from_min_size(full.min + vec2(0.0, self.label_h()), vec2(full.width(), cell.y));
         let edit_id = ui.make_persistent_id(self.salt.id_salt()).with("edit");
         let before = self.value.clone();

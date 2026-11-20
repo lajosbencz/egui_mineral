@@ -216,7 +216,7 @@ impl<'a> SegmentedButton<'a> {
         );
         let row = vec2(
             (widths.iter().sum::<f32>() - overlap).max(0.0),
-            height.max(crate::adaptive::MIN_INTERACTIVE.points(rt.core())),
+            height.max(crate::adaptive::min_interactive(ui.density())),
         );
         let role = if single { Role::RadioButton } else { Role::CheckBox };
 

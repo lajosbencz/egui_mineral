@@ -1,7 +1,6 @@
 use crate::Material;
 use crate::MaterialExt;
 use crate::MaterialUiExt as _;
-use crate::Rt;
 use egui::{Color32, CornerRadius, Rect, Sense, Ui, Vec2, vec2};
 use egui_mineral::i18n::I18n;
 use egui_mineral::semantic::KeyedSalt;
@@ -41,10 +40,6 @@ const PAGE: Size = Size::Small;
 const CRUMB: Size = Size::XSmall;
 const CURRENT_CRUMB_COLOR: ColorRole = ColorRole::OnSurface;
 const SEPARATOR_COLOR: ColorRole = ColorRole::OnSurfaceVariant;
-
-fn min_interactive(rt: &Rt) -> f32 {
-    crate::adaptive::MIN_INTERACTIVE.points(rt.core())
-}
 
 fn button_width(ui: &MineralUi<'_, Material>, m: Metrics, label: &str) -> f32 {
     let rt = ui.rt();
@@ -232,7 +227,7 @@ impl Composite for Pagination<'_> {
                 )
                 .clicked()
         };
-        let r = parts::row(ui, dir, min_interactive(rt), |ui| {
+        let r = parts::row(ui, dir, crate::adaptive::min_interactive(ui.density()), |ui| {
             ui.spacing_mut().item_spacing.x = crate::adaptive::grid(1);
             if self.first_last && nav(ui, "first", first, "mineral-pagination-first", cur > 1) {
                 target = 1;
@@ -436,13 +431,12 @@ impl Breadcrumbs {
     }
 
     fn collapse(&self, ui: &MineralUi<'_, Material>) -> Option<(usize, usize)> {
-        let rt = ui.rt();
         let n = self.items.len();
         let widths: Vec<f32> = self.items.iter().map(|l| crumb_width(ui, l)).collect();
         let avail = ui.available_width();
         let sep_w = CRUMB.metrics().icon;
         // The overflow icon button reserves its minimum interactive size.
-        let more_w = min_interactive(rt);
+        let more_w = crate::adaptive::min_interactive(ui.density());
         let row = |idx: &mut dyn Iterator<Item = usize>, more: bool| {
             let (mut w, mut k) = (0.0, 0);
             for i in idx {
@@ -480,7 +474,7 @@ impl Breadcrumbs {
         let sep = dir.pick(ui.icons().chevron_right, ui.icons().chevron_left);
         let mut out = None;
         let sep_size = CRUMB.metrics().icon;
-        let r = parts::row(ui, dir, min_interactive(rt), |ui| {
+        let r = parts::row(ui, dir, crate::adaptive::min_interactive(ui.density()), |ui| {
             ui.spacing_mut().item_spacing.x = 0.0;
             let mut first = true;
             let mut separator = |ui: &mut Ui| {

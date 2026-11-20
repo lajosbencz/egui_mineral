@@ -1,4 +1,5 @@
 use crate::MaterialUiExt as _;
+use crate::adaptive::Density;
 use egui_mineral::kit::state::TempState;
 
 use crate::Material;
@@ -198,9 +199,9 @@ impl RowLook {
 }
 
 // Icon button minimum interactive size
-fn action_slot(rt: &Rt) -> f32 {
+fn action_slot(density: Density) -> f32 {
     let (container, _) = icon_button::metrics(ACTION_SIZE, IconButtonWidth::Default);
-    container.x.max(crate::adaptive::MIN_INTERACTIVE.points(rt.core()))
+    container.x.max(crate::adaptive::min_interactive(density))
 }
 
 impl RowWidget<'_> {
@@ -215,16 +216,16 @@ impl RowWidget<'_> {
     // Leading slot after the chevron.
     fn leading(&self, ui: &MineralUi<'_, Material>, rect: Rect, dir: Direction) -> SlotLayout {
         let base = self.look.gap + self.indent() + ICON + self.look.gap;
-        self.leading.layout(ui.rt(), ui.painter(), rect.height(), |at, w, h| {
-            let x = dir.start_x(rect, Rangef::new(base + at, base + at + w));
-            Rect::from_min_size(pos2(x, rect.center().y - h / 2.0), vec2(w, h))
-        })
+        self.leading
+            .layout(ui.rt(), ui.density(), ui.painter(), rect.height(), |at, w, h| {
+                let x = dir.start_x(rect, Rangef::new(base + at, base + at + w));
+                Rect::from_min_size(pos2(x, rect.center().y - h / 2.0), vec2(w, h))
+            })
     }
 
     fn actions(&self, ui: &MineralUi<'_, Material>, r: &Response, rect: Rect, dir: Direction) -> Vec<Response> {
-        let rt = ui.rt();
-        let target = crate::adaptive::MIN_INTERACTIVE.points(rt.core()).min(rect.height());
-        let slot = action_slot(rt);
+        let target = crate::adaptive::min_interactive(ui.density()).min(rect.height());
+        let slot = action_slot(ui.density());
         let n = self.actions.len();
         self.actions
             .iter()
@@ -355,7 +356,7 @@ impl MineralWidget for RowWidget<'_> {
         let chevron = self.chevron_rect(rect, dir);
         let chevron_hit = Rect::from_center_size(
             chevron.center(),
-            Vec2::splat(crate::adaptive::MIN_INTERACTIVE.points(ui.core()).min(rect.height())),
+            Vec2::splat(crate::adaptive::min_interactive(ui.density()).min(rect.height())),
         );
         let press = frame.press_pos();
         let lead = self.leading(ui, rect, dir);
@@ -425,7 +426,7 @@ impl MineralWidget for RowWidget<'_> {
         let trail = if actions.is_empty() {
             0.0
         } else {
-            self.look.gap + actions.len() as f32 * action_slot(ui.rt())
+            self.look.gap + actions.len() as f32 * action_slot(ui.density())
         };
         let avail = cur.remaining() - trail - self.look.gap;
         let p = ui.painter();
@@ -705,7 +706,7 @@ impl<'a, N: TreeData> TreeView<'a, N> {
         let g = parts::type_wrapped(ui.painter(), label, look.font, col.label, PREVIEW_MAX_LABEL, 1);
         let slot = visual.cloned().map_or_default(ListSlot::from);
         let row_h = look.height;
-        let measured = slot.layout(rt, ui.painter(), row_h, |_, w, h| {
+        let measured = slot.layout(rt, ui.density(), ui.painter(), row_h, |_, w, h| {
             Rect::from_min_size(egui::Pos2::ZERO, vec2(w, h))
         });
         let lead = if measured.extent > 0.0 {

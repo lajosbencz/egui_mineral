@@ -47,7 +47,7 @@ fn bar_h(ui: &MineralUi<'_, Material>) -> f32 {
 
 // Compose SearchBarIconOffsetX
 pub(crate) fn icon_center(rt: &Rt, density: Density, rect: Rect, edge: Edge) -> Pos2 {
-    let d = sb::ICON_OFFSET_X + text_field::icon_slot(rt, density) / 2.0;
+    let d = sb::ICON_OFFSET_X + text_field::icon_slot(density) / 2.0;
     pos2(
         rt.i18n().direction().from_edge(edge).start_x(rect, Rangef::point(d)),
         rect.center().y,
@@ -56,8 +56,8 @@ pub(crate) fn icon_center(rt: &Rt, density: Density, rect: Rect, edge: Edge) -> 
 
 pub(crate) fn input_rect(rt: &Rt, density: Density, rect: Rect, trailing: bool) -> Rect {
     let Sides { left, right } = rt.i18n().direction().sides(
-        text_field::content_inset(rt, density, true),
-        text_field::content_inset(rt, density, trailing),
+        text_field::content_inset(density, true),
+        text_field::content_inset(density, trailing),
     );
     let (x0, x1) = (rect.left() + left, rect.right() - right);
     let h = text_field::line_h();

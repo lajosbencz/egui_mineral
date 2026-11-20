@@ -53,6 +53,16 @@ pub trait Stylekit: Send + Sync + 'static {
     fn window_close(&self, ui: &Ui, visual: Rect, response: &Response) -> Vec<egui::Shape> {
         crate::kit::paint::window_close(ui, visual, response)
     }
+    /// Minimum hit target edge in points of a part in the given `Ui`, from the `target` its
+    /// [`MinTarget`](crate::layout::MinTarget) resolved to; every widget shown with [`MineralUi::mineral`] and
+    /// every [`MineralUi::target`] lookup goes through it. Defaults to `target`; a kit with subtree settings
+    /// (a density) shrinks it here.
+    fn min_target(&self, _: &MineralUi<'_, Self>, target: f32) -> f32
+    where
+        Self: Sized,
+    {
+        target
+    }
 }
 
 /// Failure building a [`Runtime`].

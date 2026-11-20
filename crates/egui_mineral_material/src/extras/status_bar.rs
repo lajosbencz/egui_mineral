@@ -1,5 +1,6 @@
 use crate::Material;
 use crate::MaterialExt;
+use crate::MaterialUiExt as _;
 use egui::{Pos2, Rangef, Rect, Response, Sense, Stroke, Vec2, pos2, vec2};
 use egui_mineral::kit::strip;
 use egui_mineral::semantic::KeyedSalt;
@@ -28,6 +29,10 @@ const ICON_GAP: f32 = 4.0;
 const CONTAINER: ColorRole = ColorRole::SurfaceContainer;
 const CONTENT: ColorRole = ColorRole::OnSurfaceVariant;
 const TEXT: TypeScale = TypeScale::BodySmall;
+
+fn height(density: crate::adaptive::Density) -> f32 {
+    density.dense_to(HEIGHT, TEXT.line_height().max(ICON) + crate::adaptive::CONTENT_PAD)
+}
 
 pub use egui_mineral::status::{StatusItem, StatusProgress, StatusTone};
 
@@ -93,8 +98,8 @@ impl StatusBar {
         let t = rt.tokens();
         let dir = rt.i18n().direction();
         let id = ui.make_persistent_id(self.salt.id_salt());
-        let w = ui.available_width();
-        let (rect, _) = ui.allocate_exact_size(vec2(w, HEIGHT), Sense::hover());
+        let size = vec2(ui.available_width(), height(ui.density()));
+        let (rect, _) = ui.allocate_exact_size(size, Sense::hover());
         let response = ui.interact(rect, id, Sense::hover());
         let p = ui.painter();
         p.rect_filled(rect, 0, t.role(CONTAINER));

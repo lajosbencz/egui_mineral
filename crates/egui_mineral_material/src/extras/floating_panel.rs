@@ -12,11 +12,8 @@ use egui_mineral::{
     semantic::{self, Role, SemanticNode, StableId},
 };
 
+use crate::spec::{defaults, tokens::dialog};
 use crate::widget::parts;
-use crate::{
-    adaptive::MIN_INTERACTIVE,
-    spec::{defaults, tokens::dialog},
-};
 
 // No MD3 counterpart
 
@@ -101,7 +98,7 @@ impl FloatingPanel {
             .corner_radius(r)
             .shadow(t.elevation_shadow(dialog::CONTAINER_ELEVATION))
             .inner_margin(pad);
-        let header = MIN_INTERACTIVE.points(rt.core());
+        let header = crate::adaptive::min_interactive(rt.kit().density());
         let min_size = self
             .min_size
             .unwrap_or(vec2(defaults::dialog::MIN_WIDTH, header + 2.0 * pad));

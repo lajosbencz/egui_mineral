@@ -13,13 +13,14 @@ use egui_mineral::{
 
 pub(crate) const WINDOW_CLASS_BREAKPOINTS: [f32; 4] = [600.0, 840.0, 1200.0, 1600.0];
 
-pub(crate) const MIN_INTERACTIVE_DP: f32 = 48.0;
+const MIN_INTERACTIVE_DP: f32 = 48.0;
 
 pub(crate) const TARGETS: TargetPolicy = TargetPolicy::baseline().mouse(24.0).touch(MIN_INTERACTIVE_DP);
 
 /// Compose `Modifier.minimumInteractiveComponentSize` at the default
 /// `LocalMinimumInteractiveComponentSize` (48dp): reserved on every platform by the interactive
-/// components Compose applies it to.
+/// components Compose applies it to. The edge at [`Density::DEFAULT`]: like every target it resolves
+/// through [`MineralUi::target`], 4dp smaller per density step ([`Density::target`]).
 pub const MIN_INTERACTIVE: MinTarget = MinTarget::Points(MIN_INTERACTIVE_DP);
 
 // https://developer.android.com/design/ui/mobile/guides/layout-and-content/grids-and-units#baseline-grid
@@ -136,11 +137,23 @@ impl Density {
     pub fn dense(self, size: f32, min: Self) -> f32 {
         size + 4.0 * f32::from(self.max(min).step())
     }
+
+    /// Minimum hit target edge `target` in points shrunk by this density, at least 0; a part is still
+    /// hit over its whole visual box.
+    pub fn target(self, target: f32) -> f32 {
+        (target + 4.0 * f32::from(self.0)).max(0.0)
+    }
 }
 
-/// [`MIN_INTERACTIVE`] shrunk 4dp per `density` step: 48dp at [`Density::DEFAULT`], 24dp at [`Density::MIN`].
-pub fn min_interactive(density: Density) -> MinTarget {
-    MinTarget::Points(density.dense(MIN_INTERACTIVE_DP, Density::MIN))
+/// [`MIN_INTERACTIVE`] edge in points at `density`: 48dp at [`Density::DEFAULT`], 24dp at [`Density::MIN`].
+/// For slots a component reserves around a part it places itself.
+pub fn min_interactive(density: Density) -> f32 {
+    density.target(MIN_INTERACTIVE_DP)
+}
+
+// Invisible resize edge: no visual box backs its hit zone, so it keeps 8dp at any density.
+pub(crate) fn resize_edge(ui: &MineralUi<'_, Material>) -> f32 {
+    ui.target(MinTarget::Auto).max(grid(2))
 }
 
 fn flow(align: Align) -> Flow {

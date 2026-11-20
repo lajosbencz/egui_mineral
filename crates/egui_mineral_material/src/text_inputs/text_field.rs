@@ -113,9 +113,8 @@ pub(crate) fn text_top(density: Density, variant: TextFieldVariant, labeled: boo
 }
 
 // Compose minimumInteractiveComponentSize, shrunk by density down to the icon with padding.
-pub(crate) fn icon_slot(rt: &Rt, density: Density) -> f32 {
-    let slot = crate::adaptive::MIN_INTERACTIVE.points(rt.core());
-    density.dense_to(slot, small_icon_button::ICON_SIZE + 8.0)
+pub(crate) fn icon_slot(density: Density) -> f32 {
+    crate::adaptive::min_interactive(density).max(small_icon_button::ICON_SIZE + 8.0)
 }
 
 pub(crate) fn trailing_icon_size(variant: TextFieldVariant) -> f32 {
@@ -126,9 +125,9 @@ pub(crate) fn trailing_icon_size(variant: TextFieldVariant) -> f32 {
 }
 
 // Compose textFieldHorizontalIconPadding
-pub(crate) fn content_inset(rt: &Rt, density: Density, icon: bool) -> f32 {
+pub(crate) fn content_inset(density: Density, icon: bool) -> f32 {
     if icon {
-        let slot = icon_slot(rt, density);
+        let slot = icon_slot(density);
         let icon_padding = ((slot - small_icon_button::ICON_SIZE) / 2.0).max(0.0);
         slot + (tf::PADDING - icon_padding).max(0.0)
     } else {
@@ -466,8 +465,8 @@ impl Decor<'_> {
         );
         let colors = self.colors(ui, field, t);
         let (lead, trail) = (
-            content_inset(rt, ui.density(), self.leading.is_some()),
-            content_inset(rt, ui.density(), self.trailing),
+            content_inset(ui.density(), self.leading.is_some()),
+            content_inset(ui.density(), self.trailing),
         );
         let Sides { left, right } = dir.sides(lead, trail);
         let (start, end) = (field.left() + left, field.right() - right);
@@ -512,7 +511,7 @@ impl Decor<'_> {
             p.rect_filled(line, 0, colors.indicator);
         }
         if let Some(icon) = self.leading {
-            let slot = icon_slot(rt, ui.density()) / 2.0;
+            let slot = icon_slot(ui.density()) / 2.0;
             let x = dir.start_x(field, Rangef::point(slot));
             let size = match self.variant {
                 TextFieldVariant::Filled => filled_text_field::LEADING_ICON_SIZE,
@@ -602,7 +601,7 @@ pub(crate) fn trailing_button(
     disabled: bool,
 ) -> Response {
     let rt = ui.rt();
-    let slot = icon_slot(ui.rt(), ui.density()) / 2.0;
+    let slot = icon_slot(ui.density()) / 2.0;
     let x = rt.i18n().direction().reversed().start_x(field, Rangef::point(slot));
     slot_button(ui, pos2(x, field.center().y), id, icon, color, disabled)
 }
@@ -992,10 +991,9 @@ impl<'a> TextField<'a> {
 
     // Editor width in a `width` wide field: the span `paint_chrome` leaves beside the affixes.
     fn text_width(&self, ui: &MineralUi<'_, Material>, width: f32) -> f32 {
-        let rt = ui.rt();
         let span = width
-            - content_inset(rt, ui.density(), self.chrome.leading.is_some())
-            - content_inset(rt, ui.density(), self.has_trailing());
+            - content_inset(ui.density(), self.chrome.leading.is_some())
+            - content_inset(ui.density(), self.has_trailing());
         span - affix_room(ui, &self.chrome, span)
     }
 

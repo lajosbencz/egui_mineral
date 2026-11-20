@@ -1,5 +1,6 @@
 use crate::Material;
 use crate::MaterialExt;
+use crate::MaterialUiExt as _;
 use crate::Rt;
 use egui::{Align, Align2, Color32, Frame, Id, Layout, Pos2, Rangef, Rect, Response, Sense, Vec2, pos2, vec2};
 use egui_mineral::i18n::I18n;
@@ -27,7 +28,7 @@ use crate::widget::{
 };
 use crate::{
     Icon,
-    adaptive::WindowClass,
+    adaptive::{Density, WindowClass},
     motion,
     spec::{
         TypeScale,
@@ -159,6 +160,7 @@ impl Group {
         let tab_stop = focus::tab_stop(rt.ctx(), group, Some(selected), items.len(), enabled);
         let mut ids = Vec::with_capacity(items.len());
         let mut picked = None;
+        let shape = row.shape.dense(ui.density(), row.font);
         for (i, dest) in items.iter().enumerate() {
             let is_selected = i == selected;
             let own = crate::widget::item_salt(&self.salt, dest.salt.as_ref(), None, i);
@@ -168,7 +170,7 @@ impl Group {
                 dest,
                 selected: is_selected,
                 tab_stop: focus::TabStop::at(i, tab_stop),
-                shape: row.shape,
+                shape,
                 font: row.font,
                 label: is_selected || row.all_labels,
             });
@@ -396,6 +398,45 @@ enum ItemShape {
         gap: f32,
         full: bool,
     },
+}
+
+// Dense down to the indicator and its label (icon above) or the icon with padding (icon before).
+fn dense_height(density: Density, height: f32, horizontal: bool, font: TypeScale) -> f32 {
+    let content = if horizontal {
+        bar_v::ICON_SIZE + 8.0
+    } else {
+        bar_v::ACTIVE_INDICATOR_HEIGHT + nx::INDICATOR_TO_LABEL + font.line_height()
+    };
+    density.dense_to(height, content)
+}
+
+fn drawer_item_height(density: Density) -> f32 {
+    density.dense_to(
+        drawer::ACTIVE_INDICATOR_HEIGHT,
+        drawer::LABEL_TEXT_FONT.line_height().max(drawer::ICON_SIZE) + 8.0,
+    )
+}
+
+impl ItemShape {
+    fn dense(self, density: Density, font: TypeScale) -> Self {
+        match self {
+            Self::Vertical { size, top } => Self::Vertical {
+                size: vec2(size.x, dense_height(density, size.y, false, font)),
+                top,
+            },
+            Self::Horizontal {
+                size,
+                pill_h,
+                gap,
+                full,
+            } => Self::Horizontal {
+                size: vec2(size.x, dense_height(density, size.y, true, font)),
+                pill_h: dense_height(density, pill_h, true, font),
+                gap,
+                full,
+            },
+        }
+    }
 }
 
 // Compose NavigationBarItemDefaults, NavigationItemColors
@@ -684,11 +725,17 @@ impl<'a> NavigationBar<'a> {
         let id = ui.make_persistent_id(self.group.salt.id_salt());
         let width = ui.available_width();
         // `NavigationBar` (baseline) or `ShortNavigationBar` (flexible).
+        let horizontal = self.flexible
+            && self.item_axis.map_or_else(
+                || WindowClass::of(rt.core()) >= WindowClass::Medium,
+                |a| a == Axis::Horizontal,
+            );
         let height = if self.flexible {
             bar::CONTAINER_HEIGHT
         } else {
             bar::TALL_CONTAINER_HEIGHT
         };
+        let height = dense_height(ui.density(), height, horizontal, bar::LABEL_TEXT_FONT);
         let (rect, response) = ui.allocate_exact_size(vec2(width, height), Sense::hover());
         ui.painter().rect_filled(rect, 0, t.role(bar::CONTAINER_COLOR));
         let space = if self.flexible {
@@ -699,11 +746,6 @@ impl<'a> NavigationBar<'a> {
         let count = n.max(1) as f32;
         let item_w = (width - space * (count - 1.0)) / count;
         let size = vec2(item_w, height);
-        let horizontal = self.flexible
-            && self.item_axis.map_or_else(
-                || WindowClass::of(rt.core()) >= WindowClass::Medium,
-                |a| a == Axis::Horizontal,
-            );
         let shape = match (self.flexible, horizontal) {
             (false, _) => ItemShape::Vertical {
                 size,
@@ -1312,13 +1354,11 @@ impl Drawer {
                     ui.set_width((width - 2.0 * pad).max(0.0));
                     ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
                     let mut index = 0;
+                    let item_h = drawer_item_height(rt.ui(ui).density());
                     for entry in &self.entries {
                         match entry {
                             DrawerEntry::Section(title) => {
-                                let (r, _) = ui.allocate_exact_size(
-                                    vec2(ui.available_width(), drawer::ACTIVE_INDICATOR_HEIGHT),
-                                    Sense::hover(),
-                                );
+                                let (r, _) = ui.allocate_exact_size(vec2(ui.available_width(), item_h), Sense::hover());
                                 let dir = rt.i18n().direction();
                                 ui.painter().text(
                                     pos2(dir.start_x(r, Rangef::point(nx::DRAWER_ITEM_START)), r.center().y),
@@ -1384,9 +1424,9 @@ impl MineralWidget for DrawerItem<'_> {
         self.dest.mnemonic
     }
 
-    fn layout(&self, _ui: &MineralUi<'_, Material>, constraints: Constraints, (): &Self::State) -> Measure {
+    fn layout(&self, ui: &MineralUi<'_, Material>, constraints: Constraints, (): &Self::State) -> Measure {
         constraints
-            .constrain(vec2(constraints.max.x, drawer::ACTIVE_INDICATOR_HEIGHT))
+            .constrain(vec2(constraints.max.x, drawer_item_height(ui.density())))
             .into()
     }
 

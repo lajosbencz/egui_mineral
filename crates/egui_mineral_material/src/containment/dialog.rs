@@ -16,7 +16,6 @@ use egui_mineral::{
 };
 
 use crate::actions::{ButtonVariant, PushButton};
-use crate::adaptive::MIN_INTERACTIVE_DP;
 use crate::widget::{common, modal_focus::ModalFocus, parts};
 use crate::{
     Icon,
@@ -61,7 +60,7 @@ fn text_actions_end<T>(
     let rt = ui.rt();
     let width = |b: &PushButton<'_>| {
         let measure = b.layout(ui, Constraints::loose(vec2(ui.available_width(), f32::INFINITY)), &());
-        Zones::new(measure, b.min_target(ui).points(ui.core())).outer.width()
+        Zones::new(measure, ui.target(b.min_target(ui))).outer.width()
     };
     let buttons: Vec<_> = actions
         .into_iter()
@@ -608,7 +607,7 @@ impl Dialog {
         let rt = ui.rt();
         let dir = rt.i18n().direction();
         let edge = dir.reversed().start_x(frame, Rangef::point(0.0));
-        let hit = MIN_INTERACTIVE_DP / 2.0;
+        let hit = crate::adaptive::resize_edge(ui);
         let rect = Rect::from_x_y_ranges(edge - hit / 2.0..=edge + hit / 2.0, frame.y_range());
         let range = RangeModel::new(f64::from(self.width.min), f64::from(self.width.max));
         let width = frame.width();
@@ -815,7 +814,9 @@ impl FullScreenDialog {
         let (head, _) = ui.allocate_exact_size(vec2(width, app_bar_small::CONTAINER_HEIGHT), Sense::hover());
         // Logical x of a `w` wide part `from_start` into the bar.
         let x = |from_start: f32, w: f32| dir.start_x(head, Rangef::new(from_start, from_start + w));
-        let close = parts::action_slot(dir, head, app_bar::LEADING_SPACE);
+        // A modal root: the app density.
+        let slot = crate::adaptive::min_interactive(rt.kit().density());
+        let close = parts::action_slot(dir, slot, head, app_bar::LEADING_SPACE);
         let layout = *ui.layout();
         let closed = egui_mineral::layout::child(&mut rt.ui(ui), "close", close, layout, |ui| {
             let salt = self.salt.child("close");
@@ -824,7 +825,7 @@ impl FullScreenDialog {
         })
         .inner;
         let mut action = None;
-        let title_start = app_bar::LEADING_SPACE + MIN_INTERACTIVE_DP + bar::TITLE_HORIZONTAL_PADDING;
+        let title_start = app_bar::LEADING_SPACE + slot + bar::TITLE_HORIZONTAL_PADDING;
         let mut title_end = app_bar::TRAILING_SPACE + bar::TITLE_HORIZONTAL_PADDING;
         if let Some(a) = &self.confirm {
             // The end half of the bar, inside the trailing space.

@@ -13,7 +13,6 @@ use egui_mineral::{
     focus::{self, Cell, GridSize},
     i18n::{Direction, LocaleFormat},
     kit,
-    layout::MinTarget,
     pagination::Paging,
     perf::VirtualList,
     range::{RangeModel, Track},
@@ -586,7 +585,7 @@ impl<'a> DataTable<'a> {
         let mut out = Events::default();
 
         let has_sel = self.selection.is_some();
-        let slot = row_parts::control_slot(rt);
+        let slot = row_parts::control_slot(ui.density());
         let sel_w = if has_sel { CELL_START + slot } else { 0.0 };
         let avail_w = ui.available_width();
         let geo = self.geometry(&st.widths, dir, sel_w, slot, avail_w);
@@ -1278,7 +1277,7 @@ fn resize_handle(
     let cell = geo.cell(header, c);
     let edge = geo.dir.end_edge(cell);
     // The core splitter's hit width for the same gesture.
-    let hit = MinTarget::Auto.points(rt.core());
+    let hit = crate::adaptive::resize_edge(ui);
     let rect = Rect::from_center_size(pos2(edge, header.center().y), vec2(hit, header.height()));
     let r = ui.interact(rect, id.with(("resize", c)), Sense::drag());
     let model = RangeModel::new(f64::from(col.min_width), MAX_COLUMN_WIDTH).step(f64::from(crate::adaptive::grid(2)));

@@ -1,6 +1,7 @@
 use crate::IconSet;
 use crate::Material;
 use crate::MaterialExt;
+use crate::MaterialUiExt as _;
 use crate::Rt;
 use crate::TextAction;
 use egui::{Color32, Frame, Sense, Stroke, Ui, Vec2, vec2};
@@ -16,7 +17,6 @@ use crate::actions::{IconButton, PushButton};
 use crate::widget::parts;
 use crate::{
     Icon,
-    adaptive::MIN_INTERACTIVE,
     spec::{
         ShapeRole, defaults,
         tokens::{divider, filled_card, list, outlined_card, rich_tooltip},
@@ -265,11 +265,8 @@ impl Alert {
                     size,
                     icon_color,
                 );
-                let close_w = if self.dismissible {
-                    MIN_INTERACTIVE.points(rt.core()) + gap
-                } else {
-                    0.0
-                };
+                let target = crate::adaptive::min_interactive(rt.ui(ui).density());
+                let close_w = if self.dismissible { target + gap } else { 0.0 };
                 let text_w = (ui.available_width() - close_w).max(0.0);
                 ui.allocate_ui_with_layout(vec2(text_w, 0.0), dir.column(), |ui| {
                     ui.set_min_width(text_w);
@@ -279,7 +276,7 @@ impl Alert {
                     }
                     parts::type_label(ui, &self.message, rich_tooltip::SUPPORTING_TEXT_FONT, text, 0);
                     if !self.actions.is_empty() {
-                        parts::row(&mut rt.ui(ui), dir, MIN_INTERACTIVE.points(rt.core()), |ui| {
+                        parts::row(&mut rt.ui(ui), dir, target, |ui| {
                             let buttons = self
                                 .actions
                                 .iter()

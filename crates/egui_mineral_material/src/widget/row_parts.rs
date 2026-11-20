@@ -1,7 +1,8 @@
 // Compose ListItemColors; focus shows the state layer, no ring (RippleDefaults OpacityFocusThemeConfiguration)
 
 use crate::Material;
-use crate::Rt;
+#[cfg(feature = "extras")]
+use crate::MaterialUiExt as _;
 use crate::adaptive::Density;
 use egui::{Color32, CornerRadius, Id, Painter, Rangef, Rect, Response, Sense, pos2, vec2};
 #[cfg(feature = "extras")]
@@ -51,8 +52,8 @@ pub(crate) fn row_height(density: Density) -> f32 {
 }
 
 // Compose sizes a clickable checkbox/radio to the minimum interactive size
-pub(crate) fn control_slot(rt: &Rt) -> f32 {
-    crate::adaptive::MIN_INTERACTIVE.points(rt.core())
+pub(crate) fn control_slot(density: Density) -> f32 {
+    crate::adaptive::min_interactive(density)
 }
 
 pub(crate) fn control_target(
@@ -185,9 +186,8 @@ pub(crate) fn paint_checkbox(
     disabled: bool,
     t: &Tokens,
 ) {
-    let rt = ui.rt();
     controls::paint_checkbox(ui, target.id, center, state, false, !disabled, t);
-    let node = Control::Checkbox.node(rt, center);
+    let node = Control::Checkbox.node(ui.density(), center);
     Control::Checkbox.indication(ui, target, node, disabled, t);
 }
 

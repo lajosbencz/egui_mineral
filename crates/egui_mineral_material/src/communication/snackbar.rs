@@ -240,6 +240,7 @@ struct Row<'a> {
     end: f32,
     close_w: f32,
     action_w: f32,
+    target: f32,
     sense: Sense,
     keys: Keys<'a>,
 }
@@ -287,11 +288,9 @@ fn paint_content(
     let action_w = action_g.as_ref().map_or(0.0, |g| {
         (g.size().x + 2.0 * defaults::button::TEXT_SPACE).max(defaults::button::MIN_WIDTH)
     });
-    let close_w = if sb.close {
-        crate::adaptive::MIN_INTERACTIVE_DP
-    } else {
-        0.0
-    };
+    // A popup root: the app density.
+    let target = crate::adaptive::min_interactive(rt.kit().density());
+    let close_w = if sb.close { target } else { 0.0 };
     let extra = if sb.close { 0.0 } else { d::TEXT_END_EXTRA_SPACING };
     let text_g = parts::type_wrapped(
         &p,
@@ -303,7 +302,7 @@ fn paint_content(
     );
     let text_h = text_g.size().y + 2.0 * d::TEXT_VERTICAL_PADDING;
     let (h, text_y) = if text_g.rows.len() <= 1 {
-        let h = snackbar::SINGLE_LINE_CONTAINER_HEIGHT.max(crate::adaptive::MIN_INTERACTIVE_DP);
+        let h = snackbar::SINGLE_LINE_CONTAINER_HEIGHT.max(target);
         (h, (h - text_h) / 2.0)
     } else {
         let y = d::HEIGHT_TO_FIRST_LINE - d::TEXT_VERTICAL_PADDING - parts::first_baseline(&text_g);
@@ -320,6 +319,7 @@ fn paint_content(
         end: d::HORIZONTAL_SPACING + row_w,
         close_w,
         action_w,
+        target,
         sense: if interactive { Sense::click() } else { Sense::hover() },
         keys,
     };
@@ -363,9 +363,9 @@ fn close_button(ui: &mut Ui, rt: &Rt, row: &Row, color: Color32) -> Response {
     let target = Rect::from_min_size(
         pos2(
             row.x(row.end - row.close_w, row.close_w),
-            row.rect.center().y - crate::adaptive::MIN_INTERACTIVE_DP / 2.0,
+            row.rect.center().y - row.target / 2.0,
         ),
-        Vec2::splat(crate::adaptive::MIN_INTERACTIVE_DP),
+        Vec2::splat(row.target),
     );
     let size = small_icon_button::CONTAINER_HEIGHT;
     let part = parts::IconPart {
@@ -397,9 +397,9 @@ fn action_button(
     let target = Rect::from_min_size(
         pos2(
             row.x(row.end - row.close_w - row.action_w, row.action_w),
-            row.rect.center().y - crate::adaptive::MIN_INTERACTIVE_DP / 2.0,
+            row.rect.center().y - row.target / 2.0,
         ),
-        vec2(row.action_w, crate::adaptive::MIN_INTERACTIVE_DP),
+        vec2(row.action_w, row.target),
     );
     let resp = kit::input::interact(
         &rt.ui(ui),

@@ -1,7 +1,6 @@
 use crate::Material;
 use crate::MaterialExt;
 use crate::MaterialUiExt as _;
-use crate::Rt;
 use crate::adaptive::Density;
 use egui::{Color32, CornerRadius, KeyboardShortcut, Rect, Vec2, vec2};
 use egui_mineral::i18n::I18n;
@@ -230,7 +229,6 @@ pub struct IconButton<'a> {
     disabled: bool,
     shortcut: Option<KeyboardShortcut>,
     badge: Option<Badge>,
-    target: MinTarget,
     pub(crate) palette: Palette,
 }
 
@@ -252,7 +250,6 @@ impl<'a> IconButton<'a> {
             disabled: false,
             shortcut: None,
             badge: None,
-            target: crate::adaptive::MIN_INTERACTIVE,
             palette: Palette::default(),
         }
     }
@@ -265,16 +262,7 @@ impl<'a> IconButton<'a> {
     // Slot of a default button in a density-aware row: the 48dp target less density, at least the container.
     pub(crate) fn slot(density: Density) -> f32 {
         let g = geometry(Size::Small, IconButtonWidth::default());
-        density.dense_to(
-            crate::adaptive::MIN_INTERACTIVE_DP,
-            g.icon + crate::adaptive::CONTENT_PAD,
-        )
-    }
-
-    // Dense composites size the slot to the container instead of the 48dp target.
-    pub(crate) fn hit_target(mut self, target: MinTarget) -> Self {
-        self.target = target;
-        self
+        crate::adaptive::min_interactive(density).max(g.icon + crate::adaptive::CONTENT_PAD)
     }
 
     /// Default [`IconButtonVariant::Standard`].
@@ -337,10 +325,13 @@ impl<'a> IconButton<'a> {
         self
     }
 
-    pub(crate) fn footprint(&self, rt: &Rt, density: Density) -> Vec2 {
-        Zones::new(self.container(density).into(), self.target.points(rt.core()))
-            .outer
-            .size()
+    pub(crate) fn footprint(&self, density: Density) -> Vec2 {
+        Zones::new(
+            self.container(density).into(),
+            crate::adaptive::min_interactive(density),
+        )
+        .outer
+        .size()
     }
 
     fn container(&self, density: Density) -> Vec2 {
@@ -365,7 +356,7 @@ impl MineralWidget for IconButton<'_> {
     }
 
     fn min_target(&self, _: &MineralUi<'_, Self::Kit>) -> MinTarget {
-        self.target
+        crate::adaptive::MIN_INTERACTIVE
     }
 
     fn layout(&self, ui: &MineralUi<'_, Material>, constraints: Constraints, (): &Self::State) -> Measure {

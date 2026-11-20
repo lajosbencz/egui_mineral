@@ -10,6 +10,7 @@ mod composites;
 mod containment;
 mod coverage;
 mod data_table;
+mod density;
 mod edit_fields;
 mod extras;
 mod fields;

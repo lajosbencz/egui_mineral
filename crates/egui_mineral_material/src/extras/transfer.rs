@@ -235,7 +235,7 @@ impl<'a> TransferList<'a> {
         let h = Self::header_height(ui.density());
         let (rect, _) = ui.allocate_exact_size(vec2(width, h), Sense::hover());
         let dir = rt.i18n().direction();
-        let slot_w = row_parts::control_slot(rt);
+        let slot_w = row_parts::control_slot(ui.density());
         let start = defaults::list::START_PADDING;
         let slot_x = dir.start_x(rect, Rangef::new(start, start + slot_w));
         let slot = Rect::from_min_size(pos2(slot_x, rect.top()), vec2(slot_w, rect.height()));
@@ -347,7 +347,7 @@ impl Composite for TransferList<'_> {
         let dst_any = self.chosen.iter().any(|i| st.target.is_selected(i));
         let mut moved = None;
         let gap = crate::adaptive::grid(2);
-        let button = crate::adaptive::MIN_INTERACTIVE.points(rt.core());
+        let button = crate::adaptive::min_interactive(ui.density());
         let total = constraints.constrain(vec2(
             2.0 * DEFAULT_LIST_WIDTH + button + 2.0 * gap,
             Self::default_height(ui.density()),
