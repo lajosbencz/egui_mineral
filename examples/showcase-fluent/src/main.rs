@@ -70,7 +70,7 @@ struct Settings {
 fn kit(ctx: &egui::Context) -> Fluent {
     if std::env::var("MINERAL_ICONS").is_ok_and(|v| v == "material") {
         egui_mineral_material::fonts::install_bundled_icons(ctx);
-        Fluent::with_icons(&material_icons(), &[])
+        Fluent::from_icon_fonts([]).with_icons(material_icons())
     } else {
         Fluent::default()
     }

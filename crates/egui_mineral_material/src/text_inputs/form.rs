@@ -1,9 +1,13 @@
 use crate::Material;
 use crate::MaterialExt;
 use crate::msg;
+#[cfg(feature = "extras")]
 use egui::emath::Numeric;
 use egui_mineral::date::Date;
-use egui_mineral::form::{Blank, FieldCtx, FieldSpec, Form, FormFooter, FormResponse, FormUi};
+#[cfg(feature = "extras")]
+use egui_mineral::form::Blank;
+use egui_mineral::form::{FieldCtx, FieldSpec, Form, FormFooter, FormResponse, FormUi};
+#[cfg(feature = "extras")]
 use egui_mineral::range::RangeModel;
 use egui_mineral::select::{ItemKey, Selection};
 use egui_mineral::semantic::KeyedSalt;

@@ -52,7 +52,7 @@ impl Material {
     /// `Self::new` installing `fonts` instead of the bundled ones: Material Symbols fonts
     /// ([`IconFonts::fonts`](crate::fonts::IconFonts::fonts)) or the icon font of another kit, whose glyphs
     /// [`Self::with_icons`] names.
-    pub fn from_fonts(fonts: impl IntoIterator<Item = IconFont>) -> Self {
+    pub fn from_icon_fonts(fonts: impl IntoIterator<Item = IconFont>) -> Self {
         Self::build(Fonts::Custom(fonts.into_iter().collect()))
     }
 
@@ -79,7 +79,7 @@ impl Material {
     /// Starts at `density`; [`Self::set_density`] changes it later.
     #[must_use]
     pub fn with_density(self, density: Density) -> Self {
-        self.set_density(density);
+        self.density.store(density.step(), Ordering::Relaxed);
         self
     }
 
@@ -138,8 +138,9 @@ impl Material {
     /// minimum hit target ([`Stylekit::min_target`], [`adaptive::min_interactive`]), never below the visual
     /// box. Prominence and message surfaces (FABs, dialogs, sheets, pickers, snackbars, badges, progress)
     /// keep their spec size; only their targets shrink.
-    pub fn set_density(&self, density: Density) {
+    pub fn set_density(&self, ctx: &Context, density: Density) {
         self.density.store(density.step(), Ordering::Relaxed);
+        repaint(ctx);
     }
 }
 

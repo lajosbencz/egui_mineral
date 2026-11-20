@@ -55,7 +55,7 @@ struct Shell {
 }
 
 fn new_app(ctx: &egui::Context) -> Result<App, Box<dyn std::error::Error + Send + Sync>> {
-    let rt = Runtime::new(ctx, Material::from_fonts(ICON_FONTS.fonts()))?;
+    let rt = Runtime::new(ctx, Material::from_icon_fonts(ICON_FONTS.fonts()))?;
     #[cfg(not(target_arch = "wasm32"))]
     let executor = tokio::runtime::Builder::new_multi_thread().enable_time().build()?;
     #[cfg(not(target_arch = "wasm32"))]
@@ -143,7 +143,7 @@ impl Shell {
         } else {
             egui_mineral::runtime::GlobalStyle::Egui
         });
-        rt.kit().set_density(Density::new(s.density));
+        rt.kit().set_density(rt.ctx(), Density::new(s.density));
         if self.applied.as_ref().is_none_or(|a| a.locale != s.locale) {
             rt.i18n().set_locale(LOCALES[s.locale]).expect("LOCALES are valid tags");
         }

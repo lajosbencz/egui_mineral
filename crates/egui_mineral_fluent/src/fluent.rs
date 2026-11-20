@@ -42,25 +42,41 @@ impl Fluent {
     /// Web light and dark tokens of the Fluent web brand (`BRAND_WEB`), with the bundled icon font (1.6 MB).
     #[cfg(feature = "bundled-icons")]
     pub fn new() -> Self {
-        Self::with_icon_font(crate::fonts::BUNDLED_ICONS)
+        Self::from_icon_fonts([crate::fonts::icon_font(crate::fonts::BUNDLED_ICONS)])
     }
 
-    /// `Self::new` with `ttf` instead of the bundled icon font: a Fluent UI System Icons resizable font (or a
-    /// subset of it).
-    pub fn with_icon_font(ttf: &'static [u8]) -> Self {
-        Self::with_icons(&IconSet::fluent(), &[crate::fonts::icon_font(ttf)])
-    }
-
-    /// `Self::new` drawing the kit's own icons from `icons`, installing `fonts` instead of the Fluent icon font: Fluent
-    /// icons ([`fonts::icon_font`](crate::fonts::icon_font)) or the icon font of another kit.
-    pub fn with_icons(icons: &IconSet, fonts: &[IconFont]) -> Self {
+    /// `Self::new` installing `fonts` instead of the bundled icon font: a Fluent UI System Icons resizable font or a
+    /// subset of it ([`fonts::icon_font`](crate::fonts::icon_font)), or the icon font of another kit, whose glyphs
+    /// [`Self::with_icons`] names.
+    pub fn from_icon_fonts(fonts: impl IntoIterator<Item = IconFont>) -> Self {
         Self {
             high_contrast: AtomicBool::new(false),
             tokens: Mutex::new(TokenStore::new(BRAND_WEB)),
             pass: PassCache::default(),
-            icons: Arc::new(*icons),
-            fonts: fonts.to_vec(),
+            icons: Arc::new(IconSet::fluent()),
+            fonts: fonts.into_iter().collect(),
         }
+    }
+
+    /// Draws the kit's own parts from `icons` instead of [`IconSet::fluent`].
+    #[must_use]
+    pub fn with_icons(mut self, icons: IconSet) -> Self {
+        self.icons = Arc::new(icons);
+        self
+    }
+
+    /// Starts in `mode`; [`Self::set_contrast_mode`] changes it later.
+    #[must_use]
+    pub fn with_contrast_mode(self, mode: ContrastMode) -> Self {
+        self.high_contrast.store(mode == ContrastMode::High, Ordering::Relaxed);
+        self
+    }
+
+    /// Starts with `brand`; [`Self::set_brand`] changes it later.
+    #[must_use]
+    pub fn with_brand(self, brand: BrandRamp) -> Self {
+        self.tokens.lock().set_brand(brand);
+        self
     }
 
     /// [`ContrastMode::High`] replaces the light and dark schemes with [`Scheme::HighContrast`].

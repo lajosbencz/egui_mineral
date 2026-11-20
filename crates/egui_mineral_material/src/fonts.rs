@@ -28,8 +28,8 @@ pub fn install_bundled_icons(ctx: &Context) {
     egui_material_icons::initialize(ctx);
 }
 
-/// Material Symbols fonts the kit draws icons with: `Material::from_fonts(IconFonts::new(..).fonts())`
-/// ([`Material::from_fonts`](crate::Material::from_fonts)).
+/// Material Symbols fonts the kit draws icons with: `Material::from_icon_fonts(IconFonts::new(..).fonts())`
+/// ([`Material::from_icon_fonts`](crate::Material::from_icon_fonts)).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub struct IconFonts {
