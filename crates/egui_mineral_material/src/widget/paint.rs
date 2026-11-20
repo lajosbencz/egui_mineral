@@ -16,7 +16,7 @@ macro_rules! paint_widget {
                 egui::Sense::hover()
             }
 
-            fn min_target(&self) -> egui_mineral::layout::MinTarget {
+            fn min_target(&self, _: &MineralUi<'_, Self::Kit>) -> egui_mineral::layout::MinTarget {
                 egui_mineral::layout::MinTarget::None
             }
 

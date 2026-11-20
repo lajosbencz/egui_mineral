@@ -109,6 +109,32 @@ fn inline_edit_submits_on_enter_and_reverts_on_escape() {
 }
 
 #[test]
+fn inline_edit_binding_opens_the_editor_with_the_text_selected() {
+    let mut h = harness(SCREEN, ("Draft".to_owned(), false), |ui, (value, editing)| {
+        ui.mineral(InlineEdit::new("title", "Title", value).editing(editing));
+    });
+    h.state_mut().value.1 = true;
+    h.run();
+    h.type_text("Final");
+    assert!(h.state().value.1, "still editing");
+    h.press(Key::Enter);
+    assert_eq!(
+        h.state().value,
+        ("Final".to_owned(), false),
+        "typing replaced the selection"
+    );
+    h.press(Key::Tab);
+    h.press(Key::Enter);
+    assert!(h.state().value.1, "the widget reports its own activation");
+    h.state_mut().value.1 = false;
+    h.run();
+    assert!(
+        h.tree().find_key("title-field").is_none(),
+        "clearing the binding closes the editor"
+    );
+}
+
+#[test]
 fn search_bar_reports_submit_on_enter() {
     let mut h = harness(SCREEN, (String::new(), false), |ui, (query, submitted)| {
         *submitted |= ui.mineral(SearchBar::new("search", "Search", query)).output().submitted;

@@ -617,7 +617,7 @@ impl MineralWidget for ValueSlider<'_> {
         Some(self.axis)
     }
 
-    fn min_target(&self) -> MinTarget {
+    fn min_target(&self, _: &MineralUi<'_, Self::Kit>) -> MinTarget {
         crate::adaptive::MIN_INTERACTIVE
     }
 

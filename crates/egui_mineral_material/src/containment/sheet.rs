@@ -372,6 +372,7 @@ pub struct SideSheet {
     headline: Option<String>,
     close_button: bool,
     widths: Rangef,
+    initial_width: f32,
     resizable: bool,
     edge: Edge,
     scroll: bool,
@@ -388,6 +389,7 @@ impl SideSheet {
             headline: None,
             close_button: true,
             widths: SIDE_WIDTHS,
+            initial_width: SIDE_WIDTH,
             resizable: false,
             edge: Edge::End,
             scroll: true,
@@ -412,13 +414,21 @@ impl SideSheet {
         self
     }
 
-    /// Width bounds in dp; default MD3 256..=400. The sheet is 360dp clamped into them, so equal bounds fix the
-    /// width. A reversed range is swapped.
+    /// Width bounds in dp; default MD3 256..=400. The sheet is [`Self::initial_width`] clamped into them, so
+    /// equal bounds fix the width. A reversed range is swapped.
     #[track_caller]
     pub fn width(mut self, width: impl Into<Rangef>) -> Self {
         let w = width.into();
         let min = egui_mineral::kit::sanitize::at_least(w.min.min(w.max), 0.0.., "side sheet width");
         self.widths = Rangef::new(min, w.max.max(w.min).max(min));
+        self
+    }
+
+    /// Width in dp before the user resizes the sheet, clamped into [`Self::width`]; default MD3 360. A
+    /// persisted [`Self::resizable`] width replaces it. Negative values snap to 0.
+    #[track_caller]
+    pub fn initial_width(mut self, initial_width: f32) -> Self {
+        self.initial_width = egui_mineral::kit::sanitize::at_least(initial_width, 0.0.., "side sheet initial width");
         self
     }
 
@@ -584,9 +594,9 @@ impl SideSheet {
 
     fn persisted_width(&self, ctx: &Context, id: Id) -> f32 {
         if self.resizable {
-            ctx.data_mut(|d| *d.get_persisted_mut_or(id, SIDE_WIDTH))
+            ctx.data_mut(|d| *d.get_persisted_mut_or(id, self.initial_width))
         } else {
-            SIDE_WIDTH
+            self.initial_width
         }
     }
 

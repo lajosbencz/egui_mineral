@@ -104,6 +104,14 @@ impl<'a, N: Numeric> NumberField<'a, N> {
 
     crate::text_inputs::text_field::field_chrome_setters!(no_icon);
     crate::text_inputs::text_field::field_chrome_setters!(text);
+    crate::text_inputs::text_field::field_chrome_setters!(align);
+
+    /// Shows the unfocused value with every digit in a cell as wide as the widest one, so its width
+    /// holds as digits change (fonts' own `tnum` figures cannot be requested); default `false`.
+    pub fn tabular_figures(mut self, tabular_figures: bool) -> Self {
+        self.chrome.tabular = tabular_figures;
+        self
+    }
 
     pub(crate) fn with_field_chrome(mut self, chrome: FieldChrome) -> Self {
         self.chrome = chrome;

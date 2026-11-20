@@ -52,6 +52,7 @@ pub struct StatusItem {
     clickable: bool,
     tone: StatusTone,
     elide: Option<Elide>,
+    tabular: bool,
 }
 
 impl StatusItem {
@@ -64,6 +65,7 @@ impl StatusItem {
             clickable: false,
             tone: StatusTone::Default,
             elide: None,
+            tabular: false,
         }
     }
 
@@ -104,6 +106,14 @@ impl StatusItem {
         self
     }
 
+    /// Digits in cells as wide as the font's widest one ([`kit::text::tabular_figures`](crate::kit::text::tabular_figures)),
+    /// so a counter keeps its width as it changes; default `false`. A kit may show an item shrunk by
+    /// [`Self::elide`] with its figures as shaped.
+    pub fn tabular_figures(mut self, tabular_figures: bool) -> Self {
+        self.tabular = tabular_figures;
+        self
+    }
+
     /// Shown text and accessible name.
     pub fn text(&self) -> &str {
         &self.text
@@ -127,6 +137,11 @@ impl StatusItem {
     /// Value of [`Self::tone`].
     pub fn tone_kind(&self) -> StatusTone {
         self.tone
+    }
+
+    /// Value of [`Self::tabular_figures`].
+    pub fn has_tabular_figures(&self) -> bool {
+        self.tabular
     }
 
     /// Value of [`Self::elide`].

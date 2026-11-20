@@ -418,7 +418,7 @@ impl MineralWidget for Cell<'_> {
         )
     }
 
-    fn min_target(&self) -> MinTarget {
+    fn min_target(&self, _: &MineralUi<'_, Self::Kit>) -> MinTarget {
         MinTarget::None
     }
 

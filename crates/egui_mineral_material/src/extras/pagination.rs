@@ -91,7 +91,7 @@ impl MineralWidget for PageButton {
 
     egui_mineral::kit::widget_meta!(salt, enabled);
 
-    fn min_target(&self) -> MinTarget {
+    fn min_target(&self, _: &MineralUi<'_, Self::Kit>) -> MinTarget {
         crate::adaptive::MIN_INTERACTIVE
     }
 
@@ -313,7 +313,7 @@ impl MineralWidget for Crumb<'_> {
         self.current.is_none() && !self.disabled
     }
 
-    fn min_target(&self) -> MinTarget {
+    fn min_target(&self, _: &MineralUi<'_, Self::Kit>) -> MinTarget {
         if self.current.is_some() {
             MinTarget::None
         } else {

@@ -1,7 +1,7 @@
 // Compose FloatingToolbar.kt, AppBar.kt FlexibleBottomAppBar
 use crate::Material;
 use crate::MaterialExt;
-use crate::Rt;
+use crate::MaterialUiExt as _;
 use crate::actions::button::Surface;
 use crate::{actions::button::Elevation, spec::ElevationLevel};
 use egui_mineral::i18n::I18n;
@@ -13,7 +13,7 @@ use egui_mineral::widget::Availability;
 use egui_mineral::{
     focus::RovingFocus,
     i18n::Direction,
-    layout::{Axis, Constraints, Edge, Measure},
+    layout::{Axis, Constraints, Edge, Measure, MinTarget},
     semantic::{self, Role, SemanticNode, StableId},
     shortcut,
     widget::{MineralWidget, WidgetFrame, WidgetResponse},
@@ -22,7 +22,7 @@ use egui_mineral::{
 use crate::actions::icon_button::{IconButton, Palette};
 use crate::{
     Icon,
-    adaptive::MIN_INTERACTIVE,
+    adaptive::MIN_INTERACTIVE_DP,
     motion,
     spec::{
         ColorRole,
@@ -39,9 +39,14 @@ use crate::{
     },
 };
 
-// Compose IconButton minimumInteractiveComponentSize
-fn slot(rt: &Rt) -> f32 {
-    MIN_INTERACTIVE.points(rt.core())
+// Compose IconButton minimumInteractiveComponentSize, less density
+fn slot(ui: &MineralUi<'_, Material>) -> f32 {
+    IconButton::slot(ui.density())
+}
+
+// `height` at default density; the padding around the action slot stays.
+fn dense_height(height: f32, item: f32) -> f32 {
+    height - (MIN_INTERACTIVE_DP - item)
 }
 
 /// Result of [`DockedToolbar::show`] and [`FloatingToolbar::show`].
@@ -132,7 +137,7 @@ fn items(
         Axis::Horizontal => rt.i18n().direction().row(),
         Axis::Vertical => Layout::top_down(egui::Align::Center),
     };
-    let item = slot(rt);
+    let item = slot(ui);
     let mut clicked = None;
     let mut rects = Vec::new();
     // (widget id, enabled) in roving order
@@ -153,7 +158,8 @@ fn items(
                         a.icon,
                         &a.label,
                     )
-                    .disabled(a.disabled);
+                    .disabled(a.disabled)
+                    .hit_target(MinTarget::Points(item));
                     if let Some(sel) = a.selected {
                         b = b.selected(sel);
                     }
@@ -351,10 +357,10 @@ impl<'a> DockedToolbar<'a> {
         let mut core = self.0;
         core.apply_disabled();
         let t = rt.tokens();
-        let item = slot(ui.rt());
+        let item = slot(ui);
         let w = ui.available_width();
         let id = ui.make_persistent_id(core.salt.id_salt());
-        let (rect, _) = ui.allocate_exact_size(vec2(w, docked::CONTAINER_HEIGHT), Sense::hover());
+        let (rect, _) = ui.allocate_exact_size(vec2(w, dense_height(docked::CONTAINER_HEIGHT, item)), Sense::hover());
         let response = ui.interact(rect, id, Sense::hover());
         let (mut clicked, mut shown) = (None, Vec::new());
         if ui.is_rect_visible(rect) {
@@ -455,12 +461,12 @@ impl<'a> FloatingToolbar<'a> {
         let axis = self.axis;
         let ctx = ui.ctx().clone();
         let id = ui.make_persistent_id(self.core.salt.id_salt());
-        let item = slot(rt);
+        let item = slot(ui);
         let widths = plan(ui, &self.core.salt, &self.core.items, item, axis, None);
         // `ContentPadding` around the actions; `heightIn(min = ContainerSize)` across them.
         let length = floating::CONTAINER_LEADING_SPACE + total(&widths) + floating::CONTAINER_TRAILING_SPACE;
-        let across = floating::CONTAINER_HEIGHT
-            .max(floating::CONTAINER_LEADING_SPACE + item + floating::CONTAINER_TRAILING_SPACE);
+        let height = dense_height(floating::CONTAINER_HEIGHT, item);
+        let across = height.max(floating::CONTAINER_LEADING_SPACE + item + floating::CONTAINER_TRAILING_SPACE);
         let progress = egui_mineral::motion::spring(
             rt.core(),
             id.with("expanded"),
@@ -537,8 +543,8 @@ impl<'a> FloatingToolbar<'a> {
                     progress.min(1.0),
                 );
                 BarPlace {
-                    bar: span(bar_from, len, floating::CONTAINER_HEIGHT),
-                    content: span(bar_from, length, floating::CONTAINER_HEIGHT),
+                    bar: span(bar_from, len, height),
+                    content: span(bar_from, length, height),
                     elevation,
                 }
             }
@@ -576,7 +582,7 @@ impl FloatingToolbar<'_> {
             return (None, Vec::new());
         }
         let t = rt.tokens();
-        let item = slot(ui.rt());
+        let item = slot(ui);
         let (fill, palette) = self.core.container(Kind::Floating);
         let r = floating::CONTAINER_SHAPE.corner_radius(&t.shape, rt.i18n().direction());
         let r = common::radius(bar, r.nw);

@@ -104,7 +104,7 @@ impl MineralWidget for RangeSlider<'_> {
         Some(self.bar.axis)
     }
 
-    fn min_target(&self) -> MinTarget {
+    fn min_target(&self, _: &MineralUi<'_, Self::Kit>) -> MinTarget {
         MinTarget::None
     }
 

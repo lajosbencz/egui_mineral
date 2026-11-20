@@ -466,6 +466,7 @@ impl RowWidget<'_> {
 
 type LeadingFn<'a, N> = Box<dyn Fn(&N) -> ListSlot + 'a>;
 type ActionsFn<'a, N> = Box<dyn Fn(&N) -> Vec<IconAction> + 'a>;
+type StyleFn<'a, N> = Box<dyn Fn(&N) -> TypeScale + 'a>;
 
 /// MD3-styled tree (APG treeview keyboard). Rows carry an optional leading [`ListSlot`] (Space
 /// toggles its control on the focused row) and trailing actions. With
@@ -482,6 +483,7 @@ pub struct TreeView<'a, N: TreeData> {
     row_height: Option<f32>,
     indent: Option<f32>,
     label_style: TypeScale,
+    node_style: Option<StyleFn<'a, N>>,
     leading: Option<LeadingFn<'a, N>>,
     actions: Option<ActionsFn<'a, N>>,
     reorderable: bool,
@@ -513,6 +515,7 @@ impl<'a, N: TreeData> TreeView<'a, N> {
             row_height: None,
             indent: None,
             label_style: list::ITEM_LABEL_TEXT_FONT,
+            node_style: None,
             leading: None,
             actions: None,
             reorderable: false,
@@ -587,6 +590,13 @@ impl<'a, N: TreeData> TreeView<'a, N> {
         self
     }
 
+    /// Label type style per node, over [`Self::text_style`]: an `*Emphasized` role sets a folder apart
+    /// (medium weight once [`fonts::install_medium`](crate::fonts::install_medium) ran).
+    pub fn node_text_style(mut self, node_text_style: impl Fn(&N) -> TypeScale + 'a) -> Self {
+        self.node_style = Some(Box::new(node_text_style));
+        self
+    }
+
     fn look(&self, ui: &MineralUi<'_, Material>) -> RowLook {
         let density = ui.density();
         // MD3 list paddings are fixed; here they narrow 4dp per density step (docs/divergences.md).
@@ -632,7 +642,10 @@ impl<'a, N: TreeData> TreeView<'a, N> {
             expanded,
             loading: expanded && row.node.lazy() && row.node.children().is_empty(),
             selected: self.selection.as_ref().is_some_and(|s| s.is_selected(key)),
-            look,
+            look: RowLook {
+                font: self.node_style.as_ref().map_or(look.font, |f| f(row.node)),
+                ..look
+            },
             tab_stop,
             disabled: self.disabled,
             actions: self.actions.as_ref().map_or_default(|f| f(row.node)),

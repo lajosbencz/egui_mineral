@@ -680,8 +680,8 @@ impl MineralWidget for CheckButton<'_> {
         self.mnemonic
     }
 
-    fn min_target(&self) -> MinTarget {
-        crate::adaptive::MIN_INTERACTIVE
+    fn min_target(&self, ui: &MineralUi<'_, Self::Kit>) -> MinTarget {
+        crate::adaptive::min_interactive(ui.density())
     }
 
     fn layout(&self, ui: &MineralUi<'_, Material>, c: Constraints, (): &Self::State) -> Measure {
@@ -827,8 +827,8 @@ impl MineralWidget for Radio {
         self.mnemonic
     }
 
-    fn min_target(&self) -> MinTarget {
-        crate::adaptive::MIN_INTERACTIVE
+    fn min_target(&self, ui: &MineralUi<'_, Self::Kit>) -> MinTarget {
+        crate::adaptive::min_interactive(ui.density())
     }
 
     fn layout(&self, ui: &MineralUi<'_, Material>, c: Constraints, (): &Self::State) -> Measure {
@@ -1099,8 +1099,8 @@ impl MineralWidget for Switch<'_> {
         self.mnemonic
     }
 
-    fn min_target(&self) -> MinTarget {
-        crate::adaptive::MIN_INTERACTIVE
+    fn min_target(&self, ui: &MineralUi<'_, Self::Kit>) -> MinTarget {
+        crate::adaptive::min_interactive(ui.density())
     }
 
     fn layout(&self, ui: &MineralUi<'_, Material>, c: Constraints, _: &Self::State) -> Measure {

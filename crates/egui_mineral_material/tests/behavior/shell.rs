@@ -9,7 +9,7 @@ use egui_mineral_material::{
     selection::Switch,
 };
 
-use crate::support::{MineralHarness, Mui, SCREEN, WIDE, harness, still};
+use crate::support::{Harness, MineralHarness, Mui, SCREEN, WIDE, harness, still};
 
 #[derive(Default)]
 struct Bar {
@@ -190,6 +190,39 @@ fn resizable_side_sheet_drags_and_steps_within_its_range() {
     assert_eq!(h.rect("sheet-side-sheet").width(), 420.0, "End reaches the maximum");
     h.press(Key::ArrowRight);
     assert!(h.rect("sheet-side-sheet").width() < 420.0, "toward the end shrinks it");
+}
+
+#[test]
+fn start_side_sheet_opens_at_its_initial_width_and_resizes() {
+    use egui_mineral::layout::Edge;
+    let width = |h: &Harness<'_, bool>| h.rect("sheet-side-sheet").width();
+    let mut h = still(WIDE, true, |ui, open| {
+        SideSheet::new("sheet")
+            .edge(Edge::Start)
+            .initial_width(280.0)
+            .resizable(true)
+            .show(ui, open, |_| {});
+    });
+    h.step_until("the sheet slides in", |h| {
+        h.tree().find_key("sheet-resize").is_some() && (width(h) - 280.0).abs() < 0.5
+    });
+    let edge = h.rect("sheet-resize");
+    h.hover_at(edge.center());
+    h.drag_at(edge.center());
+    h.hover_at(edge.center() + egui::vec2(20.0, 0.0));
+    h.hover_at(edge.center() + egui::vec2(40.0, 0.0));
+    h.drop_at(edge.center() + egui::vec2(40.0, 0.0));
+    h.run();
+    assert_eq!(width(&h), 320.0, "dragging toward the end grows it");
+    for _ in 0..4 {
+        if !h.focused("sheet-resize") {
+            h.press(Key::Tab);
+        }
+    }
+    h.press(Key::ArrowRight);
+    assert!(width(&h) > 320.0, "toward the end grows it");
+    h.press(Key::Home);
+    assert_eq!(width(&h), 256.0, "the persisted width replaces the initial one");
 }
 
 #[test]

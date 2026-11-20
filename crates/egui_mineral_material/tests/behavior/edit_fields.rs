@@ -280,3 +280,35 @@ fn focused_number_field_shows_the_value_the_app_clamped() {
         assert_eq!(h.node("n-field").value.as_deref(), Some("0.5"), "submit {submit}");
     }
 }
+
+#[test]
+fn number_field_text_aligns_to_a_reading_order_edge() {
+    use egui_mineral::{i18n::Direction, layout::Edge};
+    for tabular in [false, true] {
+        let text = |dir, edge| {
+            let p = crate::support::render_directed(dir, SCREEN, |ui| {
+                let mut v = 42.0;
+                let field = NumberField::new("n", "Gain", RangeModel::new(0.0, 100.0).step(1.0), &mut v)
+                    .step_buttons(false)
+                    .tabular_figures(tabular)
+                    .text_align(edge);
+                ui.mineral(field);
+            });
+            (p.text("42"), p.rect("n-field"))
+        };
+        for dir in [Direction::Ltr, Direction::Rtl] {
+            let (start, field) = text(dir, Edge::Start);
+            let (end, _) = text(dir, Edge::End);
+            let center = field.center().x;
+            let (left, right) = if dir == Direction::Ltr {
+                (start, end)
+            } else {
+                (end, start)
+            };
+            assert!(
+                left.right() < center && right.left() > center,
+                "{dir:?} tabular {tabular}: {left:?} {right:?} in {field:?}"
+            );
+        }
+    }
+}

@@ -5,13 +5,16 @@ use egui_mineral::{
     range::{RangeModel, Track},
 };
 use egui_mineral_material::{
+    MaterialUiExt as _,
     actions::PushButton,
+    adaptive::Density,
+    containment::ListItem,
     extras::MenuStrip,
     icons,
-    selection::{DatePicker, DateRangePicker, Menu, MenuItem, ValueSlider},
+    selection::{CheckButton, DatePicker, DateRangePicker, Menu, MenuItem, Radio, Switch, ValueSlider},
 };
 
-use crate::support::{Harness, MineralHarness, SCREEN, WIDE, build, builder, harness, still};
+use crate::support::{Harness, MineralHarness, SCREEN, WIDE, build, builder, harness, render_zones, still};
 
 #[test]
 fn date_range_keys_cross_months() {
@@ -408,4 +411,38 @@ fn a_squeezed_switch_keeps_its_track() {
         );
     });
     assert!(h.rect("sw-switch").width() >= 52.0, "{:?}", h.rect("sw-switch"));
+}
+
+#[test]
+fn control_rows_fit_list_rows_at_every_density() {
+    for step in [0, -3, -6] {
+        let density = Density::new(step);
+        let height = |control: usize| {
+            render_zones(|ui| {
+                ui.with_density(density, |ui| {
+                    let mut on = false;
+                    match control {
+                        0 => ui.mineral(CheckButton::new("c", "Label", &mut on)).zones(),
+                        1 => ui.mineral(Radio::new("r", "Label")).zones(),
+                        2 => ui.mineral(Switch::new("s", "Label", &mut on)).zones(),
+                        _ => ui.mineral(ListItem::new("l", "Label")).zones(),
+                    }
+                })
+            })
+            .zones
+            .map_or(f32::NAN, |z| z.outer.height())
+        };
+        let row = height(3);
+        for control in 0..3 {
+            assert!(
+                height(control) <= row,
+                "control {control} at density {step}: {} > {row}",
+                height(control)
+            );
+        }
+    }
+    assert_eq!(
+        egui_mineral_material::adaptive::min_interactive(Density::new(-1)),
+        egui_mineral::layout::MinTarget::Points(44.0)
+    );
 }

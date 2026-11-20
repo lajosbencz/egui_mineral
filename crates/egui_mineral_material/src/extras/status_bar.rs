@@ -112,7 +112,7 @@ impl StatusBar {
         let mut galleys: Vec<_> = self
             .items
             .iter()
-            .map(|(it, _)| parts::type_galley(rt.core(), ui.painter(), it.text(), TEXT, content_of(it), None))
+            .map(|(it, _)| text_galley(ui, it, content_of(it)))
             .collect();
         let chrome = |i: usize| 2.0 * PAD_X + self.items[i].0.lead().map_or(0.0, |l| lead_width(l) + ICON_GAP);
         let width = |i: usize, galleys: &[std::sync::Arc<egui::Galley>]| chrome(i) + galleys[i].size().x;
@@ -216,6 +216,15 @@ impl StatusBar {
         .agent_key(StableId::of(&self.salt, (i, "progress")))
         .show_in(ui, Rect::from_center_size(center, vec2(LINEAR, LINEAR_HEIGHT)));
     }
+}
+
+fn text_galley(ui: &MineralUi<'_, Material>, item: &StatusItem, color: egui::Color32) -> std::sync::Arc<egui::Galley> {
+    if item.has_tabular_figures() {
+        let format = TEXT.format(ui.ctx(), color);
+        let job = egui_mineral::kit::text::tabular_figures(ui.ctx(), item.text(), &format);
+        return ui.painter().layout_job(job);
+    }
+    parts::type_galley(ui.core(), ui.painter(), item.text(), TEXT, color, None)
 }
 
 // `w` wide at logical offset `from` of the start (or end) edge.

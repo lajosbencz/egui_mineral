@@ -109,7 +109,7 @@ impl MineralWidget for SearchBox<'_> {
 
     kit::widget_meta!(salt, enabled, frame_sense);
 
-    fn min_target(&self) -> MinTarget {
+    fn min_target(&self, _: &MineralUi<'_, Self::Kit>) -> MinTarget {
         MinTarget::None
     }
 
