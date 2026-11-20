@@ -6,6 +6,7 @@ use std::{cmp::Ordering, ops::Range, sync::Arc};
 use egui::{Color32, CornerRadius, ImageSource, Rangef, Rect, Sense, UiBuilder, pos2, vec2};
 use egui_mineral::i18n::I18n;
 use egui_mineral::semantic::KeyedSalt;
+use egui_mineral::table::Rows;
 use egui_mineral::widget::MineralUi;
 use egui_mineral::widget::{Availability, MineralWidget, WidgetFrame, WidgetResponse};
 use egui_mineral::{
@@ -43,11 +44,11 @@ pub enum ImageListLayout {
 /// Result of [`ImageList::show`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct ImageListResponse {
+pub struct ImageListResponse<K> {
     /// Grid response.
     pub response: egui::Response,
-    /// Index of the tile activated this frame.
-    pub activated: Option<usize>,
+    /// Key of the tile activated this frame.
+    pub activated: Option<K>,
 }
 
 type LabelFn<'a> = Box<dyn Fn(usize) -> String + 'a>;
@@ -175,8 +176,8 @@ struct State {
 impl TempState for State {}
 
 impl<'a> ImageList<'a> {
-    /// `count` tiles in 3 columns; agent key prefix `<id_salt>`.
-    pub fn new(id_salt: impl Into<KeyedSalt>, count: usize) -> Self {
+    /// 3 columns; agent key prefix `<id_salt>`.
+    pub fn new(id_salt: impl Into<KeyedSalt>) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
             salt: id_salt,
@@ -188,7 +189,7 @@ impl<'a> ImageList<'a> {
             aspect_version: 0,
             label: None,
             item_label: None,
-            count,
+            count: 0,
             disabled: false,
         }
     }
@@ -301,12 +302,14 @@ impl<'a> ImageList<'a> {
         n
     }
 
-    /// `tile` fills each tile's ui, usually with an [`ImageTile`].
-    pub fn show(
-        self,
+    /// `tiles` counts and keys the tiles; `tile` fills each tile's ui by index, usually with an [`ImageTile`].
+    pub fn show<K>(
+        mut self,
         ui: &mut MineralUi<'_, Material>,
+        tiles: impl Rows<K> + Copy,
         mut tile: impl FnMut(&mut MineralUi<'_, Material>, usize),
-    ) -> ImageListResponse {
+    ) -> ImageListResponse<K> {
+        self.count = tiles.len();
         let rt = ui.rt();
         let len = self.count;
         let ctx = ui.ctx().clone();
@@ -397,7 +400,10 @@ impl<'a> ImageList<'a> {
         st.focus = focus_at;
         st.store(&ctx, id);
         kit::semantic::remember_rect(&ctx, id, area);
-        ImageListResponse { response, activated }
+        ImageListResponse {
+            response,
+            activated: activated.and_then(|i| tiles.key(i)),
+        }
     }
 }
 

@@ -283,7 +283,7 @@ pub(crate) fn sub(ui: &mut MaterialUi<'_>, text: &str) {
 
 pub(crate) fn choice(ui: &mut MaterialUi<'_>, id: &'static str, label: &str, labels: &[&str], current: usize) -> usize {
     let mut sel = Selection::single().required(true).with([current]);
-    ButtonGroup::selection(id, label, &mut sel)
+    ButtonGroup::multi(id, label, &mut sel)
         .variant(ButtonGroupVariant::Connected)
         .toggles(labels.iter().map(|l| ButtonGroupItem::new(*l)).enumerate())
         .show(ui);

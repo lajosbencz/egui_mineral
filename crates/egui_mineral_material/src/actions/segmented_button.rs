@@ -76,7 +76,7 @@ pub struct SegmentedButton<'a, K> {
 }
 
 impl<'a, K: PartialEq + Clone> SegmentedButton<'a, K> {
-    fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, choice: Choice<'a, K>) -> Self {
+    fn with(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, choice: Choice<'a, K>) -> Self {
         Self {
             salt: id_salt.into(),
             label: label.into(),
@@ -87,16 +87,16 @@ impl<'a, K: PartialEq + Clone> SegmentedButton<'a, K> {
         }
     }
 
-    /// Radio group: the segment whose value equals `selected` is selected, none when no segment matches.
+    /// Radio group selecting the segment whose value equals `selected`, none when no segment matches.
     /// `label` names the group; segment agent keys are `<id_salt>-<item>-segment`, `<item>` the segment's
     /// `salt(..)`, else its index.
-    pub fn single(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selected: &'a mut K) -> Self {
-        Self::new(id_salt, label, Choice::one(selected))
+    pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selected: &'a mut K) -> Self {
+        Self::with(id_salt, label, Choice::new(selected))
     }
 
-    /// [`Self::single`] that may have no segment selected: `None` shows none, a click selects one.
+    /// [`Self::new`] that may have no segment selected: `None` shows none, a click selects one.
     pub fn optional(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selected: &'a mut Option<K>) -> Self {
-        Self::new(id_salt, label, Choice::optional(selected))
+        Self::with(id_salt, label, Choice::optional(selected))
     }
 
     /// Checkbox group; a click toggles the segment's value in `selection`.
@@ -104,7 +104,7 @@ impl<'a, K: PartialEq + Clone> SegmentedButton<'a, K> {
     where
         K: Ord,
     {
-        Self::new(id_salt, label, Choice::many(selection))
+        Self::with(id_salt, label, Choice::multi(selection))
     }
 
     crate::widget::setters! {

@@ -1,4 +1,14 @@
-use egui::{InnerResponse, Layout, Rect, UiBuilder};
+use egui::{Layout, Rect, UiBuilder};
+
+/// Result of [`child`].
+#[derive(Clone, Debug)]
+#[non_exhaustive]
+pub struct ChildResponse<R> {
+    /// Final rect of the child `Ui`; hover sensed.
+    pub response: egui::Response,
+    /// Value of the content closure.
+    pub inner: R,
+}
 
 use crate::{semantic::KeyedSalt, widget::MineralUi};
 
@@ -11,7 +21,7 @@ pub fn child<K, R>(
     rect: Rect,
     layout: Layout,
     add: impl FnOnce(&mut MineralUi<'_, K>) -> R,
-) -> InnerResponse<R> {
+) -> ChildResponse<R> {
     let mut child = ui.new_child(
         UiBuilder::new()
             .id_salt(id_salt.into().id_salt())
@@ -26,7 +36,7 @@ pub fn child<K, R>(
         crate::kit::sanitize::report(format_args!("child widget {id:?} was not registered"));
         ui.interact(rect, id, egui::Sense::hover())
     });
-    InnerResponse::new(inner, response)
+    ChildResponse { response, inner }
 }
 
 #[cfg(test)]

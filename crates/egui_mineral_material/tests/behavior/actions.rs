@@ -130,7 +130,7 @@ fn button_group<'a>(
             ButtonGroupItem::new("C"),
         ];
         if let Some(s) = selection {
-            ButtonGroup::selection("grp", "Letters", s)
+            ButtonGroup::multi("grp", "Letters", s)
                 .variant(variant)
                 .toggles(items.into_iter().enumerate())
                 .show(ui);
@@ -247,7 +247,7 @@ type Segments = (usize, Selection<usize>, u32);
 
 fn segmented() -> Harness<'static, Segments> {
     harness(SCREEN, (0, Selection::multiple(), 0), |ui, (single, multi, changes)| {
-        let r = SegmentedButton::single("one", "Period", single)
+        let r = SegmentedButton::new("one", "Period", single)
             .items(
                 ([
                     Segment::new("Day"),
@@ -337,7 +337,7 @@ fn optional_single_segments_start_empty_and_content_width_hugs_labels() {
             .items(items.into_iter().enumerate())
             .show(ui);
         let mut equal = 0;
-        SegmentedButton::single("eq", "View", &mut equal)
+        SegmentedButton::new("eq", "View", &mut equal)
             .items(items.into_iter().enumerate())
             .show(ui);
     });
@@ -391,7 +391,7 @@ fn auto_targets_keep_their_height_through_ewebs_touchless_pointerdown_pass() {
 fn segmented_button_value_binds_the_segment_value() {
     let mut h = harness(SCREEN, ('w', 0), |ui, (period, changes)| {
         let segments = [('d', "Day"), ('w', "Week"), ('m', "Month")];
-        let r = SegmentedButton::single("period", "Period", period)
+        let r = SegmentedButton::new("period", "Period", period)
             .items(segments)
             .show(ui);
         *changes += u32::from(r.changed);

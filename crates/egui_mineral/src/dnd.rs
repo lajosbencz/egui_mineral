@@ -7,6 +7,18 @@ use egui::{CursorIcon, Id, InnerResponse, Order, Rangef, Sense, UiBuilder, Vec2}
 
 use crate::{kit::state::TempState, semantic::KeyedSalt, widget::MineralUi};
 
+/// Result of [`drag_source`].
+#[derive(Clone, Debug)]
+#[non_exhaustive]
+pub struct DragSourceResponse<R> {
+    /// Spans the contents; drag sensed.
+    pub response: egui::Response,
+    /// Value of the contents closure.
+    pub inner: R,
+    /// Being dragged this pass; also passed to the contents closure.
+    pub dragged: bool,
+}
+
 /// `id_salt` names the contents' scope app-wide, independent of `ui`, so a source keeps its drag when it moves.
 /// Drag sense sits below the contents, so clickable contents keep their clicks.
 pub fn drag_source<K, T: Send + Sync + 'static, R>(
@@ -15,7 +27,7 @@ pub fn drag_source<K, T: Send + Sync + 'static, R>(
     payload: impl FnOnce() -> T,
     preview: impl FnOnce(&mut MineralUi<'_, K>),
     add_contents: impl FnOnce(&mut MineralUi<'_, K>, bool) -> R,
-) -> InnerResponse<R> {
+) -> DragSourceResponse<R> {
     let id = root_id(ui.core(), &id_salt.into());
     drag_source_at(ui, id, payload, preview, add_contents)
 }
@@ -31,7 +43,7 @@ fn drag_source_at<K, T: Send + Sync + 'static, R>(
     payload: impl FnOnce() -> T,
     preview: impl FnOnce(&mut MineralUi<'_, K>),
     add_contents: impl FnOnce(&mut MineralUi<'_, K>, bool) -> R,
-) -> InnerResponse<R> {
+) -> DragSourceResponse<R> {
     let rt = ui.rt();
     let ctx = rt.ctx();
     let dragged = ctx.is_being_dragged(id);
@@ -59,7 +71,11 @@ fn drag_source_at<K, T: Send + Sync + 'static, R>(
     } else if response.hovered() {
         ctx.set_cursor_icon(CursorIcon::Grab);
     }
-    InnerResponse::new(inner, response)
+    DragSourceResponse {
+        response,
+        inner,
+        dragged,
+    }
 }
 
 /// Completed list move; both fields are item indexes, `from != to`.

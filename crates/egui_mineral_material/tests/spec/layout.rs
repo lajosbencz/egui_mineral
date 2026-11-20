@@ -252,7 +252,7 @@ fn dense_controls_shrink_to_their_content_and_no_further() {
             "segmented",
             |ui| {
                 let mut s = 0;
-                SegmentedButton::single("s", "Seg", &mut s)
+                SegmentedButton::new("s", "Seg", &mut s)
                     .items(["A", "B"].into_iter().enumerate())
                     .show(ui)
                     .response

@@ -222,7 +222,7 @@ fn accordions(ui: &mut FluentUi<'_>, s: &mut State) {
         .collapsible(true)
         .show(ui, |a| {
             for i in 0..3 {
-                a.item(AccordionItem::new(format!("Item {i}")), |ui| {
+                a.item(i, AccordionItem::new(format!("Item {i}")), |ui| {
                     ui.label("Panel content.");
                 });
             }
@@ -233,7 +233,7 @@ fn accordions(ui: &mut FluentUi<'_>, s: &mut State) {
         .expand_icon_position(egui_mineral_fluent::surfaces::ExpandIconPosition::End)
         .show(ui, |a| {
             for i in 0..2 {
-                a.item(AccordionItem::new(format!("Large {i}")).icon(ICON_PERSON), |ui| {
+                a.item(i, AccordionItem::new(format!("Large {i}")).icon(ICON_PERSON), |ui| {
                     ui.label("Panel content.");
                 });
             }

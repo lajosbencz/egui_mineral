@@ -118,10 +118,10 @@ fn checked_rows_survive_paging() {
     const PAGE: usize = 5;
     let names: Vec<String> = (0..12).map(|i| format!("Row {i}")).collect();
     let mut h = harness(WIDE, Selection::multiple(), move |ui, sel| {
-        DataTable::new("tbl", "Rows", ["Name"], names.len())
+        DataTable::new("tbl", "Rows", ["Name"])
             .selection(sel)
             .paginate([PAGE])
-            .show(ui, |r, _| TableCell::from(names[r].as_str()));
+            .show(ui, names.len(), |r, _| TableCell::from(names[r].as_str()));
     });
     let md = h
         .drive_agent(|agent| {

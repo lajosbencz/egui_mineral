@@ -322,7 +322,7 @@ fn lists(ui: &mut FluentUi<'_>, s: &mut State) {
         .selection(&mut s.single)
         .show(ui, |l| {
             for i in 0..3 {
-                l.item(ListItem::new(format!("Single {i}")).disabled(i == 2), |ui| {
+                l.item(i, ListItem::new(format!("Single {i}")).disabled(i == 2), |ui| {
                     ui.label(format!("Single selection {i}"));
                 });
             }
@@ -333,7 +333,7 @@ fn lists(ui: &mut FluentUi<'_>, s: &mut State) {
         .selection(multiple)
         .show(ui, |l| {
             for i in 0..3 {
-                l.item(format!("Multiple {i}"), |ui| {
+                l.item(i, format!("Multiple {i}"), |ui| {
                     ui.label(format!("Multiple selection {i}"));
                 });
             }

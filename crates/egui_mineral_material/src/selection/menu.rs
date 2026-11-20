@@ -874,10 +874,7 @@ impl Menu {
         }
         let t = rt.tokens();
         let dir = rt.i18n().direction();
-        let surroundings = Surroundings {
-            viewport: ctx.content_rect(),
-            direction: dir,
-        };
+        let surroundings = Surroundings::new(ctx.content_rect(), dir);
         let fr = Frame::new(ctx, id, &t, dir);
         let mut panels: Vec<Rect> = Vec::new();
         let pad_top = self.edge_padding();

@@ -36,7 +36,7 @@ fn accordion_harness(multiple: bool, collapsible: bool) -> Harness<'static, Expa
             .navigation(Some(AccordionNavigation::Linear))
             .show(ui, |a| {
                 for i in 0..3 {
-                    a.item(AccordionItem::new(format!("Item {i}")), |ui| {
+                    a.item(i, AccordionItem::new(format!("Item {i}")), |ui| {
                         ui.label("Panel");
                     });
                 }
@@ -91,7 +91,7 @@ fn single_list_selects_one_item_by_click() {
             .selection(sel)
             .show(ui, |l| {
                 for i in 0..3 {
-                    l.item(format!("Row {i}"), |ui| {
+                    l.item(i, format!("Row {i}"), |ui| {
                         ui.label(format!("Row {i}"));
                     });
                 }
@@ -135,23 +135,23 @@ fn salted_items_keep_their_agent_key_when_an_item_is_inserted_before() {
     let mut h = harness(false, |ui, before| {
         List::new("l").show(ui, |l| {
             if *before {
-                l.item("Extra", |_| ());
+                l.item(0, "Extra", |_| ());
             }
-            l.item(ListItem::new("Keep").salt("keep"), |_| ());
+            l.item(1, ListItem::new("Keep").salt("keep"), |_| ());
         });
         Accordion::new("a", &mut Expansion::single()).show(ui, |a| {
             if *before {
-                a.item(AccordionItem::new("Extra"), |_| ());
+                a.item(0, AccordionItem::new("Extra"), |_| ());
             }
-            a.item(AccordionItem::new("Keep").salt("keep"), |_| ());
+            a.item(1, AccordionItem::new("Keep").salt("keep"), |_| ());
         });
         let mut picked = 0_u8;
         let mut options = Vec::new();
         if *before {
-            options.push(RadioOption::new(0_u8, "Extra"));
+            options.push((0_u8, RadioOption::new("Extra")));
         }
-        options.push(RadioOption::new(1_u8, "Keep").salt("keep"));
-        RadioGroup::new("g", "Group", &mut picked).options(options).show(ui);
+        options.push((1_u8, RadioOption::new("Keep").salt("keep")));
+        RadioGroup::new("g", "Group", &mut picked).items(options).show(ui);
     });
     h.run();
     let keys = ["keep-item", "keep-header", "keep-radio"];
@@ -493,6 +493,26 @@ mod table {
             focused,
             "selection checkboxes are no Tab stops of their own"
         );
+    }
+
+    #[test]
+    fn keyed_rows_keep_their_selection_when_a_row_is_inserted() {
+        let state = (vec!["ada", "bob"], Selection::multiple(), None);
+        let mut h = harness(state, |ui, (ids, selection, activated): &mut (Vec<&str>, _, _)| {
+            let out = Table::new("t", "People", columns())
+                .selection(selection)
+                .show(ui, &*ids, |ui, row, col| {
+                    ui.mineral(Text::new((("cell", row), col), "x"));
+                });
+            *activated = out.activated.or(*activated);
+        });
+        h.run();
+        h.click("t-row-bob");
+        assert_eq!(h.state().value.2, Some("bob"));
+        h.state_mut().value.0.insert(0, "cy");
+        h.run();
+        assert_eq!(h.node("t-row-bob").state.selected, Some(true));
+        assert_eq!(h.node("t-row-cy").state.selected, Some(false));
     }
 
     #[test]

@@ -3,14 +3,12 @@ use egui_mineral::{
     i18n::HourCycle,
     kit::{self, state::TempState},
     layout::Constraints,
-    select::Selection,
     semantic::{AgentKey, KeyedSalt},
     widget::{Composite, MineralUi, SizeExt, WidgetResponse},
 };
 
 use super::combobox::Combobox;
 use super::field::Validation;
-use super::listbox::{ListEntry, ListOption};
 use super::textbox::{FieldOutput, InputAppearance};
 use crate::{Fluent, Size, spec::defaults::time_picker as tp};
 
@@ -136,13 +134,13 @@ impl<'a> TimePicker<'a> {
         agent_key(key)
     }
 
-    fn entries(&self, fmt: &dyn egui_mineral::i18n::LocaleFormat, cycle: HourCycle) -> Vec<ListEntry<Time>> {
+    fn times(&self, fmt: &dyn egui_mineral::i18n::LocaleFormat, cycle: HourCycle) -> Vec<(Time, String)> {
         let (from, to) = (self.start_hour.saturating_mul(60), self.end_hour.saturating_mul(60));
         (from..to)
             .step_by(self.increment as usize)
             .filter_map(|m| {
                 let t = Time::new(i8::try_from(m / 60).ok()?, i8::try_from(m % 60).ok()?, 0, 0).ok()?;
-                Some(ListOption::new(t, fmt.time(t, cycle)).into())
+                Some((t, fmt.time(t, cycle)))
             })
             .collect()
     }
@@ -185,19 +183,15 @@ impl Composite for TimePicker<'_> {
             st.text = self.value.map_or_else(String::new, |t| fmt.time(t, cycle));
             st.shown = *self.value;
         }
-        let mut selection = Selection::single();
-        if let Some(t) = *self.value {
-            selection = selection.with([t]);
-        }
-        let before = selection.first().copied();
-        let entries = self.entries(fmt.as_ref(), cycle);
-        let mut combo = Combobox::new(
+        let mut picked = *self.value;
+        let times = self.times(fmt.as_ref(), cycle);
+        let mut combo = Combobox::optional(
             self.salt.child("combobox"),
             self.label.clone(),
-            entries,
-            &mut selection,
+            &mut picked,
             &mut st.text,
         )
+        .items(times)
         .appearance(self.appearance)
         .size(self.size)
         .freeform(self.freeform)
@@ -214,8 +208,8 @@ impl Composite for TimePicker<'_> {
         let out = ui.mineral(combo.constrain(constraints));
         let output = *out.output();
         let mut changed = false;
-        if selection.first().copied() != before {
-            *self.value = selection.first().copied();
+        if picked != *self.value {
+            *self.value = picked;
             changed = true;
         } else if self.freeform && (output.blurred || output.submitted) {
             let typed = if st.text.trim().is_empty() {

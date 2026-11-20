@@ -711,7 +711,7 @@ impl<'a, K: PartialEq + Clone> NavigationBar<'a, K> {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
             group: Group::new(id_salt),
-            choice: Choice::one(selected),
+            choice: Choice::new(selected),
             items: Vec::new(),
             flexible: false,
             item_axis: None,
@@ -858,7 +858,7 @@ impl<'a, K: PartialEq + Clone> NavigationRail<'a, K> {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
             group: Group::new(id_salt),
-            choice: Choice::one(selected),
+            choice: Choice::new(selected),
             items: Vec::new(),
             menu: false,
             fab: None,
@@ -1220,7 +1220,7 @@ impl<'a, K: PartialEq + Clone> NavigationDrawer<'a, K> {
                 group: Group::new(id_salt),
                 entries: Vec::new(),
             },
-            choice: Choice::one(selected),
+            choice: Choice::new(selected),
         }
     }
 

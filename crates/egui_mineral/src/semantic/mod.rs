@@ -5,6 +5,7 @@ mod key;
 
 pub use egui::accesskit::{Action, Live, Role};
 use egui::{Context, Id, KeyboardShortcut, Rect};
+pub use egui_mineral_macros::KeySalt;
 pub use key::{AgentKey, KeyKind, KeyParts, KeySalt, KeyedSalt, StableId};
 
 use crate::{

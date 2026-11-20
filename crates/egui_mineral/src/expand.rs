@@ -6,7 +6,7 @@ use std::collections::BTreeSet;
     bound(deserialize = "K: Ord + serde::Deserialize<'de>")
 )]
 /// Expanded keys; single mode keeps at most one open.
-pub struct Expansion<K: Ord> {
+pub struct Expansion<K> {
     single: bool,
     open: BTreeSet<K>,
 }

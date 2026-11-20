@@ -111,13 +111,13 @@ fn choices(ui: &mut FluentUi<'_>, s: &mut State) {
     let options: Vec<_> = ["Apple", "Pear", "Cherry"]
         .into_iter()
         .enumerate()
-        .map(|(i, l)| RadioOption::new(i, l))
+        .map(|(i, l)| (i, RadioOption::new(l)))
         .collect();
     RadioGroup::new("rg-1", "Fruit", &mut s.radio)
-        .options(options.clone())
+        .items(options.clone())
         .show(ui);
     RadioGroup::new("rg-2", "Stacked", &mut s.stacked)
-        .options(options)
+        .items(options)
         .layout(RadioLayout::HorizontalStacked)
         .show(ui);
     heading(ui, "h-switch", "Switch");
@@ -253,34 +253,43 @@ pub(crate) enum Animal {
 
 fn animals() -> Vec<ListEntry<Animal>> {
     vec![
-        OptionGroup::new(
-            "Land",
-            [ListOption::new(Animal::Cat, "Cat"), ListOption::new(Animal::Dog, "Dog")],
-        )
-        .into(),
-        OptionGroup::new(
-            "Water",
-            [
-                ListOption::new(Animal::Fish, "Fish"),
-                ListOption::new(Animal::Eel, "Eel").disabled(true),
-            ],
-        )
-        .into(),
-        ListOption::new(Animal::Bird, "Bird").into(),
+        OptionGroup::new("Land")
+            .items([
+                (Animal::Cat, ListOption::new("Cat")),
+                (Animal::Dog, ListOption::new("Dog")),
+            ])
+            .into(),
+        OptionGroup::new("Water")
+            .items([
+                (Animal::Fish, ListOption::new("Fish")),
+                (Animal::Eel, ListOption::new("Eel").disabled(true)),
+            ])
+            .into(),
+        (Animal::Bird, ListOption::new("Bird")).into(),
     ]
 }
 
 fn pickers(ui: &mut FluentUi<'_>, s: &mut State) {
     heading(ui, "h-pick", "Select, Dropdown, Combobox and TimePicker");
-    ui.mineral(Select::new("sel-1", "Pet", animals(), &mut s.native).placeholder("Select an animal"));
-    ui.mineral(Dropdown::new("dd-1", "Dropdown", animals(), &mut s.pick).placeholder("Pick one"));
     ui.mineral(
-        Dropdown::new("dd-2", "Multiselect", animals(), &mut s.multi)
+        Select::optional("sel-1", "Pet", &mut s.native)
+            .items(animals())
+            .placeholder("Select an animal"),
+    );
+    ui.mineral(
+        Dropdown::multi("dd-1", "Dropdown", &mut s.pick)
+            .items(animals())
+            .placeholder("Pick one"),
+    );
+    ui.mineral(
+        Dropdown::multi("dd-2", "Multiselect", &mut s.multi)
+            .items(animals())
             .appearance(InputAppearance::FilledDarker)
             .placeholder("Pick several"),
     );
     ui.mineral(
-        Combobox::new("combo-1", "Combobox", animals(), &mut s.combo, &mut s.combo_text)
+        Combobox::multi("combo-1", "Combobox", &mut s.combo, &mut s.combo_text)
+            .items(animals())
             .size(Size::Large)
             .placeholder("Type to filter"),
     );
@@ -290,23 +299,26 @@ fn pickers(ui: &mut FluentUi<'_>, s: &mut State) {
             .placeholder("Select a time"),
     );
     let mut none = Selection::single();
-    ui.mineral(Dropdown::new("dd-3", "Disabled", animals(), &mut none).disabled(true));
+    ui.mineral(
+        Dropdown::multi("dd-3", "Disabled", &mut none)
+            .items(animals())
+            .disabled(true),
+    );
 }
 
 fn tags_and_dates(ui: &mut FluentUi<'_>, s: &mut State) {
     heading(ui, "h-tags", "TagPicker, Calendar and DatePicker");
-    ui.mineral(TagPicker::new("tag-1", "Pets", animals(), &mut s.tags, &mut s.tags_text).placeholder("Pick pets"));
     ui.mineral(
-        TagPicker::new(
-            "tag-2",
-            "Pets button",
-            animals(),
-            &mut s.tag_button,
-            &mut s.tag_button_text,
-        )
-        .control(TagPickerControl::Button)
-        .size(TagPickerSize::Large)
-        .placeholder("Pick pets"),
+        TagPicker::new("tag-1", "Pets", &mut s.tags, &mut s.tags_text)
+            .items(animals())
+            .placeholder("Pick pets"),
+    );
+    ui.mineral(
+        TagPicker::new("tag-2", "Pets button", &mut s.tag_button, &mut s.tag_button_text)
+            .items(animals())
+            .control(TagPickerControl::Button)
+            .size(TagPickerSize::Large)
+            .placeholder("Pick pets"),
     );
     ui.mineral(Calendar::new("cal-1", "Day", &mut s.day).week_numbers(true));
     ui.mineral(DatePicker::new("date-1", "Date", &mut s.date).placeholder("Select a date"));
@@ -337,17 +349,17 @@ fn swatches(ui: &mut FluentUi<'_>, s: &mut State) {
             .iter()
             .map(|&(v, l, c)| (v, Swatch::color(l, c).disabled(v == Paint::Gray)))
     };
-    SwatchPicker::new("sw-1", "Color", &mut s.swatch)
-        .swatches(all())
+    SwatchPicker::optional("sw-1", "Color", &mut s.swatch)
+        .items(all())
         .size(SwatchSize::Large)
         .show(ui);
-    SwatchPicker::new("sw-2", "Shape", &mut s.swatch)
-        .swatches(all())
+    SwatchPicker::optional("sw-2", "Shape", &mut s.swatch)
+        .items(all())
         .shape(SwatchShape::Circular)
         .size(SwatchSize::Small)
         .show(ui);
-    SwatchPicker::new("sw-3", "Grid", &mut s.swatch)
-        .swatches(all())
+    SwatchPicker::optional("sw-3", "Grid", &mut s.swatch)
+        .items(all())
         .shape(SwatchShape::Rounded)
         .layout(SwatchLayout::Grid { columns: 3 })
         .show(ui);

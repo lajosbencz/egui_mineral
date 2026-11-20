@@ -1,10 +1,7 @@
 use egui::{Id, LayerId};
-use egui_mineral::{
-    combobox::ComboState,
-    select::{Selection, SelectionMode},
-};
+use egui_mineral::{combobox::ComboState, kit::choice::Choice};
 
-use super::listbox::{Flat, ListEntry};
+use super::listbox::{Entry, Flat};
 
 #[derive(Clone, Debug, Default)]
 pub struct ListState {
@@ -14,110 +11,11 @@ pub struct ListState {
     pub filtering: bool,
 }
 
-// Binding of a list's picked option values.
-pub(crate) trait Pick<K> {
-    fn multiselect(&self) -> bool {
-        false
-    }
-
-    fn is_selected(&self, value: &K) -> bool;
-
-    // Whether the binding changed.
-    fn pick(&mut self, value: &K) -> bool;
-}
-
-impl<K: Ord + Clone> Pick<K> for Selection<K> {
-    fn multiselect(&self) -> bool {
-        self.mode() == SelectionMode::Multiple
-    }
-
-    fn is_selected(&self, value: &K) -> bool {
-        Selection::is_selected(self, value)
-    }
-
-    fn pick(&mut self, value: &K) -> bool {
-        if self.mode() == SelectionMode::Multiple {
-            self.toggle(value.clone())
-        } else {
-            self.select(value.clone())
-        }
-    }
-}
-
-impl<K: PartialEq + Clone> Pick<K> for Option<K> {
-    fn is_selected(&self, value: &K) -> bool {
-        self.as_ref() == Some(value)
-    }
-
-    fn pick(&mut self, value: &K) -> bool {
-        let changed = self.as_ref() != Some(value);
-        *self = Some(value.clone());
-        changed
-    }
-}
-
-// Always holds one of the option values; nothing is selected while it matches none.
-pub(crate) struct Exact<'a, K>(pub &'a mut K);
-
-impl<K: PartialEq + Clone> Pick<K> for Exact<'_, K> {
-    fn is_selected(&self, value: &K) -> bool {
-        self.0 == value
-    }
-
-    fn pick(&mut self, value: &K) -> bool {
-        let changed = self.0 != value;
-        *self.0 = value.clone();
-        changed
-    }
-}
-
-impl<K, P: Pick<K> + ?Sized> Pick<K> for &mut P {
-    fn multiselect(&self) -> bool {
-        (**self).multiselect()
-    }
-
-    fn is_selected(&self, value: &K) -> bool {
-        (**self).is_selected(value)
-    }
-
-    fn pick(&mut self, value: &K) -> bool {
-        (**self).pick(value)
-    }
-}
-
-pub(crate) struct Value<'a, K>(Box<dyn Pick<K> + 'a>);
-
-impl<'a, K> Value<'a, K> {
-    pub(crate) fn new(pick: impl Pick<K> + 'a) -> Self {
-        Self(Box::new(pick))
-    }
-}
-
-impl<K> std::fmt::Debug for Value<'_, K> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Value").finish_non_exhaustive()
-    }
-}
-
-impl<'a, K> std::ops::Deref for Value<'a, K> {
-    type Target = dyn Pick<K> + 'a;
-
-    fn deref(&self) -> &Self::Target {
-        &*self.0
-    }
-}
-
-impl<K> std::ops::DerefMut for Value<'_, K> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut *self.0
-    }
-}
-
-pub(crate) fn selected_text<K>(entries: &[ListEntry<K>], value: &dyn Pick<K>) -> String {
+pub(crate) fn selected_text<K: PartialEq + Clone>(entries: &[Entry<K>], value: &Choice<'_, K>) -> String {
     let flat = Flat::new(entries, &|_, _| true);
     flat.options
         .iter()
-        .filter(|o| value.is_selected(&o.value))
+        .filter(|o| value.contains(&o.value))
         .map(|o| o.text.as_str())
         .collect::<Vec<_>>()
         .join(", ")

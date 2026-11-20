@@ -200,22 +200,22 @@ impl<'a, K: PartialEq + Clone> ToolbarRadioGroup<'a, K> {
     /// Checks the button whose value equals `selected`, none when no button matches.
     pub fn new(selected: &'a mut K) -> Self {
         Self {
-            selected: Choice::one(selected),
+            selected: Choice::new(selected),
             buttons: Vec::new(),
         }
     }
 
     /// Appends one radio button carrying `value`.
-    pub fn option(mut self, value: K, button: impl Into<ToolbarRadioButton>) -> Self {
+    pub fn item(mut self, value: K, button: impl Into<ToolbarRadioButton>) -> Self {
         self.selected.push(value);
         self.buttons.push(button.into());
         self
     }
 
     /// Appends `(value, button)` pairs.
-    pub fn options(mut self, options: impl IntoIterator<Item = (K, impl Into<ToolbarRadioButton>)>) -> Self {
+    pub fn items(mut self, options: impl IntoIterator<Item = (K, impl Into<ToolbarRadioButton>)>) -> Self {
         for (value, button) in options {
-            self = self.option(value, button);
+            self = self.item(value, button);
         }
         self
     }

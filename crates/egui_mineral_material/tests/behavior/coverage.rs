@@ -24,8 +24,8 @@ use crate::support::{MineralHarness, SCREEN, render, still};
 fn accordion_header_click_toggles_its_panel_and_collapses_the_other() {
     let mut h = still(SCREEN, (Expansion::single(), Vec::new()), |ui, (ex, toggled)| {
         let r = Accordion::new("acc", ex).show(ui, |a| {
-            a.panel("One", |ui| ui.label("first"));
-            a.panel("Two", |ui| ui.label("second"));
+            a.panel(0, "One", |ui| ui.label("first"));
+            a.panel(1, "Two", |ui| ui.label("second"));
         });
         assert_eq!(r.changed, r.toggled.is_some());
         toggled.extend(r.toggled);
@@ -142,12 +142,10 @@ fn floating_toolbar_reports_its_paired_fab() {
 #[test]
 fn search_suggestions_filter_by_query_and_report_the_pick() {
     let mut h = still(SCREEN, (String::new(), Vec::new()), |ui, (query, picked)| {
-        let r = ui.mineral(SearchSuggestions::new(
-            "fruit",
-            "Search",
-            ["apple", "banana", "cherry"],
-            query,
-        ));
+        let r = ui.mineral(
+            SearchSuggestions::new("fruit", "Search", query)
+                .items(["apple", "banana", "cherry"].into_iter().enumerate()),
+        );
         picked.extend(r.output().selected);
     });
     h.click("fruit-search");
@@ -236,7 +234,7 @@ fn text_field_trailing_icon_is_a_named_button() {
 #[test]
 fn image_list_and_bottom_sheet_are_named() {
     let pass = render(|ui| {
-        ImageList::new("gallery", 2).show(ui, |ui, i| {
+        ImageList::new("gallery").show(ui, 2, |ui, i| {
             ui.label(i.to_string());
         });
         BottomSheet::new("sheet")
@@ -277,12 +275,10 @@ fn snackbar_host_reports_action_and_close() {
 #[test]
 fn search_suggestions_pick_from_the_keyboard() {
     let mut h = still(SCREEN, (String::new(), Vec::new()), |ui, (query, picked)| {
-        let r = ui.mineral(SearchSuggestions::new(
-            "fruit",
-            "Search",
-            ["apple", "banana", "cherry"],
-            query,
-        ));
+        let r = ui.mineral(
+            SearchSuggestions::new("fruit", "Search", query)
+                .items(["apple", "banana", "cherry"].into_iter().enumerate()),
+        );
         picked.extend(r.output().selected);
     });
     h.click("fruit-search");
@@ -301,7 +297,7 @@ fn sibling_accordions_scope_their_panels_apart() {
             let mut ex = Expansion::single();
             ex.expand(0);
             Accordion::new(salt, &mut ex).show(ui, |a| {
-                a.panel("One", |ui| ids.push(ui.scope_id()));
+                a.panel(0, "One", |ui| ids.push(ui.scope_id()));
             });
         }
     });
@@ -320,7 +316,7 @@ fn accordion_drops_measured_heights_of_removed_panels() {
         }
         Accordion::new("acc", &mut ex).show(ui, |a| {
             for i in 0..*panels {
-                a.panel(format!("P{i}"), |ui| ui.label("body"));
+                a.panel(i, format!("P{i}"), |ui| ui.label("body"));
             }
         });
         let id = ui.make_persistent_id(egui_mineral::semantic::KeyedSalt::from("acc").id_salt());

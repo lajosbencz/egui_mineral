@@ -13,6 +13,6 @@ pub use chip::{Chip, ChipVariant, InputChip, InputChipOutput};
 pub use controls::{CheckButton, Radio, RadioGroup, RadioOption, Switch, SwitchState};
 pub use date_picker::{DatePicker, DateRangePicker, DisplayMode};
 pub use menu::{Menu, MenuColors, MenuItem, MenuResponse, MenuTrailing};
-pub use select::{MultiOption, Select, SelectOption, SelectState};
+pub use select::{Select, SelectOption, SelectState};
 pub use slider::{ValueSlider, ValueSliderState};
 pub use time_picker::TimePicker;

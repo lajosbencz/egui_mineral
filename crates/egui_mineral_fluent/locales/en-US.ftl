@@ -93,3 +93,4 @@ mineral-menu-strip = Menu bar
 mineral-command-placeholder = Search commands
 mineral-command-empty = No results found.
 mineral-command-results = Commands
+mineral-submit = Submit

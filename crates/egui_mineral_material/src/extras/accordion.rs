@@ -9,6 +9,7 @@ use std::f32::consts::PI;
 
 use egui::{Color32, CornerRadius, Id, Rangef, Rect, Sense, Shape, Stroke, StrokeKind, Ui, UiBuilder, pos2, vec2};
 use egui_mineral::widget::Availability;
+
 use egui_mineral::{
     expand::Expansion,
     focus::RovingFocus,
@@ -233,23 +234,23 @@ impl MineralWidget for Header<'_> {
 /// Result of [`Accordion::show`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct AccordionResponse<R> {
+pub struct AccordionResponse<K, R = ()> {
     /// Response of the whole stack.
     pub response: egui::Response,
     /// Output of the [`Accordion::show`] closure.
     pub inner: R,
     /// Some panel expanded or collapsed this frame.
     pub changed: bool,
-    /// Index of the panel toggled this frame.
-    pub toggled: Option<usize>,
+    /// Key of the panel toggled this frame.
+    pub toggled: Option<K>,
 }
 
 /// Stack of collapsible panels bound to an [`Expansion`]; non-MD3.
 #[derive(Debug)]
 #[must_use = "call .show(..)"]
-pub struct Accordion<'a> {
+pub struct Accordion<'a, K> {
     salt: KeyedSalt,
-    expansion: &'a mut Expansion<usize>,
+    expansion: &'a mut Expansion<K>,
     variant: AccordionVariant,
     disabled: bool,
 }
@@ -265,27 +266,27 @@ pub struct AccordionPanelResponse<R> {
 }
 
 /// Panel adder handed to the [`Accordion::show`] closure.
-pub struct AccordionUi<'u, 'e> {
+pub struct AccordionUi<'u, 'e, K> {
     ui: &'u mut Ui,
     rt: &'u crate::Rt,
     id: Id,
     salt: KeyedSalt,
     key: StableId,
-    expansion: &'e mut Expansion<usize>,
+    expansion: &'e mut Expansion<K>,
     index: usize,
     count: usize,
     radius: CornerRadius,
     variant: AccordionVariant,
     headers: Vec<Id>,
-    toggled: Option<usize>,
+    toggled: Option<K>,
     disabled: bool,
     heights: Vec<f32>,
     heights_dirty: bool,
 }
 
-egui_mineral::kit::opaque_debug!(AccordionUi<'_, '_>);
+egui_mineral::kit::opaque_debug!(AccordionUi<'_, '_, K>);
 
-impl AccordionUi<'_, '_> {
+impl<K: Ord + Clone + egui::AsIdSalt> AccordionUi<'_, '_, K> {
     fn divider(&mut self) {
         let color = self.rt.tokens().role(divider::COLOR);
         let (r, _) = self
@@ -308,9 +309,11 @@ impl AccordionUi<'_, '_> {
         }
     }
 
-    /// Adds the next panel, indexed in call order, with `add` as its body.
+    /// Adds the next panel, expanded while `key` is in the bound [`Expansion`], with `add` as its body. Agent
+    /// keys follow the call order.
     pub fn panel<R>(
         &mut self,
+        key: K,
         panel: impl Into<AccordionPanel>,
         add: impl FnOnce(&mut MineralUi<'_, crate::Material>) -> R,
     ) -> AccordionPanelResponse<R> {
@@ -324,16 +327,17 @@ impl AccordionUi<'_, '_> {
         if i > 0 && !flat {
             self.divider();
         }
-        let open = self.expansion.is_expanded(&i);
+        let open = self.expansion.is_expanded(&key);
+        let content_id = self.id.with(("content", &key));
         let k = egui_mineral::motion::spring(
             rt.core(),
-            self.id.with(("open", i)),
+            self.id.with(("open", &key)),
             f32::from(open),
             motion::DEFAULT_SPATIAL,
         );
         let fade = egui_mineral::motion::spring(
             rt.core(),
-            self.id.with(("fade", i)),
+            self.id.with(("fade", &key)),
             f32::from(open),
             motion::DEFAULT_EFFECTS,
         );
@@ -354,8 +358,8 @@ impl AccordionUi<'_, '_> {
         if !panel.disabled {
             self.headers.push(hr.id);
             if hr.changed() || (expand_req && !open) || (collapse_req && open) {
-                self.expansion.toggle(i);
-                self.toggled = Some(i);
+                self.expansion.toggle(key.clone());
+                self.toggled = Some(key);
                 hr = hr.with_changed(true);
             }
         }
@@ -381,7 +385,7 @@ impl AccordionUi<'_, '_> {
         let pad = if flat { 0.0 } else { CONTENT_PADDING };
         let mut child = self.ui.new_child(
             UiBuilder::new()
-                .id_salt(self.id.with(("content", i)))
+                .id_salt(content_id)
                 .max_rect(Rect::from_min_size(
                     top + vec2(pad, 0.0),
                     vec2(w - 2.0 * pad, f32::INFINITY),
@@ -411,9 +415,9 @@ impl AccordionUi<'_, '_> {
     }
 }
 
-impl<'a> Accordion<'a> {
-    /// `expansion` is the bound set of expanded panel indices. Agent key prefix `<id_salt>`.
-    pub fn new(id_salt: impl Into<KeyedSalt>, expansion: &'a mut Expansion<usize>) -> Self {
+impl<'a, K: Ord + Clone + egui::AsIdSalt> Accordion<'a, K> {
+    /// `expansion` is the bound set of expanded panel keys. Agent key prefix `<id_salt>`.
+    pub fn new(id_salt: impl Into<KeyedSalt>, expansion: &'a mut Expansion<K>) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
             salt: id_salt,
@@ -443,8 +447,8 @@ impl<'a> Accordion<'a> {
     pub fn show<R>(
         self,
         ui: &mut MineralUi<'_, Material>,
-        add: impl FnOnce(&mut AccordionUi<'_, '_>) -> R,
-    ) -> AccordionResponse<R> {
+        add: impl FnOnce(&mut AccordionUi<'_, '_, K>) -> R,
+    ) -> AccordionResponse<K, R> {
         let rt = ui.rt();
         let ctx = rt.ctx();
         let t = rt.tokens();

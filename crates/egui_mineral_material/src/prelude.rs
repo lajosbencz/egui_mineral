@@ -40,9 +40,8 @@ pub use crate::navigation::{
 };
 pub use crate::selection::{
     CheckButton, Chip, ChipVariant, DatePicker, DateRangePicker, DisplayMode, InputChip, InputChipOutput, Menu,
-    MenuColors, MenuItem, MenuResponse, MenuTrailing, MultiOption, PickerModalResponse, PickerResponse, Radio,
-    RadioGroup, RadioOption, Select, SelectOption, SelectState, Switch, SwitchState, TimePicker, ValueSlider,
-    ValueSliderState,
+    MenuColors, MenuItem, MenuResponse, MenuTrailing, PickerModalResponse, PickerResponse, Radio, RadioGroup,
+    RadioOption, Select, SelectOption, SelectState, Switch, SwitchState, TimePicker, ValueSlider, ValueSliderState,
 };
 pub use crate::text_inputs::{Elide, FormExt, TextField, TextFieldOutput, TextFieldVariant};
 pub use crate::{

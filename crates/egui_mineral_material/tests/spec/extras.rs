@@ -14,7 +14,7 @@ use crate::support::{TreeNode, render};
 fn table_rows_are_one_line_list_items() {
     let rows = 3;
     let p = render(|ui| {
-        DataTable::new("t", "Table", ["Name"], rows).show(ui, |r, _| TableCell::from(format!("Row {r}")));
+        DataTable::new("t", "Table", ["Name"]).show(ui, rows, |r, _| TableCell::from(format!("Row {r}")));
     });
     let painted = p.filled(list::ITEM_CONTAINER_COLOR);
     assert_eq!(painted.len(), rows + 1, "header and rows: {painted:?}");
@@ -90,8 +90,8 @@ fn accordion_headers_are_list_items() {
     let mut expansion = Expansion::default();
     let p = render(|ui| {
         Accordion::new("acc", &mut expansion).show(ui, |a| {
-            a.panel("One", |_| ());
-            a.panel(AccordionPanel::new("Two").supporting("Sub"), |_| ());
+            a.panel(0, "One", |_| ());
+            a.panel(1, AccordionPanel::new("Two").supporting("Sub"), |_| ());
         });
     });
     let one = list::ITEM_ONE_LINE_CONTAINER_HEIGHT;
@@ -113,7 +113,7 @@ fn flat_accordion_is_a_plain_section_header_without_a_container() {
             Accordion::new("acc", &mut expansion)
                 .variant(AccordionVariant::Flat)
                 .show(ui, |a| {
-                    a.panel("One", |_| ());
+                    a.panel(0, "One", |_| ());
                 });
         });
     });
@@ -177,7 +177,8 @@ fn field_wrappers_forward_the_text_chrome() {
                 .suffix("mm");
             let zones = ui.mineral(n).zones();
             ui.mineral(
-                Combobox::new("c", "Unit", ["a"], &mut text)
+                Combobox::new("c", "Unit", &mut text)
+                    .items(["a"].into_iter().enumerate())
                     .label_visible(false)
                     .prefix("#")
                     .placeholder("pick"),

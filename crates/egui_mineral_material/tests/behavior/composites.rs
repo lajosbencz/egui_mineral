@@ -178,7 +178,7 @@ fn split_pane_divider_moves_by_key() {
 #[test]
 fn image_list_reports_the_activated_tile() {
     let mut h = still(WIDE, None, |ui, activated| {
-        let r = ImageList::new("gallery", 4).show(ui, |ui, i| {
+        let r = ImageList::new("gallery").show(ui, 4, |ui, i| {
             ui.label(format!("{i}"));
         });
         *activated = activated.or(r.activated);
@@ -191,14 +191,14 @@ fn image_list_reports_the_activated_tile() {
 fn image_list_masonry_measures_once_per_version() {
     let calls = std::cell::Cell::new(0_usize);
     let mut h = still(WIDE, 0_u64, |ui, version| {
-        ImageList::new("gallery", 50)
+        ImageList::new("gallery")
             .layout(ImageListLayout::Masonry)
             .aspect(|_| {
                 calls.set(calls.get() + 1);
                 1.0
             })
             .aspect_version(*version)
-            .show(ui, |_, _| {});
+            .show(ui, 50, |_, _| {});
     });
     h.run();
     assert_eq!(calls.take(), 50, "measured once");
@@ -212,7 +212,7 @@ fn image_list_masonry_measures_once_per_version() {
 #[test]
 fn image_list_caps_hostile_column_counts() {
     let mut h = still(WIDE, (), |ui, ()| {
-        ImageList::new("gallery", 100).columns(usize::MAX).show(ui, |_, _| {});
+        ImageList::new("gallery").columns(usize::MAX).show(ui, 100, |_, _| {});
     });
     h.run();
     assert!(h.rect("gallery-31-tile").top() < h.rect("gallery-32-tile").top());

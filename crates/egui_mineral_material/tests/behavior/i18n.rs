@@ -150,9 +150,9 @@ mod mirror {
         TopAppBar::new("bar", "Title")
             .actions([IconAction::new(ICON_EDIT, "Edit"), IconAction::new(ICON_SHARE, "Share")])
             .show(ui);
-        DataTable::new("t", "Table", ["Name", "Size"], 2)
+        DataTable::new("t", "Table", ["Name", "Size"])
             .selection(&mut selection)
-            .show(ui, |r, c| match c {
+            .show(ui, 2, |r, c| match c {
                 0 => TableCell::from(format!("Row {r}")),
                 _ => TableCell::Number(r as f64),
             });
@@ -179,12 +179,7 @@ mod mirror {
             .show(ui);
         ui.mineral(IconButton::new("mail", ICON_MAIL, "Mail").badge(Badge::count(12)));
         let options = [SelectOption::new("Wav"), SelectOption::new("Flac")];
-        ui.mineral(Select::new(
-            "format",
-            "Format",
-            options.into_iter().enumerate(),
-            &mut selected,
-        ));
+        ui.mineral(Select::optional("format", "Format", &mut selected).items(options.into_iter().enumerate()));
     }
 
     type Gallery = fn(&mut Mui<'_>);
@@ -227,7 +222,7 @@ mod mirror {
                 let mut open = Expansion::single();
                 open.expand(0);
                 Accordion::new("acc", &mut open).show(ui, |a| {
-                    a.panel("Panel", |ui| ui.mineral(PushButton::new("body", "Body")));
+                    a.panel(0, "Panel", |ui| ui.mineral(PushButton::new("body", "Body")));
                 });
             }),
             ("dialog", |ui| {

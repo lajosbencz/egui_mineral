@@ -884,26 +884,24 @@ impl MineralWidget for Radio {
     }
 }
 
-/// Option of a [`RadioGroup`].
+/// Option of a [`RadioGroup`]; converts from its label.
 #[derive(Clone, Debug)]
 #[must_use]
-pub struct RadioOption<T> {
-    value: T,
+pub struct RadioOption {
     label: String,
     disabled: bool,
     salt: Option<egui_mineral::semantic::KeyedSalt>,
 }
 
-impl<T> RadioOption<T> {
+impl RadioOption {
     crate::widget::setters! {
         /// Default the index.
         item_salt
     }
 
-    /// `label` is the visible text and accessible name of `value`.
-    pub fn new(value: T, label: impl Into<String>) -> Self {
+    /// `label` is the visible text and accessible name.
+    pub fn new(label: impl Into<String>) -> Self {
         Self {
-            value,
             label: label.into(),
             disabled: false,
             salt: None,
@@ -916,41 +914,65 @@ impl<T> RadioOption<T> {
     }
 }
 
+impl From<&str> for RadioOption {
+    fn from(label: &str) -> Self {
+        Self::new(label)
+    }
+}
+
+impl From<String> for RadioOption {
+    fn from(label: String) -> Self {
+        Self::new(label)
+    }
+}
+
 /// <https://www.w3.org/WAI/ARIA/apg/patterns/radio/>
 #[derive(Debug)]
 #[must_use = "call .show(..)"]
-pub struct RadioGroup<'a, T> {
+pub struct RadioGroup<'a, K> {
     salt: KeyedSalt,
     label: String,
-    value: &'a mut T,
-    options: Vec<RadioOption<T>>,
+    choice: Choice<'a, K>,
+    options: Vec<RadioOption>,
     axis: Axis,
     disabled: bool,
 }
 
-impl<'a, T: PartialEq + Clone> RadioGroup<'a, T> {
-    /// `label` names the group for assistive technology.
-    pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, value: &'a mut T) -> Self {
-        let id_salt: KeyedSalt = id_salt.into();
+impl<'a, K: PartialEq + Clone> RadioGroup<'a, K> {
+    /// Checks the option whose value equals `selected`, none when no option matches; `label` names the group
+    /// for assistive technology.
+    pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selected: &'a mut K) -> Self {
+        Self::with(id_salt.into(), label.into(), Choice::new(selected))
+    }
+
+    /// [`Self::new`] that starts with no option checked while `selected` is `None`.
+    pub fn optional(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selected: &'a mut Option<K>) -> Self {
+        Self::with(id_salt.into(), label.into(), Choice::optional(selected))
+    }
+
+    fn with(salt: KeyedSalt, label: String, choice: Choice<'a, K>) -> Self {
         Self {
-            salt: id_salt,
-            label: label.into(),
-            value,
+            salt,
+            label,
+            choice,
             options: Vec::new(),
             axis: Axis::Vertical,
             disabled: false,
         }
     }
 
-    /// Appends one option.
-    pub fn option(mut self, option: impl Into<RadioOption<T>>) -> Self {
+    /// Appends one option carrying `value`.
+    pub fn item(mut self, value: K, option: impl Into<RadioOption>) -> Self {
+        self.choice.push(value);
         self.options.push(option.into());
         self
     }
 
-    /// Appends options.
-    pub fn options(mut self, options: impl IntoIterator<Item = impl Into<RadioOption<T>>>) -> Self {
-        self.options.extend(options.into_iter().map(Into::into));
+    /// Appends `(value, option)` pairs.
+    pub fn items(mut self, options: impl IntoIterator<Item = (K, impl Into<RadioOption>)>) -> Self {
+        for (value, option) in options {
+            self = self.item(value, option);
+        }
         self
     }
 
@@ -970,13 +992,13 @@ impl<'a, T: PartialEq + Clone> RadioGroup<'a, T> {
         agent_key(salt)
     }
 
-    /// Lays out the radios along the axis; a pick writes `value` and reports `changed`.
-    pub fn show(self, ui: &mut MineralUi<'_, Material>) -> SelectionResponse<T> {
+    /// Lays out the radios along the axis; a pick writes the option's value and reports `changed`.
+    pub fn show(self, ui: &mut MineralUi<'_, Material>) -> SelectionResponse<K> {
         let rt = ui.rt();
         let Self {
             salt,
             label,
-            value,
+            mut choice,
             options,
             axis,
             disabled,
@@ -985,13 +1007,12 @@ impl<'a, T: PartialEq + Clone> RadioGroup<'a, T> {
         let mut picked = None;
         let group_id = ui.make_persistent_id(salt.id_salt());
         let enabled = |i: usize| !disabled && options.get(i).is_some_and(|o| !o.disabled);
-        let selected = options.iter().position(|o| o.value == *value);
-        let tab_stop = focus::tab_stop(ui.ctx(), group_id, selected, options.len(), enabled);
+        let tab_stop = focus::tab_stop(ui.ctx(), group_id, choice.index(), options.len(), enabled);
         let mut body = |ui: &mut Ui| {
             for (i, o) in options.iter().enumerate() {
                 let r = rt.ui(ui).mineral(
                     Radio::new(crate::widget::item_salt(&salt, o.salt.as_ref(), None, i), &o.label)
-                        .selected(o.value == *value)
+                        .selected(choice.is_selected(i))
                         .tab_stop(i == tab_stop)
                         .disabled(!enabled(i)),
                 );
@@ -1015,10 +1036,6 @@ impl<'a, T: PartialEq + Clone> RadioGroup<'a, T> {
             n.state.disabled = disabled;
             n
         });
-        let mut choice = Choice::one(value);
-        for o in &options {
-            choice.push(o.value.clone());
-        }
         choice.pick(group, picked)
     }
 }

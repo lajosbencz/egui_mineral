@@ -1,3 +1,4 @@
+use egui_mineral::kit::choice::Choice;
 use egui_mineral::semantic::KeySalt;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -43,7 +44,24 @@ macro_rules! row_setters {
     };
 }
 
+// Binding of a nav's selection with its lifetime erased, so `NavUi` needs none for it.
+trait Bound<K> {
+    fn holds(&self, value: &K) -> bool;
+    fn write(&mut self, value: K) -> bool;
+}
+
+impl<K: PartialEq + Clone> Bound<K> for Choice<'_, K> {
+    fn holds(&self, value: &K) -> bool {
+        self.contains(value)
+    }
+
+    fn write(&mut self, value: K) -> bool {
+        self.set(value)
+    }
+}
+
 /// Value of a [`Nav`] row: it keys the row (`<id_salt>-<value>`) and persists across passes as open categories.
+/// App enums get `KeySalt` from `#[derive(KeySalt)]` (`egui_mineral::semantic`).
 pub trait NavValue: KeySalt + egui::AsIdSalt + Ord + Clone + Send + Sync + 'static {}
 
 impl<K: KeySalt + egui::AsIdSalt + Ord + Clone + Send + Sync + 'static> NavValue for K {}
@@ -333,11 +351,12 @@ pub struct NavUi<'u, 's, K> {
     ui: &'u mut MineralUi<'s, Fluent>,
     salt: &'u KeyedSalt,
     id: Id,
-    selected: &'u mut Option<K>,
+    selected: &'u mut dyn Bound<K>,
     open: &'u mut Vec<K>,
     multiple: bool,
     density: NavDensity,
     picked: &'u mut Option<K>,
+    changed: &'u mut bool,
     values: Vec<K>,
     children: &'u mut Children<K>,
 }
@@ -373,7 +392,7 @@ impl<K: NavValue> NavUi<'_, '_, K> {
             label: item.label,
             icon: item.icon,
             kind: Kind::Item,
-            selected: self.selected.as_ref() == Some(&item.value),
+            selected: self.selected.holds(&item.value),
             density: self.density,
         };
         let response = self.row(&item.value, item.salt.as_ref(), row);
@@ -388,7 +407,7 @@ impl<K: NavValue> NavUi<'_, '_, K> {
             label: item.label,
             icon: None,
             kind: Kind::Sub,
-            selected: self.selected.as_ref() == Some(&item.value),
+            selected: self.selected.holds(&item.value),
             density: self.density,
         };
         let response = self.row(&item.value, item.salt.as_ref(), row);
@@ -397,8 +416,8 @@ impl<K: NavValue> NavUi<'_, '_, K> {
 
     fn select(&mut self, response: egui::Response, value: K) -> NavItemResponse {
         let clicked = response.clicked();
-        if clicked && self.selected.as_ref() != Some(&value) {
-            *self.selected = Some(value.clone());
+        if clicked {
+            *self.changed |= self.selected.write(value.clone());
             *self.picked = Some(value);
         }
         NavItemResponse {
@@ -418,7 +437,7 @@ impl<K: NavValue> NavUi<'_, '_, K> {
         let open = self.open.contains(&value);
         self.children.seen.insert(value.clone());
         let known = self.children.known.get(&value).map_or(&[][..], Vec::as_slice);
-        let selected = !open && self.selected.as_ref().is_some_and(|s| known.contains(s));
+        let selected = !open && known.iter().any(|v| self.selected.holds(v));
         let row = Row {
             salt: self.salt.clone(),
             label: category.label,
@@ -449,6 +468,7 @@ impl<K: NavValue> NavUi<'_, '_, K> {
                 multiple: self.multiple,
                 density: self.density,
                 picked: &mut *self.picked,
+                changed: &mut *self.changed,
                 values: Vec::new(),
                 children: &mut *self.children,
             };
@@ -497,9 +517,9 @@ impl<K: NavValue> NavUi<'_, '_, K> {
 pub struct NavResponse<K, R = ()> {
     /// Spans every row; `mark_changed` when `changed`.
     pub response: egui::Response,
-    /// Agrees with `response.changed()`; `selected` is `Some`.
+    /// Agrees with `response.changed()`: the bound value changed this frame.
     pub changed: bool,
-    /// Value picked this frame.
+    /// Value of the item picked this frame, also when it was already selected.
     pub selected: Option<K>,
     /// What `add` returned.
     pub inner: R,
@@ -513,7 +533,7 @@ pub struct Nav<'a, K> {
     salt: KeyedSalt,
     key: AgentKey,
     label: String,
-    selected: &'a mut Option<K>,
+    choice: Choice<'a, K>,
     density: NavDensity,
     multiple: bool,
     default_open: Vec<K>,
@@ -521,14 +541,23 @@ pub struct Nav<'a, K> {
 }
 
 impl<'a, K: NavValue> Nav<'a, K> {
-    /// `label` names the navigation for assistive technology; `selected` holds the picked item's value.
+    /// Selects the item whose value equals `selected`; `label` names the navigation for assistive technology.
     /// Agent key `<id_salt>-nav`; rows without a `salt(..)` are keyed `<id_salt>-<value>`.
-    pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selected: &'a mut Option<K>) -> Self {
+    pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selected: &'a mut K) -> Self {
+        Self::with(id_salt.into(), label.into(), Choice::new(selected))
+    }
+
+    /// [`Self::new`] that selects no item while `selected` is `None`.
+    pub fn optional(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selected: &'a mut Option<K>) -> Self {
+        Self::with(id_salt.into(), label.into(), Choice::optional(selected))
+    }
+
+    fn with(salt: KeyedSalt, label: String, choice: Choice<'a, K>) -> Self {
         Self {
-            salt: id_salt.into(),
+            salt,
             key: egui_mineral::agent_key!("nav"),
-            label: label.into(),
-            selected,
+            label,
+            choice,
             density: NavDensity::Medium,
             multiple: d::MULTIPLE,
             default_open: Vec::new(),
@@ -570,7 +599,7 @@ impl<'a, K: NavValue> Nav<'a, K> {
             salt,
             key,
             label,
-            selected,
+            mut choice,
             density,
             multiple,
             default_open,
@@ -583,7 +612,7 @@ impl<'a, K: NavValue> Nav<'a, K> {
         } else {
             default_open.into_iter().take(1).collect()
         });
-        let before = selected.clone();
+        let mut changed = false;
         let mut picked = None;
         let children_id = id.with("mineral::nav-children");
         let mut children: Children<K> = ui.ctx().data(|d| d.get_temp(children_id)).unwrap_or_default();
@@ -598,11 +627,12 @@ impl<'a, K: NavValue> Nav<'a, K> {
                             ui: &mut rt.ui(ui),
                             salt: &salt,
                             id,
-                            selected: &mut *selected,
+                            selected: &mut choice,
                             open: &mut open,
                             multiple,
                             density,
                             picked: &mut picked,
+                            changed: &mut changed,
                             values: Vec::new(),
                             children: &mut children,
                         };
@@ -626,7 +656,6 @@ impl<'a, K: NavValue> Nav<'a, K> {
         semantic::emit(ui.ctx(), Some(group.response.id), group.response.rect, || {
             SemanticNode::new(key.id(&salt), Role::Navigation, &label)
         });
-        let changed = *selected != before;
         let mut response = group.response;
         if changed {
             response.mark_changed();
@@ -634,7 +663,7 @@ impl<'a, K: NavValue> Nav<'a, K> {
         NavResponse {
             response,
             changed,
-            selected: picked.filter(|_| changed),
+            selected: picked,
             inner: group.inner,
         }
     }
@@ -650,8 +679,16 @@ pub struct NavDrawer<'a, K> {
 
 impl<'a, K: NavValue> NavDrawer<'a, K> {
     /// See [`Nav::new`]; 260pt wide.
-    pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selected: &'a mut Option<K>) -> Self {
-        let mut nav = Nav::new(id_salt, label, selected);
+    pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selected: &'a mut K) -> Self {
+        Self::with(Nav::new(id_salt, label, selected))
+    }
+
+    /// See [`Nav::optional`]; 260pt wide.
+    pub fn optional(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selected: &'a mut Option<K>) -> Self {
+        Self::with(Nav::optional(id_salt, label, selected))
+    }
+
+    fn with(mut nav: Nav<'a, K>) -> Self {
         nav.gap = g::SPACING_VERTICAL_XXS;
         Self {
             nav,

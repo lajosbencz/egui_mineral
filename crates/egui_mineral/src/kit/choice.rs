@@ -41,24 +41,24 @@ crate::kit::opaque_debug!(Choice<'_, K>);
 
 impl<'a, K: PartialEq + Clone> Choice<'a, K> {
     /// Exactly one item selected: the one whose value equals `bound`.
-    pub fn one(bound: &'a mut K) -> Self {
-        Self::new(Bound::One(bound))
+    pub fn new(bound: &'a mut K) -> Self {
+        Self::with(Bound::One(bound))
     }
 
     /// At most one item selected; `None` selects none.
     pub fn optional(bound: &'a mut Option<K>) -> Self {
-        Self::new(Bound::Optional(bound))
+        Self::with(Bound::Optional(bound))
     }
 
-    /// Any number of items selected; a pick toggles the item.
-    pub fn many(bound: &'a mut Selection<K>) -> Self
+    /// Any number of items selected, at most one for a [`Selection::single`]; a pick toggles the item.
+    pub fn multi(bound: &'a mut Selection<K>) -> Self
     where
         K: Ord,
     {
-        Self::new(Bound::Many(bound))
+        Self::with(Bound::Many(bound))
     }
 
-    const fn new(bound: Bound<'a, K>) -> Self {
+    const fn with(bound: Bound<'a, K>) -> Self {
         Self {
             bound,
             values: Vec::new(),
@@ -75,7 +75,7 @@ impl<'a, K: PartialEq + Clone> Choice<'a, K> {
         &self.values
     }
 
-    /// At most one item selected: [`Self::one`], [`Self::optional`] and [`Self::many`] of a
+    /// At most one item selected: [`Self::new`], [`Self::optional`] and [`Self::multi`] of a
     /// [`Selection::single`].
     pub fn is_single(&self) -> bool {
         match &self.bound {
@@ -86,23 +86,21 @@ impl<'a, K: PartialEq + Clone> Choice<'a, K> {
 
     /// `true` when item `index` carries a selected value.
     pub fn is_selected(&self, index: usize) -> bool {
-        self.values.get(index).is_some_and(|v| match &self.bound {
-            Bound::One(b) => v == &**b,
-            Bound::Optional(b) => b.as_ref() == Some(v),
-            Bound::Many(b) => b.holds(v),
-        })
+        self.values.get(index).is_some_and(|v| self.contains(v))
     }
 
-    /// First selected item; `None` when no item carries a selected value.
-    pub fn index(&self) -> Option<usize> {
-        (0..self.values.len()).find(|&i| self.is_selected(i))
+    /// `true` when `value` is selected, whether or not an item carries it.
+    pub fn contains(&self, value: &K) -> bool {
+        match &self.bound {
+            Bound::One(b) => value == &**b,
+            Bound::Optional(b) => b.as_ref() == Some(value),
+            Bound::Many(b) => b.holds(value),
+        }
     }
 
-    /// Writes the value of item `index` (toggles it for [`Self::many`]); whether the binding changed.
-    pub fn select(&mut self, index: usize) -> bool {
-        let Some(value) = self.values.get(index).cloned() else {
-            return false;
-        };
+    /// Writes `value` (toggles it for [`Self::multi`]); whether the binding changed. For groups that track item
+    /// values themselves (nested navigation, grouped lists).
+    pub fn set(&mut self, value: K) -> bool {
         match &mut self.bound {
             Bound::One(b) => {
                 let changed = **b != value;
@@ -112,6 +110,16 @@ impl<'a, K: PartialEq + Clone> Choice<'a, K> {
             Bound::Optional(b) => b.replace(value.clone()).as_ref() != Some(&value),
             Bound::Many(b) => b.flip(value),
         }
+    }
+
+    /// First selected item; `None` when no item carries a selected value.
+    pub fn index(&self) -> Option<usize> {
+        (0..self.values.len()).find(|&i| self.is_selected(i))
+    }
+
+    /// Writes the value of item `index` (toggles it for [`Self::multi`]); whether the binding changed.
+    pub fn select(&mut self, index: usize) -> bool {
+        self.values.get(index).cloned().is_some_and(|value| self.set(value))
     }
 
     /// [`Self::select`]s item `picked` (a click or key this pass); `None` reports no pick.
@@ -155,7 +163,7 @@ mod tests {
     #[test]
     fn one_follows_the_value_not_the_position() {
         let mut tab = Tab::Mail;
-        let mut c = with_tabs(Choice::one(&mut tab), [Tab::Chat, Tab::Mail, Tab::Home]);
+        let mut c = with_tabs(Choice::new(&mut tab), [Tab::Chat, Tab::Mail, Tab::Home]);
         assert_eq!(c.index(), Some(1));
         let r = c.pick(response(), Some(2));
         assert!(r.changed);
@@ -168,7 +176,7 @@ mod tests {
     #[test]
     fn unmatched_values_select_nothing() {
         let mut tab = Tab::Chat;
-        let c = with_tabs(Choice::one(&mut tab), [Tab::Home, Tab::Mail]);
+        let c = with_tabs(Choice::new(&mut tab), [Tab::Home, Tab::Mail]);
         assert_eq!(c.index(), None);
         let mut none = None;
         let c = with_tabs(Choice::optional(&mut none), [Tab::Home]);
@@ -178,7 +186,7 @@ mod tests {
     #[test]
     fn many_toggles() {
         let mut sel: Selection<Tab> = [Tab::Home].into_iter().collect();
-        let mut c = with_tabs(Choice::many(&mut sel), [Tab::Home, Tab::Mail]);
+        let mut c = with_tabs(Choice::multi(&mut sel), [Tab::Home, Tab::Mail]);
         assert!(!c.is_single());
         assert!(c.pick(response(), Some(1)).changed);
         assert!(c.pick(response(), Some(0)).changed);

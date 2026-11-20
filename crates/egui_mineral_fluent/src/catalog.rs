@@ -266,19 +266,19 @@ meta!(
 );
 
 meta!(
-    Dropdown<'a>,
+    Dropdown<'a, K>,
     Inputs,
     "Dropdown",
     "react-combobox/library/src/components/Dropdown/useDropdownStyles.styles.ts"
 );
 meta!(
-    Combobox<'a>,
+    Combobox<'a, K>,
     Inputs,
     "Combobox",
     "react-combobox/library/src/components/Combobox/useComboboxStyles.styles.ts"
 );
 meta!(
-    Select<'a>,
+    Select<'a, K>,
     Inputs,
     "Select",
     "react-select/library/src/components/Select/useSelectStyles.styles.ts"
@@ -302,7 +302,7 @@ meta!(
     "react-datepicker-compat/library/src/components/DatePicker/useDatePickerStyles.styles.ts"
 );
 meta!(
-    TagPicker<'a>,
+    TagPicker<'a, K>,
     Inputs,
     "TagPicker",
     "react-tag-picker/library/src/components/TagPickerControl/useTagPickerControlStyles.styles.ts"
@@ -332,7 +332,7 @@ meta!(
     "react-combobox/library/src/components/Option/useOptionStyles.styles.ts"
 );
 meta!(
-    OptionGroup,
+    OptionGroup<K>,
     Inputs,
     "OptionGroup",
     "react-combobox/library/src/components/OptionGroup/useOptionGroupStyles.styles.ts"
@@ -349,7 +349,7 @@ impl<T> Component for RadioGroup<'_, T> {
     };
 }
 meta!(
-    Accordion<'a>,
+    Accordion<'a, K>,
     Surfaces,
     "Accordion",
     "react-accordion/library/src/components/AccordionHeader/useAccordionHeaderStyles.styles.ts"
@@ -415,7 +415,7 @@ meta!(
     "react-image/library/src/components/Image/useImageStyles.styles.ts"
 );
 meta!(
-    List<'a>,
+    List<'a, K>,
     Data,
     "List",
     "react-list/library/src/components/ListItem/useListItemStyles.styles.ts"
@@ -449,13 +449,13 @@ impl<K: Ord> Component for TagGroup<'_, K> {
     };
 }
 meta!(
-    Table<'a>,
+    Table<'a, K>,
     Data,
     "Table",
     "react-table/library/src/components/Table/useTableStyles.styles.ts"
 );
 meta!(
-    DataGrid<'a>,
+    DataGrid<'a, K>,
     Data,
     "DataGrid",
     "react-table/library/src/components/DataGrid/useDataGridStyles.styles.ts"
@@ -771,19 +771,19 @@ pub const CATALOG: &[ComponentMeta] = &[
     <Textarea<'static>>::META,
     <SearchBox<'static>>::META,
     <RadioGroup<'static, ()>>::META,
-    <Dropdown<'static>>::META,
-    <Combobox<'static>>::META,
-    <Select<'static>>::META,
+    <Dropdown<'static, ()>>::META,
+    <Combobox<'static, ()>>::META,
+    <Select<'static, ()>>::META,
     <TimePicker<'static>>::META,
-    <TagPicker<'static>>::META,
+    <TagPicker<'static, ()>>::META,
     <Calendar<'static>>::META,
     <DatePicker<'static>>::META,
     <SwatchPicker<'static, ()>>::META,
     Swatch::META,
     <ColorPicker<'static>>::META,
     ListOption::META,
-    OptionGroup::META,
-    Accordion::META,
+    <OptionGroup<()>>::META,
+    <Accordion<'static, ()>>::META,
     Card::META,
     Divider::META,
     Tooltip::META,
@@ -794,13 +794,13 @@ pub const CATALOG: &[ComponentMeta] = &[
     <Avatar<'static>>::META,
     <AvatarGroup<'static>>::META,
     Image::META,
-    List::META,
+    <List<'static, usize>>::META,
     <Persona<'static>>::META,
     <Tag<'static>>::META,
     <InteractionTag<'static>>::META,
     <TagGroup<'static, usize>>::META,
-    <Table<'static>>::META,
-    <DataGrid<'static>>::META,
+    <Table<'static, usize>>::META,
+    <DataGrid<'static, usize>>::META,
     TableColumn::META,
     <TableCellLayout<'static>>::META,
     Text::META,

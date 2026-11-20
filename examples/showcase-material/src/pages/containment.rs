@@ -186,7 +186,7 @@ pub(crate) fn show(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) 
     });
     section(ui, TOPICS[7], Some(ListItem::META), |ui| swipe(ui, s, shared));
     section(ui, TOPICS[8], Some(ListItem::META), |ui| reorder(ui, s, shared));
-    section(ui, TOPICS[9], Some(<Accordion<'static>>::META), |ui| {
+    section(ui, TOPICS[9], Some(<Accordion<'static, ()>>::META), |ui| {
         accordions(ui, s, shared);
     });
     section(ui, TOPICS[10], Some(Popover::META), |ui| popovers(ui, s));
@@ -393,24 +393,24 @@ fn carousels(ui: &mut MaterialUi<'_>, s: &mut State) {
     for (i, (layout, name)) in CAROUSELS.into_iter().enumerate() {
         sub(ui, name);
         let full = layout == CarouselLayout::FullScreen;
-        let r = Carousel::new(("carousel", i), 8, layout)
+        let r = Carousel::new(("carousel", i), layout)
             .height(if full { 400.0 } else { 221.0 })
             .item_spacing(8.0)
             .content_padding(CarouselPadding { start: 16.0, end: 16.0 })
             .item_label(|i| format!("Item {}", i + 1))
             .surround(t.color.surface)
-            .show(ui, |ui, idx| pane(ui, &format!("Item {}", idx + 1), swatch(idx)));
+            .show(ui, 8, |ui, idx| pane(ui, &format!("Item {}", idx + 1), swatch(idx)));
         if r.activated.is_some() {
             s.carousel_clicked = r.activated;
         }
     }
     sub(ui, "Texture items (show_images)");
     let textures = &s.textures;
-    Carousel::new("carousel-img", textures.len(), CarouselLayout::multi_browse(186.0))
+    Carousel::new("carousel-img", CarouselLayout::multi_browse(186.0))
         .height(221.0)
         .item_spacing(8.0)
         .content_padding(CarouselPadding { start: 16.0, end: 16.0 })
-        .show_images(ui, |idx| SizedTexture::from_handle(&textures[idx]));
+        .show_images(ui, textures.len(), |idx| SizedTexture::from_handle(&textures[idx]));
 }
 
 fn list_items(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
@@ -614,6 +614,7 @@ fn accordions(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     sub(ui, "Single expand");
     Accordion::new("acc-single", &mut s.accordion_single).show(ui, |a| {
         a.panel(
+            0,
             AccordionPanel::new("Account")
                 .supporting("Profile and security")
                 .icon(ICON_PERSON),
@@ -621,13 +622,13 @@ fn accordions(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
                 ui.label("Account settings live here.");
             },
         );
-        a.panel(AccordionPanel::new("Storage").icon(ICON_STORAGE), |ui| {
+        a.panel(1, AccordionPanel::new("Storage").icon(ICON_STORAGE), |ui| {
             ui.label("2.1 GB of 15 GB used.");
         });
-        a.panel(AccordionPanel::new("Disabled").disabled(true), |ui| {
+        a.panel(2, AccordionPanel::new("Disabled").disabled(true), |ui| {
             ui.label("Never shown.");
         });
-        a.panel("Plain string title", |ui| {
+        a.panel(3, "Plain string title", |ui| {
             ui.label("Panels convert from plain strings.");
         });
     });
@@ -635,7 +636,7 @@ fn accordions(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     Accordion::new("acc-multi", &mut s.accordion_multi).show(ui, |a| {
         for i in 0..3 {
             let title = AccordionPanel::new(format!("Section {}", i + 1)).title_style(TypeScale::TitleSmall);
-            a.panel(title, |ui| {
+            a.panel(i, title, |ui| {
                 ui.label("Several panels can stay open together.");
             });
         }
@@ -774,10 +775,10 @@ fn image_lists(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     let textures = &s.textures;
     let mut clicked = None;
     sub(ui, "Standard, 4 columns, titled tiles");
-    let r = ImageList::new("il-std", textures.len())
+    let r = ImageList::new("il-std")
         .columns(4)
         .item_label(|i| format!("Tile {}", i + 1))
-        .show(ui, |ui, i| {
+        .show(ui, textures.len(), |ui, i| {
             ui.mineral(
                 ImageTile::new(("il-std-tile", i), SizedTexture::from_handle(&textures[i]))
                     .title(format!("Tile {}", i + 1)),
@@ -785,12 +786,12 @@ fn image_lists(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
         });
     clicked = r.activated.or(clicked);
     sub(ui, "Masonry, 3 columns");
-    let r = ImageList::new("il-masonry", textures.len())
+    let r = ImageList::new("il-masonry")
         .columns(3)
         .layout(ImageListLayout::Masonry)
         .aspect(|i| [1.0, 1.4, 0.8, 1.2][i % 4])
         .gap(8.0)
-        .show(ui, |ui, i| {
+        .show(ui, textures.len(), |ui, i| {
             ui.mineral(ImageTile::new(
                 ("il-masonry-tile", i),
                 SizedTexture::from_handle(&textures[i]),
@@ -798,10 +799,10 @@ fn image_lists(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
         });
     clicked = r.activated.or(clicked);
     sub(ui, "Standard, wide rows");
-    let r = ImageList::new("il-wide", 4)
+    let r = ImageList::new("il-wide")
         .columns(2)
         .row_aspect(0.5)
-        .show(ui, |ui, i| {
+        .show(ui, 4, |ui, i| {
             ui.mineral(ImageTile::new(("il-wide-tile", i), SizedTexture::from_handle(&textures[i])).title("Wide"));
         });
     clicked = r.activated.or(clicked);

@@ -35,38 +35,43 @@ struct ComboboxState {
 impl TempState for ComboboxState {}
 
 /// Events of [`Combobox`], read from `WidgetResponse::output`.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
-pub struct ComboboxOutput {
-    /// Option picked this frame; `text` holds its label.
-    pub selected: Option<usize>,
+pub struct ComboboxOutput<K> {
+    /// Value of the option picked this frame; `text` holds its label.
+    pub selected: Option<K>,
     /// Typed text submitted as a new entry; only with [`Combobox::free_text`].
     pub created: Option<String>,
+}
+
+impl<K> Default for ComboboxOutput<K> {
+    fn default() -> Self {
+        Self {
+            selected: None,
+            created: None,
+        }
+    }
 }
 
 /// Options are supplied every pass; async sources pass the latest results plus [`Self::loading`].
 #[derive(Debug)]
 #[must_use = "show with ui.mineral(..)"]
-pub struct Combobox<'a> {
+pub struct Combobox<'a, K> {
     salt: KeyedSalt,
     key: AgentKey,
     label: String,
     text: &'a mut String,
     options: Vec<String>,
+    values: Vec<K>,
     free_text: bool,
     loading: bool,
     disabled: bool,
     chrome: FieldChrome,
 }
 
-impl<'a> Combobox<'a> {
-    /// `label` is the field label; `options` filter by `text`, the bound field value. Agent key `<id_salt>-combobox`.
-    pub fn new(
-        id_salt: impl Into<KeyedSalt>,
-        label: impl Into<String>,
-        options: impl IntoIterator<Item = impl Into<String>>,
-        text: &'a mut String,
-    ) -> Self {
+impl<'a, K: Clone> Combobox<'a, K> {
+    /// `label` is the field label; options filter by `text`, the bound field value. Agent key `<id_salt>-combobox`.
+    pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, text: &'a mut String) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
             chrome: FieldChrome::default(),
@@ -74,11 +79,27 @@ impl<'a> Combobox<'a> {
             salt: id_salt,
             label: label.into(),
             text,
-            options: options.into_iter().map(Into::into).collect(),
+            options: Vec::new(),
+            values: Vec::new(),
             free_text: false,
             loading: false,
             disabled: false,
         }
+    }
+
+    /// Appends one option carrying `value`; picking it writes `label` to the text.
+    pub fn item(mut self, value: K, label: impl Into<String>) -> Self {
+        self.values.push(value);
+        self.options.push(label.into());
+        self
+    }
+
+    /// Appends `(value, label)` pairs.
+    pub fn items(mut self, options: impl IntoIterator<Item = (K, impl Into<String>)>) -> Self {
+        for (value, label) in options {
+            self = self.item(value, label);
+        }
+        self
     }
 
     /// Offers a create entry for text that matches no option.
@@ -115,14 +136,14 @@ impl<'a> Combobox<'a> {
             .with_agent_key(self.key.clone())
     }
 
-    fn items(&self) -> Vec<ComboItem> {
+    fn rows(&self) -> Vec<ComboItem> {
         items_for(self.text, &self.options, self.free_text)
     }
 }
 
-impl Composite for Combobox<'_> {
+impl<K: Clone> Composite for Combobox<'_, K> {
     type Kit = Material;
-    type Output = ComboboxOutput;
+    type Output = ComboboxOutput<K>;
 
     egui_mineral::kit::widget_meta!(salt);
 
@@ -130,7 +151,7 @@ impl Composite for Combobox<'_> {
         &mut self,
         ui: &mut MineralUi<'_, Material>,
         constraints: Constraints,
-    ) -> WidgetResponse<ComboboxOutput> {
+    ) -> WidgetResponse<ComboboxOutput<K>> {
         let rt = ui.rt();
         let ctx = rt.ctx();
         let base = ui.make_persistent_id(self.salt.id_salt());
@@ -140,7 +161,7 @@ impl Composite for Combobox<'_> {
         let mut st = ComboboxState::load(ctx, state_id);
         // Rows matter to the keys only while the editor is focused or the list is open.
         let filtered_before = ctx.memory(|m| m.has_focus(edit_id)) || st.combo.is_open();
-        let items_before = if filtered_before { self.items() } else { Vec::new() };
+        let items_before = if filtered_before { self.rows() } else { Vec::new() };
         let (pick, moved, enter_free) = self.editor_keys(ctx, &mut st.combo, edit_id, items_before.len());
 
         let arrow = if st.combo.is_open() {
@@ -162,6 +183,7 @@ impl Composite for Combobox<'_> {
             label,
             text,
             options,
+            values,
             free_text,
             loading,
             disabled,
@@ -234,15 +256,14 @@ impl Composite for Combobox<'_> {
             st.popup = None;
         }
 
-        let (selected, created) = commit(chosen.as_ref(), enter_free, text, options, &mut st.combo);
+        let (selected, created) = commit(chosen.as_ref(), enter_free, text, (options, values), &mut st.combo);
         st.store(ctx, state_id);
-        let changed = out.changed() || selected.is_some();
-        let response = out.into_response();
+        let (changed, response) = (out.changed() || selected.is_some(), out.into_response());
         WidgetResponse::new(response, ComboboxOutput { selected, created }).with_changed(changed)
     }
 }
 
-impl Combobox<'_> {
+impl<K> Combobox<'_, K> {
     fn editor_keys(
         &self,
         ctx: &egui::Context,
@@ -307,20 +328,20 @@ fn option_row<'a>(
     }
 }
 
-fn commit(
+fn commit<K: Clone>(
     chosen: Option<&ComboItem>,
     enter_free: bool,
     text: &mut String,
-    options: &[String],
+    (options, values): (&[String], &[K]),
     combo: &mut ComboState,
-) -> (Option<usize>, Option<String>) {
+) -> (Option<K>, Option<String>) {
     match chosen {
         Some(&ComboItem::Option { index, .. }) => {
             if let Some(label) = options.get(index) {
                 text.clone_from(label);
             }
             combo.close();
-            (Some(index), None)
+            (values.get(index).cloned(), None)
         }
         Some(ComboItem::Create) => {
             combo.close();

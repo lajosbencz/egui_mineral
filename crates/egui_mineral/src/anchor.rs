@@ -83,11 +83,19 @@ pub struct Placement {
 
 /// Space a popup is placed in.
 #[derive(Clone, Copy, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct Surroundings {
     /// Area the popup must stay in, before [`Anchor::padding`].
     pub viewport: Rect,
     /// Reading direction that resolves `Start`/`End`.
     pub direction: Direction,
+}
+
+impl Surroundings {
+    /// `viewport` bounds the popup, `direction` resolves `Start`/`End`.
+    pub const fn new(viewport: Rect, direction: Direction) -> Self {
+        Self { viewport, direction }
+    }
 }
 
 /// Popup positioning rules relative to an anchor rect: side, alignment, gap, flip and shift.

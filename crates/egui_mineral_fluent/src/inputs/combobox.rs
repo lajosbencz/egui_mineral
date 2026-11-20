@@ -12,26 +12,27 @@ use egui_mineral::{
 };
 
 use super::field::Validation;
-use super::listbox::{self, Flat, ListEntry, ListOption, View};
+use super::listbox::{self, Entry, Flat, View};
 use super::textbox::{self, Chrome, Content, FieldOutput, Fill, InputAppearance};
-use super::value::{self, ListState, Value, selected_text};
+use super::value::{self, ListState, selected_text};
 use crate::spec::ColorToken::{ColorNeutralForegroundDisabled, ColorNeutralStrokeAccessible};
 use crate::{
     Fluent, FluentExt, Size,
     spec::{defaults::combobox as cb, tokens::geometry as g},
     widget::paint,
 };
+use egui_mineral::kit::choice::Choice;
 
-/// Fluent `Combobox`: an editable field opening a listbox that filters by the typed text.
+/// Fluent `Combobox`: an editable field opening a listbox that filters by the typed text. [`Self::multi`] over a
 /// [`Selection::multiple`] makes it a multiselect.
 #[derive(Debug)]
 #[must_use = "show with ui.mineral(..)"]
-pub struct Combobox<'a, K = String> {
+pub struct Combobox<'a, K> {
     salt: KeyedSalt,
     key: AgentKey,
     label: String,
-    entries: Vec<ListEntry<K>>,
-    value: Value<'a, K>,
+    entries: Vec<Entry<K>>,
+    value: Choice<'a, K>,
     text: &'a mut String,
     appearance: InputAppearance,
     size: Size,
@@ -44,21 +45,50 @@ pub struct Combobox<'a, K = String> {
     disabled: bool,
 }
 
-impl<'a, K: Ord + Clone + 'a> Combobox<'a, K> {
-    /// `label` is the accessible name; `text` is the typed value. Agent key `<id_salt>-combobox`.
+impl<'a, K: PartialEq + Clone> Combobox<'a, K> {
+    /// Selects the option whose value equals `selected`; `label` is the accessible name; `text` is the typed
+    /// value. Agent key `<id_salt>-combobox`.
     pub fn new(
         id_salt: impl Into<KeyedSalt>,
         label: impl Into<String>,
-        entries: impl IntoIterator<Item = impl Into<ListEntry<K>>>,
-        selection: &'a mut Selection<K>,
+        selected: &'a mut K,
         text: &'a mut String,
     ) -> Self {
+        Self::with(id_salt.into(), label.into(), Choice::new(selected), text)
+    }
+
+    /// [`Self::new`] that selects no option while `selected` is `None`.
+    pub fn optional(
+        id_salt: impl Into<KeyedSalt>,
+        label: impl Into<String>,
+        selected: &'a mut Option<K>,
+        text: &'a mut String,
+    ) -> Self {
+        Self::with(id_salt.into(), label.into(), Choice::optional(selected), text)
+    }
+
+    /// Binds the values of the chosen options; a [`Selection::multiple`] makes it a multiselect.
+    pub fn multi(
+        id_salt: impl Into<KeyedSalt>,
+        label: impl Into<String>,
+        selection: &'a mut Selection<K>,
+        text: &'a mut String,
+    ) -> Self
+    where
+        K: Ord,
+    {
+        Self::with(id_salt.into(), label.into(), Choice::multi(selection), text)
+    }
+
+    listbox::entry_setters!();
+
+    fn with(salt: KeyedSalt, label: String, value: Choice<'a, K>, text: &'a mut String) -> Self {
         Self {
-            salt: id_salt.into(),
+            salt,
             key: egui_mineral::agent_key!("combobox"),
-            label: label.into(),
-            entries: listbox::entries(entries),
-            value: Value::new(selection),
+            label,
+            entries: Vec::new(),
+            value,
             text,
             appearance: InputAppearance::Outline,
             size: Size::Medium,
@@ -73,7 +103,7 @@ impl<'a, K: Ord + Clone + 'a> Combobox<'a, K> {
     }
 }
 
-impl<K> Combobox<'_, K> {
+impl<K: PartialEq + Clone> Combobox<'_, K> {
     /// Default [`InputAppearance::Outline`].
     pub fn appearance(mut self, appearance: InputAppearance) -> Self {
         self.appearance = appearance;
@@ -156,7 +186,7 @@ impl<K> Combobox<'_, K> {
     }
 }
 
-impl<K> Combobox<'_, K> {
+impl<K: PartialEq + Clone> Combobox<'_, K> {
     fn chevron(&self, ui: &mut MineralUi<'_, Fluent>, base: egui::Id, visual: Rect) -> egui::Response {
         let t = ui.tokens();
         let dir = ui.i18n().direction();
@@ -202,7 +232,7 @@ impl<K> Combobox<'_, K> {
         moved: bool,
     ) -> (Option<usize>, bool) {
         let key = self.key.id(&self.salt);
-        let selected = |o: &ListOption<K>| self.value.is_selected(&o.value);
+        let selected = |o: &listbox::Item<K>| self.value.contains(&o.value);
         let shown = listbox::show(
             ui,
             self.salt.child("popup"),
@@ -212,7 +242,7 @@ impl<K> Combobox<'_, K> {
             &self.label,
             &View {
                 flat,
-                multiselect: self.value.multiselect(),
+                multiselect: !self.value.is_single(),
                 selected: &selected,
                 active: st.combo.active(),
                 scroll_to_active: moved,
@@ -266,20 +296,20 @@ struct Commit {
     edited: bool,
 }
 
-fn commit<K>(
-    value: &mut Value<'_, K>,
+fn commit<K: PartialEq + Clone>(
+    value: &mut Choice<'_, K>,
     text: &mut String,
-    entries: &[ListEntry<K>],
+    entries: &[Entry<K>],
     st: &mut ListState,
     flat: &Flat<'_, K>,
     c: &Commit,
 ) -> bool {
-    let multiselect = value.multiselect();
+    let multiselect = !value.is_single();
     let mut changed = c.edited;
     if let Some(i) = c.chosen
         && let Some(o) = flat.value(i)
     {
-        changed |= value.pick(&o.value);
+        changed |= value.set(o.value.clone());
         st.filtering = false;
         if multiselect {
             text.clear();
@@ -292,7 +322,7 @@ fn commit<K>(
         let restored = if multiselect {
             String::new()
         } else {
-            selected_text(entries, &**value)
+            selected_text(entries, value)
         };
         if *text != restored {
             *text = restored;
@@ -303,7 +333,7 @@ fn commit<K>(
     changed
 }
 
-impl<K> MineralWidget for Combobox<'_, K> {
+impl<K: PartialEq + Clone> MineralWidget for Combobox<'_, K> {
     type Kit = Fluent;
     type State = ListState;
     type Output = FieldOutput;
@@ -340,16 +370,11 @@ impl<K> MineralWidget for Combobox<'_, K> {
             None
         };
         let keep_ref = keep.as_ref();
-        let visible = |pos: usize, _: &ListOption<K>| keep_ref.is_none_or(|k| k.contains(&pos));
+        let visible = |pos: usize, _: &listbox::Item<K>| keep_ref.is_none_or(|k| k.contains(&pos));
         let flat = Flat::new(&self.entries, &visible);
-        let selected_index = flat.options.iter().position(|o| self.value.is_selected(&o.value));
+        let selected_index = flat.options.iter().position(|o| self.value.contains(&o.value));
         let enabled = |i: usize| flat.enabled(i);
-        let list = ComboList {
-            kind: ComboKind::Editable,
-            selected: selected_index,
-            len: flat.len(),
-            enabled: &enabled,
-        };
+        let list = ComboList::new(ComboKind::Editable, flat.len(), &enabled).selected(selected_index);
         let (mut chosen, mut moved) = (None, false);
         if focused && !self.disabled {
             (chosen, moved) = value::drive(ctx, &mut st.combo, list);

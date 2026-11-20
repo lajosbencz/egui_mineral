@@ -42,8 +42,8 @@ fn group(name: impl Into<String>, add: impl Fn(&mut FluentUi<'_>) -> egui::Respo
     (name.into(), Box::new(move |ui| add(ui).rect))
 }
 
-fn options() -> Vec<ListOption<&'static str>> {
-    vec![ListOption::new("cat", "Cat"), ListOption::new("dog", "Dog")]
+fn options() -> Vec<(&'static str, ListOption)> {
+    vec![("cat", ListOption::new("Cat")), ("dog", ListOption::new("Dog"))]
 }
 
 fn sized() -> Vec<(String, Add)> {
@@ -137,18 +137,22 @@ fn fields(size: Size) -> Vec<(String, Add)> {
                 .zones()
         }),
         leaf(n("Select"), move |ui| {
-            ui.mineral(Select::new("c", "Pet", options(), &mut None).size(size))
+            ui.mineral(Select::optional("c", "Pet", &mut None).items(options()).size(size))
                 .zones()
         }),
         leaf(n("Dropdown"), move |ui| {
             let mut picked = Selection::single();
-            ui.mineral(Dropdown::new("c", "Pet", options(), &mut picked).size(size))
+            ui.mineral(Dropdown::multi("c", "Pet", &mut picked).items(options()).size(size))
                 .zones()
         }),
         leaf(n("Combobox"), move |ui| {
             let (mut picked, mut text) = (Selection::single(), String::new());
-            ui.mineral(Combobox::new("c", "Pet", options(), &mut picked, &mut text).size(size))
-                .zones()
+            ui.mineral(
+                Combobox::multi("c", "Pet", &mut picked, &mut text)
+                    .items(options())
+                    .size(size),
+            )
+            .zones()
         }),
         leaf(n("TimePicker"), move |ui| {
             ui.mineral(TimePicker::new("c", "Time", &mut None).size(size)).zones()
@@ -159,7 +163,7 @@ fn fields(size: Size) -> Vec<(String, Add)> {
         group(n("TabList"), move |ui| {
             let tabs = [Tab::new("One"), Tab::new("Two")];
             TabList::new("c", "Tabs", &mut 0)
-                .tabs(tabs.into_iter().enumerate())
+                .items(tabs.into_iter().enumerate())
                 .size(size)
                 .show(ui)
                 .response
@@ -181,9 +185,9 @@ fn singles() -> Vec<(String, Add)> {
         leaf("TextLink", |ui| ui.mineral(TextLink::new("c", "Link")).zones()),
         leaf("Radio", |ui| ui.mineral(Radio::new("c", "Pear")).zones()),
         group("RadioGroup", |ui| {
-            let options = [RadioOption::new(0, "Apple"), RadioOption::new(1, "Pear")];
+            let options = [(0, RadioOption::new("Apple")), (1, RadioOption::new("Pear"))];
             let mut value = 0;
-            let group = RadioGroup::new("c", "Fruit", &mut value).options(options);
+            let group = RadioGroup::new("c", "Fruit", &mut value).items(options);
             group.layout(RadioLayout::Horizontal).show(ui).response
         }),
         leaf("ProgressBar", |ui| {
@@ -270,8 +274,12 @@ fn families() -> Vec<(String, Add)> {
     for &size in TagPickerSize::ALL {
         out.push(leaf(format!("TagPicker {size:?}"), move |ui| {
             let (mut picked, mut text) = (Selection::multiple(), String::new());
-            ui.mineral(TagPicker::new("c", "Pets", options(), &mut picked, &mut text).size(size))
-                .zones()
+            ui.mineral(
+                TagPicker::new("c", "Pets", &mut picked, &mut text)
+                    .items(options())
+                    .size(size),
+            )
+            .zones()
         }));
     }
     for &size in SwatchSize::ALL {
@@ -281,7 +289,7 @@ fn families() -> Vec<(String, Add)> {
                 ("blue", Swatch::color("Blue", egui::Color32::BLUE)),
             ];
             let mut value = None;
-            let picker = SwatchPicker::new("c", "Color", &mut value).swatches(swatches);
+            let picker = SwatchPicker::optional("c", "Color", &mut value).items(swatches);
             picker.size(size).show(ui).response
         }));
     }

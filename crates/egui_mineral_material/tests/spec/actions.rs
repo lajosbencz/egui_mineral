@@ -174,7 +174,7 @@ fn fab_menu_button_keeps_the_menu_padding() {
 fn segmented_button_joins_equal_outlined_segments() {
     let p = render(|ui| {
         let mut selected = 1;
-        SegmentedButton::single("seg", "Period", &mut selected)
+        SegmentedButton::new("seg", "Period", &mut selected)
             .items(["Day", "Week", "Month"].into_iter().enumerate())
             .show(ui);
     });

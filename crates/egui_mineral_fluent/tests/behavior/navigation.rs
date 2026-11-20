@@ -18,9 +18,9 @@ use crate::support::{FluentHarness, Harness, harness};
 fn tabs(vertical: bool, select_on_focus: bool) -> Harness<'static, usize> {
     harness(0_usize, move |ui, selected| {
         TabList::new("t", "Tabs", selected)
-            .tab(0, "One")
-            .tab(1, Tab::new("Two").disabled(true))
-            .tab(2, "Three")
+            .item(0, "One")
+            .item(1, Tab::new("Two").disabled(true))
+            .item(2, "Three")
             .axis(if vertical { Axis::Vertical } else { Axis::Horizontal })
             .select_on_focus(select_on_focus)
             .show(ui);
@@ -97,11 +97,7 @@ fn toolbar(vertical: bool) -> Harness<'static, Bar> {
             .action(ToolbarButton::new("Copy").disabled(true))
             .divider()
             .toggle(ToolbarToggleButton::new("Bold", &mut s.bold))
-            .radio_group(
-                ToolbarRadioGroup::new(&mut s.align)
-                    .option(0, "Left")
-                    .option(1, "Right"),
-            )
+            .radio_group(ToolbarRadioGroup::new(&mut s.align).item(0, "Left").item(1, "Right"))
             .show(ui);
     })
 }
@@ -378,7 +374,7 @@ struct Side {
 
 fn side(multiple: bool) -> Harness<'static, Side> {
     harness(Side::default(), move |ui, s| {
-        Nav::new("n", "Main", &mut s.selected)
+        Nav::optional("n", "Main", &mut s.selected)
             .multiple(multiple)
             .default_open([10])
             .show(ui, |nav| {
@@ -948,7 +944,7 @@ mod big_tree {
 fn nav_children_state_does_not_outlive_removed_categories() {
     let mut h = harness((3_usize, 0_usize), |ui, (categories, stored)| {
         let mut selected = None;
-        Nav::new("n", "Main", &mut selected)
+        Nav::optional("n", "Main", &mut selected)
             .multiple(true)
             .default_open([0, 1, 2])
             .show(ui, |nav| {

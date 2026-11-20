@@ -35,6 +35,8 @@ pub enum ComboKind {
 
 /// Inputs of [`ComboState::update`]: kind, selection, item count and enabled test.
 #[derive(Clone, Copy)]
+#[non_exhaustive]
+#[must_use]
 pub struct ComboList<'a> {
     /// Picks the APG keyboard variant.
     pub kind: ComboKind,
@@ -47,6 +49,24 @@ pub struct ComboList<'a> {
 }
 
 crate::kit::opaque_debug!(ComboList<'_>);
+
+impl<'a> ComboList<'a> {
+    /// `len` options of `kind`, none selected; `enabled` tests an option index.
+    pub fn new(kind: ComboKind, len: usize, enabled: &'a dyn Fn(usize) -> bool) -> Self {
+        Self {
+            kind,
+            selected: None,
+            len,
+            enabled,
+        }
+    }
+
+    /// Option that becomes active when a key opens the list.
+    pub fn selected(mut self, selected: Option<usize>) -> Self {
+        self.selected = selected;
+        self
+    }
+}
 
 impl ComboList<'_> {
     fn first(&self, mut range: impl Iterator<Item = usize>) -> Option<usize> {

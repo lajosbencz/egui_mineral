@@ -15,7 +15,7 @@ const MATERIAL_OUTLINED: &str = "material-icons-outlined";
 fn dropdown(kit: Fluent) -> crate::support::Pass {
     let mut sel = Selection::<&str>::single();
     render_with(egui::Theme::Light, kit, |ui| {
-        ui.mineral(Dropdown::new("d", "Pet", [ListOption::new("cat", "Cat")], &mut sel));
+        ui.mineral(Dropdown::multi("d", "Pet", &mut sel).items([("cat", ListOption::new("Cat"))]));
     })
 }
 

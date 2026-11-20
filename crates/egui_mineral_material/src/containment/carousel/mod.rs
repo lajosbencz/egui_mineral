@@ -7,6 +7,7 @@ use crate::Material;
 use crate::MaterialExt;
 use crate::Rt;
 use egui_mineral::semantic::KeyedSalt;
+use egui_mineral::table::Rows;
 use egui_mineral::widget::MineralUi;
 
 use egui::{
@@ -166,13 +167,23 @@ impl CarouselLayout {
 /// Result of [`Carousel::show`] and [`Carousel::show_images`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct CarouselResponse {
+pub struct CarouselResponse<K> {
     /// Viewport response.
     pub response: egui::Response,
-    /// Index of the item activated this frame.
-    pub activated: Option<usize>,
+    /// Key of the item activated this frame.
+    pub activated: Option<K>,
     /// Fractional index of the item at the snap position.
     pub position: f32,
+}
+
+impl CarouselResponse<usize> {
+    fn keyed<K>(self, items: impl Rows<K> + Copy) -> CarouselResponse<K> {
+        CarouselResponse {
+            response: self.response,
+            activated: self.activated.and_then(|i| items.key(i)),
+            position: self.position,
+        }
+    }
 }
 
 #[derive(Clone, Default)]
@@ -289,14 +300,14 @@ pub struct Carousel<'a> {
 egui_mineral::kit::opaque_debug!(Carousel<'_>);
 
 impl<'a> Carousel<'a> {
-    /// `count` items placed by `layout`; agent key prefix `<id_salt>`. Item widths below
-    /// `MIN_SMALL_ITEM_SIZE` (40dp) are raised to it.
+    /// Items placed by `layout`; agent key prefix `<id_salt>`. Item widths below `MIN_SMALL_ITEM_SIZE` (40dp) are
+    /// raised to it.
     #[track_caller]
-    pub fn new(id_salt: impl Into<KeyedSalt>, count: usize, layout: CarouselLayout) -> Self {
+    pub fn new(id_salt: impl Into<KeyedSalt>, layout: CarouselLayout) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
             salt: id_salt,
-            count,
+            count: 0,
             layout: layout.sanitized(),
             height: SAMPLE_HEIGHT,
             spacing: cx::ITEM_SPACING,
@@ -362,22 +373,26 @@ impl<'a> Carousel<'a> {
         self
     }
 
-    /// Calls `add` with each visible item index, inside its masked rect.
-    pub fn show(
-        self,
+    /// `items` counts and keys the items; calls `add` with each visible item index, inside its masked rect.
+    pub fn show<K>(
+        mut self,
         ui: &mut MineralUi<'_, Material>,
+        items: impl Rows<K> + Copy,
         mut add: impl FnMut(&mut MineralUi<'_, Material>, usize),
-    ) -> CarouselResponse {
-        self.run(ui, Content::Ui(&mut add))
+    ) -> CarouselResponse<K> {
+        self.count = items.len();
+        self.run(ui, Content::Ui(&mut add)).keyed(items)
     }
 
-    /// Paints the texture of each visible item index, cropped to its mask.
-    pub fn show_images(
-        self,
+    /// `items` counts and keys the items; paints the texture of each visible item index, cropped to its mask.
+    pub fn show_images<K>(
+        mut self,
         ui: &mut MineralUi<'_, Material>,
+        items: impl Rows<K> + Copy,
         mut image: impl FnMut(usize) -> SizedTexture,
-    ) -> CarouselResponse {
-        self.run(ui, Content::Image(&mut image))
+    ) -> CarouselResponse<K> {
+        self.count = items.len();
+        self.run(ui, Content::Image(&mut image)).keyed(items)
     }
 
     // Compose Modifier.carouselItem
@@ -445,7 +460,7 @@ impl<'a> Carousel<'a> {
         snaps.get(pick).copied()
     }
 
-    fn run(self, ui: &mut MineralUi<'_, Material>, mut content: Content<'_>) -> CarouselResponse {
+    fn run(self, ui: &mut MineralUi<'_, Material>, mut content: Content<'_>) -> CarouselResponse<usize> {
         let rt = ui.rt();
         let vertical = self.layout.vertical();
         let width = ui.available_width();

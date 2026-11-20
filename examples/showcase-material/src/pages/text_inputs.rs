@@ -738,7 +738,7 @@ fn inspector(ui: &mut MaterialUi<'_>, s: &mut State) {
                 .variant(AccordionVariant::Flat)
                 .show(ui, |a| {
                     let title = |t| AccordionPanel::new(t).title_style(TypeScale::TitleSmall);
-                    a.panel(title("Identity"), |ui| {
+                    a.panel(0, title("Identity"), |ui| {
                         group(ui, "ti-insp-identity", &mut |g| {
                             g.label("Name");
                             rt.ui(g).mineral(
@@ -750,7 +750,7 @@ fn inspector(ui: &mut MaterialUi<'_>, s: &mut State) {
                             g.end_row();
                         });
                     });
-                    a.panel(title("Transform"), |ui| {
+                    a.panel(1, title("Transform"), |ui| {
                         group(ui, "ti-insp-transform", &mut |g| {
                             for (id, label, unit, v) in [
                                 ("x", "X", "px", &mut *x),
@@ -776,7 +776,7 @@ fn inspector(ui: &mut MaterialUi<'_>, s: &mut State) {
                             }
                         });
                     });
-                    a.panel(title("Appearance"), |ui| {
+                    a.panel(2, title("Appearance"), |ui| {
                         group(ui, "ti-insp-appearance", &mut |g| {
                             g.label("Opacity");
                             rt.ui(g).mineral(

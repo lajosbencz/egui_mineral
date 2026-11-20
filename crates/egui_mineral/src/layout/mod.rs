@@ -9,7 +9,7 @@ mod fraction;
 mod zones;
 
 pub use axis::{Axis, Edge};
-pub use child::child;
+pub use child::{ChildResponse, child};
 pub use constraints::Constraints;
 pub use flow::{Flow, FlowItems};
 pub use fraction::Fraction;

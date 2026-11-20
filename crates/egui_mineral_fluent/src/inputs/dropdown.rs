@@ -10,9 +10,9 @@ use egui_mineral::{
 };
 
 use super::field::Validation;
-use super::listbox::{self, Flat, ListEntry, View};
+use super::listbox::{self, Entry, Flat, View};
 use super::textbox::{self, Chrome, InputAppearance, Live};
-use super::value::{self, ListState, Value};
+use super::value::{self, ListState};
 use crate::spec::ColorToken::{ColorNeutralForegroundDisabled, ColorNeutralStrokeAccessible};
 use crate::{
     Fluent, FluentExt, Size,
@@ -22,6 +22,7 @@ use crate::{
     },
     widget::paint,
 };
+use egui_mineral::kit::choice::Choice;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Kind {
@@ -29,16 +30,17 @@ pub(crate) enum Kind {
     Select,
 }
 
-/// Fluent `Dropdown`: a button-like field opening a listbox; [`Selection::multiple`] makes it a multiselect.
+/// Fluent `Dropdown`: a button-like field opening a listbox; [`Self::multi`] over a [`Selection::multiple`] makes
+/// it a multiselect.
 #[derive(Debug)]
 #[must_use = "show with ui.mineral(..)"]
-pub struct Dropdown<'a, K = String> {
+pub struct Dropdown<'a, K> {
     kind: Kind,
     salt: KeyedSalt,
     key: AgentKey,
     label: String,
-    entries: Vec<ListEntry<K>>,
-    value: Value<'a, K>,
+    entries: Vec<Entry<K>>,
+    value: Choice<'a, K>,
     appearance: InputAppearance,
     size: Size,
     placeholder: Option<String>,
@@ -47,32 +49,31 @@ pub struct Dropdown<'a, K = String> {
     disabled: bool,
 }
 
-impl<'a, K: Ord + Clone + 'a> Dropdown<'a, K> {
-    /// `label` is the accessible name; `entries` are options and groups. Agent key `<id_salt>-dropdown`.
-    pub fn new(
-        id_salt: impl Into<KeyedSalt>,
-        label: impl Into<String>,
-        entries: impl IntoIterator<Item = impl Into<ListEntry<K>>>,
-        selection: &'a mut Selection<K>,
-    ) -> Self {
-        Self::with(
-            Kind::Dropdown,
-            id_salt.into(),
-            label.into(),
-            listbox::entries(entries),
-            Value::new(selection),
-        )
+impl<'a, K: PartialEq + Clone> Dropdown<'a, K> {
+    /// Shows the option whose value equals `selected`; `label` is the accessible name. Agent key
+    /// `<id_salt>-dropdown`.
+    pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selected: &'a mut K) -> Self {
+        Self::with(Kind::Dropdown, id_salt.into(), label.into(), Choice::new(selected))
     }
+
+    /// [`Self::new`] that shows the placeholder while `selected` is `None`.
+    pub fn optional(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selected: &'a mut Option<K>) -> Self {
+        Self::with(Kind::Dropdown, id_salt.into(), label.into(), Choice::optional(selected))
+    }
+
+    /// Binds the values of the chosen options; a [`Selection::multiple`] makes it a multiselect.
+    pub fn multi(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selection: &'a mut Selection<K>) -> Self
+    where
+        K: Ord,
+    {
+        Self::with(Kind::Dropdown, id_salt.into(), label.into(), Choice::multi(selection))
+    }
+
+    listbox::entry_setters!();
 }
 
-impl<'a, K> Dropdown<'a, K> {
-    pub(crate) fn with(
-        kind: Kind,
-        salt: KeyedSalt,
-        label: String,
-        entries: Vec<ListEntry<K>>,
-        value: Value<'a, K>,
-    ) -> Self {
+impl<'a, K: PartialEq + Clone> Dropdown<'a, K> {
+    pub(crate) fn with(kind: Kind, salt: KeyedSalt, label: String, value: Choice<'a, K>) -> Self {
         Self {
             kind,
             salt,
@@ -81,7 +82,7 @@ impl<'a, K> Dropdown<'a, K> {
                 Kind::Select => egui_mineral::agent_key!("select"),
             },
             label,
-            entries,
+            entries: Vec::new(),
             value,
             appearance: InputAppearance::Outline,
             size: Size::Medium,
@@ -143,7 +144,7 @@ impl<'a, K> Dropdown<'a, K> {
     }
 }
 
-impl<K> Dropdown<'_, K> {
+impl<K: PartialEq + Clone> Dropdown<'_, K> {
     fn paint(
         &self,
         ui: &mut MineralUi<'_, Fluent>,
@@ -181,7 +182,7 @@ impl<K> Dropdown<'_, K> {
             m.icon,
             icon_color,
         );
-        let text = value::selected_text(&self.entries, &*self.value);
+        let text = value::selected_text(&self.entries, &self.value);
         let format = chrome.text_format(&ctx, &t);
         let (shown_text, color) = match (text.is_empty(), self.placeholder.as_deref()) {
             (true, Some(p)) => (p.to_owned(), chrome.placeholder_color(&t)),
@@ -215,7 +216,7 @@ impl<K> Dropdown<'_, K> {
     }
 }
 
-impl<K> MineralWidget for Dropdown<'_, K> {
+impl<K: PartialEq + Clone> MineralWidget for Dropdown<'_, K> {
     type Kit = Fluent;
     type State = ListState;
     type Output = ();
@@ -248,15 +249,10 @@ impl<K> MineralWidget for Dropdown<'_, K> {
         let visual = frame.zones.visual;
         let focused = r.has_focus();
         let flat = Flat::new(&self.entries, &|_, _| true);
-        let selected_index = flat.options.iter().position(|o| self.value.is_selected(&o.value));
+        let selected_index = flat.options.iter().position(|o| self.value.contains(&o.value));
         let enabled = |i: usize| flat.enabled(i);
-        let list = ComboList {
-            kind: ComboKind::SelectOnly,
-            selected: selected_index,
-            len: flat.len(),
-            enabled: &enabled,
-        };
-        let multiselect = self.value.multiselect();
+        let list = ComboList::new(ComboKind::SelectOnly, flat.len(), &enabled).selected(selected_index);
+        let multiselect = !self.value.is_single();
         let (mut chosen, mut moved) = (None, false);
         if focused && !self.disabled {
             (chosen, moved) = value::drive(ctx, &mut st.combo, list);
@@ -287,7 +283,7 @@ impl<K> MineralWidget for Dropdown<'_, K> {
 
         if st.combo.is_open() && !self.disabled {
             let key = self.key.id(&self.salt);
-            let selected = |o: &listbox::ListOption<K>| self.value.is_selected(&o.value);
+            let selected = |o: &listbox::Item<K>| self.value.contains(&o.value);
             let shown = listbox::show(
                 ui,
                 self.salt.child("popup"),
@@ -321,7 +317,7 @@ impl<K> MineralWidget for Dropdown<'_, K> {
         if let Some(i) = chosen
             && let Some(o) = flat.value(i)
         {
-            changed = self.value.pick(&o.value);
+            changed = self.value.set(o.value.clone());
             if multiselect {
                 st.combo.open(Some(i), flat.len());
             } else {
@@ -335,7 +331,7 @@ impl<K> MineralWidget for Dropdown<'_, K> {
 
     fn semantics(&self, _: &I18n, _: &WidgetResponse<()>, st: &ListState) -> Option<SemanticNode> {
         let mut n = SemanticNode::new(self.key.id(&self.salt), Role::ComboBox, &self.label)
-            .value(value::selected_text(&self.entries, &*self.value))
+            .value(value::selected_text(&self.entries, &self.value))
             .clickable(Availability::disabled_if(self.disabled));
         n.state.expanded = Some(st.combo.is_open());
         n.state.invalid = self.invalid;

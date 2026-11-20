@@ -24,7 +24,7 @@ fn list(size: Size, appearance: TabAppearance, vertical: bool) -> impl FnMut(&mu
     let mut selected = 0;
     move |ui| {
         TabList::new("t", "Tabs", &mut selected)
-            .tabs(["One", "Two"].into_iter().enumerate())
+            .items(["One", "Two"].into_iter().enumerate())
             .size(size)
             .appearance(appearance)
             .axis(if vertical { Axis::Vertical } else { Axis::Horizontal })
@@ -89,12 +89,12 @@ fn icon_slot_adds_its_size_and_gap() {
     let with_icon = render(|ui| {
         let mut s = 0;
         TabList::new("t", "Tabs", &mut s)
-            .tab(0, Tab::new("One").icon(ICON_PERSON))
+            .item(0, Tab::new("One").icon(ICON_PERSON))
             .show(ui);
     });
     let plain = render(|ui| {
         let mut s = 0;
-        TabList::new("t", "Tabs", &mut s).tab(0, "One").show(ui);
+        TabList::new("t", "Tabs", &mut s).item(0, "One").show(ui);
     });
     let gap = egui_mineral_fluent::spec::tokens::geometry::SPACING_HORIZONTAL_S_NUDGE;
     let extra = tab_rect(&with_icon, "t-0-tab").width() - tab_rect(&plain, "t-0-tab").width();
@@ -234,7 +234,7 @@ fn breadcrumb_current_item_is_strong_and_ignores_hover_colors() {
 fn nav(density: NavDensity, open: bool) -> impl FnMut(&mut FluentUi<'_>) {
     let mut selected = Some(11);
     move |ui| {
-        let mut n = Nav::new("n", "Main", &mut selected).density(density);
+        let mut n = Nav::optional("n", "Main", &mut selected).density(density);
         if open {
             n = n.default_open([10]);
         }
@@ -292,7 +292,7 @@ fn nav_rows_fill_with_the_nav_background() {
 fn nav_drawer_is_260_wide_with_body_padding() {
     let p = render(|ui| {
         let mut selected = None;
-        NavDrawer::new("n", "Main", &mut selected).show(ui, |nav| {
+        NavDrawer::optional("n", "Main", &mut selected).show(ui, |nav| {
             nav.item(NavItem::new(1, "Home"));
         });
     });

@@ -307,52 +307,6 @@ impl From<String> for SelectOption {
     }
 }
 
-/// Option of a multi-select [`Select`]; converts from its label. Check boxes hold the leading
-/// slot, so unlike [`SelectOption`] it has none.
-#[derive(Clone, Debug)]
-#[must_use]
-pub struct MultiOption {
-    label: String,
-    disabled: bool,
-}
-
-impl MultiOption {
-    /// `label` is the visible text and accessible name.
-    pub fn new(label: impl Into<String>) -> Self {
-        Self {
-            label: label.into(),
-            disabled: false,
-        }
-    }
-
-    crate::widget::setters! {
-        /// As [`SelectOption::disabled`].
-        disabled
-    }
-}
-
-impl From<&str> for MultiOption {
-    fn from(label: &str) -> Self {
-        Self::new(label)
-    }
-}
-
-impl From<String> for MultiOption {
-    fn from(label: String) -> Self {
-        Self::new(label)
-    }
-}
-
-impl From<MultiOption> for SelectOption {
-    fn from(option: MultiOption) -> Self {
-        Self {
-            label: option.label,
-            leading: None,
-            disabled: option.disabled,
-        }
-    }
-}
-
 #[doc(hidden)]
 #[derive(Clone, Debug, Default)]
 pub struct SelectState {
@@ -378,68 +332,52 @@ pub struct Select<'a, K> {
 egui_mineral::kit::opaque_debug!(Select<'_, K>);
 
 impl<'a, K: PartialEq + Clone> Select<'a, K> {
-    /// Single select of `(value, option)` pairs; shows the option whose value equals `selected`, none while it
-    /// is `None` or matches no option. Agent key `<id_salt>-select`.
-    pub fn new(
-        id_salt: impl Into<KeyedSalt>,
-        label: impl Into<String>,
-        options: impl IntoIterator<Item = (K, impl Into<SelectOption>)>,
-        selected: &'a mut Option<K>,
-    ) -> Self {
-        Self::with(id_salt.into(), label, options, Choice::optional(selected))
+    /// Shows the option whose value equals `selected`, none when no option matches. Agent key
+    /// `<id_salt>-select`.
+    pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selected: &'a mut K) -> Self {
+        Self::with(id_salt.into(), label.into(), Choice::new(selected))
     }
 
-    /// [`Self::new`] that always holds a value: shows the option whose value equals `selected`.
-    pub fn bound(
-        id_salt: impl Into<KeyedSalt>,
-        label: impl Into<String>,
-        options: impl IntoIterator<Item = (K, impl Into<SelectOption>)>,
-        selected: &'a mut K,
-    ) -> Self {
-        Self::with(id_salt.into(), label, options, Choice::one(selected))
+    /// [`Self::new`] that shows no option while `selected` is `None`.
+    pub fn optional(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selected: &'a mut Option<K>) -> Self {
+        Self::with(id_salt.into(), label.into(), Choice::optional(selected))
     }
 
-    /// Multi-select; `selection` holds the values of the chosen options.
-    pub fn multi(
-        id_salt: impl Into<KeyedSalt>,
-        label: impl Into<String>,
-        options: impl IntoIterator<Item = (K, impl Into<MultiOption>)>,
-        selection: &'a mut Selection<K>,
-    ) -> Self
+    /// Multi-select; `selection` holds the values of the chosen options. Check boxes take the leading slot, so
+    /// [`SelectOption::leading`] is not shown.
+    pub fn multi(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selection: &'a mut Selection<K>) -> Self
     where
         K: Ord,
     {
-        Self::with(
-            id_salt.into(),
-            label,
-            options.into_iter().map(|(v, o)| (v, SelectOption::from(o.into()))),
-            Choice::many(selection),
-        )
+        Self::with(id_salt.into(), label.into(), Choice::multi(selection))
     }
 
-    fn with(
-        id_salt: KeyedSalt,
-        label: impl Into<String>,
-        options: impl IntoIterator<Item = (K, impl Into<SelectOption>)>,
-        mut choice: Choice<'a, K>,
-    ) -> Self {
-        let options = options
-            .into_iter()
-            .map(|(v, o)| {
-                choice.push(v);
-                o.into()
-            })
-            .collect();
+    fn with(salt: KeyedSalt, label: String, choice: Choice<'a, K>) -> Self {
         Self {
             chrome: FieldChrome::default(),
             key: egui_mineral::agent_key!("select"),
-            salt: id_salt,
-            label: label.into(),
-            options,
+            salt,
+            label,
+            options: Vec::new(),
             choice,
             disabled: false,
             label_visible: true,
         }
+    }
+
+    /// Appends one option carrying `value`.
+    pub fn item(mut self, value: K, option: impl Into<SelectOption>) -> Self {
+        self.choice.push(value);
+        self.options.push(option.into());
+        self
+    }
+
+    /// Appends `(value, option)` pairs.
+    pub fn items(mut self, options: impl IntoIterator<Item = (K, impl Into<SelectOption>)>) -> Self {
+        for (value, option) in options {
+            self = self.item(value, option);
+        }
+        self
     }
 
     crate::text_inputs::text_field::field_chrome_setters!();
@@ -537,12 +475,7 @@ impl<'a, K: PartialEq + Clone> Select<'a, K> {
             return (changed, moved);
         }
         let enabled = |i: usize| self.option_enabled(i);
-        let list = ComboList {
-            kind: ComboKind::SelectOnly,
-            selected: self.first_selected(),
-            len,
-            enabled: &enabled,
-        };
+        let list = ComboList::new(ComboKind::SelectOnly, len, &enabled).selected(self.first_selected());
         // egui turns Enter/Space on the focused field into a click; the combo keys own them.
         let key_click = r.has_focus() && ctx.input(|i| i.key_pressed(Key::Enter) || i.key_pressed(Key::Space));
         if pressed && !key_click {

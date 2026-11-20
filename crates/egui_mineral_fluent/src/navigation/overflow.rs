@@ -16,6 +16,8 @@ pub enum OverflowDirection {
 
 /// One entry of an [`Overflow`] row.
 #[derive(Clone, Copy, Debug, PartialEq)]
+#[non_exhaustive]
+#[must_use]
 pub struct OverflowItem {
     /// Natural main-axis size.
     pub width: f32,
@@ -27,6 +29,12 @@ impl OverflowItem {
     /// `width` in points, priority 0.
     pub const fn new(width: f32) -> Self {
         Self { width, priority: 0 }
+    }
+
+    /// Default 0; higher stays visible longer.
+    pub const fn priority(mut self, priority: i32) -> Self {
+        self.priority = priority;
+        self
     }
 }
 

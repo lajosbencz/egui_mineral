@@ -14,9 +14,9 @@ const NAMES: [&str; 4] = ["Delta", "alpha", "Charlie", "bravo"];
 #[test]
 fn single_selection_header_is_a_real_grid_cell() {
     let mut h = harness(WIDE, Selection::single(), |ui, sel| {
-        DataTable::new("tbl", "Names", [TableColumn::new("Name")], NAMES.len())
+        DataTable::new("tbl", "Names", [TableColumn::new("Name")])
             .selection(sel)
-            .show(ui, |r, _| TableCell::from(NAMES[r]));
+            .show(ui, NAMES.len(), |r, _| TableCell::from(NAMES[r]));
     });
     h.click("tbl-0-header");
     h.press(Key::ArrowLeft);
@@ -48,8 +48,8 @@ fn shown_rows(h: &impl MineralHarness) -> Vec<usize> {
 fn sorted_order_follows_a_locale_switch() {
     const WORDS: [&str; 2] = ["zebra", "\u{e4}pple"];
     let mut h = harness(WIDE, (), |ui, ()| {
-        DataTable::new("tbl", "Words", [TableColumn::new("Word").sortable(true)], WORDS.len())
-            .show(ui, |r, _| TableCell::from(WORDS[r]));
+        DataTable::new("tbl", "Words", [TableColumn::new("Word").sortable(true)])
+            .show(ui, WORDS.len(), |r, _| TableCell::from(WORDS[r]));
     });
     h.click("tbl-0-header");
     assert_eq!(shown_rows(&h), [1, 0], "en: a-umlaut sorts with a");
@@ -65,12 +65,12 @@ fn sort_by_key_receives_the_row_and_the_sorted_column() {
             TableColumn::new("Name").sortable(true),
             TableColumn::new("Rank").sortable(true),
         ];
-        DataTable::new("tbl", "Names", columns, NAMES.len())
+        DataTable::new("tbl", "Names", columns)
             .sort_by_key(|c| match c.column {
                 0 => NAMES[c.row].len(),
                 _ => NAMES.len() - c.row,
             })
-            .show(ui, |r, _| TableCell::from(NAMES[r]));
+            .show(ui, NAMES.len(), |r, _| TableCell::from(NAMES[r]));
     });
     h.click("tbl-0-header");
     assert_eq!(
@@ -85,9 +85,9 @@ fn sort_by_key_receives_the_row_and_the_sorted_column() {
 #[test]
 fn changed_page_sizes_replace_a_stale_page_size() {
     let mut h = harness(WIDE, vec![5usize], |ui, sizes| {
-        DataTable::new("tbl", "Rows", [TableColumn::new("N")], 30)
+        DataTable::new("tbl", "Rows", [TableColumn::new("N")])
             .paginate(sizes.clone())
-            .show(ui, |r, _| TableCell::Number(r as f64));
+            .show(ui, 30, |r, _| TableCell::Number(r as f64));
     });
     assert_eq!(shown_rows(&h).len(), 5);
     h.state_mut().value = vec![10, 20];
@@ -112,10 +112,9 @@ fn names_table<'a>(sizes: &'static [usize]) -> Harness<'a, Seen> {
             "tbl",
             "Names",
             [TableColumn::new("Name").sortable(true), TableColumn::new("Length")],
-            NAMES.len(),
         )
         .paginate(sizes.iter().copied())
-        .show(ui, |r, c| match c {
+        .show(ui, NAMES.len(), |r, c| match c {
             0 => TableCell::from(NAMES[r]),
             _ => TableCell::Number(NAMES[r].len() as f64),
         });

@@ -617,7 +617,7 @@ impl<'a, K: PartialEq + Clone> TabList<'a, K> {
             salt: id_salt.into(),
             key: egui_mineral::agent_key!("tablist"),
             label: label.into(),
-            selected: Choice::one(selected),
+            selected: Choice::new(selected),
             tabs: Vec::new(),
             appearance: TabAppearance::default(),
             size: Size::Medium,
@@ -628,16 +628,16 @@ impl<'a, K: PartialEq + Clone> TabList<'a, K> {
     }
 
     /// Appends one tab carrying `value`.
-    pub fn tab(mut self, value: K, tab: impl Into<Tab>) -> Self {
+    pub fn item(mut self, value: K, tab: impl Into<Tab>) -> Self {
         self.selected.push(value);
         self.tabs.push(tab.into());
         self
     }
 
     /// Appends `(value, tab)` pairs.
-    pub fn tabs(mut self, tabs: impl IntoIterator<Item = (K, impl Into<Tab>)>) -> Self {
+    pub fn items(mut self, tabs: impl IntoIterator<Item = (K, impl Into<Tab>)>) -> Self {
         for (value, tab) in tabs {
-            self = self.tab(value, tab);
+            self = self.item(value, tab);
         }
         self
     }

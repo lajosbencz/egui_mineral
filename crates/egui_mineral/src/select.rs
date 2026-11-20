@@ -35,7 +35,7 @@ impl From<bool> for Check {
     bound(deserialize = "K: Ord + serde::Deserialize<'de>")
 )]
 /// Selected keys with an anchor for range selection.
-pub struct Selection<K: Ord> {
+pub struct Selection<K> {
     mode: SelectionMode,
     required: bool,
     selected: BTreeSet<K>,

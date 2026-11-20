@@ -44,6 +44,8 @@ pub struct PullDrag {
 
 /// Per-pass input of the pull-to-refresh gesture.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[non_exhaustive]
+#[must_use]
 pub struct PullInput {
     /// Content is scrolled to the pulled edge.
     pub at_edge: bool,
@@ -53,6 +55,32 @@ pub struct PullInput {
     pub wheel: f32,
     /// Seconds on the egui input clock.
     pub now: f64,
+}
+
+impl PullInput {
+    /// Input at `now` seconds on the egui input clock: not at the edge, no drag, no wheel.
+    pub fn new(now: f64) -> Self {
+        Self { now, ..Self::default() }
+    }
+
+    /// Content is scrolled to the pulled edge.
+    pub fn at_edge(mut self, at_edge: bool) -> Self {
+        self.at_edge = at_edge;
+        self
+    }
+
+    /// Pan that began inside the pull region.
+    pub fn drag(mut self, drag: Option<PullDrag>) -> Self {
+        self.drag = drag;
+        self
+    }
+
+    /// Wheel delta over the region (positive pulls); a non-finite delta counts as none.
+    #[track_caller]
+    pub fn wheel(mut self, wheel: f32) -> Self {
+        self.wheel = crate::kit::sanitize::finite(wheel, "PullInput wheel").unwrap_or(0.0);
+        self
+    }
 }
 
 /// Result of one pull-to-refresh pass.

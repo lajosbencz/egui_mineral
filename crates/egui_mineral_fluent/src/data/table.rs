@@ -9,7 +9,7 @@ use egui_mineral::{
     layout::{Constraints, Measure},
     select::{Selection, SelectionMode},
     semantic::{self, AgentKey, KeyedSalt, Role, SemanticNode, StableId},
-    table::{ColumnWidths, SortOrder, SortState},
+    table::{ColumnWidths, ItemKey, Rows, SortOrder, SortState},
     widget::{Availability, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
 };
 
@@ -275,20 +275,20 @@ impl MineralWidget for TableCellLayout<'_> {
 /// Result of showing a [`Table`] or [`DataGrid`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct TableResponse {
+pub struct TableResponse<K> {
     /// Spans the table; `mark_changed` when the sort or selection changed.
     pub response: egui::Response,
     /// Agrees with `response.changed()`: the sort or the selection changed.
     pub changed: bool,
-    /// Data index of the row clicked or activated with Enter or Space this frame.
-    pub activated: Option<usize>,
+    /// Key of the row clicked or activated with Enter or Space this frame.
+    pub activated: Option<K>,
 }
 
 /// Fluent `Table` of `TableHeader`, `TableRow`, `TableCell` and `TableSelectionCell`: a header row and body rows
 /// of cells whose content the app draws, with sortable columns, selectable rows and resizable widths.
 #[derive(Debug)]
 #[must_use = "call .show(..)"]
-pub struct Table<'a> {
+pub struct Table<'a, K> {
     salt: KeyedSalt,
     key: AgentKey,
     label: String,
@@ -296,13 +296,13 @@ pub struct Table<'a> {
     appearance: TableRowAppearance,
     columns: Vec<TableColumn>,
     sort: Option<&'a mut SortState>,
-    selection: Option<&'a mut Selection<usize>>,
+    selection: Option<&'a mut Selection<K>>,
     widths: Option<&'a mut ColumnWidths>,
     order: Option<Vec<usize>>,
     grid: bool,
 }
 
-impl<'a> Table<'a> {
+impl<'a, K: ItemKey> Table<'a, K> {
     /// `label` names the table for assistive technology; agent key `<id_salt>-table`.
     pub fn new(
         id_salt: impl Into<KeyedSalt>,
@@ -342,8 +342,8 @@ impl<'a> Table<'a> {
         self
     }
 
-    /// Selectable rows keyed by data index: a checkbox column, or a circular one for a single selection.
-    pub fn selection(mut self, selection: &'a mut Selection<usize>) -> Self {
+    /// Selectable rows bound by row key: a checkbox column, or a circular one for a single selection.
+    pub fn selection(mut self, selection: &'a mut Selection<K>) -> Self {
         self.selection = Some(selection);
         self
     }
@@ -376,14 +376,14 @@ impl<'a> Table<'a> {
         self.columns.iter().map(|c| c.width.unwrap_or(share)).collect()
     }
 
-    /// Shows the table; `cell` draws the content of data row `row` in column `column`.
+    /// Shows the table; `rows` counts and keys the data rows, `cell` draws data row `row` in column `column`.
     pub fn show(
         self,
         ui: &mut MineralUi<'_, Fluent>,
-        rows: usize,
+        rows: impl Rows<K> + Copy,
         cell: impl FnMut(&mut MineralUi<'_, Fluent>, usize, usize),
-    ) -> TableResponse {
-        run(self, ui, rows, cell)
+    ) -> TableResponse<K> {
+        run(self, ui, &rows, cell)
     }
 }
 
@@ -391,9 +391,9 @@ impl<'a> Table<'a> {
 /// move between cells, Enter or Space on a header sorts and on a cell selects the row.
 #[derive(Debug)]
 #[must_use = "call .show(..)"]
-pub struct DataGrid<'a>(Table<'a>);
+pub struct DataGrid<'a, K>(Table<'a, K>);
 
-impl<'a> DataGrid<'a> {
+impl<'a, K: ItemKey> DataGrid<'a, K> {
     /// `label` names the grid for assistive technology; agent key `<id_salt>-table`.
     pub fn new(
         id_salt: impl Into<KeyedSalt>,
@@ -424,7 +424,7 @@ impl<'a> DataGrid<'a> {
     }
 
     /// See [`Table::selection`].
-    pub fn selection(mut self, selection: &'a mut Selection<usize>) -> Self {
+    pub fn selection(mut self, selection: &'a mut Selection<K>) -> Self {
         self.0 = self.0.selection(selection);
         self
     }
@@ -445,9 +445,9 @@ impl<'a> DataGrid<'a> {
     pub fn show(
         self,
         ui: &mut MineralUi<'_, Fluent>,
-        rows: usize,
+        rows: impl Rows<K> + Copy,
         cell: impl FnMut(&mut MineralUi<'_, Fluent>, usize, usize),
-    ) -> TableResponse {
+    ) -> TableResponse<K> {
         self.0.show(ui, rows, cell)
     }
 }
@@ -605,40 +605,42 @@ impl Order {
         }
     }
 
-    fn selected(&self, selection: &Selection<usize>) -> usize {
-        match &self.explicit {
-            // An order of every row is a permutation: count the selection, not the rows.
-            Some(o) if o.len() >= self.rows => selection.selected().filter(|r| **r < self.rows).count(),
-            Some(_) => self.all().iter().filter(|r| selection.is_selected(r)).count(),
-            None => selection.selected().filter(|r| **r < self.rows).count(),
+    // Shown rows whose key is selected; stale keys in the selection do not count.
+    fn selected<K: Ord + Clone>(&self, selection: &Selection<K>, rows: &dyn Rows<K>) -> usize {
+        if selection.selected().next().is_none() {
+            return 0;
         }
+        self.keys(rows).filter(|k| selection.is_selected(k)).count()
+    }
+
+    fn keys<'r, K>(&self, rows: &'r dyn Rows<K>) -> impl Iterator<Item = K> + 'r {
+        self.all().into_owned().into_iter().filter_map(|d| rows.key(d))
     }
 }
 
-#[derive(Default)]
-struct Events {
+struct Events<K> {
     sort: bool,
     selection: bool,
-    activated: Option<usize>,
+    activated: Option<K>,
 }
 
-fn single(selection: Option<&Selection<usize>>) -> bool {
+fn single<K: Ord + Clone>(selection: Option<&Selection<K>>) -> bool {
     selection.is_some_and(|s| s.mode() == SelectionMode::Single)
 }
 
-fn run(
-    mut tb: Table<'_>,
+fn run<K: ItemKey>(
+    mut tb: Table<'_, K>,
     ui: &mut MineralUi<'_, Fluent>,
-    rows: usize,
+    keys: &dyn Rows<K>,
     mut cell: impl FnMut(&mut MineralUi<'_, Fluent>, usize, usize),
-) -> TableResponse {
+) -> TableResponse<K> {
     let id = ui.make_persistent_id(tb.salt.id_salt());
     let selectable = tb.selection.is_some();
     let selection = if selectable { d::SELECTION_WIDTH } else { 0.0 };
     let widths = tb.column_widths(ui.available_width(), selection);
     let order = Order {
         explicit: tb.order.take(),
-        rows,
+        rows: keys.len(),
     };
     let shown = order.len();
     let height = tb.size.row_height();
@@ -655,8 +657,18 @@ fn run(
     };
     let grid_id = id.with("mineral::grid");
     let mut grid = Grid::load(ui.ctx(), grid_id, tb.grid, columns, cells);
-    let mut ev = Events::default();
-    header(ui, &mut tb, id, &geo, &mut grid, &order, &mut ev);
+    let mut ev = Events {
+        sort: false,
+        selection: false,
+        activated: None,
+    };
+    let pass = Pass {
+        id,
+        geo: &geo,
+        order: &order,
+        keys,
+    };
+    header(ui, &mut tb, &pass, &mut grid, &mut ev);
     let visible = geo.visible(ui.clip_rect(), shown);
     // The Tab stop's row is shown wherever it is, so Tab still reaches the grid.
     let stop = grid
@@ -664,22 +676,19 @@ fn run(
         .then(|| grid.row(grid.focus.stop).checked_sub(1))
         .flatten()
         .filter(|r| !visible.contains(r));
-    let pass = Pass {
-        id,
-        geo: &geo,
-        order: &order,
-    };
     let drawn = (stop.filter(|s| *s < visible.start).into_iter())
         .chain(visible.clone())
         .chain(stop.filter(|s| *s >= visible.end));
     for r in drawn {
-        let Some(data) = order.data(r) else { continue };
-        body_row(ui, &mut tb, &pass, &mut grid, &mut ev, (r, data), &mut cell);
+        let Some((data, key)) = order.data(r).and_then(|d| Some((d, keys.key(d)?))) else {
+            continue;
+        };
+        body_row(ui, &mut tb, &pass, &mut grid, &mut ev, (r, data, key), &mut cell);
     }
     if kit::semantic::wanted(ui.ctx(), None) {
         for r in (0..shown).filter(|r| !visible.contains(r) && stop != Some(*r)) {
-            if let Some(data) = order.data(r) {
-                culled_row(ui, &tb, &pass, (r, data));
+            if let Some(key) = order.data(r).and_then(|d| keys.key(d)) {
+                culled_row(ui, &tb, &pass, r, &key);
             }
         }
     }
@@ -699,15 +708,16 @@ fn run(
     }
 }
 
-fn header(
+fn header<K: ItemKey>(
     ui: &mut MineralUi<'_, Fluent>,
-    tb: &mut Table<'_>,
-    id: Id,
-    geo: &Geometry,
+    tb: &mut Table<'_, K>,
+    pass: &Pass<'_, K>,
     grid: &mut Grid,
-    order: &Order,
-    ev: &mut Events,
+    ev: &mut Events<K>,
 ) {
+    let Pass {
+        id, geo, order, keys, ..
+    } = *pass;
     let rt = ui.rt();
     let row = geo.row(0);
     let selectable = tb.selection.is_some();
@@ -719,7 +729,7 @@ fn header(
                 grid.track(0, &r);
             }
         } else {
-            let selected = tb.selection.as_deref().map_or(0, |s| order.selected(s));
+            let selected = tb.selection.as_deref().map_or(0, |s| order.selected(s, keys));
             let mut all = selected == order.len() && selected > 0;
             let label = crate::tr(rt.i18n(), msg::TABLE_SELECT_ALL);
             let mut check = Checkbox::new(tb.salt.child("select-all"), label, &mut all)
@@ -732,8 +742,8 @@ fn header(
                 && let Some(s) = tb.selection.as_mut()
             {
                 if all {
-                    for r in order.all().iter() {
-                        s.select(*r);
+                    for k in order.keys(keys) {
+                        s.select(k);
                     }
                 } else {
                     s.clear();
@@ -801,26 +811,27 @@ fn resize_handle(
     }
 }
 
-struct Pass<'p> {
+struct Pass<'p, K> {
     id: Id,
     geo: &'p Geometry,
     order: &'p Order,
+    keys: &'p dyn Rows<K>,
 }
 
-fn body_row(
+fn body_row<K: ItemKey>(
     ui: &mut MineralUi<'_, Fluent>,
-    tb: &mut Table<'_>,
-    pass: &Pass<'_>,
+    tb: &mut Table<'_, K>,
+    pass: &Pass<'_, K>,
     grid: &mut Grid,
-    ev: &mut Events,
-    (r, data): (usize, usize),
+    ev: &mut Events<K>,
+    (r, data, key): (usize, usize, K),
     cell: &mut impl FnMut(&mut MineralUi<'_, Fluent>, usize, usize),
 ) {
     let rt = ui.rt();
     let tokens = ui.tokens();
-    let Pass { id, geo, order } = *pass;
+    let Pass { id, geo, order, keys } = *pass;
     let rect = geo.row(r + 1);
-    let rid = id.with(("row", data));
+    let rid = id.with(("row", &key));
     let selectable = tb.selection.is_some();
     let sense = if selectable && !grid.on {
         Sense::click()
@@ -828,7 +839,7 @@ fn body_row(
         Sense::hover()
     };
     let row = ui.interact(rect, rid, sense);
-    let selected = tb.selection.as_ref().is_some_and(|s| s.is_selected(&data));
+    let selected = tb.selection.as_ref().is_some_and(|s| s.is_selected(&key));
     row_background(ui, rect, tb.appearance, selected, &row, &tokens);
     let mut clicked = row.clicked();
     let first = (r + 1) * grid.columns;
@@ -836,7 +847,7 @@ fn body_row(
         let single = single(tb.selection.as_deref());
         let mut on = selected;
         let label = crate::tr(rt.i18n(), msg::TABLE_SELECT_ROW);
-        let mut check = Checkbox::new(tb.salt.child(("select", data)), label, &mut on).label_visible(false);
+        let mut check = Checkbox::new(tb.salt.child(("select", key.clone())), label, &mut on).label_visible(false);
         if single {
             check = check.shape(CheckboxShape::Circular);
         }
@@ -846,8 +857,12 @@ fn body_row(
         if c.changed()
             && let Some(s) = tb.selection.as_mut()
         {
-            ev.selection |= if single { s.select(data) } else { s.toggle(data) };
-            ev.activated = Some(data);
+            ev.selection |= if single {
+                s.select(key.clone())
+            } else {
+                s.toggle(key.clone())
+            };
+            ev.activated = Some(key.clone());
         }
     }
     let mut x = geo.selection;
@@ -856,7 +871,7 @@ fn body_row(
         let crect = geo.cell(rect, x, w);
         if grid.on {
             let index = first + c + usize::from(selectable);
-            let resp = ui.interact(crect, id.with(("cell", data, c)), grid.sense(index, true));
+            let resp = ui.interact(crect, id.with(("cell", &key, c)), grid.sense(index, true));
             grid.track(index, &resp);
             if focus::visible(ui.ctx(), resp.id) {
                 focus_outline(ui, crect, &tokens);
@@ -873,9 +888,10 @@ fn body_row(
     if clicked {
         if let Some(s) = tb.selection.as_mut() {
             let modifiers = ui.input(|i| i.modifiers);
-            ev.selection |= s.click(data, modifiers, &order.all());
+            let all: Vec<K> = order.keys(keys).collect();
+            ev.selection |= s.click(key.clone(), modifiers, &all);
         }
-        ev.activated = Some(data);
+        ev.activated = Some(key.clone());
     }
     // `useTableRowStyles`: `extra-small` rows have no `borderBottom`.
     if tb.size != TableSize::ExtraSmall {
@@ -885,25 +901,25 @@ fn body_row(
             Stroke::new(d::ROW_BORDER, tokens.color(ColorNeutralStroke2)),
         );
     }
-    emit_row(ui, tb, rid, rect, data);
+    emit_row(ui, tb, rid, rect, &key);
 }
 
-fn culled_row(ui: &MineralUi<'_, Fluent>, tb: &Table<'_>, pass: &Pass<'_>, (r, data): (usize, usize)) {
-    let rid = pass.id.with(("row", data));
-    kit::semantic::emit_culled(ui, rid, pass.geo.row(r + 1), || row_node(tb, data));
+fn culled_row<K: ItemKey>(ui: &MineralUi<'_, Fluent>, tb: &Table<'_, K>, pass: &Pass<'_, K>, r: usize, key: &K) {
+    let rid = pass.id.with(("row", key));
+    kit::semantic::emit_culled(ui, rid, pass.geo.row(r + 1), || row_node(tb, key));
 }
 
-fn emit_row(ui: &MineralUi<'_, Fluent>, tb: &Table<'_>, rid: Id, rect: Rect, data: usize) {
+fn emit_row<K: ItemKey>(ui: &MineralUi<'_, Fluent>, tb: &Table<'_, K>, rid: Id, rect: Rect, key: &K) {
     semantic::emit(ui.ctx(), Some(rid), rect, || {
-        let mut n = row_node(tb, data);
+        let mut n = row_node(tb, key);
         n.actions.push(semantic::Action::ScrollIntoView);
         n
     });
 }
 
-fn row_node(tb: &Table<'_>, data: usize) -> SemanticNode {
-    let mut n = SemanticNode::new(StableId::of(&tb.salt, ("row", data)), Role::Row, "");
-    n.state.selected = tb.selection.as_ref().map(|s| s.is_selected(&data));
+fn row_node<K: ItemKey>(tb: &Table<'_, K>, key: &K) -> SemanticNode {
+    let mut n = SemanticNode::new(StableId::of(&tb.salt, ("row", key.clone())), Role::Row, "");
+    n.state.selected = tb.selection.as_ref().map(|s| s.is_selected(key));
     n
 }
 

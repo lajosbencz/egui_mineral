@@ -338,19 +338,26 @@ struct Placed {
 const SUGGESTIONS_SIDE: Side = Side::Bottom;
 
 /// Events of [`SearchSuggestions`], read from `WidgetResponse::output`.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[non_exhaustive]
-pub struct SearchSuggestionsOutput {
-    /// Index into the given suggestions of the one picked this frame.
-    pub selected: Option<usize>,
+pub struct SearchSuggestionsOutput<K> {
+    /// Value of the suggestion picked this frame; the query holds its text.
+    pub selected: Option<K>,
+}
+
+impl<K> Default for SearchSuggestionsOutput<K> {
+    fn default() -> Self {
+        Self { selected: None }
+    }
 }
 
 /// [`SearchBar`] with a docked suggestion list.
 #[must_use = "show with ui.mineral(..)"]
-pub struct SearchSuggestions<'a> {
+pub struct SearchSuggestions<'a, K> {
     salt: KeyedSalt,
     query: &'a mut String,
     suggestions: Vec<String>,
+    values: Vec<K>,
     label: String,
     placeholder: Option<String>,
     back: bool,
@@ -360,22 +367,18 @@ pub struct SearchSuggestions<'a> {
     disabled: bool,
 }
 
-egui_mineral::kit::opaque_debug!(SearchSuggestions<'_>);
+egui_mineral::kit::opaque_debug!(SearchSuggestions<'_, K>);
 
-impl<'a> SearchSuggestions<'a> {
-    /// `label` is the accessible name of the field; `suggestions` filter by `query`, the bound text. Agent key
+impl<'a, K: Clone> SearchSuggestions<'a, K> {
+    /// `label` is the accessible name of the field; suggestions filter by `query`, the bound text. Agent key
     /// prefix `<id_salt>`.
-    pub fn new(
-        id_salt: impl Into<KeyedSalt>,
-        label: impl Into<String>,
-        suggestions: impl IntoIterator<Item = impl Into<String>>,
-        query: &'a mut String,
-    ) -> Self {
+    pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, query: &'a mut String) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
             salt: id_salt,
             query,
-            suggestions: suggestions.into_iter().map(Into::into).collect(),
+            suggestions: Vec::new(),
+            values: Vec::new(),
             label: label.into(),
             placeholder: None,
             back: false,
@@ -389,6 +392,21 @@ impl<'a> SearchSuggestions<'a> {
     crate::widget::setters! {
         /// Replaces the `<id_salt>` key prefix.
         agent_key(salt)
+    }
+
+    /// Appends one suggestion carrying `value`; picking it writes `text` to the query.
+    pub fn item(mut self, value: K, text: impl Into<String>) -> Self {
+        self.values.push(value);
+        self.suggestions.push(text.into());
+        self
+    }
+
+    /// Appends `(value, text)` pairs.
+    pub fn items(mut self, suggestions: impl IntoIterator<Item = (K, impl Into<String>)>) -> Self {
+        for (value, text) in suggestions {
+            self = self.item(value, text);
+        }
+        self
     }
 
     crate::widget::setters! {
@@ -428,13 +446,17 @@ impl<'a> SearchSuggestions<'a> {
     }
 }
 
-impl Composite for SearchSuggestions<'_> {
+impl<K: Clone> Composite for SearchSuggestions<'_, K> {
     type Kit = Material;
-    type Output = SearchSuggestionsOutput;
+    type Output = SearchSuggestionsOutput<K>;
 
     egui_mineral::kit::widget_meta!(salt);
 
-    fn compose(&mut self, ui: &mut MineralUi<'_, Material>, c: Constraints) -> WidgetResponse<SearchSuggestionsOutput> {
+    fn compose(
+        &mut self,
+        ui: &mut MineralUi<'_, Material>,
+        c: Constraints,
+    ) -> WidgetResponse<SearchSuggestionsOutput<K>> {
         let rt = ui.rt();
         let ctx = rt.ctx();
         let mut bar = SearchBar::new(self.salt.clone(), self.label.clone(), &mut *self.query);
@@ -524,7 +546,7 @@ impl Composite for SearchSuggestions<'_> {
             st.active = None;
             st.open = false;
             ctx.memory_mut(|m| m.request_focus(edit_id));
-            result = Some(i);
+            result = self.values.get(i).cloned();
         }
         st.store(ctx, state_id);
         let changed = changed || result.is_some();
@@ -533,7 +555,7 @@ impl Composite for SearchSuggestions<'_> {
     }
 }
 
-impl SearchSuggestions<'_> {
+impl<K> SearchSuggestions<'_, K> {
     fn show_popup(
         &self,
         rt: &Rt,
@@ -659,7 +681,7 @@ pub enum SearchViewMode {
 /// Result of [`SearchView::show`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct SearchViewResponse<R> {
+pub struct SearchViewResponse<K, R> {
     /// Collapsed bar response.
     pub response: egui::Response,
     /// Open view surface; `None` while closed.
@@ -668,8 +690,8 @@ pub struct SearchViewResponse<R> {
     pub inner: Option<R>,
     /// Query edit or suggestion pick.
     pub changed: bool,
-    /// Index into the given suggestions of the one picked this frame.
-    pub selected: Option<usize>,
+    /// Value of the suggestion picked this frame; the query holds its text.
+    pub selected: Option<K>,
     /// Enter pressed in the field.
     pub submitted: bool,
     /// `None` when a suggestion pick closed the view.
@@ -688,10 +710,11 @@ impl TempState for ViewState {}
 /// MD3 search view, docked or full-screen (Compose `ExpandedDockedSearchBar`, `ExpandedFullScreenSearchBar`).
 #[derive(Debug)]
 #[must_use = "call .show(..)"]
-pub struct SearchView<'a> {
+pub struct SearchView<'a, K> {
     salt: KeyedSalt,
     query: &'a mut String,
     suggestions: Vec<String>,
+    values: Vec<K>,
     label: String,
     placeholder: Option<String>,
     mode: SearchViewMode,
@@ -700,7 +723,7 @@ pub struct SearchView<'a> {
     disabled: bool,
 }
 
-impl<'a> SearchView<'a> {
+impl<'a> SearchView<'a, ()> {
     /// `label` is the accessible name of the field, `query` the bound text; agent key prefix `<id_salt>`.
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, query: &'a mut String) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
@@ -708,6 +731,7 @@ impl<'a> SearchView<'a> {
             salt: id_salt,
             query,
             suggestions: Vec::new(),
+            values: Vec::new(),
             label: label.into(),
             placeholder: None,
             mode: SearchViewMode::default(),
@@ -716,7 +740,9 @@ impl<'a> SearchView<'a> {
             disabled: false,
         }
     }
+}
 
+impl<'a, K: Clone> SearchView<'a, K> {
     crate::widget::setters! {
         /// Keeps the view closed.
         disabled
@@ -727,10 +753,22 @@ impl<'a> SearchView<'a> {
         agent_key(salt)
     }
 
-    /// Rows shown below the field, filtered by the query.
-    pub fn suggestions(mut self, suggestions: impl IntoIterator<Item = impl Into<String>>) -> Self {
-        self.suggestions = suggestions.into_iter().map(Into::into).collect();
-        self
+    /// Rows shown below the field as `(value, text)` pairs, filtered by the query; replaces earlier ones. A pick
+    /// writes `text` to the query and reports `value`.
+    pub fn suggestions<V>(self, suggestions: impl IntoIterator<Item = (V, impl Into<String>)>) -> SearchView<'a, V> {
+        let (values, suggestions) = suggestions.into_iter().map(|(v, t)| (v, t.into())).unzip();
+        SearchView {
+            salt: self.salt,
+            query: self.query,
+            suggestions,
+            values,
+            label: self.label,
+            placeholder: self.placeholder,
+            mode: self.mode,
+            width: self.width,
+            max_items: self.max_items,
+            disabled: self.disabled,
+        }
     }
 
     /// Hint shown while the query is empty.
@@ -770,7 +808,7 @@ impl<'a> SearchView<'a> {
         ui: &mut MineralUi<'_, Material>,
         open: &mut bool,
         add: impl FnOnce(&mut MineralUi<'_, Material>, &str) -> R,
-    ) -> SearchViewResponse<R> {
+    ) -> SearchViewResponse<K, R> {
         let rt = ui.rt();
         let ctx = rt.ctx();
         let t = rt.tokens();
@@ -865,7 +903,7 @@ impl<'a> SearchView<'a> {
             popup: Some(view),
             inner,
             changed,
-            selected: ev.selected,
+            selected: ev.selected.and_then(|i| self.values.get(i).cloned()),
             submitted: ev.submitted,
             dismissed: ev.dismissed,
         }

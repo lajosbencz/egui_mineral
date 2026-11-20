@@ -183,15 +183,15 @@ pub struct SwatchPicker<'a, K> {
 }
 
 impl<'a, K: PartialEq + Clone> SwatchPicker<'a, K> {
-    /// `label` names the group for assistive technology; node key `<id_salt>-swatch-picker`, swatches
-    /// `<id_salt>-<index>-swatch`. Nothing is picked while `value` is `None`.
-    pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, value: &'a mut Option<K>) -> Self {
-        Self::with(id_salt.into(), label.into(), Choice::optional(value))
+    /// Selects the swatch whose value equals `selected`, none when no swatch matches; `label` names the group
+    /// for assistive technology; node key `<id_salt>-swatch-picker`, swatches `<id_salt>-<index>-swatch`.
+    pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selected: &'a mut K) -> Self {
+        Self::with(id_salt.into(), label.into(), Choice::new(selected))
     }
 
-    /// [`Self::new`] that always holds a value; no swatch is selected while `value` matches none.
-    pub fn bound(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, value: &'a mut K) -> Self {
-        Self::with(id_salt.into(), label.into(), Choice::one(value))
+    /// [`Self::new`] that picks nothing while `selected` is `None`.
+    pub fn optional(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selected: &'a mut Option<K>) -> Self {
+        Self::with(id_salt.into(), label.into(), Choice::optional(selected))
     }
 
     fn with(salt: KeyedSalt, label: String, choice: Choice<'a, K>) -> Self {
@@ -209,16 +209,16 @@ impl<'a, K: PartialEq + Clone> SwatchPicker<'a, K> {
     }
 
     /// Appends one swatch carrying `value`.
-    pub fn swatch(mut self, value: K, swatch: Swatch) -> Self {
+    pub fn item(mut self, value: K, swatch: impl Into<Swatch>) -> Self {
         self.choice.push(value);
-        self.swatches.push(swatch);
+        self.swatches.push(swatch.into());
         self
     }
 
     /// Appends `(value, swatch)` pairs.
-    pub fn swatches(mut self, swatches: impl IntoIterator<Item = (K, Swatch)>) -> Self {
+    pub fn items(mut self, swatches: impl IntoIterator<Item = (K, impl Into<Swatch>)>) -> Self {
         for (value, swatch) in swatches {
-            self = self.swatch(value, swatch);
+            self = self.item(value, swatch);
         }
         self
     }

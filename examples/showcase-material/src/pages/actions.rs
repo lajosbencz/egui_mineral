@@ -412,7 +412,7 @@ fn button_group(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
             shared.toast(format!("Group item {}", i.index()));
         }
         sub(ui, "Standard, single selection (mixed text/icon)");
-        ButtonGroup::selection("grp-single", "Alignment", &mut s.group_single)
+        ButtonGroup::multi("grp-single", "Alignment", &mut s.group_single)
             .toggles(
                 [
                     ButtonGroupItem::new("Left").icon(ICON_EDIT),
@@ -426,7 +426,7 @@ fn button_group(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
             .show(ui);
         sub(ui, "Standard, multi selection, sizes");
         for (i, (sz, name)) in SIZES.into_iter().enumerate().take(3) {
-            ButtonGroup::selection(("grp-multi", i), name, &mut s.group_multi)
+            ButtonGroup::multi(("grp-multi", i), name, &mut s.group_multi)
                 .toggles(
                     [
                         ButtonGroupItem::new("Bold").icon(ICON_FORMAT_BOLD).label_visible(false),
@@ -445,7 +445,7 @@ fn button_group(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
                 .show(ui);
         }
         sub(ui, "Connected, single selection");
-        ButtonGroup::selection("grp-conn", "Period", &mut s.group_connected)
+        ButtonGroup::multi("grp-conn", "Period", &mut s.group_connected)
             .variant(ButtonGroupVariant::Connected)
             .toggles(
                 [
@@ -471,11 +471,11 @@ fn button_group(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
 fn segmented_button(ui: &mut MaterialUi<'_>, s: &mut State) {
     section(ui, TOPICS[6], Some(<SegmentedButton<'static, ()>>::META), |ui| {
         sub(ui, "Single choice");
-        SegmentedButton::single("seg-period", "Period", &mut s.segment_period)
+        SegmentedButton::new("seg-period", "Period", &mut s.segment_period)
             .items(["Day", "Week", "Month", "Year"].into_iter().enumerate())
             .show(ui);
         sub(ui, "Single choice, icons, one disabled");
-        SegmentedButton::single("seg-view", "View", &mut s.segment_view)
+        SegmentedButton::new("seg-view", "View", &mut s.segment_view)
             .item(0, Segment::new("List").icon(ICON_VIEW_LIST))
             .item(1, Segment::new("Grid").icon(ICON_VIEW_MODULE))
             .item(2, Segment::new("Gallery").icon(ICON_IMAGE).disabled(true))

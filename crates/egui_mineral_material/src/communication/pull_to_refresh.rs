@@ -197,15 +197,13 @@ impl PullToRefresh {
         let now = ctx.input(|i| i.time);
         let step = st.pull.update(
             &cfg,
-            PullInput {
-                at_edge: at_top,
-                drag: ui.pass_input().pan_on(response).map(|p| PullDrag {
+            PullInput::new(now)
+                .at_edge(at_top)
+                .drag(ui.pass_input().pan_on(response).map(|p| PullDrag {
                     delta: Axis::Vertical.main(p.delta),
                     ended: p.ended,
-                }),
-                wheel,
-                now,
-            },
+                }))
+                .wheel(wheel),
         );
         if step.wheel_consumed {
             ctx.input_mut(|i| i.smooth_scroll_delta.y = 0.0);

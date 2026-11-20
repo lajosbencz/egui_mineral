@@ -367,7 +367,7 @@ meta!(
 );
 
 meta!(
-    SearchSuggestions<'a>,
+    SearchSuggestions<'a, K>,
     Navigation,
     Origin::Md3,
     "https://m3.material.io/components/search/specs"
@@ -451,7 +451,7 @@ meta!(
 );
 
 meta!(
-    SearchView<'a>,
+    SearchView<'a, K>,
     Navigation,
     Origin::Md3,
     "https://m3.material.io/components/search/specs"
@@ -554,7 +554,7 @@ mod extras {
     );
 
     meta!(
-        Combobox<'a>,
+        Combobox<'a, K>,
         Extras,
         Origin::Other(&[Kit::Mui, Kit::Fluent, Kit::Ant, Kit::Chakra, Kit::Shadcn]),
         "https://www.w3.org/WAI/ARIA/apg/patterns/combobox/"
@@ -645,7 +645,7 @@ mod extras {
     );
 
     meta!(
-        DataTable<'a>,
+        DataTable<'a, K>,
         Extras,
         Origin::Other(&[
             Kit::Mui,
@@ -661,7 +661,7 @@ mod extras {
     );
 
     meta!(
-        Accordion<'a>,
+        Accordion<'a, K>,
         Extras,
         Origin::Other(&[
             Kit::Mui,
@@ -864,7 +864,7 @@ pub const CATALOG: &[ComponentMeta] = &[
     BottomSheet::META,
     SideSheet::META,
     <SearchBar<'static>>::META,
-    <SearchSuggestions<'static>>::META,
+    <SearchSuggestions<'static, ()>>::META,
     <DatePicker<'static>>::META,
     <DateRangePicker<'static>>::META,
     <TimePicker<'static>>::META,
@@ -876,7 +876,7 @@ pub const CATALOG: &[ComponentMeta] = &[
     <DockedToolbar<'static>>::META,
     <FloatingToolbar<'static>>::META,
     LoadingIndicator::META,
-    <SearchView<'static>>::META,
+    <SearchView<'static, ()>>::META,
     #[cfg(feature = "extras")]
     MenuStrip::META,
     #[cfg(feature = "extras")]
@@ -892,7 +892,7 @@ pub const CATALOG: &[ComponentMeta] = &[
     PullToRefresh::META,
     <Select<'static, ()>>::META,
     #[cfg(feature = "extras")]
-    <Combobox<'static>>::META,
+    <Combobox<'static, ()>>::META,
     #[cfg(feature = "extras")]
     <NumberField<'static>>::META,
     #[cfg(feature = "extras")]
@@ -918,11 +918,11 @@ pub const CATALOG: &[ComponentMeta] = &[
     #[cfg(feature = "extras")]
     <DateField<'static>>::META,
     #[cfg(feature = "extras")]
-    <DataTable<'static>>::META,
+    <DataTable<'static, usize>>::META,
     #[cfg(feature = "extras")]
     extras::TREE_VIEW,
     #[cfg(feature = "extras")]
-    <Accordion<'static>>::META,
+    <Accordion<'static, ()>>::META,
     #[cfg(feature = "extras")]
     <Pagination<'static>>::META,
     #[cfg(feature = "extras")]

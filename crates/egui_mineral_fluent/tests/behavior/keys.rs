@@ -148,7 +148,7 @@ const VIEWS: [(View, &str); 3] = [(View::List, "List"), (View::Grid, "Grid"), (V
 #[test]
 fn tab_list_binds_the_value_of_the_selected_tab() {
     let mut h = harness(View::Grid, |ui, view| {
-        TabList::new("t", "Views", view).tabs(VIEWS).show(ui);
+        TabList::new("t", "Views", view).items(VIEWS).show(ui);
     });
     h.run();
     assert_eq!(h.node("t-1-tab").state.selected, Some(true));
@@ -160,7 +160,7 @@ fn tab_list_binds_the_value_of_the_selected_tab() {
 fn a_value_matching_no_item_selects_none() {
     let mut h = harness(Some(View::Board), |ui, view| {
         TabList::new("t", "Views", view)
-            .tabs([(Some(View::List), "List"), (Some(View::Grid), "Grid")])
+            .items([(Some(View::List), "List"), (Some(View::Grid), "Grid")])
             .show(ui);
     });
     h.run();
@@ -174,7 +174,7 @@ fn a_value_matching_no_item_selects_none() {
 fn toolbar_radio_group_binds_a_value() {
     let mut h = harness(View::List, |ui, view| {
         Toolbar::new("tb", "Tools")
-            .radio_group(ToolbarRadioGroup::new(view).options(VIEWS))
+            .radio_group(ToolbarRadioGroup::new(view).items(VIEWS))
             .show(ui);
     });
     h.run();
@@ -185,7 +185,7 @@ fn toolbar_radio_group_binds_a_value() {
 #[test]
 fn select_binds_a_value() {
     let mut h = harness(View::List, |ui, view| {
-        ui.mineral(Select::bound("s", "View", VIEWS, view));
+        ui.mineral(Select::new("s", "View", view).items(VIEWS));
     });
     h.run();
     assert_eq!(h.node("s-select").value.as_deref(), Some("List"));
@@ -198,9 +198,7 @@ fn select_binds_a_value() {
 fn swatch_picker_binds_a_value() {
     let mut h = harness(View::List, |ui, view| {
         let swatch = |(v, label): (View, &str)| (v, Swatch::color(label, egui::Color32::RED));
-        SwatchPicker::bound("s", "Color", view)
-            .swatches(VIEWS.map(swatch))
-            .show(ui);
+        SwatchPicker::new("s", "Color", view).items(VIEWS.map(swatch)).show(ui);
     });
     h.run();
     h.click("s-1-swatch");

@@ -110,7 +110,7 @@ impl<'a, K: PartialEq + Clone> Tabs<'a, K> {
         Self {
             salt: id_salt,
             label: label.into(),
-            choice: Choice::one(selected),
+            choice: Choice::new(selected),
             specs: Vec::new(),
             variant: TabsVariant::default(),
             scrollable: false,

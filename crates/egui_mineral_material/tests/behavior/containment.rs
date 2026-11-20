@@ -263,12 +263,12 @@ fn carousel_content_padding_wider_than_the_strip_keeps_keylines_valid() {
     for layout in layouts {
         for width in [60.0, 400.0] {
             let mut h = still(vec2(width, 300.0), (), move |ui, ()| {
-                Carousel::new("c", 6, layout)
+                Carousel::new("c", layout)
                     .content_padding(CarouselPadding {
                         start: 100.0,
                         end: 100.0,
                     })
-                    .show(ui, |ui, i| {
+                    .show(ui, 6, |ui, i| {
                         ui.label(i.to_string());
                     });
             });
@@ -292,7 +292,7 @@ fn carousel_survives_hostile_item_widths() {
         ];
         for layout in layouts {
             let mut h = still(vec2(400.0, 300.0), (), move |ui, ()| {
-                Carousel::new("c", 6, layout).show(ui, |ui, i| {
+                Carousel::new("c", layout).show(ui, 6, |ui, i| {
                     ui.label(i.to_string());
                 });
             });
@@ -321,7 +321,7 @@ struct Strip {
 fn hero_strip<'a>() -> Harness<'a, Strip> {
     still(vec2(400.0, 300.0), Strip::default(), |ui, s| {
         let layout = CarouselLayout::hero();
-        let r = Carousel::new("c", 6, layout).show(ui, |ui, i| {
+        let r = Carousel::new("c", layout).show(ui, 6, |ui, i| {
             ui.label(i.to_string());
         });
         s.activated.extend(r.activated);
@@ -365,7 +365,7 @@ fn carousel_drag_on_an_item_pans_and_snaps_to_the_next() {
 fn carousel_shrinking_mid_drag_does_not_panic() {
     let mut h = still(vec2(400.0, 300.0), 6_usize, |ui, count| {
         let layout = CarouselLayout::hero();
-        Carousel::new("c", *count, layout).show(ui, |ui, i| {
+        Carousel::new("c", layout).show(ui, *count, |ui, i| {
             ui.label(i.to_string());
         });
     });
@@ -399,7 +399,7 @@ fn page_with_carousel<'a>(layout: CarouselLayout, height: f32) -> Harness<'a, Pa
         let rt = ui.rt();
         let out = egui::ScrollArea::vertical().auto_shrink([false; 2]).show(ui, |ui| {
             let mut mui = rt.ui(ui);
-            let r = Carousel::new("c", 6, layout).height(height).show(&mut mui, |ui, i| {
+            let r = Carousel::new("c", layout).height(height).show(&mut mui, 6, |ui, i| {
                 ui.label(i.to_string());
             });
             ui.allocate_space(vec2(1.0, 2000.0));

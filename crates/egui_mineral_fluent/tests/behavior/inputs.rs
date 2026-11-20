@@ -5,8 +5,9 @@ use egui_mineral_fluent::inputs::{Swatch, SwatchPicker};
 use egui_mineral_fluent::{
     egui_mineral::range::RangeModel,
     inputs::{
-        Checkbox, Combobox, Dropdown, Field, InfoLabel, Input, ListOption, OptionGroup, RadioGroup, RadioOption,
-        RangeSlider, RangeValue, Rating, SearchBox, Select, Slider, SpinButton, Switch, TimePicker, Validation,
+        Checkbox, Combobox, Dropdown, Field, InfoLabel, Input, ListEntry, ListOption, OptionGroup, RadioGroup,
+        RadioOption, RangeSlider, RangeValue, Rating, SearchBox, Select, Slider, SpinButton, Switch, TimePicker,
+        Validation,
     },
 };
 
@@ -69,11 +70,11 @@ fn switch_toggles() {
 fn radio_group_picks_by_click_and_arrow_key() {
     let mut h = harness(0_usize, |ui, v| {
         RadioGroup::new("g", "Fruit", v)
-            .options(
+            .items(
                 ["A", "B", "C"]
                     .into_iter()
                     .enumerate()
-                    .map(|(i, l)| RadioOption::new(i, l)),
+                    .map(|(i, l)| (i, RadioOption::new(l))),
             )
             .show(ui);
     });
@@ -198,17 +199,19 @@ fn info_label_button_toggles_expanded() {
     assert_eq!(h.node("il-info-button").state.expanded, Some(true));
 }
 
-fn animals() -> Vec<egui_mineral_fluent::inputs::ListEntry<&'static str>> {
+fn animals() -> Vec<ListEntry<&'static str>> {
     vec![
-        OptionGroup::new("Land", [ListOption::new("cat", "Cat"), ListOption::new("dog", "Dog")]).into(),
-        ListOption::new("bird", "Bird").into(),
+        OptionGroup::new("Land")
+            .items([("cat", ListOption::new("Cat")), ("dog", ListOption::new("Dog"))])
+            .into(),
+        ("bird", ListOption::new("Bird")).into(),
     ]
 }
 
 #[test]
 fn dropdown_opens_picks_and_closes() {
     let mut h = harness(Selection::<&str>::single(), |ui, sel| {
-        ui.mineral(Dropdown::new("d", "Pet", animals(), sel));
+        ui.mineral(Dropdown::multi("d", "Pet", sel).items(animals()));
     });
     h.run();
     assert_eq!(h.node("d-dropdown").state.expanded, Some(false));
@@ -225,7 +228,7 @@ fn dropdown_opens_picks_and_closes() {
 #[test]
 fn dropdown_keyboard_opens_and_commits() {
     let mut h = harness(Selection::<&str>::single(), |ui, sel| {
-        ui.mineral(Dropdown::new("d", "Pet", animals(), sel));
+        ui.mineral(Dropdown::multi("d", "Pet", sel).items(animals()));
     });
     h.run();
     h.click("d-dropdown");
@@ -238,7 +241,7 @@ fn dropdown_keyboard_opens_and_commits() {
 #[test]
 fn multiselect_dropdown_keeps_the_list_open_and_joins_texts() {
     let mut h = harness(Selection::<&str>::multiple(), |ui, sel| {
-        ui.mineral(Dropdown::new("d", "Pet", animals(), sel));
+        ui.mineral(Dropdown::multi("d", "Pet", sel).items(animals()));
     });
     h.run();
     h.click("d-dropdown");
@@ -251,7 +254,7 @@ fn multiselect_dropdown_keeps_the_list_open_and_joins_texts() {
 #[test]
 fn disabled_dropdown_does_not_open() {
     let mut h = harness(Selection::<&str>::single(), |ui, sel| {
-        ui.mineral(Dropdown::new("d", "Pet", animals(), sel).disabled(true));
+        ui.mineral(Dropdown::multi("d", "Pet", sel).items(animals()).disabled(true));
     });
     h.run();
     h.click("d-dropdown");
@@ -262,7 +265,7 @@ fn disabled_dropdown_does_not_open() {
 #[test]
 fn select_binds_an_option_value() {
     let mut h = harness(None::<&str>, |ui, v| {
-        ui.mineral(Select::new("s", "Pet", animals(), v));
+        ui.mineral(Select::optional("s", "Pet", v).items(animals()));
     });
     h.run();
     h.click("s-select");
@@ -273,7 +276,7 @@ fn select_binds_an_option_value() {
 #[test]
 fn combobox_hides_options_that_miss_the_typed_text() {
     let mut h = harness((Selection::<&str>::single(), String::new()), |ui, (sel, text)| {
-        ui.mineral(Combobox::new("c", "Pet", animals(), sel, text));
+        ui.mineral(Combobox::multi("c", "Pet", sel, text).items(animals()));
     });
     h.run();
     h.click("c-combobox");
@@ -292,7 +295,7 @@ fn combobox_hides_options_that_miss_the_typed_text() {
 #[test]
 fn combobox_filters_by_typed_text_and_picks() {
     let mut h = harness((Selection::<&str>::single(), String::new()), |ui, (sel, text)| {
-        ui.mineral(Combobox::new("c", "Pet", animals(), sel, text));
+        ui.mineral(Combobox::multi("c", "Pet", sel, text).items(animals()));
     });
     h.run();
     h.click("c-combobox");
@@ -334,7 +337,7 @@ fn swatches() -> Vec<(&'static str, Swatch)> {
 #[test]
 fn swatch_picker_picks_by_click_and_skips_disabled() {
     let mut h = harness(None::<&str>, |ui, v| {
-        SwatchPicker::new("s", "Color", v).swatches(swatches()).show(ui);
+        SwatchPicker::optional("s", "Color", v).items(swatches()).show(ui);
     });
     h.run();
     h.click("s-1-swatch");
@@ -348,7 +351,7 @@ fn swatch_picker_picks_by_click_and_skips_disabled() {
 #[test]
 fn swatch_picker_arrow_key_moves_the_selection() {
     let mut h = harness(Some("a"), |ui, v| {
-        SwatchPicker::new("s", "Color", v).swatches(swatches()).show(ui);
+        SwatchPicker::optional("s", "Color", v).items(swatches()).show(ui);
     });
     h.run();
     h.click("s-0-swatch");
@@ -442,11 +445,11 @@ fn calendar_navigation_buttons_step_months_and_go_to_today_returns() {
 
 #[test]
 fn tag_picker_picks_removes_and_backspace_drops_the_last_tag() {
-    let animals = || vec![ListOption::new("a", "Ant"), ListOption::new("b", "Bee")];
+    let animals = || vec![("a", ListOption::new("Ant")), ("b", ListOption::new("Bee"))];
     let mut h = harness(
         (Selection::<&str>::multiple(), String::new()),
         move |ui, (sel, text)| {
-            ui.mineral(TagPicker::new("t", "Pets", animals(), sel, text));
+            ui.mineral(TagPicker::new("t", "Pets", sel, text).items(animals()));
         },
     );
     h.run();
@@ -497,11 +500,15 @@ fn date_picker_picks_from_the_calendar_and_parses_typed_text() {
 
 #[test]
 fn tag_picker_button_variant_opens_the_list_without_an_input() {
-    let animals = || vec![ListOption::new("a", "Ant"), ListOption::new("b", "Bee")];
+    let animals = || vec![("a", ListOption::new("Ant")), ("b", ListOption::new("Bee"))];
     let mut h = harness(
         (Selection::<&str>::multiple(), String::new()),
         move |ui, (sel, text)| {
-            ui.mineral(TagPicker::new("t", "Pets", animals(), sel, text).control(TagPickerControl::Button));
+            ui.mineral(
+                TagPicker::new("t", "Pets", sel, text)
+                    .items(animals())
+                    .control(TagPickerControl::Button),
+            );
         },
     );
     h.run();
@@ -517,10 +524,10 @@ fn salted_dropdown_option_keeps_its_key_and_picks_when_an_option_is_inserted_bef
     let mut h = harness((Selection::<&str>::single(), false), |ui, (sel, before)| {
         let mut options = Vec::new();
         if *before {
-            options.push(ListOption::new("Extra", "Extra"));
+            options.push(("Extra", ListOption::new("Extra")));
         }
-        options.push(ListOption::new("dog", "Dog").salt("dog"));
-        ui.mineral(Dropdown::new("d", "Pet", options, sel));
+        options.push(("dog", ListOption::new("Dog").salt("dog")));
+        ui.mineral(Dropdown::multi("d", "Pet", sel).items(options));
     });
     h.run();
     h.state_mut().value.1 = true;
@@ -530,4 +537,34 @@ fn salted_dropdown_option_keeps_its_key_and_picks_when_an_option_is_inserted_bef
     h.click("d-dropdown-dog-option");
     h.run();
     assert!(h.state().value.0.is_selected(&"dog"));
+}
+
+#[test]
+fn form_blocks_an_empty_required_field_then_submits() {
+    use egui_mineral_fluent::{
+        egui_mineral::form::{Form, FormState},
+        inputs::FormExt,
+    };
+
+    let mut h = harness((FormState::default(), None), |ui, (state, submitted)| {
+        let r = Form::new("signup", state)
+            .field("name", "Name", |f| f.required(true).supporting("Shown to others"))
+            .show(ui);
+        if r.submitted.is_some() {
+            *submitted = r.submitted;
+        }
+    });
+    h.run();
+    assert_eq!(h.node("signup-name-field-hint").name, "Shown to others");
+    h.click("signup-submit-button");
+    assert!(h.state().value.1.is_none());
+    assert_eq!(h.node("signup-name-input").role, Role::TextInput);
+    assert_eq!(
+        h.node("signup-name-field-validation-message").name,
+        "This field is required"
+    );
+    h.state_mut().value.0.field("name").set_value("Ada");
+    h.run();
+    h.click("signup-submit-button");
+    assert_eq!(h.state().value.1.as_ref().map(|v| v["name"].as_str()), Some("Ada"));
 }

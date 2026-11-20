@@ -27,21 +27,20 @@ use crate::{
 };
 
 /// Fluent `Option`: a choice of a [`Dropdown`](super::Dropdown), [`Combobox`](super::Combobox),
-/// [`Select`](super::Select).
+/// [`Select`](super::Select) or [`TagPicker`](super::TagPicker); converts from its text. The widget pairs it with
+/// a value (`item(value, option)`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[must_use]
-pub struct ListOption<K = String> {
-    pub(crate) value: K,
-    pub(crate) text: String,
-    pub(crate) disabled: bool,
-    pub(crate) salt: Option<KeyedSalt>,
+pub struct ListOption {
+    text: String,
+    disabled: bool,
+    salt: Option<KeyedSalt>,
 }
 
-impl<K> ListOption<K> {
-    /// `value` identifies the option in the selection; `text` is shown.
-    pub fn new(value: K, text: impl Into<String>) -> Self {
+impl ListOption {
+    /// `text` is shown and is the accessible name.
+    pub fn new(text: impl Into<String>) -> Self {
         Self {
-            value,
             text: text.into(),
             disabled: false,
             salt: None,
@@ -61,71 +60,138 @@ impl<K> ListOption<K> {
 
 impl From<&str> for ListOption {
     fn from(text: &str) -> Self {
-        Self::new(text.to_owned(), text)
+        Self::new(text)
     }
 }
 
 impl From<String> for ListOption {
     fn from(text: String) -> Self {
-        Self::new(text.clone(), text)
+        Self::new(text)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct Item<K> {
+    pub(crate) value: K,
+    pub(crate) text: String,
+    pub(crate) disabled: bool,
+    pub(crate) salt: Option<KeyedSalt>,
+}
+
+impl<K> Item<K> {
+    pub(crate) fn new(value: K, option: impl Into<ListOption>) -> Self {
+        let ListOption { text, disabled, salt } = option.into();
+        Self {
+            value,
+            text,
+            disabled,
+            salt,
+        }
     }
 }
 
 /// Fluent `OptionGroup`: options under a heading and a divider.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[must_use]
-pub struct OptionGroup<K = String> {
+pub struct OptionGroup<K> {
     pub(crate) label: String,
-    pub(crate) options: Vec<ListOption<K>>,
+    pub(crate) options: Vec<Item<K>>,
 }
 
 impl<K> OptionGroup<K> {
     /// `label` is the group heading.
-    pub fn new(label: impl Into<String>, options: impl IntoIterator<Item = impl Into<ListOption<K>>>) -> Self {
+    pub fn new(label: impl Into<String>) -> Self {
         Self {
             label: label.into(),
-            options: options.into_iter().map(Into::into).collect(),
+            options: Vec::new(),
         }
+    }
+
+    /// Appends one option carrying `value`.
+    pub fn item(mut self, value: K, option: impl Into<ListOption>) -> Self {
+        self.options.push(Item::new(value, option));
+        self
+    }
+
+    /// Appends `(value, option)` pairs.
+    pub fn items(mut self, options: impl IntoIterator<Item = (K, impl Into<ListOption>)>) -> Self {
+        self.options
+            .extend(options.into_iter().map(|(value, option)| Item::new(value, option)));
+        self
     }
 }
 
-/// Child of a list: one [`ListOption`] or an [`OptionGroup`].
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[non_exhaustive]
-pub enum ListEntry<K = String> {
-    /// Ungrouped option.
-    Option(ListOption<K>),
-    /// Group of options.
+pub(crate) enum Entry<K> {
+    Option(Item<K>),
     Group(OptionGroup<K>),
 }
 
-impl<K> From<ListOption<K>> for ListEntry<K> {
-    fn from(o: ListOption<K>) -> Self {
-        Self::Option(o)
+/// Option or [`OptionGroup`] of a list, for lists that mix both; converts from a `(value, option)` pair and from
+/// an [`OptionGroup`].
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ListEntry<K>(pub(crate) Entry<K>);
+
+impl<K, O: Into<ListOption>> From<(K, O)> for ListEntry<K> {
+    fn from((value, option): (K, O)) -> Self {
+        Self(Entry::Option(Item::new(value, option)))
     }
 }
 
 impl<K> From<OptionGroup<K>> for ListEntry<K> {
-    fn from(g: OptionGroup<K>) -> Self {
-        Self::Group(g)
+    fn from(group: OptionGroup<K>) -> Self {
+        Self(Entry::Group(group))
     }
 }
 
-impl From<&str> for ListEntry {
-    fn from(text: &str) -> Self {
-        Self::Option(text.into())
+pub(crate) trait Entries<K> {
+    fn push_entry(&mut self, entry: Entry<K>);
+}
+
+impl<K> Entries<K> for Vec<Entry<K>> {
+    fn push_entry(&mut self, entry: Entry<K>) {
+        self.push(entry);
     }
 }
 
-impl From<String> for ListEntry {
-    fn from(text: String) -> Self {
-        Self::Option(text.into())
+// Unique while the widget is built, so `make_mut` does not clone.
+impl<K: Clone> Entries<K> for std::sync::Arc<Vec<Entry<K>>> {
+    fn push_entry(&mut self, entry: Entry<K>) {
+        std::sync::Arc::make_mut(self).push(entry);
     }
 }
 
-pub(crate) fn entries<K>(items: impl IntoIterator<Item = impl Into<ListEntry<K>>>) -> Vec<ListEntry<K>> {
-    items.into_iter().map(Into::into).collect()
+// `item`, `items` and `group` of a widget whose `entries` implement `Entries`.
+macro_rules! entry_setters {
+    () => {
+        /// Appends one option carrying `value`.
+        pub fn item(mut self, value: K, option: impl Into<$crate::inputs::ListOption>) -> Self {
+            $crate::inputs::listbox::Entries::push_entry(
+                &mut self.entries,
+                $crate::inputs::listbox::Entry::Option($crate::inputs::listbox::Item::new(value, option)),
+            );
+            self
+        }
+
+        /// Appends `(value, option)` pairs and [`OptionGroup`](crate::inputs::OptionGroup)s.
+        pub fn items(mut self, entries: impl IntoIterator<Item = impl Into<$crate::inputs::ListEntry<K>>>) -> Self {
+            for entry in entries {
+                $crate::inputs::listbox::Entries::push_entry(&mut self.entries, entry.into().0);
+            }
+            self
+        }
+
+        /// Appends a group of options.
+        pub fn group(mut self, group: $crate::inputs::OptionGroup<K>) -> Self {
+            $crate::inputs::listbox::Entries::push_entry(
+                &mut self.entries,
+                $crate::inputs::listbox::Entry::Group(group),
+            );
+            self
+        }
+    };
 }
+pub(crate) use entry_setters;
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum Row {
@@ -136,7 +202,7 @@ pub(crate) enum Row {
 // Options in navigation order and the rows to draw; groups without a visible option are dropped.
 // `visible` gets each option's position among all options of the entries.
 pub(crate) struct Flat<'a, K> {
-    pub options: Vec<&'a ListOption<K>>,
+    pub options: Vec<&'a Item<K>>,
     // Position of each of `options` among all options of the entries.
     pub positions: Vec<usize>,
     pub rows: Vec<Row>,
@@ -144,7 +210,7 @@ pub(crate) struct Flat<'a, K> {
 }
 
 impl<'a, K> Flat<'a, K> {
-    pub(crate) fn new(entries: &'a [ListEntry<K>], visible: &dyn Fn(usize, &ListOption<K>) -> bool) -> Self {
+    pub(crate) fn new(entries: &'a [Entry<K>], visible: &dyn Fn(usize, &Item<K>) -> bool) -> Self {
         let mut flat = Self {
             options: Vec::new(),
             positions: Vec::new(),
@@ -154,7 +220,7 @@ impl<'a, K> Flat<'a, K> {
         let mut pos = 0usize;
         for entry in entries {
             match entry {
-                ListEntry::Option(o) => {
+                Entry::Option(o) => {
                     if visible(pos, o) {
                         flat.rows.push(Row::Option(flat.options.len()));
                         flat.options.push(o);
@@ -162,7 +228,7 @@ impl<'a, K> Flat<'a, K> {
                     }
                     pos = pos.saturating_add(1);
                 }
-                ListEntry::Group(group) => {
+                Entry::Group(group) => {
                     let mut heading = false;
                     for o in &group.options {
                         if visible(pos, o) {
@@ -191,7 +257,7 @@ impl<'a, K> Flat<'a, K> {
         self.options.get(i).is_some_and(|o| !o.disabled)
     }
 
-    pub(crate) fn value(&self, i: usize) -> Option<&'a ListOption<K>> {
+    pub(crate) fn value(&self, i: usize) -> Option<&'a Item<K>> {
         self.options.get(i).copied()
     }
 }
@@ -199,7 +265,7 @@ impl<'a, K> Flat<'a, K> {
 pub(crate) struct View<'a, K> {
     pub flat: &'a Flat<'a, K>,
     pub multiselect: bool,
-    pub selected: &'a dyn Fn(&ListOption<K>) -> bool,
+    pub selected: &'a dyn Fn(&Item<K>) -> bool,
     pub active: Option<usize>,
     pub scroll_to_active: bool,
     pub max_height: f32,
@@ -381,7 +447,7 @@ impl<K> Rows<'_, '_, K> {
     }
 }
 
-fn option_key<K>(key: &StableId, i: usize, opt: &ListOption<K>) -> StableId {
+fn option_key<K>(key: &StableId, i: usize, opt: &Item<K>) -> StableId {
     match &opt.salt {
         Some(salt) => key.sub((salt, "option")),
         None => key.sub((i, "option")),
@@ -438,7 +504,7 @@ struct OptionLook {
 fn option_row<K>(
     ui: &mut egui::Ui,
     id: Id,
-    opt: &ListOption<K>,
+    opt: &Item<K>,
     look: OptionLook,
     width: f32,
     dir: egui_mineral::i18n::Direction,

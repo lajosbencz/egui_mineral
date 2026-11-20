@@ -242,12 +242,12 @@ fn radio(ui: &mut MaterialUi<'_>, s: &mut State) {
             (Portion::Large, "Large"),
         ];
         RadioGroup::new("sel-radio-v", "Size", &mut s.radio)
-            .options(opts.map(|(v, l)| RadioOption::new(v, l)))
+            .items(opts.map(|(v, l)| (v, RadioOption::new(l))))
             .axis(Axis::Vertical)
             .show(ui);
         caption(ui, TypeScale::LabelMedium, "RadioGroup, horizontal");
         RadioGroup::new("sel-radio-h", "Size, horizontal", &mut s.radio_row)
-            .options(opts.map(|(v, l)| RadioOption::new(v, l)))
+            .items(opts.map(|(v, l)| (v, RadioOption::new(l))))
             .axis(Axis::Horizontal)
             .show(ui);
         caption(ui, TypeScale::LabelMedium, "Standalone, error-free states");
@@ -511,61 +511,46 @@ fn selects(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
         // Rows by box top: outlined fields with a label reserve its overhang above the box.
         super::top_row(ui, |row| {
             row.mineral(
-                Select::new(
-                    "sel-select",
-                    "Fruit",
-                    FRUITS.into_iter().enumerate(),
-                    &mut s.select_single,
-                )
-                .preferred_width(240.0),
+                Select::optional("sel-select", "Fruit", &mut s.select_single)
+                    .items(FRUITS.into_iter().enumerate())
+                    .preferred_width(240.0),
             );
             row.add(|ui| color_select(ui, s));
             // No label, so no overhang: its box lines up with the filled ones.
             row.add(|ui| codec_select(ui, s));
             let mut dis = Some(0);
             row.mineral(
-                Select::new("sel-select-dis", "Disabled", FRUITS.into_iter().enumerate(), &mut dis)
+                Select::optional("sel-select-dis", "Disabled", &mut dis)
+                    .items(FRUITS.into_iter().enumerate())
                     .disabled(true)
                     .preferred_width(240.0),
             );
         });
         super::top_row(ui, |row| {
             row.mineral(
-                Select::new(
-                    "sel-select-out",
-                    "Outlined",
-                    FRUITS.into_iter().enumerate(),
-                    &mut s.select_outlined,
-                )
-                .variant(TextFieldVariant::Outlined)
-                .icon(ICON_SEARCH)
-                .supporting("With leading icon")
-                .preferred_width(240.0),
+                Select::optional("sel-select-out", "Outlined", &mut s.select_outlined)
+                    .items(FRUITS.into_iter().enumerate())
+                    .variant(TextFieldVariant::Outlined)
+                    .icon(ICON_SEARCH)
+                    .supporting("With leading icon")
+                    .preferred_width(240.0),
             );
             let err = s.select_err.is_none().then(|| "Pick a fruit".to_owned());
             row.mineral(
-                Select::new(
-                    "sel-select-err",
-                    "Required",
-                    FRUITS.into_iter().enumerate(),
-                    &mut s.select_err,
-                )
-                .variant(TextFieldVariant::Outlined)
-                .maybe_error(err)
-                .preferred_width(240.0),
+                Select::optional("sel-select-err", "Required", &mut s.select_err)
+                    .items(FRUITS.into_iter().enumerate())
+                    .variant(TextFieldVariant::Outlined)
+                    .maybe_error(err)
+                    .preferred_width(240.0),
             );
         });
         caption(ui, TypeScale::LabelMedium, "Multiple (input chips)");
         ui.mineral(
-            Select::multi(
-                "sel-select-multi",
-                "Fruits",
-                FRUITS.into_iter().enumerate(),
-                &mut s.select_multi,
-            )
-            .variant(TextFieldVariant::Outlined)
-            .supporting("Toggling keeps the menu open")
-            .preferred_width(420.0),
+            Select::multi("sel-select-multi", "Fruits", &mut s.select_multi)
+                .items(FRUITS.into_iter().enumerate())
+                .variant(TextFieldVariant::Outlined)
+                .supporting("Toggling keeps the menu open")
+                .preferred_width(420.0),
         );
         let picked: Vec<&str> = s.select_multi.selected().map(|i| FRUITS[*i]).collect();
         ui.label(format!(
@@ -584,11 +569,12 @@ fn selects(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
 }
 
 fn comboboxes(ui: &mut MaterialUi<'_>, s: &mut State) {
-    super::section(ui, TOPICS[7], Some(<Combobox<'static>>::META), |ui| {
+    super::section(ui, TOPICS[7], Some(<Combobox<'static, ()>>::META), |ui| {
         super::top_row(ui, |row| {
             let r = row.add(|ui| {
                 ui.mineral(
-                    Combobox::new("sel-combo", "Filter fruit", FRUITS, &mut s.combo_text)
+                    Combobox::new("sel-combo", "Filter fruit", &mut s.combo_text)
+                        .items(FRUITS.into_iter().enumerate())
                         .supporting("Type to filter")
                         .preferred_width(260.0),
                 )
@@ -599,7 +585,8 @@ fn comboboxes(ui: &mut MaterialUi<'_>, s: &mut State) {
             let mut dis = String::from("Fig");
             row.add(|ui| {
                 ui.mineral(
-                    Combobox::new("sel-combo-dis", "Disabled", FRUITS, &mut dis)
+                    Combobox::new("sel-combo-dis", "Disabled", &mut dis)
+                        .items(FRUITS.into_iter().enumerate())
                         .disabled(true)
                         .preferred_width(260.0),
                 )
@@ -609,7 +596,8 @@ fn comboboxes(ui: &mut MaterialUi<'_>, s: &mut State) {
         super::top_row(ui, |row| {
             let r = row.add(|ui| {
                 ui.mineral(
-                    Combobox::new("sel-combo-free", "Free text", FRUITS, &mut s.combo_free)
+                    Combobox::new("sel-combo-free", "Free text", &mut s.combo_free)
+                        .items(FRUITS.into_iter().enumerate())
                         .variant(TextFieldVariant::Outlined)
                         .free_text(true)
                         .icon(ICON_SEARCH)
@@ -623,15 +611,11 @@ fn comboboxes(ui: &mut MaterialUi<'_>, s: &mut State) {
             let loading = !s.combo_loading.is_empty() && s.combo_loading.len() < 3;
             row.add(|ui| {
                 ui.mineral(
-                    Combobox::new(
-                        "sel-combo-load",
-                        "Async (loading under 3 chars)",
-                        FRUITS,
-                        &mut s.combo_loading,
-                    )
-                    .variant(TextFieldVariant::Outlined)
-                    .loading(loading)
-                    .preferred_width(260.0),
+                    Combobox::new("sel-combo-load", "Async (loading under 3 chars)", &mut s.combo_loading)
+                        .items(FRUITS.into_iter().enumerate())
+                        .variant(TextFieldVariant::Outlined)
+                        .loading(loading)
+                        .preferred_width(260.0),
                 )
             });
         });
@@ -653,14 +637,10 @@ fn color_select(ui: &mut MaterialUi<'_>, s: &mut State) {
         }))
     });
     ui.mineral(
-        Select::new(
-            "sel-select-color",
-            "Colour",
-            colors.into_iter().enumerate(),
-            &mut s.select_color,
-        )
-        .supporting("Painted option leading")
-        .preferred_width(240.0),
+        Select::optional("sel-select-color", "Colour", &mut s.select_color)
+            .items(colors.into_iter().enumerate())
+            .supporting("Painted option leading")
+            .preferred_width(240.0),
     );
 }
 
@@ -671,16 +651,12 @@ fn codec_select(ui: &mut MaterialUi<'_>, s: &mut State) {
         SelectOption::new("WAV"),
     ];
     ui.mineral(
-        Select::new(
-            "sel-select-codec",
-            "Codec",
-            codecs.into_iter().enumerate(),
-            &mut s.select_codec,
-        )
-        .variant(TextFieldVariant::Outlined)
-        .label_visible(false)
-        .supporting("Hidden label, disabled option")
-        .preferred_width(240.0),
+        Select::optional("sel-select-codec", "Codec", &mut s.select_codec)
+            .items(codecs.into_iter().enumerate())
+            .variant(TextFieldVariant::Outlined)
+            .label_visible(false)
+            .supporting("Hidden label, disabled option")
+            .preferred_width(240.0),
     );
 }
 

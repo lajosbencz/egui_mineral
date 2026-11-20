@@ -188,10 +188,10 @@ fn tab_group<'a>(group: &'static str) -> Harness<'a, usize> {
                 .show(ui);
         } else {
             RadioGroup::new("radio", "Letters", selected)
-                .options([
-                    RadioOption::new(0, "A"),
-                    RadioOption::new(1, "B").disabled(true),
-                    RadioOption::new(2, "C"),
+                .items([
+                    (0, RadioOption::new("A")),
+                    (1, RadioOption::new("B").disabled(true)),
+                    (2, RadioOption::new("C")),
                 ])
                 .axis(Axis::Horizontal)
                 .show(ui);
@@ -307,7 +307,7 @@ fn search_view<'a>() -> Harness<'a, Search> {
         (true, String::new(), 0, Vec::new(), Vec::new()),
         |ui, (open, query, submitted, picked, dismissed)| {
             let r = SearchView::new("view", "Search", query)
-                .suggestions(["Apple", "Banana", "Cherry"])
+                .suggestions(["Apple", "Banana", "Cherry"].into_iter().enumerate())
                 .show(ui, open, |_, _| ());
             *submitted += u32::from(r.submitted);
             picked.extend(r.selected);
@@ -369,7 +369,7 @@ fn search_view_escape_and_outside_press_dismiss() {
 fn search_view_opened_from_the_bar_takes_keys_in_the_view() {
     let mut h = still(WIDE, (false, String::new(), Vec::new()), |ui, (open, query, picked)| {
         let r = SearchView::new("view", "Search", query)
-            .suggestions(["Apple", "Banana", "Cherry"])
+            .suggestions(["Apple", "Banana", "Cherry"].into_iter().enumerate())
             .show(ui, open, |_, _| ());
         picked.extend(r.selected);
     });

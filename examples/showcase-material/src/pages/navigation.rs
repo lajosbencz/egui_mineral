@@ -556,7 +556,7 @@ fn toolbars(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
             .action(IconAction::new(ICON_FORMAT_BOLD, "Bold"))
             .action(IconAction::new(ICON_CONTENT_CUT, "Cut"))
             .custom("mode", |ui| {
-                SegmentedButton::single("nav-toolbar-mode", "Display", mode)
+                SegmentedButton::new("nav-toolbar-mode", "Display", mode)
                     .items(["Field", "Both", "Intensity"].into_iter().enumerate())
                     .show(ui)
                     .response
@@ -1000,7 +1000,7 @@ fn search(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
         let mut empty = String::new();
         ui.mineral(SearchBar::new("nav-sbar-off", "Search", &mut empty).disabled(true));
     });
-    super::section(ui, TOPICS[12], Some(<SearchView<'static>>::META), |ui| {
+    super::section(ui, TOPICS[12], Some(<SearchView<'static, ()>>::META), |ui| {
         ui.mineral(CheckButton::new(
             "nav-view-docked",
             "Docked (off: full screen covers the window)",
@@ -1014,7 +1014,7 @@ fn search(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
         let width = ui.available_width().min(720.0);
         boxed(ui, vec2(width, 420.0), |ui| {
             let r = SearchView::new("nav-sview", "Search", &mut s.view_query)
-                .suggestions(&s.suggestions)
+                .suggestions(s.suggestions.iter().cloned().enumerate())
                 .mode(mode)
                 .max_items(5)
                 .show(ui, &mut s.view_open, |ui, query| {
@@ -1028,15 +1028,13 @@ fn search(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
             }
         });
     });
-    super::section(ui, TOPICS[13], Some(<SearchSuggestions<'static>>::META), |ui| {
+    super::section(ui, TOPICS[13], Some(<SearchSuggestions<'static, ()>>::META), |ui| {
         caption(ui, TypeScale::LabelMedium, "SearchSuggestions");
         if let Some(i) = ui
-            .mineral(SearchSuggestions::new(
-                "nav-suggest",
-                "Search fruit",
-                &s.suggestions,
-                &mut s.suggest_query,
-            ))
+            .mineral(
+                SearchSuggestions::new("nav-suggest", "Search fruit", &mut s.suggest_query)
+                    .items(s.suggestions.iter().cloned().enumerate()),
+            )
             .into_output()
             .selected
         {

@@ -14,9 +14,9 @@ use egui_mineral::{
 
 use super::combobox::{Click, toggle};
 use super::field::Validation;
-use super::listbox::{self, Flat, ListEntry, ListOption, View};
+use super::listbox::{self, Entry, Flat, View};
 use super::textbox::{Chrome, Edit, InputAppearance, Live, paint_frame};
-use super::value::{self, ListState, Pick};
+use super::value::{self, ListState};
 use crate::spec::ColorToken::{
     ColorCompoundBrandForeground1Hover, ColorCompoundBrandForeground1Pressed, ColorNeutralBackground3,
     ColorNeutralBackgroundDisabled, ColorNeutralForeground2, ColorNeutralForegroundDisabled,
@@ -174,11 +174,11 @@ impl TagSize {
 /// options listed in a popup. [`Self::control`] swaps the input for a `TagPickerButton`.
 #[derive(Debug)]
 #[must_use = "show with ui.mineral(..)"]
-pub struct TagPicker<'a, K: Ord = String> {
+pub struct TagPicker<'a, K> {
     salt: KeyedSalt,
     key: AgentKey,
     label: String,
-    entries: Arc<[ListEntry<K>]>,
+    entries: Arc<Vec<Entry<K>>>,
     selection: &'a mut Selection<K>,
     text: &'a mut String,
     appearance: InputAppearance,
@@ -190,11 +190,11 @@ pub struct TagPicker<'a, K: Ord = String> {
 }
 
 impl<'a, K: Ord + Clone> TagPicker<'a, K> {
-    /// `label` is the accessible name; `text` is the typed filter. Agent key `<id_salt>-tag-picker`.
+    /// `selection` holds the values of the tags; `label` is the accessible name; `text` is the typed filter.
+    /// Agent key `<id_salt>-tag-picker`.
     pub fn new(
         id_salt: impl Into<KeyedSalt>,
         label: impl Into<String>,
-        entries: impl IntoIterator<Item = impl Into<ListEntry<K>>>,
         selection: &'a mut Selection<K>,
         text: &'a mut String,
     ) -> Self {
@@ -202,7 +202,7 @@ impl<'a, K: Ord + Clone> TagPicker<'a, K> {
             salt: id_salt.into(),
             key: egui_mineral::agent_key!("tag-picker"),
             label: label.into(),
-            entries: listbox::entries(entries).into(),
+            entries: Arc::default(),
             selection,
             text,
             appearance: InputAppearance::Outline,
@@ -213,6 +213,8 @@ impl<'a, K: Ord + Clone> TagPicker<'a, K> {
             disabled: false,
         }
     }
+
+    listbox::entry_setters!();
 
     /// Default [`InputAppearance::Outline`].
     pub fn appearance(mut self, appearance: InputAppearance) -> Self {
@@ -566,20 +568,16 @@ impl<K: Ord + Clone> MineralWidget for TagPicker<'_, K> {
         let mut changed = self.backspace(ctx, focused, &tags);
 
         let keep = self.visible(st.filtering);
-        let visible = |pos: usize, _: &ListOption<K>| keep.contains(&pos);
+        let visible = |pos: usize, _: &listbox::Item<K>| keep.contains(&pos);
         let entries = Arc::clone(&self.entries);
         let flat = Flat::new(&entries, &visible);
         let enabled = |i: usize| flat.enabled(i);
-        let list = ComboList {
-            kind: if self.button {
-                ComboKind::SelectOnly
-            } else {
-                ComboKind::Editable
-            },
-            selected: None,
-            len: flat.len(),
-            enabled: &enabled,
+        let kind = if self.button {
+            ComboKind::SelectOnly
+        } else {
+            ComboKind::Editable
         };
+        let list = ComboList::new(kind, flat.len(), &enabled);
         let (mut chosen, mut moved) = (None, false);
         if focused && !self.disabled {
             (chosen, moved) = value::drive(ctx, &mut st.combo, list);
@@ -616,7 +614,7 @@ impl<K: Ord + Clone> MineralWidget for TagPicker<'_, K> {
         if let Some(i) = chosen
             && let Some(o) = flat.value(i)
         {
-            changed |= self.selection.pick(&o.value);
+            changed |= self.selection.toggle(o.value.clone());
             st.filtering = false;
             self.text.clear();
             st.combo.close();
@@ -746,7 +744,7 @@ impl<K: Ord + Clone> TagPicker<'_, K> {
         st: &mut ListState,
         moved: bool,
     ) -> Option<usize> {
-        let selected = |_: &ListOption<K>| false;
+        let selected = |_: &listbox::Item<K>| false;
         let popup = listbox::show(
             ui,
             self.salt.child("popup"),

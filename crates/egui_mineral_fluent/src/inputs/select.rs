@@ -8,57 +8,57 @@ use egui_mineral::{
 
 use super::dropdown::{Dropdown, Kind};
 use super::field::Validation;
-use super::listbox::{self, ListEntry, ListOption};
+use super::listbox::{ListEntry, ListOption, OptionGroup};
 use super::textbox::InputAppearance;
-use super::value::{Exact, ListState, Value};
+use super::value::ListState;
 use crate::{Fluent, Size};
+use egui_mineral::kit::choice::Choice;
 
 /// Fluent `Select`: the field of a native `<select>` bound to the picked option value; the list is the Fluent
 /// listbox.
 #[derive(Debug)]
 #[must_use = "show with ui.mineral(..)"]
-pub struct Select<'a, K = String>(Dropdown<'a, K>);
+pub struct Select<'a, K>(Dropdown<'a, K>);
 
-impl<'a, K: PartialEq + Clone + 'a> Select<'a, K> {
-    /// `label` is the accessible name; `entries` are options and groups. Agent key `<id_salt>-select`.
-    pub fn new(
-        id_salt: impl Into<KeyedSalt>,
-        label: impl Into<String>,
-        entries: impl IntoIterator<Item = impl Into<ListEntry<K>>>,
-        value: &'a mut Option<K>,
-    ) -> Self {
+impl<'a, K: PartialEq + Clone> Select<'a, K> {
+    /// Shows the option whose value equals `selected`; `label` is the accessible name. Agent key
+    /// `<id_salt>-select`.
+    pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selected: &'a mut K) -> Self {
         Self(Dropdown::with(
             Kind::Select,
             id_salt.into(),
             label.into(),
-            listbox::entries(entries),
-            Value::new(value),
+            Choice::new(selected),
         ))
     }
 
-    /// Binds a value that is always one of the options: each of `options` comes with its value, a pick writes
-    /// it into `value`, and nothing is selected while `value` matches none.
-    pub fn bound(
-        id_salt: impl Into<KeyedSalt>,
-        label: impl Into<String>,
-        options: impl IntoIterator<Item = (K, impl Into<String>)>,
-        value: &'a mut K,
-    ) -> Self {
-        let entries = options
-            .into_iter()
-            .map(|(v, text)| ListEntry::from(ListOption::new(v, text)))
-            .collect();
+    /// [`Self::new`] that shows no option while `selected` is `None`.
+    pub fn optional(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selected: &'a mut Option<K>) -> Self {
         Self(Dropdown::with(
             Kind::Select,
             id_salt.into(),
             label.into(),
-            entries,
-            Value::new(Exact(value)),
+            Choice::optional(selected),
         ))
+    }
+
+    /// Appends one option carrying `value`.
+    pub fn item(self, value: K, option: impl Into<ListOption>) -> Self {
+        Self(self.0.item(value, option))
+    }
+
+    /// Appends `(value, option)` pairs and [`OptionGroup`]s.
+    pub fn items(self, entries: impl IntoIterator<Item = impl Into<ListEntry<K>>>) -> Self {
+        Self(self.0.items(entries))
+    }
+
+    /// Appends a group of options.
+    pub fn group(self, group: OptionGroup<K>) -> Self {
+        Self(self.0.group(group))
     }
 }
 
-impl<K> Select<'_, K> {
+impl<K: PartialEq + Clone> Select<'_, K> {
     /// Default [`InputAppearance::Outline`].
     pub fn appearance(mut self, appearance: InputAppearance) -> Self {
         self.0 = self.0.appearance(appearance);
@@ -103,7 +103,7 @@ impl<K> Select<'_, K> {
     }
 }
 
-impl<K> MineralWidget for Select<'_, K> {
+impl<K: PartialEq + Clone> MineralWidget for Select<'_, K> {
     type Kit = Fluent;
     type State = ListState;
     type Output = ();

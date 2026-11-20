@@ -214,12 +214,7 @@ pub(crate) struct ListStep {
 }
 
 pub(crate) fn drive_list(ctx: &egui::Context, combo: &mut ComboState, kind: ComboKind, len: usize) -> ListStep {
-    let list = ComboList {
-        kind,
-        selected: None,
-        len,
-        enabled: &|_| true,
-    };
+    let list = ComboList::new(kind, len, &|_| true);
     let mut step = ListStep::default();
     for action in combo.update(ctx, list) {
         match action {

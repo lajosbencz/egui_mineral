@@ -135,13 +135,9 @@ fn theme(ui: &mut MaterialUi<'_>, shared: &mut Shared) {
     let s = &mut shared.settings;
     let mut theme = Some(s.theme);
     ui.mineral(
-        Select::new(
-            "set-theme",
-            "Theme",
-            THEMES.map(|(_, n)| n).into_iter().enumerate(),
-            &mut theme,
-        )
-        .preferred_width(240.0),
+        Select::optional("set-theme", "Theme", &mut theme)
+            .items(THEMES.map(|(_, n)| n).into_iter().enumerate())
+            .preferred_width(240.0),
     );
     if let Some(t) = theme {
         s.theme = t;
@@ -165,13 +161,9 @@ fn theme(ui: &mut MaterialUi<'_>, shared: &mut Shared) {
     ui.add_space(8.0);
     let mut variant = Some(s.variant);
     ui.mineral(
-        Select::new(
-            "set-variant",
-            "Scheme variant",
-            VARIANTS.map(|(_, n)| n).into_iter().enumerate(),
-            &mut variant,
-        )
-        .preferred_width(240.0),
+        Select::optional("set-variant", "Scheme variant", &mut variant)
+            .items(VARIANTS.map(|(_, n)| n).into_iter().enumerate())
+            .preferred_width(240.0),
     );
     if let Some(v) = variant {
         s.variant = v;
@@ -179,7 +171,9 @@ fn theme(ui: &mut MaterialUi<'_>, shared: &mut Shared) {
     ui.add_space(8.0);
     let mut locale = Some(s.locale);
     ui.mineral(
-        Select::new("set-locale", "Locale", LOCALES.into_iter().enumerate(), &mut locale).preferred_width(240.0),
+        Select::optional("set-locale", "Locale", &mut locale)
+            .items(LOCALES.into_iter().enumerate())
+            .preferred_width(240.0),
     );
     if let Some(l) = locale {
         s.locale = l;
@@ -428,7 +422,7 @@ fn motion_demo(ui: &mut MaterialUi<'_>, s: &mut State) {
         .preferred_width(200.0),
     );
     let mut sel = s.group.clone();
-    ButtonGroup::selection("motion-group", "Duration group", &mut sel)
+    ButtonGroup::multi("motion-group", "Duration group", &mut sel)
         .variant(ButtonGroupVariant::Connected)
         .toggles(DURATION_GROUPS.iter().map(|g| ButtonGroupItem::new(*g)).enumerate())
         .show(ui);

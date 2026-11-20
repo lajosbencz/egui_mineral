@@ -287,13 +287,13 @@ fn t_radius(rect: Rect) -> egui::CornerRadius {
 /// Result of showing an [`Accordion`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct AccordionResponse<R> {
+pub struct AccordionResponse<K, R = ()> {
     /// Spans every header and open panel.
     pub response: Response,
     /// Value of the content closure.
     pub inner: R,
-    /// Index of the item whose header was activated.
-    pub toggled: Option<usize>,
+    /// Key of the item whose header was activated.
+    pub toggled: Option<K>,
 }
 
 /// Result of one [`AccordionUi::item`].
@@ -310,10 +310,10 @@ pub struct AccordionItemResponse<R> {
 /// [`Expansion::single`] opens one item at a time, `Expansion::default` any number.
 #[derive(Debug)]
 #[must_use = "call .show(..)"]
-pub struct Accordion<'a> {
+pub struct Accordion<'a, K> {
     salt: KeyedSalt,
     key: AgentKey,
-    expansion: &'a mut Expansion<usize>,
+    expansion: &'a mut Expansion<K>,
     collapsible: bool,
     size: AccordionSize,
     position: ExpandIconPosition,
@@ -321,9 +321,10 @@ pub struct Accordion<'a> {
     navigation: Option<AccordionNavigation>,
 }
 
-impl<'a> Accordion<'a> {
-    /// Medium, expand icons at the start, not collapsible; agent key `<id_salt>-accordion`.
-    pub fn new(id_salt: impl Into<KeyedSalt>, expansion: &'a mut Expansion<usize>) -> Self {
+impl<'a, K: Ord + Clone + egui::AsIdSalt> Accordion<'a, K> {
+    /// `expansion` is the bound set of open item keys; medium, expand icons at the start, not collapsible; agent
+    /// key `<id_salt>-accordion`.
+    pub fn new(id_salt: impl Into<KeyedSalt>, expansion: &'a mut Expansion<K>) -> Self {
         Self {
             salt: id_salt.into(),
             key: egui_mineral::agent_key!("accordion"),
@@ -375,8 +376,8 @@ impl<'a> Accordion<'a> {
     pub fn show<R>(
         self,
         ui: &mut MineralUi<'_, Fluent>,
-        add: impl FnOnce(&mut AccordionUi<'_, '_>) -> R,
-    ) -> AccordionResponse<R> {
+        add: impl FnOnce(&mut AccordionUi<'_, '_, K>) -> R,
+    ) -> AccordionResponse<K, R> {
         let rt = ui.rt();
         let id = ui.make_persistent_id(self.salt.id_salt());
         let navigation = self.navigation;
@@ -421,12 +422,12 @@ impl<'a> Accordion<'a> {
 }
 
 /// Places the items of an [`Accordion`].
-pub struct AccordionUi<'u, 'e> {
+pub struct AccordionUi<'u, 'e, K> {
     ui: &'u mut Ui,
     rt: &'u Rt,
     id: Id,
     salt: KeyedSalt,
-    expansion: &'e mut Expansion<usize>,
+    expansion: &'e mut Expansion<K>,
     collapsible: bool,
     size: AccordionSize,
     position: ExpandIconPosition,
@@ -434,15 +435,17 @@ pub struct AccordionUi<'u, 'e> {
     index: usize,
     headers: Vec<Id>,
     enabled: Vec<bool>,
-    toggled: Option<usize>,
+    toggled: Option<K>,
 }
 
-kit::opaque_debug!(AccordionUi<'_, '_>);
+kit::opaque_debug!(AccordionUi<'_, '_, K>);
 
-impl AccordionUi<'_, '_> {
-    /// One item: its header, then `add` as the panel while open (animated by `Collapse`).
+impl<K: Ord + Clone + egui::AsIdSalt> AccordionUi<'_, '_, K> {
+    /// One item, open while `key` is in the bound [`Expansion`]: its header, then `add` as the panel while open
+    /// (animated by `Collapse`). Agent keys follow the call order unless the item has a `salt(..)`.
     pub fn item<R>(
         &mut self,
+        key: K,
         item: impl Into<AccordionItem>,
         add: impl FnOnce(&mut MineralUi<'_, Fluent>) -> R,
     ) -> AccordionItemResponse<R> {
@@ -451,10 +454,14 @@ impl AccordionUi<'_, '_> {
         self.index += 1;
         let rt = self.rt;
         let ctx = self.ui.ctx().clone();
-        let open = self.expansion.is_expanded(&i);
+        let open = self.expansion.is_expanded(&key);
+        let (open_id, height_id, panel_id) = (
+            self.id.with(("open", &key)),
+            self.id.with(("height", &key)),
+            self.id.with(("panel", &key)),
+        );
         let locked = open && !self.collapsible && self.expansion.expanded().count() <= 1;
         let item_salt = item.salt.clone().unwrap_or_else(|| self.salt.child(("item", i)));
-        let part = item_salt.id_salt();
         let header = Header {
             salt: item_salt.clone(),
             item: &item,
@@ -469,14 +476,15 @@ impl AccordionUi<'_, '_> {
         self.enabled.push(!item.disabled);
         let activated = hr.changed();
         let response = hr.into_response();
-        if activated && !locked {
-            self.expansion.toggle(i);
-            self.toggled = Some(i);
+        let toggle = activated && !locked;
+        if toggle {
+            self.expansion.toggle(key.clone());
+            self.toggled = Some(key);
         }
         let k = tween::tween(
             rt.core(),
-            self.id.with(("open", part)),
-            f32::from(u8::from(self.expansion.is_expanded(&i))),
+            open_id,
+            f32::from(u8::from(open != toggle)),
             d::COLLAPSE,
             mo::CURVE_EASY_EASE_MAX,
         );
@@ -485,7 +493,6 @@ impl AccordionUi<'_, '_> {
         }
         let w = self.ui.available_width();
         let top = self.ui.cursor().min;
-        let height_id = self.id.with(("height", part));
         let known: Option<f32> = ctx.data(|d| d.get_temp(height_id));
         let clip_h = match known {
             Some(h) => h * k,
@@ -495,7 +502,7 @@ impl AccordionUi<'_, '_> {
         let margin = d::PANEL_MARGIN;
         let mut child = self.ui.new_child(
             UiBuilder::new()
-                .id_salt(self.id.with(("panel", part)))
+                .id_salt(panel_id)
                 .max_rect(Rect::from_min_size(
                     top + vec2(margin, 0.0),
                     vec2(w - 2.0 * margin, f32::INFINITY),

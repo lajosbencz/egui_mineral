@@ -101,8 +101,8 @@ pub use serde;
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __opaque_debug {
-    ($name:ident <$lt:lifetime, $($ty:ident),+>) => {
-        impl<$($ty),+> ::core::fmt::Debug for $name<$lt, $($ty),+> {
+    ($name:ident <$($lt:lifetime),+, $($ty:ident),+>) => {
+        impl<$($ty),+> ::core::fmt::Debug for $name<$($lt),+, $($ty),+> {
             fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
                 f.debug_struct(stringify!($name)).finish_non_exhaustive()
             }

@@ -20,7 +20,11 @@ fn select_hides_label_keeps_name_and_skips_disabled_options() {
             SelectOption::new("Mp3").disabled(true),
             SelectOption::new("Flac"),
         ];
-        ui.mineral(Select::new("format", "Format", options.into_iter().enumerate(), selected).label_visible(false));
+        ui.mineral(
+            Select::optional("format", "Format", selected)
+                .items(options.into_iter().enumerate())
+                .label_visible(false),
+        );
     });
     assert_eq!(
         h.node("format-select").name,
@@ -43,7 +47,7 @@ fn select_typeahead_skips_disabled_options() {
             SelectOption::new("Banana"),
             SelectOption::new("Apricot"),
         ];
-        ui.mineral(Select::new("fruit", "Fruit", options.into_iter().enumerate(), selected));
+        ui.mineral(Select::optional("fruit", "Fruit", selected).items(options.into_iter().enumerate()));
     });
     h.click("fruit-select");
     h.type_text("a");
@@ -74,7 +78,7 @@ fn growing_field_wraps_beside_its_affixes() {
 fn select_reveals_an_offscreen_active_option() {
     let mut h = harness(SCREEN, Some(60), |ui, selected| {
         let options = (0..100).map(|i| SelectOption::new(format!("Option {i}")));
-        ui.mineral(Select::new("pick", "Pick", options.into_iter().enumerate(), selected));
+        ui.mineral(Select::optional("pick", "Pick", selected).items(options.into_iter().enumerate()));
     });
     h.click("pick-select");
     assert!(
@@ -121,12 +125,7 @@ fn rgb_fields_follow_the_color_both_ways() {
 #[test]
 fn multi_select_toggles_options_and_stays_open() {
     let mut h = harness(SCREEN, Selection::multiple(), |ui, sel| {
-        ui.mineral(Select::multi(
-            "fruit",
-            "Fruit",
-            ["Apple", "Banana", "Cherry"].into_iter().enumerate(),
-            sel,
-        ));
+        ui.mineral(Select::multi("fruit", "Fruit", sel).items(["Apple", "Banana", "Cherry"].into_iter().enumerate()));
     });
     let picked = |h: &Harness<'_, Selection<usize>>| h.state().value.selected().copied().collect::<Vec<_>>();
     h.click("fruit-select");
@@ -172,7 +171,10 @@ fn select_value_binds_the_option_value() {
             (Fruit::Banana, "Banana"),
             (Fruit::Cherry, "Cherry"),
         ];
-        *changes += u32::from(ui.mineral(Select::bound("fruit", "Fruit", options, fruit)).changed());
+        *changes += u32::from(
+            ui.mineral(Select::new("fruit", "Fruit", fruit).items(options))
+                .changed(),
+        );
     });
     h.click("fruit-select");
     h.press(Key::ArrowDown);

@@ -74,6 +74,92 @@ pub fn sort_order<K: Ord>(len: usize, sort: SortState, mut key: impl FnMut(Cell)
     order
 }
 
+/// Bound of row and item keys: hashed into egui ids, written into agent keys, ordered in a
+/// [`Selection`](crate::select::Selection). Implemented for every such type; `#[derive(KeySalt)]` covers app enums.
+pub trait ItemKey: crate::semantic::KeySalt + egui::AsIdSalt + Ord + Clone {}
+
+impl<K: crate::semantic::KeySalt + egui::AsIdSalt + Ord + Clone> ItemKey for K {}
+
+/// Rows of a table: the count and the key of each data index. Keys bind selection, activation, row ids and agent
+/// keys, so they follow a row through inserts and reorders. `usize` keys rows by data index.
+pub trait Rows<K> {
+    /// Data row count.
+    fn len(&self) -> usize;
+
+    /// `true` without rows.
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Key of data row `index`; `None` past the end.
+    fn key(&self, index: usize) -> Option<K>;
+}
+
+impl Rows<usize> for usize {
+    fn len(&self) -> usize {
+        *self
+    }
+
+    fn key(&self, index: usize) -> Option<usize> {
+        (index < *self).then_some(index)
+    }
+}
+
+impl<K: Clone> Rows<K> for &[K] {
+    fn len(&self) -> usize {
+        <[K]>::len(self)
+    }
+
+    fn key(&self, index: usize) -> Option<K> {
+        self.get(index).cloned()
+    }
+}
+
+impl<K: Clone> Rows<K> for &Vec<K> {
+    fn len(&self) -> usize {
+        Vec::len(self)
+    }
+
+    fn key(&self, index: usize) -> Option<K> {
+        self.get(index).cloned()
+    }
+}
+
+/// [`Rows`] keyed by a function of the data index.
+#[derive(Clone, Copy)]
+pub struct RowKeys<F> {
+    len: usize,
+    key: F,
+}
+
+impl<F> std::fmt::Debug for RowKeys<F> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RowKeys")
+            .field("len", &self.len)
+            .finish_non_exhaustive()
+    }
+}
+
+impl<F> RowKeys<F> {
+    /// `len` rows; `key` maps a data index to its key.
+    pub fn new<K>(len: usize, key: F) -> Self
+    where
+        F: Fn(usize) -> K,
+    {
+        Self { len, key }
+    }
+}
+
+impl<K, F: Fn(usize) -> K> Rows<K> for RowKeys<F> {
+    fn len(&self) -> usize {
+        self.len
+    }
+
+    fn key(&self, index: usize) -> Option<K> {
+        (index < self.len).then(|| (self.key)(index))
+    }
+}
+
 /// Initial width and minimum of one column.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ColumnSize {
@@ -168,6 +254,17 @@ mod tests {
 
     fn cs(width: f32, min: f32) -> ColumnSize {
         ColumnSize { width, min }
+    }
+
+    #[test]
+    fn rows_key_data_indices() {
+        let ids = vec!["a", "b"];
+        assert_eq!(Rows::key(&3usize, 2), Some(2));
+        assert_eq!(Rows::key(&3usize, 3), None);
+        assert_eq!(Rows::key(&&ids, 1), Some("b"));
+        assert_eq!(Rows::key(&&ids[..], 2), None);
+        let keys = RowKeys::new(2, |i| i * 10);
+        assert_eq!((keys.len(), keys.key(1), keys.key(2)), (2, Some(10), None));
     }
 
     #[test]

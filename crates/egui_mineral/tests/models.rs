@@ -195,7 +195,7 @@ proptest! {
         let (mut len, mut selected, mut mask) = (5usize, None, 0u64);
         for op in ops {
             let enabled = move |i: usize| (mask >> (i % 64)) & 1 == 0;
-            let list = |kind, selected, len| ComboList { kind, selected, len, enabled: &enabled };
+            let list = |kind, selected, len| ComboList::new(kind, len, &enabled).selected(selected);
             let usable = |i: Option<usize>| i.is_none_or(|i| i < len && enabled(i));
             match op {
                 ComboOp::Key(key, mods, kind) => {

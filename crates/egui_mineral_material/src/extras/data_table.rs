@@ -5,6 +5,7 @@ use crate::Rt;
 use crate::msg;
 use egui_mineral::kit::state::TempState;
 use egui_mineral::semantic::KeyedSalt;
+use egui_mineral::table::{ItemKey, Rows};
 use egui_mineral::widget::MineralUi;
 use std::{borrow::Cow, cmp::Ordering, sync::Arc};
 
@@ -219,11 +220,11 @@ struct TableState {
 /// Result of [`DataTable::show`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct DataTableResponse {
+pub struct DataTableResponse<K> {
     /// Table response; marked changed on selection changes.
     pub response: egui::Response,
-    /// Data row index activated this frame.
-    pub activated: Option<usize>,
+    /// Key of the row activated this frame.
+    pub activated: Option<K>,
     /// Sort after this frame.
     pub sort: SortState,
     /// Sort changed this frame.
@@ -252,12 +253,12 @@ type SortFn<'a> = Box<dyn Fn(usize, SortState) -> Vec<usize> + 'a>;
 
 /// Virtualized table with sorting, selection, resizable columns and paging; non-MD3 (MUI X `DataGrid` pattern).
 #[must_use = "call .show(..)"]
-pub struct DataTable<'a> {
+pub struct DataTable<'a, K> {
     salt: KeyedSalt,
     label: String,
     columns: Vec<TableColumn>,
     rows: usize,
-    selection: Option<&'a mut Selection<usize>>,
+    selection: Option<&'a mut Selection<K>>,
     page_sizes: Vec<usize>,
     max_height: Option<f32>,
     data_version: u64,
@@ -265,7 +266,7 @@ pub struct DataTable<'a> {
     disabled: bool,
 }
 
-egui_mineral::kit::opaque_debug!(DataTable<'_>);
+egui_mineral::kit::opaque_debug!(DataTable<'_, K>);
 
 struct Geometry {
     dir: Direction,
@@ -295,20 +296,19 @@ impl Geometry {
     }
 }
 
-impl<'a> DataTable<'a> {
-    /// `label` names the table for assistive technology; `rows` is the data row count. Agent key prefix `<id_salt>`.
+impl<'a, K: ItemKey> DataTable<'a, K> {
+    /// `label` names the table for assistive technology. Agent key prefix `<id_salt>`.
     pub fn new(
         id_salt: impl Into<KeyedSalt>,
         label: impl Into<String>,
         columns: impl IntoIterator<Item = impl Into<TableColumn>>,
-        rows: usize,
     ) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
             salt: id_salt,
             label: label.into(),
             columns: columns.into_iter().map(Into::into).collect(),
-            rows,
+            rows: 0,
             selection: None,
             page_sizes: Vec::new(),
             max_height: None,
@@ -323,8 +323,8 @@ impl<'a> DataTable<'a> {
         agent_key(salt)
     }
 
-    /// Checkbox column bound to selected data row indices.
-    pub fn selection(mut self, selection: &'a mut Selection<usize>) -> Self {
+    /// Checkbox column bound to the selected row keys.
+    pub fn selection(mut self, selection: &'a mut Selection<K>) -> Self {
         self.selection = Some(selection);
         self
     }
@@ -358,7 +358,7 @@ impl<'a> DataTable<'a> {
     }
 
     /// Custom sort key of a data cell; default compares cell values.
-    pub fn sort_by_key<K: Ord>(mut self, key: impl Fn(Cell) -> K + 'a) -> Self {
+    pub fn sort_by_key<S: Ord>(mut self, key: impl Fn(Cell) -> S + 'a) -> Self {
         self.sort_key = Some(Box::new(move |rows, sort| sort_order(rows, sort, &key)));
         self
     }
@@ -385,14 +385,16 @@ impl<'a> DataTable<'a> {
         }
     }
 
-    /// `cell(row, column)` yields each visible cell; rows are data indices.
+    /// `rows` counts and keys the data rows; `cell(row, column)` yields each visible cell, `row` a data index.
     pub fn show<'d>(
-        self,
+        mut self,
         ui: &mut MineralUi<'_, Material>,
+        rows: impl Rows<K> + Copy,
         cell: impl Fn(usize, usize) -> TableCell<'d>,
-    ) -> DataTableResponse {
+    ) -> DataTableResponse<K> {
         let rt = ui.rt();
-        let out = ui.scope(|ui| self.run(&mut rt.ui(ui), &cell));
+        self.rows = rows.len();
+        let out = ui.scope(|ui| self.run(&mut rt.ui(ui), &rows, &cell));
         let e = out.inner;
         let mut response = out.response;
         if e.changed {
@@ -400,7 +402,7 @@ impl<'a> DataTable<'a> {
         }
         DataTableResponse {
             response,
-            activated: e.activated,
+            activated: e.activated.and_then(|d| rows.key(d)),
             sort: e.sort,
             sort_changed: e.sort_changed,
             changed: e.changed,
@@ -559,7 +561,12 @@ impl<'a> DataTable<'a> {
         }
     }
 
-    fn run<'d>(mut self, ui: &mut MineralUi<'_, Material>, cell: &dyn Fn(usize, usize) -> TableCell<'d>) -> Events {
+    fn run<'d>(
+        mut self,
+        ui: &mut MineralUi<'_, Material>,
+        keys: &dyn Rows<K>,
+        cell: &dyn Fn(usize, usize) -> TableCell<'d>,
+    ) -> Events {
         let rt = ui.rt();
         let ctx = rt.ctx();
         let t = rt.tokens();
@@ -607,6 +614,7 @@ impl<'a> DataTable<'a> {
         let mut pass = Pass::default();
         let view = TableView {
             table: &self,
+            keys,
             rt,
             fmt: rt.i18n().format(),
             ctx,
@@ -645,11 +653,7 @@ impl<'a> DataTable<'a> {
             out.sort_changed = true;
         }
         let page_ids = order.get(page).unwrap_or_default();
-        self.apply_selection(&pass, page_ids, &order, &mut out);
-        out.activated = pass.events.iter().rev().find_map(|e| match e {
-            RowEvent::Click(d, _) => Some(*d),
-            RowEvent::Check(..) => None,
-        });
+        self.apply_row_events(&pass, keys, page_ids, &order, &mut out);
 
         if let Some(paging) = st.paging.as_mut() {
             out.page_changed = self.footer(ui, rt, row_h, &t, paging);
@@ -667,18 +671,35 @@ impl<'a> DataTable<'a> {
         out
     }
 
-    fn apply_selection(&mut self, pass: &Pass, page_ids: &[usize], order: &[usize], out: &mut Events) {
+    fn apply_row_events(
+        &mut self,
+        pass: &Pass,
+        keys: &dyn Rows<K>,
+        page_ids: &[usize],
+        order: &[usize],
+        out: &mut Events,
+    ) {
+        out.activated = pass.events.iter().rev().find_map(|e| match e {
+            RowEvent::Click(d, _) => Some(*d),
+            RowEvent::Check(..) => None,
+        });
         let Some(sel) = self.selection.as_deref_mut() else {
             return;
         };
         if let Some(on) = pass.header_check {
-            for d in page_ids.iter().copied() {
-                out.changed |= if on { sel.select(d) } else { sel.deselect(&d) };
+            for k in page_ids.iter().filter_map(|d| keys.key(*d)) {
+                out.changed |= if on { sel.select(k) } else { sel.deselect(&k) };
             }
         }
+        if pass.events.is_empty() {
+            return;
+        }
+        let order: Vec<K> = order.iter().filter_map(|d| keys.key(*d)).collect();
         for e in &pass.events {
             let (RowEvent::Check(d, m) | RowEvent::Click(d, m)) = *e;
-            out.changed |= toggle_row(sel, d, m, order);
+            if let Some(k) = keys.key(d) {
+                out.changed |= toggle_row(sel, k, m, &order);
+            }
         }
     }
 }
@@ -692,10 +713,9 @@ struct OrderKey {
     i18n: u64,
 }
 
-#[derive(Clone, Copy)]
-struct RowAt {
+struct RowAt<'k, K> {
     grid: usize,
-    data: usize,
+    key: &'k K,
 }
 
 #[derive(Default)]
@@ -708,8 +728,9 @@ struct Pass {
     cells: Vec<Response>,
 }
 
-struct TableView<'v, 'a> {
-    table: &'v DataTable<'a>,
+struct TableView<'v, 'a, K> {
+    table: &'v DataTable<'a, K>,
+    keys: &'v dyn Rows<K>,
     rt: &'v crate::Rt,
     fmt: Arc<dyn LocaleFormat>,
     ctx: &'v Context,
@@ -724,13 +745,17 @@ struct TableView<'v, 'a> {
     cell_shape: egui::CornerRadius,
 }
 
-impl TableView<'_, '_> {
+impl<K: ItemKey> TableView<'_, '_, K> {
     fn has_sel(&self) -> bool {
         self.table.selection.is_some()
     }
 
     fn is_selected(&self, d: usize) -> bool {
-        self.table.selection.as_deref().is_some_and(|s| s.is_selected(&d))
+        self.table
+            .selection
+            .as_deref()
+            .zip(self.keys.key(d))
+            .is_some_and(|(s, k)| s.is_selected(&k))
     }
 
     fn sense_at(&self, pos: Cell) -> Sense {
@@ -962,14 +987,19 @@ impl TableView<'_, '_> {
         i: usize,
         cell: &dyn Fn(usize, usize) -> TableCell<'d>,
     ) {
-        let Some(&d) = self.order.get(self.page.start + i) else {
+        let Some((d, key)) = self
+            .order
+            .get(self.page.start + i)
+            .and_then(|d| Some((*d, self.keys.key(*d)?)))
+        else {
             return;
         };
         let disabled = self.table.disabled;
         let (rect, _) = ui.allocate_exact_size(vec2(self.geo.table_w, self.row_h), Sense::hover());
-        let selected = self.is_selected(d);
+        let selected = self.table.selection.as_deref().is_some_and(|s| s.is_selected(&key));
         let mut cells = std::mem::take(&mut pass.cells);
-        let check = self.row_inputs(ui, st, pass, &mut cells, rect, RowAt { grid: i + 1, data: d });
+        let at = RowAt { grid: i + 1, key: &key };
+        let check = self.row_inputs(ui, st, pass, &mut cells, rect, (d, at));
         let col = RowColors::of(
             RowState {
                 selected,
@@ -978,21 +1008,21 @@ impl TableView<'_, '_> {
             },
             self.t,
         );
-        self.paint_row(ui, rect, &col, &cells, d, selected);
+        self.paint_row(ui, rect, &col, &cells, &key, selected);
         if let Some(r) = &check {
             let state = if selected { Check::Checked } else { Check::Unchecked };
             row_parts::paint_checkbox(ui, r, self.geo.check_center(rect), state, disabled, self.t);
             check_semantics(
                 self.rt,
                 r,
-                StableId::of(&self.table.salt, (d, "checkbox")),
+                StableId::of(&self.table.salt, (key.clone(), "checkbox")),
                 msg::TABLE_SELECT_ROW,
                 state,
                 disabled,
             );
         }
         for (c, r) in cells.iter().enumerate() {
-            self.paint_cell(ui, &col, r, Cell { row: d, column: c }, cell);
+            self.paint_cell(ui, &col, r, (Cell { row: d, column: c }, &key), cell);
         }
         pass.cells = cells;
     }
@@ -1004,12 +1034,9 @@ impl TableView<'_, '_> {
         pass: &mut Pass,
         cells: &mut Vec<Response>,
         rect: Rect,
-        at: RowAt,
+        (d, at): (usize, RowAt<'_, K>),
     ) -> Option<Response> {
-        let RowAt {
-            grid: grid_row,
-            data: d,
-        } = at;
+        let RowAt { grid: grid_row, key } = at;
         let rt = ui.rt();
         let ctx = self.ctx;
         let disabled = self.table.disabled;
@@ -1018,7 +1045,7 @@ impl TableView<'_, '_> {
             let r = kit::input::interact(
                 &rt.ui(ui),
                 self.geo.check(rect),
-                self.id.with(("check", d)),
+                self.id.with(("check", key)),
                 self.sense_at(Cell {
                     row: grid_row,
                     column: 0,
@@ -1048,7 +1075,7 @@ impl TableView<'_, '_> {
                 let r = kit::input::interact(
                     &rt.ui(ui),
                     self.geo.cell(rect, c),
-                    self.id.with(("c", d, c)),
+                    self.id.with(("c", key, c)),
                     self.sense_at(Cell {
                         row: grid_row,
                         column: gc,
@@ -1080,7 +1107,7 @@ impl TableView<'_, '_> {
         rect: Rect,
         col: &RowColors,
         cells: &[Response],
-        d: usize,
+        key: &K,
         selected: bool,
     ) {
         let rt = ui.rt();
@@ -1095,7 +1122,7 @@ impl TableView<'_, '_> {
         }
         row_parts::bottom_divider(ui.painter(), rect, self.t);
         semantic::emit(self.ctx, None, rect, || {
-            let mut n = SemanticNode::new(StableId::of(&self.table.salt, (d, "row")), Role::Row, "");
+            let mut n = SemanticNode::new(StableId::of(&self.table.salt, (key.clone(), "row")), Role::Row, "");
             n.state.selected = self.has_sel().then_some(selected);
             n.state.disabled = self.table.disabled;
             n.depth = 1;
@@ -1108,7 +1135,7 @@ impl TableView<'_, '_> {
         ui: &mut Ui,
         col: &RowColors,
         r: &Response,
-        at: Cell,
+        (at, key): (Cell, &K),
         cell: &dyn Fn(usize, usize) -> TableCell<'d>,
     ) {
         let Cell { row: d, column: c } = at;
@@ -1131,7 +1158,7 @@ impl TableView<'_, '_> {
         common::state_layer(p, cr, self.cell_shape, col.label, focus, self.t);
         semantic::emit(self.ctx, Some(r.id), cr, || {
             let mut n = SemanticNode::new(
-                StableId::of(&self.table.salt, (d, c, "cell")),
+                StableId::of(&self.table.salt, (key.clone(), c, "cell")),
                 Role::Cell,
                 text.as_ref(),
             )
@@ -1152,7 +1179,7 @@ fn grid_focus_target(ctx: &Context, from: Cell, grid: focus::Grid, dir: Directio
     (target != from).then_some(target)
 }
 
-fn toggle_row(sel: &mut Selection<usize>, d: usize, m: Modifiers, order: &[usize]) -> bool {
+fn toggle_row<K: Ord + Clone>(sel: &mut Selection<K>, d: K, m: Modifiers, order: &[K]) -> bool {
     if m.shift {
         let extend = Modifiers {
             shift: true,

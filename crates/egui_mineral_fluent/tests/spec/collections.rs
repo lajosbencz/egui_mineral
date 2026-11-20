@@ -55,7 +55,7 @@ fn header_is_at_least_the_size_minimum() {
         let mut open = Expansion::default();
         let p = render(|ui| {
             Accordion::new("a", &mut open).size(size).show(ui, |a| {
-                a.item(AccordionItem::new("One"), |_| ());
+                a.item(0, AccordionItem::new("One"), |_| ());
             });
         });
         let tree = p.rt.tree(egui::ViewportId::ROOT).expect("semantics collected");

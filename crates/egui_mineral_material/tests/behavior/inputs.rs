@@ -11,7 +11,7 @@ const FRUIT: [&str; 3] = ["Apple", "Apricot", "Banana"];
 #[test]
 fn combobox_filters_and_reports_the_picked_option() {
     let mut h = harness(SCREEN, (String::new(), Vec::new()), |ui, (text, seen)| {
-        let r = ui.mineral(Combobox::new("fruit", "Fruit", FRUIT, text));
+        let r = ui.mineral(Combobox::new("fruit", "Fruit", text).items(FRUIT.into_iter().enumerate()));
         seen.push(r.output().clone());
     });
     h.press(Key::Tab);
@@ -30,7 +30,11 @@ fn free_text_combobox_reports_a_created_entry() {
         SCREEN,
         (String::new(), ComboboxOutput::default()),
         |ui, (text, seen)| {
-            let r = ui.mineral(Combobox::new("fruit", "Fruit", FRUIT, text).free_text(true));
+            let r = ui.mineral(
+                Combobox::new("fruit", "Fruit", text)
+                    .items(FRUIT.into_iter().enumerate())
+                    .free_text(true),
+            );
             seen.selected = seen.selected.or(r.output().selected);
             seen.created = seen.created.take().or_else(|| r.output().created.clone());
         },
@@ -149,7 +153,7 @@ fn search_bar_reports_submit_on_enter() {
 #[test]
 fn combobox_toggle_opens_every_option_from_cold() {
     let mut h = harness(SCREEN, (String::new(), None), |ui, (text, picked)| {
-        let r = ui.mineral(Combobox::new("fruit", "Fruit", FRUIT, text));
+        let r = ui.mineral(Combobox::new("fruit", "Fruit", text).items(FRUIT.into_iter().enumerate()));
         *picked = picked.or(r.output().selected);
     });
     let key_of = |h: &Harness<'_, (String, Option<usize>)>, name: &str| {

@@ -185,7 +185,9 @@ fn boxed<R>(ui: &mut MaterialUi<'_>, height: f32, add: impl FnOnce(&mut Material
 }
 
 pub(crate) fn show(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
-    section(ui, TOPICS[0], Some(<DataTable<'static>>::META), |ui| table(ui, s));
+    section(ui, TOPICS[0], Some(<DataTable<'static, usize>>::META), |ui| {
+        table(ui, s);
+    });
     section(ui, TOPICS[1], Some(<TreeView<'static, Node>>::META), |ui| {
         tree(ui, s, shared);
         outline(ui, s);
@@ -216,11 +218,11 @@ fn table(ui: &mut MaterialUi<'_>, s: &mut State) {
             .width(120.0),
         TableColumn::new("Notes").width(200.0).sortable(false),
     ];
-    let r = DataTable::new("demo-table", "People", cols, ROWS)
+    let r = DataTable::new("demo-table", "People", cols)
         .selection(&mut s.table_sel)
         .paginate([10, 25, 50])
         .max_height(420.0)
-        .show(ui, |row, col| match col {
+        .show(ui, ROWS, |row, col| match col {
             0 => TableCell::from(format!("{} {}", NAMES[row % NAMES.len()], row / NAMES.len() + 1)),
             1 => TableCell::from(TEAMS[(row * 7) % TEAMS.len()]),
             2 => TableCell::Number(((row * 37) % 1000) as f64 / 10.0),

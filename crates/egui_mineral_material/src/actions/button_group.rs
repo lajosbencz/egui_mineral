@@ -82,7 +82,7 @@ impl ButtonGroupItem {
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub struct ButtonGroupResponse<K> {
-    /// Toggle outcome of a [`ButtonGroup::selection`] group.
+    /// Toggle outcome of a [`ButtonGroup::multi`] group.
     pub selection: Option<SelectionResponse<K>>,
     /// Button clicked this frame, with its [`ButtonGroupItem::key`].
     pub clicked: Option<Clicked>,
@@ -137,8 +137,8 @@ impl ButtonGroup<'_, ()> {
 impl<'a, K: Ord + Clone> ButtonGroup<'a, K> {
     /// Toggle buttons whose values `selection` holds; a [`Selection::single`] makes a radio group. Add the
     /// buttons with [`Self::toggle`].
-    pub fn selection(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selection: &'a mut Selection<K>) -> Self {
-        Self::with(id_salt.into(), label, Some(Choice::many(selection)))
+    pub fn multi(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selection: &'a mut Selection<K>) -> Self {
+        Self::with(id_salt.into(), label, Some(Choice::multi(selection)))
     }
 
     /// Appends one toggle button carrying `value`.
