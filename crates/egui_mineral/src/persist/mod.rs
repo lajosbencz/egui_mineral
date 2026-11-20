@@ -56,14 +56,15 @@ pub trait Codec {
     fn decode<T: DeserializeOwned>(raw: &str) -> Result<T, PersistError>;
 }
 
-/// Storage key of values of type `T`: `const SETTINGS: PersistKey<Settings> = PersistKey::new("settings");`.
-/// [`load`] and [`save`] take it, so a key is never read as another type than it was written as.
-pub struct PersistKey<T> {
+/// Storage key of values of type `T` in codec `C`: `const SETTINGS: PersistKey<Settings, Toml> =
+/// PersistKey::new("settings");`. [`load`] and [`save`] take it, so a key is never read as another type or format
+/// than it was written as.
+pub struct PersistKey<T, C> {
     name: &'static str,
-    value: PhantomData<fn() -> T>,
+    value: PhantomData<fn() -> (T, C)>,
 }
 
-impl<T> PersistKey<T> {
+impl<T, C> PersistKey<T, C> {
     /// Key `name`; keep one constant per stored value.
     pub const fn new(name: &'static str) -> Self {
         Self {
@@ -78,15 +79,15 @@ impl<T> PersistKey<T> {
     }
 }
 
-impl<T> Clone for PersistKey<T> {
+impl<T, C> Clone for PersistKey<T, C> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<T> Copy for PersistKey<T> {}
+impl<T, C> Copy for PersistKey<T, C> {}
 
-impl<T> std::fmt::Debug for PersistKey<T> {
+impl<T, C> std::fmt::Debug for PersistKey<T, C> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("PersistKey").field(&self.name).finish()
     }
@@ -96,7 +97,7 @@ impl<T> std::fmt::Debug for PersistKey<T> {
 ///
 /// # Errors
 /// When the storage read or the decode fails.
-pub fn load<C: Codec, T: DeserializeOwned>(s: &impl Storage, key: PersistKey<T>) -> Result<Option<T>, PersistError> {
+pub fn load<T: DeserializeOwned, C: Codec>(s: &impl Storage, key: PersistKey<T, C>) -> Result<Option<T>, PersistError> {
     s.get(key.name)?.map(|raw| C::decode(&raw)).transpose()
 }
 
@@ -104,7 +105,11 @@ pub fn load<C: Codec, T: DeserializeOwned>(s: &impl Storage, key: PersistKey<T>)
 ///
 /// # Errors
 /// When the encode or the storage write fails.
-pub fn save<C: Codec, T: Serialize>(s: &mut impl Storage, key: PersistKey<T>, value: &T) -> Result<(), PersistError> {
+pub fn save<T: Serialize, C: Codec>(
+    s: &mut impl Storage,
+    key: PersistKey<T, C>,
+    value: &T,
+) -> Result<(), PersistError> {
     s.set(key.name, C::encode(value)?)
 }
 
@@ -112,7 +117,7 @@ pub fn save<C: Codec, T: Serialize>(s: &mut impl Storage, key: PersistKey<T>, va
 ///
 /// # Errors
 /// When the backend cannot delete it.
-pub fn remove<T>(s: &mut impl Storage, key: PersistKey<T>) -> Result<(), PersistError> {
+pub fn remove<T, C>(s: &mut impl Storage, key: PersistKey<T, C>) -> Result<(), PersistError> {
     s.remove(key.name)
 }
 
@@ -342,19 +347,19 @@ mod tests {
             name: String,
             size: u32,
         }
-        const PREFS: PersistKey<Prefs> = PersistKey::new("prefs");
+        const PREFS: PersistKey<Prefs, Toml> = PersistKey::new("prefs");
 
         let mut s = MemoryStorage::default();
         let prefs = Prefs {
             name: "a".into(),
             size: 3,
         };
-        save::<Toml, _>(&mut s, PREFS, &prefs).unwrap();
-        assert_eq!(load::<Toml, _>(&s, PREFS).unwrap(), Some(prefs));
-        assert_eq!(load::<Toml, _>(&s, PersistKey::<Prefs>::new("absent")).unwrap(), None);
+        save(&mut s, PREFS, &prefs).unwrap();
+        assert_eq!(load(&s, PREFS).unwrap(), Some(prefs));
+        assert_eq!(load(&s, PersistKey::<Prefs, Toml>::new("absent")).unwrap(), None);
 
         s.set("prefs", "not = [valid".into()).unwrap();
-        let err = load::<Toml, _>(&s, PREFS).unwrap_err();
+        let err = load(&s, PREFS).unwrap_err();
         assert!(matches!(err, PersistError::Codec(_)));
         assert!(
             std::error::Error::source(&err).is_some(),

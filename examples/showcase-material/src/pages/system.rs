@@ -58,7 +58,7 @@ pub(crate) const TOPICS: &[&str] = &[
 ];
 
 const JOB_BASE: u32 = 2_000_000;
-const PERSIST_KEY: PersistKey<Profile> = PersistKey::new("profile");
+const PERSIST_NAME: &str = "profile";
 const LOG_LINES: usize = 8;
 
 struct Doc {
@@ -440,17 +440,18 @@ fn deep_links(ui: &mut MaterialUi<'_>, s: &mut State) {
     );
 }
 
-fn save_with<S: Storage>(st: &mut S, fmt: Format, key: PersistKey<Profile>, p: &Profile) -> Result<(), PersistError> {
+// One stored name in the format picked at run time; apps keep one `PersistKey` constant per value.
+fn save_with<S: Storage>(st: &mut S, fmt: Format, name: &'static str, p: &Profile) -> Result<(), PersistError> {
     match fmt {
-        Format::Json => persist::save::<Json, _>(st, key, p),
-        Format::Toml => persist::save::<Toml, _>(st, key, p),
+        Format::Json => persist::save(st, PersistKey::<_, Json>::new(name), p),
+        Format::Toml => persist::save(st, PersistKey::<_, Toml>::new(name), p),
     }
 }
 
 fn load_with<S: Storage>(st: &S, fmt: Format) -> Result<Option<Profile>, PersistError> {
     match fmt {
-        Format::Json => persist::load::<Json, _>(st, PERSIST_KEY),
-        Format::Toml => persist::load::<Toml, _>(st, PERSIST_KEY),
+        Format::Json => persist::load(st, PersistKey::<_, Json>::new(PERSIST_NAME)),
+        Format::Toml => persist::load(st, PersistKey::<_, Toml>::new(PERSIST_NAME)),
     }
 }
 
@@ -469,17 +470,17 @@ fn run_persist(s: &mut State, op: &PersistOp) -> Result<String, PersistError> {
         ($st:expr) => {{
             let st = $st;
             match op {
-                PersistOp::Save => save_with(st, fmt, PERSIST_KEY, &profile).map(|()| "Saved".to_owned()),
+                PersistOp::Save => save_with(st, fmt, PERSIST_NAME, &profile).map(|()| "Saved".to_owned()),
                 PersistOp::Load => load_with(st, fmt).map(|p| {
                     let note = if p.is_some() { "Loaded" } else { "Nothing stored" };
                     s.loaded = p;
                     note.to_owned()
                 }),
-                PersistOp::Remove => persist::remove(st, PERSIST_KEY).map(|()| "Removed".to_owned()),
+                PersistOp::Remove => st.remove(PERSIST_NAME).map(|()| "Removed".to_owned()),
                 PersistOp::Corrupt => st
-                    .set(PERSIST_KEY.name(), "{ not valid ::".to_owned())
+                    .set(PERSIST_NAME, "{ not valid ::".to_owned())
                     .map(|()| "Wrote garbage".to_owned()),
-                PersistOp::BadKey => save_with(st, fmt, PersistKey::new(""), &profile).map(|()| "Saved".to_owned()),
+                PersistOp::BadKey => save_with(st, fmt, "", &profile).map(|()| "Saved".to_owned()),
             }
         }};
     }
