@@ -1441,6 +1441,7 @@ dependencies = [
 name = "egui_mineral_macros"
 version = "0.6.0"
 dependencies = [
+ "fluent-syntax",
  "proc-macro2",
  "quote",
  "syn 3.0.10",

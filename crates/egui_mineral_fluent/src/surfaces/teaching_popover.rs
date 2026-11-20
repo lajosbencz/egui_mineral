@@ -1,3 +1,4 @@
+use crate::msg;
 use egui::{CornerRadius, Layout, Rect, Response, Sense, UiBuilder, vec2};
 use egui_mineral::{
     anchor::{Align, Side},
@@ -245,7 +246,7 @@ impl TeachingPopover {
         };
         let current = self.steps.get(shown);
         let dir = rt.i18n().direction();
-        let dismiss = crate::tr(rt.i18n(), "mineral-dismiss");
+        let dismiss = crate::tr(rt.i18n(), msg::DISMISS);
         let header = current.and_then(|s| s.header.as_deref());
         ui.scope_builder(UiBuilder::new().layout(Layout::top_down(egui::Align::Min)), |ui| {
             let row = ui.available_width();
@@ -310,9 +311,9 @@ impl TeachingPopover {
                 };
                 if count > 1 {
                     let label = if last {
-                        crate::tr_or(rt.i18n(), self.primary.as_deref(), "mineral-teaching-done")
+                        crate::tr_or(rt.i18n(), self.primary.as_deref(), msg::TEACHING_DONE)
                     } else {
-                        crate::tr_or(rt.i18n(), self.next.as_deref(), "mineral-teaching-next")
+                        crate::tr_or(rt.i18n(), self.next.as_deref(), msg::TEACHING_NEXT)
                     };
                     if button(ui, "primary", &label, ButtonAppearance::Primary) {
                         if last {
@@ -322,7 +323,7 @@ impl TeachingPopover {
                         }
                     }
                     if shown > 0 {
-                        let label = crate::tr_or(rt.i18n(), self.previous.as_deref(), "mineral-teaching-previous");
+                        let label = crate::tr_or(rt.i18n(), self.previous.as_deref(), msg::TEACHING_PREVIOUS);
                         if button(ui, "previous", &label, ButtonAppearance::Secondary) {
                             *step = shown - 1;
                         }
@@ -376,16 +377,13 @@ impl TeachingPopover {
             if response.has_focus() {
                 crate::widget::focus::outline(ui.painter(), dot, CornerRadius::from(radius), &t);
             }
-            let label = rt.i18n().tr(
-                "mineral-teaching-step",
-                &[(
-                    "step",
-                    rt.i18n()
-                        .format()
-                        .integer(i64::try_from(i + 1).unwrap_or(i64::MAX))
-                        .into(),
-                )],
-            );
+            let label = rt.i18n().tr(msg::TeachingStep {
+                step: rt
+                    .i18n()
+                    .format()
+                    .integer(i64::try_from(i + 1).unwrap_or(i64::MAX))
+                    .into(),
+            });
             semantic::emit(ui.ctx(), Some(id), rect, || {
                 SemanticNode::new(StableId::of(&self.salt, (i, "step")), Role::Button, label)
                     .clickable(Availability::Enabled)

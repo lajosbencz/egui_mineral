@@ -47,14 +47,14 @@ impl Category {
         crate::tr(
             i18n,
             match self {
-                Self::Actions => "mineral-category-actions",
-                Self::Inputs => "mineral-category-inputs",
-                Self::Feedback => "mineral-category-feedback",
-                Self::Surfaces => "mineral-category-surfaces",
-                Self::Navigation => "mineral-category-navigation",
-                Self::Data => "mineral-category-data",
+                Self::Actions => msg::CATEGORY_ACTIONS,
+                Self::Inputs => msg::CATEGORY_INPUTS,
+                Self::Feedback => msg::CATEGORY_FEEDBACK,
+                Self::Surfaces => msg::CATEGORY_SURFACES,
+                Self::Navigation => msg::CATEGORY_NAVIGATION,
+                Self::Data => msg::CATEGORY_DATA,
                 #[cfg(feature = "extras")]
-                Self::Extras => "mineral-category-extras",
+                Self::Extras => msg::CATEGORY_EXTRAS,
             },
         )
     }
@@ -124,6 +124,7 @@ macro_rules! other {
 }
 
 // Only the prelude: a cataloged type that it does not export fails to compile here.
+use crate::msg;
 use crate::prelude::*;
 
 meta!(

@@ -1,4 +1,5 @@
 use crate::MaterialUiExt as _;
+use crate::msg;
 use egui_mineral::kit::palette::{self, Entry, Labels, Row, State};
 use egui_mineral::kit::state::TempState;
 
@@ -161,7 +162,7 @@ impl<'a> CommandPalette<'a> {
             let g = parts::type_galley(
                 rt.core(),
                 ui.painter(),
-                &crate::tr(rt.i18n(), "mineral-command-empty"),
+                &crate::tr(rt.i18n(), msg::COMMAND_EMPTY),
                 list::ITEM_SUPPORTING_TEXT_FONT,
                 col(list::ITEM_SUPPORTING_TEXT_COLOR),
                 None,
@@ -212,7 +213,7 @@ impl<'a> CommandPalette<'a> {
                 SemanticNode::new(
                     StableId::of(salt, "commands"),
                     Role::ListBox,
-                    crate::tr(rt.i18n(), "mineral-command-results"),
+                    crate::tr(rt.i18n(), msg::COMMAND_RESULTS),
                 )
             },
         );
@@ -263,7 +264,7 @@ impl<'a> CommandPalette<'a> {
 
         let screen = ctx.content_rect();
         let width = defaults::search_bar::MAX_WIDTH.min(screen.width() - 2.0 * WINDOW_MARGIN);
-        let placeholder = crate::tr_or(rt.i18n(), self.placeholder.as_deref(), "mineral-command-placeholder");
+        let placeholder = crate::tr_or(rt.i18n(), self.placeholder.as_deref(), msg::COMMAND_PLACEHOLDER);
         let header_h = search_view::DOCKED_HEADER_CONTAINER_HEIGHT;
         // A popup root: the app density.
         let row_h = row_parts::row_height(rt.kit().density());

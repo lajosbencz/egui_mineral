@@ -1,5 +1,6 @@
 use crate::Material;
 use crate::MaterialExt;
+use crate::msg;
 use egui_mineral::semantic::AgentKey;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::MineralUi;
@@ -216,7 +217,7 @@ impl LoadingIndicator {
     }
 
     fn node(&self, i18n: &egui_mineral::i18n::I18n) -> SemanticNode {
-        let name = crate::tr_or(i18n, self.label.as_deref(), "mineral-loading");
+        let name = crate::tr_or(i18n, self.label.as_deref(), msg::LOADING);
         SemanticNode::new(self.key.id(&self.salt), Role::ProgressIndicator, name)
     }
 }

@@ -2,6 +2,7 @@ use crate::Material;
 use crate::MaterialExt;
 use crate::MaterialUiExt as _;
 use crate::Rt;
+use crate::msg;
 use egui_mineral::kit::state::TempState;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::MineralUi;
@@ -475,7 +476,7 @@ impl<'a> DataTable<'a> {
             let last = paging.page_count(rows) - 1;
             if ui
                 .mineral(
-                    IconButton::new(salt.child("next"), fwd, crate::tr(rt.i18n(), "mineral-pagination-next"))
+                    IconButton::new(salt.child("next"), fwd, crate::tr(rt.i18n(), msg::PAGINATION_NEXT))
                         .disabled(disabled || paging.index() >= last),
                 )
                 .clicked()
@@ -484,12 +485,8 @@ impl<'a> DataTable<'a> {
             }
             if ui
                 .mineral(
-                    IconButton::new(
-                        salt.child("prev"),
-                        back,
-                        crate::tr(rt.i18n(), "mineral-pagination-prev"),
-                    )
-                    .disabled(disabled || paging.index() == 0),
+                    IconButton::new(salt.child("prev"), back, crate::tr(rt.i18n(), msg::PAGINATION_PREV))
+                        .disabled(disabled || paging.index() == 0),
                 )
                 .clicked()
             {
@@ -501,14 +498,11 @@ impl<'a> DataTable<'a> {
             } else {
                 (range.start + 1, range.end)
             };
-            let text = rt.i18n().tr(
-                "mineral-table-range",
-                &[
-                    ("start", fmt.count(s).into()),
-                    ("end", fmt.count(e).into()),
-                    ("total", fmt.count(rows).into()),
-                ],
-            );
+            let text = rt.i18n().tr(msg::TableRange {
+                start: fmt.count(s).into(),
+                end: fmt.count(e).into(),
+                total: fmt.count(rows).into(),
+            });
             ui.add_space(crate::adaptive::grid(4));
             parts::type_label(ui, &text, FOOTER_FONT, text_color, 1);
             ui.add_space(crate::adaptive::grid(4));
@@ -522,7 +516,7 @@ impl<'a> DataTable<'a> {
                 );
                 let mut menu = Menu::new(
                     salt.child("page-size-menu"),
-                    crate::tr(rt.i18n(), "mineral-table-rows-per-page"),
+                    crate::tr(rt.i18n(), msg::TABLE_ROWS_PER_PAGE),
                 )
                 .emit_anchor(false);
                 for s in sizes {
@@ -533,7 +527,7 @@ impl<'a> DataTable<'a> {
                 }
                 parts::type_label(
                     ui,
-                    &crate::tr(rt.i18n(), "mineral-table-rows-per-page"),
+                    &crate::tr(rt.i18n(), msg::TABLE_ROWS_PER_PAGE),
                     FOOTER_FONT,
                     text_color,
                     1,
@@ -813,7 +807,7 @@ impl TableView<'_, '_> {
             self.rt,
             &r,
             StableId::of(&self.table.salt, "all-checkbox"),
-            "mineral-table-select-all",
+            msg::TABLE_SELECT_ALL,
             state,
             disabled,
         );
@@ -834,7 +828,7 @@ impl TableView<'_, '_> {
             let mut n = SemanticNode::new(
                 StableId::of(&self.table.salt, "selection-header"),
                 Role::ColumnHeader,
-                crate::tr(self.rt.i18n(), "mineral-table-selection"),
+                crate::tr(self.rt.i18n(), msg::TABLE_SELECTION),
             );
             n.depth = 1;
             n.actions.push(Action::Focus);
@@ -886,8 +880,8 @@ impl TableView<'_, '_> {
                 crate::tr(
                     rt.i18n(),
                     match d {
-                        SortOrder::Ascending => "mineral-table-sort-ascending",
-                        SortOrder::Descending => "mineral-table-sort-descending",
+                        SortOrder::Ascending => msg::TABLE_SORT_ASCENDING,
+                        SortOrder::Descending => msg::TABLE_SORT_DESCENDING,
                     },
                 )
             });
@@ -929,7 +923,7 @@ impl TableView<'_, '_> {
         if page_rows == 0 {
             let g = parts::type_wrapped(
                 ui.painter(),
-                &crate::tr(self.rt.i18n(), "mineral-table-empty"),
+                &crate::tr(self.rt.i18n(), msg::TABLE_EMPTY),
                 list::ITEM_SUPPORTING_TEXT_FONT,
                 self.t.role(list::ITEM_SUPPORTING_TEXT_COLOR),
                 brect.width(),
@@ -992,7 +986,7 @@ impl TableView<'_, '_> {
                 self.rt,
                 r,
                 StableId::of(&self.table.salt, (d, "checkbox")),
-                "mineral-table-select-row",
+                msg::TABLE_SELECT_ROW,
                 state,
                 disabled,
             );
@@ -1298,7 +1292,9 @@ fn resize_handle(
     let line = rect.shrink2(vec2(0.0, defaults::list::VERTICAL_PADDING));
     ui.painter().vline(edge, line.y_range(), resize_stroke(&r, t));
     semantic::emit(ctx, Some(r.id), rect, || {
-        let name = rt.i18n().tr("mineral-table-resize", &[("column", (&col.title).into())]);
+        let name = rt.i18n().tr(msg::TableResize {
+            column: (&col.title).into(),
+        });
         let mut n = SemanticNode::new(StableId::of(salt, (c, "resize")), Role::Splitter, name)
             .value(rt.i18n().format().integer(widths.width(c).round() as i64))
             .ranged(model.numeric(f64::from(widths.width(c))), Availability::Enabled);
@@ -1307,7 +1303,7 @@ fn resize_handle(
     });
 }
 
-fn check_semantics(rt: &Rt, r: &Response, id: StableId, name_id: &str, state: Check, disabled: bool) {
+fn check_semantics(rt: &Rt, r: &Response, id: StableId, name_id: crate::Msg, state: Check, disabled: bool) {
     let ctx = rt.ctx();
     semantic::emit(ctx, Some(r.id), r.rect, || {
         let name = crate::tr(rt.i18n(), name_id);

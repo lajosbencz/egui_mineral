@@ -2,6 +2,7 @@ use crate::Material;
 use crate::MaterialExt;
 use crate::Rt;
 use crate::TextAction;
+use crate::msg;
 use egui_mineral::action::Clicked;
 use egui_mineral::kit::state::TempState;
 use egui_mineral::widget::MineralUi;
@@ -383,7 +384,7 @@ fn close_button(ui: &mut Ui, rt: &Rt, row: &Row, color: Color32) -> Response {
     };
     let resp = parts::icon_part(&mut rt.ui(ui), target, row.keys.id.with("close"), row.sense, &part);
     semantic::emit(ctx, Some(resp.id), target, || {
-        let label = crate::tr(rt.i18n(), "mineral-dismiss");
+        let label = crate::tr(rt.i18n(), msg::DISMISS);
         SemanticNode::button(row.keys.agent.sub("close"), &label, Availability::Enabled)
     });
     resp

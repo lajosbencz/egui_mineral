@@ -1,3 +1,4 @@
+use crate::msg;
 use egui::{Color32, CornerRadius, Id, Pos2, Rangef, Rect, Response, Sense, Stroke, StrokeKind, vec2};
 use egui_mineral::{
     date::{self, Date, DateBounds, MonthGrid, Weekday, add_months, weekdays_from},
@@ -438,8 +439,8 @@ impl Run<'_> {
     fn day_header(&self, ui: &mut MineralUi<'_, Fluent>, st: &mut View, first: Date) {
         let (prev, next) = (add_months(first, -1), add_months(first, 1));
         let names = [
-            self.i18n.tr("mineral-calendar-previous-month", &[]),
-            self.i18n.tr("mineral-calendar-next-month", &[]),
+            self.i18n.tr(msg::CALENDAR_PREVIOUS_MONTH),
+            self.i18n.tr(msg::CALENDAR_NEXT_MONTH),
         ];
         let nav = [
             (
@@ -664,7 +665,7 @@ impl Run<'_> {
             return;
         }
         let cx = &self.cx;
-        let text = self.i18n.tr("mineral-calendar-go-to-today", &[]);
+        let text = self.i18n.tr(msg::CALENDAR_GO_TO_TODAY);
         let p = ui.painter().clone();
         let format = crate::typography::format(
             ui.ctx(),
@@ -725,7 +726,7 @@ impl Run<'_> {
         let (title, names) = if months {
             (
                 fmt.native_digits(&st.year.to_string()),
-                ["mineral-calendar-previous-year", "mineral-calendar-next-year"],
+                [msg::CALENDAR_PREVIOUS_YEAR, msg::CALENDAR_NEXT_YEAR],
             )
         } else {
             let r = year_range(st.years_from);
@@ -735,10 +736,10 @@ impl Run<'_> {
                     fmt.native_digits(&r.start().to_string()),
                     fmt.native_digits(&r.end().to_string())
                 ),
-                ["mineral-calendar-previous-years", "mineral-calendar-next-years"],
+                [msg::CALENDAR_PREVIOUS_YEARS, msg::CALENDAR_NEXT_YEARS],
             )
         };
-        let labels = names.map(|n| self.i18n.tr(n, &[]));
+        let labels = names.map(|n| self.i18n.tr(n));
         let nav = [(false, labels[0].as_str()), (false, labels[1].as_str())];
         let (open_years, step) = self.header(ui, &title, months, nav);
         if open_years {

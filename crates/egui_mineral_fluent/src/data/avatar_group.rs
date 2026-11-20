@@ -1,3 +1,4 @@
+use crate::msg;
 use egui::{Rangef, Rect, ScrollArea, Sense, Stroke, StrokeKind, UiBuilder, pos2, vec2};
 use egui_mineral::{
     kit,
@@ -426,7 +427,7 @@ fn show_overflow(
     };
     let trigger = Trigger {
         salt: salt.clone(),
-        label: crate::tr(rt.i18n(), "mineral-avatar-group-more"),
+        label: crate::tr(rt.i18n(), msg::AVATAR_GROUP_MORE),
         size,
         pie,
         indicator: if size.px() < d::COUNT_INDICATOR_MIN_SIZE {
@@ -437,7 +438,7 @@ fn show_overflow(
         open,
     };
     let trigger = place(ui, boxed, |ui| rt.ui(ui).mineral(trigger));
-    let label = crate::tr(rt.i18n(), "mineral-avatar-group-overflow");
+    let label = crate::tr(rt.i18n(), msg::AVATAR_GROUP_OVERFLOW);
     Popover::new(salt.clone(), label)
         .size(PopoverSize::Small)
         .trap_focus(true)

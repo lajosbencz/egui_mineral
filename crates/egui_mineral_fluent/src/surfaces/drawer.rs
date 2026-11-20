@@ -1,3 +1,4 @@
+use crate::msg;
 use std::time::Duration;
 
 use egui::{Align2, Frame, Id, Margin, Panel, Rect, Response, ScrollArea, Ui, UiBuilder, Vec2, pos2, vec2};
@@ -390,7 +391,7 @@ impl Drawer {
                     });
                     if self.close_button {
                         ui.with_layout(dir.reversed().row(), |ui| {
-                            let label = crate::tr(rt.i18n(), "mineral-drawer-close");
+                            let label = crate::tr(rt.i18n(), msg::DRAWER_CLOSE);
                             let b = PushButton::new(self.salt.child("close"), label)
                                 .appearance(ButtonAppearance::Subtle)
                                 .size(Size::Medium)

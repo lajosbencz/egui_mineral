@@ -1,6 +1,7 @@
 use crate::Material;
 use crate::MaterialExt;
 use crate::Rt;
+use crate::msg;
 use egui::{Id, Layout, Order, Rect, Sense, Stroke, StrokeKind};
 use egui_mineral::overlay::Dismiss;
 use egui_mineral::semantic::{KeyedSalt, SemanticNode, StableId};
@@ -161,7 +162,7 @@ impl<'a> Tour<'a> {
         ui.horizontal(|ui| {
             ui.set_min_height(tooltip::ACTION_LABEL_MIN_HEIGHT);
             ui.with_layout(end, |ui| {
-                let msg = if last { "mineral-tour-done" } else { "mineral-tour-next" };
+                let msg = if last { msg::TOUR_DONE } else { msg::TOUR_NEXT };
                 let mut actions = vec![(
                     index + 1,
                     PushButton::new(self.salt.child("next"), crate::tr(rt.i18n(), msg)),
@@ -169,14 +170,14 @@ impl<'a> Tour<'a> {
                 if index > 0 {
                     actions.push((
                         index - 1,
-                        PushButton::new(self.salt.child("back"), crate::tr(rt.i18n(), "mineral-back")),
+                        PushButton::new(self.salt.child("back"), crate::tr(rt.i18n(), msg::BACK)),
                     ));
                 }
                 next = crate::actions::text_actions(&mut rt.ui(ui), actions);
-                let progress = rt.i18n().tr(
-                    "mineral-tour-progress",
-                    &[("index", (index + 1).into()), ("count", count.into())],
-                );
+                let progress = rt.i18n().tr(msg::TourProgress {
+                    index: (index + 1).into(),
+                    count: count.into(),
+                });
                 ui.with_layout(rt.i18n().direction().row(), |ui| {
                     parts::type_label(
                         ui,

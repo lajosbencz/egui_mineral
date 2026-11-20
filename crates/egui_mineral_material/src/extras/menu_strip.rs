@@ -1,6 +1,7 @@
 use crate::Material;
 use crate::MaterialExt;
 use crate::MaterialUiExt as _;
+use crate::msg;
 use egui::{Context, CornerRadius, Id, Key, Rangef, Rect, Response, Sense, pos2, vec2};
 use egui_mineral::kit::{
     menubar::{self, BarState},
@@ -179,7 +180,7 @@ impl MenuStrip {
         }
         bar.settle(&ctx, &ids);
         semantic::emit(&ctx, Some(bar_resp.id), rect, || {
-            let name = crate::tr_or(rt.i18n(), self.label.as_deref(), "mineral-menu-strip");
+            let name = crate::tr_or(rt.i18n(), self.label.as_deref(), msg::MENU_STRIP);
             let mut n = SemanticNode::new(StableId::of(&self.salt, "menubar"), Role::MenuBar, name);
             n.state.disabled = disabled;
             n

@@ -5,8 +5,9 @@
 mineral-split-button-menu = More options
 mineral-required-mark = *
 
-# Core message ids
 mineral-percent = { NUMBER($value, maximumFractionDigits: 0) }%
+
+# Core messages (`egui_mineral::core_messages`)
 mineral-mnemonic-suffix = { $label } ({ $key })
 mineral-required = This field is required
 mineral-min-length = { $min ->
@@ -21,7 +22,6 @@ mineral-number = Enter a number
 mineral-range-between = Enter a number between { $min } and { $max }
 mineral-range-min = Enter a number of at least { $min }
 mineral-range-max = Enter a number of at most { $max }
-mineral-submit = Submit
 
 # Component categories (`catalog::Category`)
 mineral-category-actions = Actions

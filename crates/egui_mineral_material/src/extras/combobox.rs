@@ -1,6 +1,7 @@
 use crate::Material;
 use crate::MaterialExt;
 use crate::Rt;
+use crate::msg;
 use crate::text_inputs::text_field::FieldChrome;
 use egui_mineral::kit::state::TempState;
 use egui_mineral::semantic::AgentKey;
@@ -109,7 +110,7 @@ impl<'a> Combobox<'a> {
         TextField::new(self.salt.clone(), self.label.clone(), &mut *self.text)
             .with_chrome(std::mem::take(&mut self.chrome))
             .event_filter(text_field::editor_keys(false))
-            .trailing_icon(arrow, crate::tr(rt.i18n(), "mineral-combobox-toggle"))
+            .trailing_icon(arrow, crate::tr(rt.i18n(), msg::COMBOBOX_TOGGLE))
             .disabled(self.disabled)
             .with_agent_key(self.key.clone())
     }
@@ -202,9 +203,9 @@ impl Composite for Combobox<'_> {
 
         let mut chosen = pick.and_then(|i| items_before.get(i).cloned());
         if st.combo.is_open() && !disabled {
-            let create_label = rt
-                .i18n()
-                .tr("mineral-combobox-create", &[("query", text.trim().into())]);
+            let create_label = rt.i18n().tr(msg::ComboboxCreate {
+                query: text.trim().into(),
+            });
             let status = status_row(rt, loading, items.is_empty());
             let add = rt.icons().add;
             let row = |i: usize| option_row(items, options, &create_label, status.as_ref(), add, i);
@@ -266,11 +267,11 @@ impl Combobox<'_> {
 fn status_row(rt: &Rt, loading: bool, empty: bool) -> Option<(String, Icon)> {
     if loading {
         Some((
-            crate::tr(rt.i18n(), "mineral-combobox-loading"),
+            crate::tr(rt.i18n(), msg::COMBOBOX_LOADING),
             rt.icons().progress_activity,
         ))
     } else if empty {
-        Some((crate::tr(rt.i18n(), "mineral-combobox-empty"), rt.icons().search_off))
+        Some((crate::tr(rt.i18n(), msg::COMBOBOX_EMPTY), rt.icons().search_off))
     } else {
         None
     }

@@ -3,6 +3,7 @@ use crate::MaterialExt;
 use crate::MaterialUiExt as _;
 use crate::Rt;
 use crate::adaptive::Density;
+use crate::msg;
 use egui::{
     Align, Color32, Context, CornerRadius, Frame, Id, Key, Margin, Pos2, Rangef, Rect, ScrollArea, Sense, Stroke,
     StrokeKind, Ui, UiBuilder, Vec2, pos2, scroll_area::ScrollBarVisibility, vec2,
@@ -371,9 +372,9 @@ impl Config {
 
     fn title_text(&self, rt: &Rt, range: bool) -> String {
         let id = if range {
-            "mineral-date-range-headline"
+            msg::DATE_RANGE_HEADLINE
         } else {
-            "mineral-date-headline"
+            msg::DATE_HEADLINE
         };
         self.labels.headline(rt.i18n(), id)
     }
@@ -442,10 +443,7 @@ impl Config {
         let hint = input_hint(rt, loc);
         let field = TextField::new(field_salt, &self.label, &mut text)
             .with_chrome(self.field_chrome(TextFieldVariant::Filled))
-            .trailing_icon(
-                ui.icons().calendar_month,
-                crate::tr(rt.i18n(), "mineral-date-picker-open"),
-            )
+            .trailing_icon(ui.icons().calendar_month, crate::tr(rt.i18n(), msg::DATE_PICKER_OPEN))
             .placeholder_or(hint)
             .maybe_error(error)
             .disabled(self.disabled);
@@ -657,9 +655,9 @@ impl Config {
             )
         };
         let (icon, msg) = if h.input {
-            (ui.icons().date_range, "mineral-date-to-calendar")
+            (ui.icons().date_range, msg::DATE_TO_CALENDAR)
         } else {
-            (ui.icons().edit, "mineral-date-to-input")
+            (ui.icons().edit, msg::DATE_TO_INPUT)
         };
         let toggle = IconButton::new(self.salt.child("mode"), icon, tr(rt.i18n(), msg));
         let toggle_size = toggle.footprint(ui.density());
@@ -728,10 +726,10 @@ impl Config {
         let loc = rt.i18n().format();
         let loc = loc.as_ref();
         let hint = input_hint(rt, loc);
-        let labels: &[&str] = if range {
-            &["mineral-date-start", "mineral-date-end"]
+        let labels: &[crate::Msg] = if range {
+            &[msg::DATE_START, msg::DATE_END]
         } else {
-            &["mineral-date-label"]
+            &[msg::DATE_LABEL]
         };
         let n = labels.len() as f32;
         let inner = WIDTH - 2.0 * dp::INPUT_HORIZONTAL_PADDING;
@@ -761,11 +759,15 @@ impl Config {
                 ui.with_layout(rt.i18n().direction().row().with_cross_align(Align::Min), |ui| {
                     for (i, (msg, error)) in labels.iter().zip(errors).enumerate() {
                         rt.ui(ui).mineral(
-                            TextField::new(self.salt.child((i, "date")), tr(rt.i18n(), msg), &mut work.texts[i])
-                                .with_chrome(self.field_chrome(TextFieldVariant::Outlined))
-                                .placeholder_or(hint.clone())
-                                .maybe_error(error)
-                                .preferred_width(field_w),
+                            TextField::new(
+                                self.salt.child((i, "date")),
+                                tr(rt.i18n(), msg.clone()),
+                                &mut work.texts[i],
+                            )
+                            .with_chrome(self.field_chrome(TextFieldVariant::Outlined))
+                            .placeholder_or(hint.clone())
+                            .maybe_error(error)
+                            .preferred_width(field_w),
                         );
                     }
                 });
@@ -791,8 +793,8 @@ impl Config {
             return None;
         }
         match loc.parse_date(text) {
-            None => Some(tr(rt.i18n(), "mineral-date-invalid")),
-            Some(d) if !self.limits().contains(d) => Some(tr(rt.i18n(), "mineral-date-out-of-range")),
+            None => Some(tr(rt.i18n(), msg::DATE_INVALID)),
+            Some(d) if !self.limits().contains(d) => Some(tr(rt.i18n(), msg::DATE_OUT_OF_RANGE)),
             Some(_) => None,
         }
     }
@@ -862,7 +864,7 @@ impl Config {
         let prev_icon = dir.pick(ui.icons().keyboard_arrow_left, ui.icons().keyboard_arrow_right);
         let next_icon = dir.pick(ui.icons().keyboard_arrow_right, ui.icons().keyboard_arrow_left);
         let density = ui.density();
-        let arrow = |ui: &mut Ui, from_end: usize, which: &'static str, icon, msg: &str, disabled: bool| {
+        let arrow = |ui: &mut Ui, from_end: usize, which: &'static str, icon, msg: crate::Msg, disabled: bool| {
             let b = IconButton::new(self.salt.child((which, "month")), icon, tr(rt.i18n(), msg)).disabled(disabled);
             let size = b.footprint(density);
             let offset = size.x * (from_end as f32 + 1.0);
@@ -872,10 +874,10 @@ impl Config {
                 .mineral(b)
                 .clicked()
         };
-        if arrow(ui, 1, "prev", prev_icon, "mineral-date-prev-month", prev_disabled) {
+        if arrow(ui, 1, "prev", prev_icon, msg::DATE_PREV_MONTH, prev_disabled) {
             (v.year, v.month) = (prev.year(), prev.month());
         }
-        if arrow(ui, 0, "next", next_icon, "mineral-date-next-month", next_disabled) {
+        if arrow(ui, 0, "next", next_icon, msg::DATE_NEXT_MONTH, next_disabled) {
             (v.year, v.month) = (next.year(), next.month());
         }
     }
@@ -1644,32 +1646,32 @@ fn format_date(loc: &dyn LocaleFormat, d: Option<Date>) -> String {
 fn input_hint(rt: &Rt, loc: &dyn LocaleFormat) -> String {
     let probe = Date::constant(2033, 11, 22);
     loc.ascii_digits(&loc.date(probe, DateFields::YearMonthDay, DateLength::Numeric))
-        .replace("2033", &tr(rt.i18n(), "mineral-date-hint-year"))
-        .replace("11", &tr(rt.i18n(), "mineral-date-hint-month"))
-        .replace("22", &tr(rt.i18n(), "mineral-date-hint-day"))
+        .replace("2033", &tr(rt.i18n(), msg::DATE_HINT_YEAR))
+        .replace("11", &tr(rt.i18n(), msg::DATE_HINT_MONTH))
+        .replace("22", &tr(rt.i18n(), msg::DATE_HINT_DAY))
 }
 
 // Compose DatePickerHeadline, yMMMd
 fn headline_single(rt: &Rt, loc: &dyn LocaleFormat, d: Option<Date>, input: bool) -> String {
     match d {
         Some(d) => loc.date(d, DateFields::YearMonthDay, DateLength::Medium),
-        None if input => tr(rt.i18n(), "mineral-date-input-headline"),
-        None => tr(rt.i18n(), "mineral-date-picker-headline"),
+        None if input => tr(rt.i18n(), msg::DATE_INPUT_HEADLINE),
+        None => tr(rt.i18n(), msg::DATE_PICKER_HEADLINE),
     }
 }
 
 // Compose DateRangePickerHeadline
 fn headline_range(rt: &Rt, loc: &dyn LocaleFormat, r: &DateRange) -> Vec<String> {
-    let end = |d: Option<Date>, id: &str| {
+    let end = |d: Option<Date>, id: crate::Msg| {
         d.map_or_else(
             || tr(rt.i18n(), id),
             |d| loc.date(d, DateFields::YearMonthDay, DateLength::Medium),
         )
     };
     vec![
-        end(r.start(), "mineral-date-start"),
+        end(r.start(), msg::DATE_START),
         dp::RANGE_HEADLINE_DELIMITER.to_owned(),
-        end(r.end(), "mineral-date-end"),
+        end(r.end(), msg::DATE_END),
     ]
 }
 

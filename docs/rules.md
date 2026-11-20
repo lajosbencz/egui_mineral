@@ -11,7 +11,7 @@ Other files cite them as `docs/rules.md rule N`.
 4. No heavy work in the render path, push it to async handlers via `Bus` + `Spawner`.
 5. The core is headless: no painting of its own, no visual styling, no string catalogs, no design-system values.
    It may submit shapes a stylekit hook returned (`Stylekit::window_close`). Stylekits paint from core responses (`SplitterResponse::handle_rect`, `ReorderOutput::indicator`, `dnd::RowView`),
-   ship the catalogs for core message ids, and return their `policy::Policies` from `Stylekit::policies`.
+   ship the catalogs for core message ids (`i18n::messages!` with `inherit = egui_mineral::core_messages` checks them at compile time), and return their `policy::Policies` from `Stylekit::policies`.
    Configuration lives in the typed runtime (`Runtime::new(ctx, kit) -> Result<Arc<Runtime<K>>>`:
    `Core` with i18n, policies, reduced motion and per-viewport pass state, plus the kit), never in `Context` data:
    there is no unset state, no fallback and no lazy default.

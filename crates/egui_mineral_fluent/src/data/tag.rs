@@ -1,3 +1,4 @@
+use crate::msg;
 use std::sync::Arc;
 
 use egui::{CornerRadius, Galley, Key, Rect, Sense, Stroke, StrokeKind, pos2, text::LayoutJob, vec2};
@@ -793,9 +794,9 @@ impl<'a> InteractionTag<'a> {
         stops: [TabStop; 2],
         ids: &mut Vec<egui::Id>,
     ) -> InteractionTagResponse {
-        let dismiss = rt
-            .i18n()
-            .tr("mineral-tag-dismiss", &[("label", self.label.clone().into())]);
+        let dismiss = rt.i18n().tr(msg::TagDismiss {
+            label: self.label.clone().into(),
+        });
         let (primary, secondary) = self.parts(defaults, selected, stops, dismiss);
         let height = self.size.unwrap_or(defaults.size).metrics().height;
         let row = crate::widget::row(ui, rt.i18n().direction(), height);

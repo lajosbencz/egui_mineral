@@ -3,6 +3,7 @@ use crate::MaterialExt;
 use crate::MaterialUiExt as _;
 use crate::Rt;
 use crate::adaptive::Density;
+use crate::msg;
 use egui_mineral::i18n::I18n;
 use egui_mineral::i18n::Sides;
 use egui_mineral::kit::state::TempState;
@@ -658,10 +659,10 @@ pub(crate) fn emit_part(ctx: &egui::Context, r: &Response, depth: usize, node: i
 
 pub(crate) fn counter(rt: &Rt, count: usize, max: usize) -> String {
     let f = rt.i18n().format();
-    rt.i18n().tr(
-        "mineral-text-counter",
-        &[("count", f.count(count).into()), ("max", f.count(max).into())],
-    )
+    rt.i18n().tr(msg::TextCounter {
+        count: f.count(count).into(),
+        max: f.count(max).into(),
+    })
 }
 
 fn input_layouter(
@@ -1249,9 +1250,9 @@ impl TextField<'_> {
             };
             emit_part(ctx, &r, 1, || {
                 let msg = if revealed {
-                    "mineral-password-hide"
+                    msg::PASSWORD_HIDE
                 } else {
-                    "mineral-password-show"
+                    msg::PASSWORD_SHOW
                 };
                 let mut n = SemanticNode::new(
                     self.key.id(&self.salt).sub("reveal"),

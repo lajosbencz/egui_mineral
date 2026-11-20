@@ -1,6 +1,7 @@
 use crate::Material;
 use crate::MaterialExt;
 use crate::MaterialUiExt as _;
+use crate::msg;
 use egui_mineral::i18n::I18n;
 use egui_mineral::kit::state::{Memo, TempState};
 use egui_mineral::semantic::KeyedSalt;
@@ -220,7 +221,7 @@ impl Composite for ColorPicker<'_> {
         if !hex_focused {
             hex = hex6(*self.color);
         }
-        let field = TextField::new(self.salt.child("hex"), tr(rt.i18n(), "mineral-color-hex"), &mut hex)
+        let field = TextField::new(self.salt.child("hex"), tr(rt.i18n(), msg::COLOR_HEX), &mut hex)
             .with_chrome(self.chrome.clone())
             .disabled(self.disabled)
             .agent_key(StableId::of(&self.salt, "hex-field"))
@@ -310,9 +311,9 @@ impl ColorPicker<'_> {
                 ui.spacing_mut().item_spacing.x = gap;
                 let mut changed = false;
                 let names = [
-                    ("red", "mineral-color-red"),
-                    ("green", "mineral-color-green"),
-                    ("blue", "mineral-color-blue"),
+                    ("red", msg::COLOR_RED),
+                    ("green", msg::COLOR_GREEN),
+                    ("blue", msg::COLOR_BLUE),
                 ];
                 for ((salt, msg), v) in names.into_iter().zip(channels.iter_mut()) {
                     changed |= rt
@@ -641,7 +642,7 @@ impl MineralWidget for HueBar<'_> {
     }
 
     fn semantics(&self, i18n: &I18n, _: &WidgetResponse, (): &()) -> Option<SemanticNode> {
-        let name = crate::tr(i18n, "mineral-color-hue");
+        let name = crate::tr(i18n, msg::COLOR_HUE);
         let range = NumericRange {
             value: *self.hue,
             min: 0.0,
@@ -697,7 +698,9 @@ impl MineralWidget for Swatch {
 
     fn semantics(&self, i18n: &I18n, _: &WidgetResponse, (): &()) -> Option<SemanticNode> {
         let hex = hex6(self.color);
-        let name = i18n.tr("mineral-color-swatch", &[("hex", hex.as_str().into())]);
+        let name = i18n.tr(msg::ColorSwatch {
+            hex: hex.as_str().into(),
+        });
         let mut n =
             SemanticNode::new(self.key.clone(), Role::Button, name).clickable(Availability::disabled_if(self.disabled));
         n.state.selected = Some(self.selected);

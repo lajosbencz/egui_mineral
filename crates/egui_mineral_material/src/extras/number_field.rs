@@ -3,6 +3,7 @@ use crate::MaterialExt;
 use crate::MaterialUiExt as _;
 use crate::Rt;
 use crate::adaptive::Density;
+use crate::msg;
 use crate::text_inputs::text_field::FieldChrome;
 use egui::{Align, Context, CursorIcon, Event, Id, Layout, MouseWheelUnit, Ui, Vec2, emath::Numeric, vec2};
 use egui_mineral::kit::state::TempState;
@@ -169,7 +170,7 @@ impl<'a, N: Numeric> NumberField<'a, N> {
     }
 
     fn buttons(&self, rt: &Rt, v: f64) -> (IconButton<'_>, IconButton<'_>) {
-        let button = |salt: &'static str, icon, msg: &str, key: &'static str, at_end: bool| {
+        let button = |salt: &'static str, icon, msg: crate::Msg, key: &'static str, at_end: bool| {
             IconButton::new(self.salt.child(salt), icon, tr(rt.i18n(), msg))
                 .agent_key(StableId::of(&self.salt, key))
                 .disabled(self.disabled || at_end)
@@ -178,14 +179,14 @@ impl<'a, N: Numeric> NumberField<'a, N> {
             button(
                 "dec",
                 rt.icons().remove,
-                "mineral-number-decrement",
+                msg::NUMBER_DECREMENT,
                 "decrement",
                 v <= self.range.min(),
             ),
             button(
                 "inc",
                 rt.icons().add,
-                "mineral-number-increment",
+                msg::NUMBER_INCREMENT,
                 "increment",
                 v >= self.range.max(),
             ),

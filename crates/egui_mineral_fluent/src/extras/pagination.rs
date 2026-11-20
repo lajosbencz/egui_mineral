@@ -1,3 +1,4 @@
+use crate::msg;
 use egui::{Sense, vec2};
 use egui_mineral::{
     kit,
@@ -107,12 +108,12 @@ impl Composite for Pagination<'_> {
         let cur = (*self.page).min(total - 1) + 1;
         let mut target = cur;
         semantic::emit_parent(ctx, id, || {
-            let name = crate::tr_or(rt.i18n(), self.label.as_deref(), "mineral-pagination");
+            let name = crate::tr_or(rt.i18n(), self.label.as_deref(), msg::PAGINATION);
             let mut n = SemanticNode::new(StableId::of(&self.salt, "pagination"), Role::Navigation, name);
             n.state.disabled = self.disabled;
             n
         });
-        let nav = |ui: &mut egui::Ui, salt: &'static str, icon, msg: &str, enabled: bool| {
+        let nav = |ui: &mut egui::Ui, salt: &'static str, icon, msg: crate::Msg, enabled: bool| {
             rt.ui(ui)
                 .mineral(
                     PushButton::new(self.salt.child(salt), crate::tr(rt.i18n(), msg))
@@ -132,10 +133,10 @@ impl Composite for Pagination<'_> {
         let builder = crate::widget::row(ui, dir, ROW);
         let row = ui.scope_builder(builder, |ui| {
             ui.spacing_mut().item_spacing.x = GAP;
-            if self.first_last && nav(ui, "first", back.into(), "mineral-pagination-first", cur > 1) {
+            if self.first_last && nav(ui, "first", back.into(), msg::PAGINATION_FIRST, cur > 1) {
                 target = 1;
             }
-            if nav(ui, "prev", chev_back, "mineral-pagination-prev", cur > 1) {
+            if nav(ui, "prev", chev_back, msg::PAGINATION_PREV, cur > 1) {
                 target = cur - 1;
             }
             let spread = Spread {
@@ -171,10 +172,10 @@ impl Composite for Pagination<'_> {
                     _ => {}
                 }
             }
-            if nav(ui, "next", chev_fwd, "mineral-pagination-next", cur < total) {
+            if nav(ui, "next", chev_fwd, msg::PAGINATION_NEXT, cur < total) {
                 target = cur + 1;
             }
-            if self.first_last && nav(ui, "last", fwd.into(), "mineral-pagination-last", cur < total) {
+            if self.first_last && nav(ui, "last", fwd.into(), msg::PAGINATION_LAST, cur < total) {
                 target = total;
             }
         });

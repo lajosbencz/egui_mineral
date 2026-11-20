@@ -1,5 +1,6 @@
 use crate::MaterialUiExt as _;
 use crate::adaptive::Density;
+use crate::msg;
 use egui_mineral::kit::state::TempState;
 
 use crate::Material;
@@ -309,7 +310,7 @@ impl RowWidget<'_> {
     ) {
         let rt = ui.rt();
         if self.loading {
-            let label = crate::tr(rt.i18n(), "mineral-tree-loading");
+            let label = crate::tr(rt.i18n(), msg::TREE_LOADING);
             CircularProgressIndicator::indeterminate(self.salt.child("loading"))
                 .label(label)
                 .agent_key(self.key.sub("progress"))
@@ -464,7 +465,7 @@ impl RowWidget<'_> {
             }
         }
         if self.loading {
-            n.value = Some(crate::tr(i18n, "mineral-tree-loading"));
+            n.value = Some(crate::tr(i18n, msg::TREE_LOADING));
         }
         n
     }

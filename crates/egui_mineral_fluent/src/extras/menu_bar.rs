@@ -1,3 +1,4 @@
+use crate::msg;
 use egui::{Context, Id, Key, Modifiers, Response, Vec2};
 use egui_mineral::{
     action::Clicked,
@@ -201,7 +202,7 @@ impl<'a> MenuBar<'a> {
         }
         bar.settle(&ctx, &ids);
         semantic::emit(&ctx, Some(row.response.id), row.response.rect, || {
-            let name = crate::tr_or(rt.i18n(), self.label.as_deref(), "mineral-menu-strip");
+            let name = crate::tr_or(rt.i18n(), self.label.as_deref(), msg::MENU_STRIP);
             let mut n = SemanticNode::new(StableId::of(&self.salt, "menubar"), Role::MenuBar, name);
             n.state.disabled = self.disabled;
             n

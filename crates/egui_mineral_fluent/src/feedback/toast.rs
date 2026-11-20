@@ -1,3 +1,4 @@
+use crate::msg;
 use crate::tokens::ShadowTint;
 use egui::{
     Align, Align2, Color32, CornerRadius, Id, Layout, Margin, Order, Sense, Stroke, StrokeKind, UiBuilder, vec2,
@@ -498,7 +499,7 @@ fn title_row(ui: &mut egui::Ui, rt: &Rt, toast: &Toast, palette: &Palette, slot:
             }
             ui.add_space(d::ACTION_PADDING_START);
         } else if toast.dismissible {
-            let label = crate::tr(rt.i18n(), "mineral-dismiss");
+            let label = crate::tr(rt.i18n(), msg::DISMISS);
             pressed.dismissed = link(ui, rt, ("toast", slot, "dismiss", 0), &label);
             ui.add_space(d::ACTION_PADDING_START);
         }

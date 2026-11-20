@@ -2,6 +2,7 @@ use crate::Material;
 use crate::MaterialExt;
 use crate::MaterialUiExt as _;
 use crate::Rt;
+use crate::msg;
 use egui::{Align, Align2, Color32, Frame, Id, Layout, Pos2, Rangef, Rect, Response, Sense, Vec2, pos2, vec2};
 use egui_mineral::i18n::I18n;
 use egui_mineral::kit::state::TempState;
@@ -128,7 +129,7 @@ impl Group {
     }
 
     fn name(&self, rt: &Rt) -> String {
-        crate::tr_or(rt.i18n(), self.label.as_deref(), "mineral-navigation")
+        crate::tr_or(rt.i18n(), self.label.as_deref(), msg::NAVIGATION)
     }
 
     fn apply<'d>(&self, items: impl IntoIterator<Item = &'d mut NavDestination>) {
@@ -1085,9 +1086,9 @@ impl<'a> NavigationRail<'a> {
             let header = self.menu || self.fab.is_some();
             if self.menu {
                 let (icon, label) = if expanded == Some(true) {
-                    (ui.icons().menu_open, "mineral-menu-close")
+                    (ui.icons().menu_open, msg::MENU_CLOSE)
                 } else {
-                    (ui.icons().menu, "mineral-menu")
+                    (ui.icons().menu, msg::MENU)
                 };
                 let r = ui.mineral(IconButton::new(
                     self.group.salt.child("menu"),

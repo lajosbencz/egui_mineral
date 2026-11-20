@@ -146,6 +146,18 @@ mod tokens;
 pub mod typography;
 mod widget;
 
+pub(crate) type Msg = egui_mineral::i18n::Message<'static>;
+
+egui_mineral::i18n::messages!(
+    #[cfg_attr(
+        not(all(feature = "extras", feature = "unstable-catalog")),
+        expect(dead_code, reason = "messages of the disabled features")
+    )]
+    pub(crate) mod msg = "locales/en-US.ftl",
+    prefix = "mineral-",
+    inherit = egui_mineral::core_messages
+);
+
 pub use egui_mineral;
 pub use egui_mineral::egui;
 pub use egui_mineral::icon::Icon;

@@ -2,6 +2,7 @@ use crate::Material;
 use crate::MaterialExt;
 use crate::MaterialUiExt as _;
 use crate::Rt;
+use crate::msg;
 use egui::{
     Align2, Color32, Context, CornerRadius, Frame, Id, Margin, Pos2, Rangef, Rect, Sense, Stroke, StrokeKind, TextEdit,
     Ui, UiBuilder, Vec2, pos2, vec2,
@@ -170,7 +171,7 @@ impl<'a> TimePicker<'a> {
 
     fn resolve(&self, rt: &Rt) -> Resolved {
         let loc = rt.i18n().format();
-        let text = |over: &Option<String>, id: &str| crate::tr_or(rt.i18n(), over.as_deref(), id);
+        let text = |over: &Option<String>, id: crate::Msg| crate::tr_or(rt.i18n(), over.as_deref(), id);
         let period_labels = [
             self.am_label.clone().unwrap_or_else(|| loc.day_period(DayPeriod::Am)),
             self.pm_label.clone().unwrap_or_else(|| loc.day_period(DayPeriod::Pm)),
@@ -181,12 +182,12 @@ impl<'a> TimePicker<'a> {
             hour24: self.hour_cycle.unwrap_or_else(|| loc.hour_cycle()) == HourCycle::H23,
             horizontal: self.axis == Axis::Horizontal,
             headlines: [
-                self.labels.headline(rt.i18n(), "mineral-time-headline"),
-                self.labels.headline(rt.i18n(), "mineral-time-input-headline"),
+                self.labels.headline(rt.i18n(), msg::TIME_HEADLINE),
+                self.labels.headline(rt.i18n(), msg::TIME_INPUT_HEADLINE),
             ],
             choice: self.labels.choice(rt.i18n()),
-            hour_label: text(&self.hour_label, "mineral-time-hour"),
-            minute_label: text(&self.minute_label, "mineral-time-minute"),
+            hour_label: text(&self.hour_label, msg::TIME_HOUR),
+            minute_label: text(&self.minute_label, msg::TIME_MINUTE),
             period_labels,
             separator: loc.time_separator(),
             period_first: loc.period_position() == PeriodPosition::BeforeTime,
@@ -394,9 +395,9 @@ impl Resolved {
     fn mode_toggle(&self, rt: &Rt, id: Id) -> IconButton<'static> {
         let ctx = rt.ctx();
         let (icon, msg) = if Self::state(ctx, id).keyboard {
-            (rt.icons().schedule, "mineral-time-to-dial")
+            (rt.icons().schedule, msg::TIME_TO_DIAL)
         } else {
-            (rt.icons().keyboard, "mineral-time-to-input")
+            (rt.icons().keyboard, msg::TIME_TO_INPUT)
         };
         IconButton::new(self.salt.child("mode"), icon, tr(rt.i18n(), msg)).disabled(self.disabled)
     }
@@ -738,13 +739,10 @@ impl Resolved {
         let message = if view.valid {
             name.to_owned()
         } else {
-            rt.i18n().tr(
-                "mineral-range-value",
-                &[
-                    ("start", loc.integer(view.lo.into()).into()),
-                    ("end", loc.integer(view.hi.into()).into()),
-                ],
-            )
+            rt.i18n().tr(msg::RangeValue {
+                start: loc.integer(view.lo.into()).into(),
+                end: loc.integer(view.hi.into()).into(),
+            })
         };
         let g = parts::type_wrapped(
             ui.painter(),
@@ -1070,7 +1068,7 @@ impl Resolved {
             let node = SemanticNode::new(
                 StableId::of(&self.salt, (field.slug(), "dial")),
                 Role::Slider,
-                rt.i18n().tr("mineral-time-dial", &[("field", name.into())]),
+                rt.i18n().tr(msg::TimeDial { field: name.into() }),
             )
             .value(rt.i18n().format().number_lossy(cur, Some(0)));
             node.ranged(

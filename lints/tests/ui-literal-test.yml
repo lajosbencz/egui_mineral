@@ -2,7 +2,7 @@ id: ui-literal
 valid:
   - |
     fn f(ui: &mut Ui, ctx: &Context) {
-        ui.label(tr(ctx, "mineral-ok", &[]));
+        ui.label(tr(i18n, msg::OK));
         ui.label("");
         ui.label("   ");
         ui.button("...");

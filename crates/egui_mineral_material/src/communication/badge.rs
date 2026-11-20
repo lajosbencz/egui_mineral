@@ -1,5 +1,6 @@
 use crate::MaterialExt;
 use crate::Rt;
+use crate::msg;
 use egui::{Painter, Rangef, Rect, Vec2, pos2, vec2};
 
 use crate::spec::{defaults, tokens::badge};
@@ -44,7 +45,7 @@ impl Badge {
     pub(crate) fn text(&self, i18n: &egui_mineral::i18n::I18n) -> Option<String> {
         match self.kind {
             BadgeKind::Dot => None,
-            BadgeKind::Count(n) if n > self.max => Some(i18n.tr("mineral-badge-overflow", &[("max", self.max.into())])),
+            BadgeKind::Count(n) if n > self.max => Some(i18n.tr(msg::BadgeOverflow { max: self.max.into() })),
             BadgeKind::Count(n) => Some(i18n.format().integer(n.into())),
         }
     }

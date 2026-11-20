@@ -1,5 +1,6 @@
 use crate::MaterialUiExt as _;
 use crate::adaptive::Density;
+use crate::msg;
 use std::sync::Arc;
 
 use crate::Material;
@@ -250,7 +251,7 @@ impl MineralWidget for SearchBar<'_> {
         let mut out = SearchBarOutput::default();
         let lead = icon_center(rt, ui.density(), rect, Edge::Start);
         if self.back {
-            let node = self.button_node("back-button", &crate::tr(ui.i18n(), "mineral-back"));
+            let node = self.button_node("back-button", &crate::tr(ui.i18n(), msg::BACK));
             out.leading_clicked = slot_icon(
                 ui,
                 lead,
@@ -593,7 +594,7 @@ impl SearchSuggestions<'_> {
                     SemanticNode::new(
                         StableId::of(&self.salt, "suggestions"),
                         Role::ListBox,
-                        crate::tr(ui.i18n(), "mineral-suggestions"),
+                        crate::tr(ui.i18n(), msg::SUGGESTIONS),
                     )
                 });
                 Placed {
@@ -781,7 +782,7 @@ impl<'a> SearchView<'a> {
             *open = false;
         }
         let width = self.width.clamp(ui.available_width()).min(ui.available_width());
-        let placeholder = crate::tr_or(rt.i18n(), self.placeholder.as_deref(), "mineral-search");
+        let placeholder = crate::tr_or(rt.i18n(), self.placeholder.as_deref(), msg::SEARCH);
         let name = std::mem::take(&mut self.label);
 
         // Collapsed bar; activating it opens the view.
@@ -970,7 +971,7 @@ impl<'a> SearchView<'a> {
     ) {
         let rt = ui.rt();
         let t = rt.tokens();
-        let back_label = crate::tr(rt.i18n(), "mineral-back");
+        let back_label = crate::tr(rt.i18n(), msg::BACK);
         let back = slot_icon(
             ui,
             icon_center(ui.rt(), ui.density(), head, Edge::Start),
@@ -986,7 +987,7 @@ impl<'a> SearchView<'a> {
         }
         let clear = !self.query.is_empty();
         if clear {
-            let clear_label = crate::tr(rt.i18n(), "mineral-search-clear");
+            let clear_label = crate::tr(rt.i18n(), msg::SEARCH_CLEAR);
             if slot_icon(
                 ui,
                 icon_center(ui.rt(), ui.density(), head, Edge::End),
@@ -1054,7 +1055,7 @@ impl<'a> SearchView<'a> {
                     SemanticNode::new(
                         StableId::of(&self.salt, "suggestions"),
                         Role::ListBox,
-                        crate::tr(rt.i18n(), "mineral-suggestions"),
+                        crate::tr(rt.i18n(), msg::SUGGESTIONS),
                     )
                 },
             );

@@ -1,3 +1,4 @@
+use crate::msg;
 use egui::{Align2, Frame, Id, Margin, Order, Rect, Response, Ui, Vec2, vec2};
 use egui_mineral::{
     action::Clicked,
@@ -360,7 +361,7 @@ impl Dialog {
             });
             if self.close_button {
                 ui.with_layout(dir.reversed().row(), |ui| {
-                    let label = crate::tr(rt.i18n(), "mineral-dialog-close");
+                    let label = crate::tr(rt.i18n(), msg::DIALOG_CLOSE);
                     let salt = self.salt.child("close");
                     focus.enter(rt.ctx(), ui.make_persistent_id(salt.id_salt()));
                     let b = PushButton::new(salt, label)

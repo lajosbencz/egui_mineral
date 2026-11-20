@@ -41,29 +41,27 @@ impl ValidationError {
         }
     }
 
-    /// Message id resolved through [`I18n::tr`](i18n::I18n::tr) at display time.
-    pub fn localized(id: impl Into<Cow<'static, str>>) -> Self {
+    /// Catalog message resolved at display time; its id is the code.
+    pub fn localized<'a, const N: usize>(message: impl i18n::IntoMessage<'a, N>) -> Self {
+        let message = message.into_message();
         Self {
-            code: id.into(),
-            args: Vec::new(),
+            code: Cow::Borrowed(message.id()),
+            args: message
+                .args()
+                .iter()
+                .map(|(name, value)| (Cow::Owned((*name).to_owned()), value.clone().into_owned()))
+                .collect(),
             text: None,
         }
     }
 
-    /// Appends a Fluent argument used when resolving `code`.
-    #[must_use]
-    pub fn arg(mut self, name: &'static str, value: impl Into<Arg<'static>>) -> Self {
-        self.args.push((Cow::Borrowed(name), value.into()));
-        self
-    }
-
-    /// Display text: `text` if set, else `code` translated by [`I18n::tr`](i18n::I18n::tr) with `args`.
+    /// Display text: `text` if set, else the message `code` in the active locale with `args`.
     pub fn message(&self, i18n: &i18n::I18n) -> String {
         if let Some(t) = &self.text {
             return t.to_string();
         }
         let args: Vec<(&str, Arg<'_>)> = self.args.iter().map(|(k, v)| (k.as_ref(), v.clone())).collect();
-        i18n.tr(&self.code, &args)
+        i18n.lookup(&self.code, &args)
     }
 }
 

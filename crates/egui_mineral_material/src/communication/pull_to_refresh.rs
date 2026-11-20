@@ -1,6 +1,7 @@
 use crate::Material;
 use crate::MaterialExt;
 use crate::Rt;
+use crate::msg;
 use egui::{Color32, Painter, Pos2, Rect, Sense, Shape, Stroke, Vec2, emath::Rot2, pos2, vec2};
 use egui_mineral::kit::state::TempState;
 use egui_mineral::semantic::KeyedSalt;
@@ -270,7 +271,7 @@ impl PullToRefresh {
     fn emit_semantics(&self, rt: &Rt, id: egui::Id, rect: Rect) {
         let ctx = rt.ctx();
         semantic::emit(ctx, Some(id), rect, || {
-            let name = crate::tr(rt.i18n(), "mineral-refresh");
+            let name = crate::tr(rt.i18n(), msg::REFRESH);
 
             SemanticNode::new(StableId::of(&self.salt, "refresh-button"), Role::Button, name)
                 .clickable(Availability::disabled_if(self.refreshing))

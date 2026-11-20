@@ -1,3 +1,4 @@
+use crate::msg;
 use egui::{TextFormat, text::LayoutJob};
 use egui_mineral::{
     i18n::I18n,
@@ -105,7 +106,7 @@ impl FieldLabel {
         let mut job = LayoutJob::default();
         job.append(&self.text, 0.0, format.clone());
         if self.required {
-            let mark_text = crate::tr(ui.i18n(), "mineral-required-mark");
+            let mark_text = crate::tr(ui.i18n(), msg::REQUIRED_MARK);
             job.append(
                 &mark_text,
                 geometry::SPACING_HORIZONTAL_XS,

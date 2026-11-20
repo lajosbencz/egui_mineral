@@ -1,7 +1,7 @@
 id: ui-literal
 language: rust
 severity: error
-message: Library code renders no literal text; use i18n::tr with a `mineral-*` id and ship it in the stylekit catalog (docs/conventions.md i18n).
+message: Library code renders no literal text; add the message to the stylekit catalog and pass its `msg` item to i18n::tr (docs/conventions.md i18n).
 files:
   - crates/egui_mineral/src/**
   - crates/egui_mineral_material/src/**

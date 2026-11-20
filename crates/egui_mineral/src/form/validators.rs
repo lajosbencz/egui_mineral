@@ -1,5 +1,5 @@
 use super::{ValidationError, Validator};
-use crate::i18n::LocaleFormat;
+use crate::i18n::{LocaleFormat, msg};
 
 /// Fails on empty or whitespace-only input.
 #[derive(Clone, Debug)]
@@ -8,7 +8,7 @@ pub struct Required;
 impl Validator for Required {
     fn validate(&self, value: &str, _locale: &dyn LocaleFormat) -> Result<(), ValidationError> {
         if value.trim().is_empty() {
-            Err(ValidationError::localized("mineral-required"))
+            Err(ValidationError::localized(msg::REQUIRED))
         } else {
             Ok(())
         }
@@ -24,7 +24,7 @@ impl Validator for MinLength {
         if value.chars().count() >= self.0 {
             Ok(())
         } else {
-            Err(ValidationError::localized("mineral-min-length").arg("min", self.0))
+            Err(ValidationError::localized(msg::MinLength { min: self.0.into() }))
         }
     }
 }
@@ -38,7 +38,7 @@ impl Validator for MaxLength {
         if value.chars().count() <= self.0 {
             Ok(())
         } else {
-            Err(ValidationError::localized("mineral-max-length").arg("max", self.0))
+            Err(ValidationError::localized(msg::MaxLength { max: self.0.into() }))
         }
     }
 }
@@ -55,14 +55,15 @@ pub struct NumberRange {
 impl Validator for NumberRange {
     fn validate(&self, value: &str, locale: &dyn LocaleFormat) -> Result<(), ValidationError> {
         let Some(n) = locale.parse_number(value) else {
-            return Err(ValidationError::localized("mineral-number"));
+            return Err(ValidationError::localized(msg::NUMBER));
         };
         let err = match (self.min, self.max) {
-            (Some(a), Some(b)) if n < a || n > b => ValidationError::localized("mineral-range-between")
-                .arg("min", a)
-                .arg("max", b),
-            (Some(a), None) if n < a => ValidationError::localized("mineral-range-min").arg("min", a),
-            (None, Some(b)) if n > b => ValidationError::localized("mineral-range-max").arg("max", b),
+            (Some(a), Some(b)) if n < a || n > b => ValidationError::localized(msg::RangeBetween {
+                min: a.into(),
+                max: b.into(),
+            }),
+            (Some(a), None) if n < a => ValidationError::localized(msg::RangeMin { min: a.into() }),
+            (None, Some(b)) if n > b => ValidationError::localized(msg::RangeMax { max: b.into() }),
             _ => return Ok(()),
         };
         Err(err)

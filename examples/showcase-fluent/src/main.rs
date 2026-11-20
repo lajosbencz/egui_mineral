@@ -7,7 +7,10 @@ use std::sync::Arc;
 use egui::{CentralPanel, Color32, Key, KeyboardShortcut, Modifiers, Panel, Ui, scroll_area::ScrollAreaOutput};
 use egui_mineral_fluent::{
     BrandRamp,
-    egui_mineral::runtime::{InitError, Runtime},
+    egui_mineral::{
+        i18n::{Catalog, messages},
+        runtime::{InitError, Runtime},
+    },
     prelude::*,
     scroll,
     spec::tokens::brand::BRAND_WEB,
@@ -17,6 +20,8 @@ use mineral_inspector::Inspector;
 use pages::{LOCALES, Page};
 
 pub(crate) use egui_mineral_fluent::{FluentUi, Rt};
+
+messages!(mod msg = "locales/en-US.ftl", crate = egui_mineral_fluent::egui_mineral);
 
 const CONTENT_MAX_W: f32 = 1040.0;
 const INSPECTOR: KeyboardShortcut = KeyboardShortcut::new(Modifiers::NONE, Key::F12);
@@ -117,6 +122,7 @@ struct Shell {
 impl App {
     fn new(ctx: &egui::Context) -> Result<Self, InitError> {
         let rt = Runtime::new(ctx, kit(ctx))?;
+        rt.i18n().add_resource(&Catalog::new("en-US", msg::SOURCE))?;
         Ok(Self {
             rt,
             shell: Shell {
@@ -188,20 +194,22 @@ impl Shell {
             let s = &mut self.settings;
             let (_, theme, icon) = THEMES[s.theme];
             if ui
-                .mineral(PushButton::new("theme", format!("Theme: {theme}")).icon(icon))
+                .mineral(PushButton::new("theme", rt.i18n().tr(msg::Theme { name: theme.into() })).icon(icon))
                 .clicked()
             {
                 s.theme = (s.theme + 1) % THEMES.len();
             }
             ui.mineral(ToggleButton::new(
                 "high-contrast",
-                "High contrast",
+                rt.i18n().tr(msg::HIGH_CONTRAST),
                 &mut s.high_contrast,
             ));
             let brands = brands();
             let brand = brands.get(s.brand).map_or("", |b| b.0);
             if ui
-                .mineral(PushButton::new("brand", format!("Brand: {brand}")).icon(icons::ICON_COLOR))
+                .mineral(
+                    PushButton::new("brand", rt.i18n().tr(msg::Brand { name: brand.into() })).icon(icons::ICON_COLOR),
+                )
                 .clicked()
             {
                 s.brand = (s.brand + 1) % brands.len();

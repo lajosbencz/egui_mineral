@@ -1,3 +1,4 @@
+use crate::msg;
 use egui::{
     Align, Color32, CornerRadius, Layout, Margin, Sense, Shape, Stroke, StrokeKind, UiBuilder,
     epaint::RectShape,
@@ -241,7 +242,7 @@ impl MessageBar {
 
     fn dismiss(&self, ui: &mut egui::Ui, rt: &crate::Rt) -> bool {
         ui.add_space(g::SPACING_HORIZONTAL_M);
-        let label = crate::tr(rt.i18n(), "mineral-dismiss");
+        let label = crate::tr(rt.i18n(), msg::DISMISS);
         let button = PushButton::new(self.salt.child("dismiss"), label)
             .icon(rt.icons().dismiss)
             .label_visible(false)

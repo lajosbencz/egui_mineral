@@ -1,6 +1,7 @@
 use crate::Material;
 use crate::MaterialExt;
 use crate::Rt;
+use crate::msg;
 use egui::{Align, Color32, Frame, Id, Layout, Margin, Rangef, Rect, Sense, Ui, UiBuilder, pos2, vec2};
 use egui_mineral::action::Clicked;
 use egui_mineral::semantic::KeyedSalt;
@@ -184,14 +185,14 @@ pub(crate) struct PickerLabels {
 }
 
 impl PickerLabels {
-    pub(crate) fn headline(&self, i18n: &I18n, id: &str) -> String {
+    pub(crate) fn headline(&self, i18n: &I18n, id: crate::Msg) -> String {
         crate::tr_or(i18n, self.headline.as_deref(), id)
     }
 
     pub(crate) fn choice(&self, i18n: &I18n) -> ChoiceLabels {
         ChoiceLabels {
-            confirm: crate::tr_or(i18n, self.confirm.as_deref(), "mineral-ok"),
-            cancel: crate::tr_or(i18n, self.cancel.as_deref(), "mineral-cancel"),
+            confirm: crate::tr_or(i18n, self.confirm.as_deref(), msg::OK),
+            cancel: crate::tr_or(i18n, self.cancel.as_deref(), msg::CANCEL),
         }
     }
 }
@@ -633,7 +634,7 @@ impl Dialog {
             let center = pos2(edge, frame.center().y);
             crate::containment::drag_handle::paint(ui, &handle, center, Axis::Horizontal, false);
         }
-        let label = crate::tr(rt.i18n(), "mineral-dialog-resize");
+        let label = crate::tr(rt.i18n(), msg::DIALOG_RESIZE);
         semantic::emit(ui.ctx(), Some(handle.id), rect, || {
             SemanticNode::new(StableId::of(&self.salt, "resize"), Role::Splitter, label)
                 .ranged(range.numeric(v), egui_mineral::widget::Availability::Enabled)

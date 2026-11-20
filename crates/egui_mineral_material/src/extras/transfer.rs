@@ -3,6 +3,7 @@ use crate::MaterialExt;
 use crate::MaterialUiExt as _;
 use crate::Rt;
 use crate::adaptive::Density;
+use crate::msg;
 use egui::{Align, Layout, Margin, Rangef, Rect, Sense, Vec2, pos2, vec2};
 use egui_mineral::kit::state::TempState;
 use egui_mineral::semantic::KeyedSalt;
@@ -87,12 +88,12 @@ impl Move {
         }
     }
 
-    const fn message(self) -> &'static str {
+    const fn message(self) -> crate::Msg {
         match self {
-            Self::AllToTarget => "mineral-transfer-all-to-target",
-            Self::ToTarget => "mineral-transfer-to-target",
-            Self::ToSource => "mineral-transfer-to-source",
-            Self::AllToSource => "mineral-transfer-all-to-source",
+            Self::AllToTarget => msg::TRANSFER_ALL_TO_TARGET,
+            Self::ToTarget => msg::TRANSFER_TO_TARGET,
+            Self::ToSource => msg::TRANSFER_TO_SOURCE,
+            Self::AllToSource => msg::TRANSFER_ALL_TO_SOURCE,
         }
     }
 }
@@ -169,7 +170,7 @@ impl<'a> TransferList<'a> {
     fn emit_group(&self, rt: &Rt, id: egui::Id) {
         let ctx = rt.ctx();
         semantic::emit_parent(ctx, id, || {
-            let name = crate::tr_or(rt.i18n(), self.label.as_deref(), "mineral-transfer");
+            let name = crate::tr_or(rt.i18n(), self.label.as_deref(), msg::TRANSFER);
             let mut n = SemanticNode::new(StableId::of(&self.salt, "transfer"), Role::Group, name);
             n.state.disabled = self.disabled;
             n
@@ -224,13 +225,10 @@ impl<'a> TransferList<'a> {
         let some = rows.iter().any(|i| sel.is_selected(i));
         let mut on = all;
         let f = rt.i18n().format();
-        let count = rt.i18n().tr(
-            "mineral-transfer-count",
-            &[
-                ("selected", f.count(sel.len()).into()),
-                ("total", f.count(rows.len()).into()),
-            ],
-        );
+        let count = rt.i18n().tr(msg::TransferCount {
+            selected: f.count(sel.len()).into(),
+            total: f.count(rows.len()).into(),
+        });
         let width = ui.available_width();
         let h = Self::header_height(ui.density());
         let (rect, _) = ui.allocate_exact_size(vec2(width, h), Sense::hover());
@@ -329,8 +327,8 @@ impl Composite for TransferList<'_> {
             .retain(|&i| chosen.get_mut(i).is_some_and(|c| !std::mem::replace(c, true)));
         let source: Vec<usize> = (0..len).filter(|&i| !chosen[i]).collect();
         let title = |custom: &Option<String>, id| crate::tr_or(rt.i18n(), custom.as_deref(), id);
-        let src_title = title(&self.source_title, "mineral-transfer-source");
-        let dst_title = title(&self.target_title, "mineral-transfer-target");
+        let src_title = title(&self.source_title, msg::TRANSFER_SOURCE);
+        let dst_title = title(&self.target_title, msg::TRANSFER_TARGET);
         let dir = rt.i18n().direction();
         let icons = rt.icons();
         let icon = |m: Move| {
