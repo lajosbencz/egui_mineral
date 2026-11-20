@@ -1,3 +1,4 @@
+use crate::msg;
 use crate::tokens::ShadowTint;
 use egui::{CornerRadius, Frame, Margin, Sense, Stroke, Vec2};
 use egui_mineral::{
@@ -214,7 +215,7 @@ impl MineralWidget for InfoButton {
         let mut n = SemanticNode::new(
             StableId::of(&self.salt, "button"),
             Role::Button,
-            crate::tr(i18n, "mineral-info-label-info"),
+            crate::tr(i18n, msg::INFO_LABEL_INFO),
         )
         .clickable(Availability::Enabled);
         n.state.expanded = Some(self.expanded);

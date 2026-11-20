@@ -4,6 +4,7 @@ use crate::MaterialExt;
 use crate::MaterialUiExt as _;
 use crate::Rt;
 use crate::TextAction;
+use crate::msg;
 use egui::{Color32, Frame, Sense, Stroke, Ui, Vec2, vec2};
 use egui_mineral::action::Clicked;
 use egui_mineral::semantic::KeyedSalt;
@@ -69,12 +70,12 @@ impl Severity {
         }
     }
 
-    fn message_id(self) -> &'static str {
+    fn message_id(self) -> crate::Msg {
         match self {
-            Self::Info => "mineral-alert-info",
-            Self::Success => "mineral-alert-success",
-            Self::Warning => "mineral-alert-warning",
-            Self::Error => "mineral-alert-error",
+            Self::Info => msg::ALERT_INFO,
+            Self::Success => msg::ALERT_SUCCESS,
+            Self::Warning => msg::ALERT_WARNING,
+            Self::Error => msg::ALERT_ERROR,
         }
     }
 }
@@ -293,7 +294,7 @@ impl Alert {
                         .mineral(IconButton::new(
                             self.salt.child("dismiss"),
                             rt.icons().close,
-                            crate::tr(rt.i18n(), "mineral-dismiss"),
+                            crate::tr(rt.i18n(), msg::DISMISS),
                         ))
                         .clicked()
                         .then_some(Dismiss::Close);

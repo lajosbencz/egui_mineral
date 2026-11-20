@@ -1,6 +1,7 @@
 use crate::Material;
 use crate::MaterialExt;
 use crate::MaterialUiExt as _;
+use crate::msg;
 use egui::{Color32, CornerRadius, Rect, Sense, Ui, Vec2, vec2};
 use egui_mineral::i18n::I18n;
 use egui_mineral::semantic::KeyedSalt;
@@ -210,7 +211,7 @@ impl Composite for Pagination<'_> {
         let cur = (*self.page).min(total - 1) + 1;
         let mut target = cur;
         semantic::emit_parent(ctx, id, || {
-            let name = crate::tr_or(rt.i18n(), self.label.as_deref(), "mineral-pagination");
+            let name = crate::tr_or(rt.i18n(), self.label.as_deref(), msg::PAGINATION);
             let mut n = SemanticNode::new(StableId::of(&self.salt, "pagination"), Role::Navigation, name);
             n.state.disabled = self.disabled;
             n
@@ -219,7 +220,7 @@ impl Composite for Pagination<'_> {
         let fwd = dir.pick(ui.icons().chevron_right, ui.icons().chevron_left);
         let first = dir.pick(ui.icons().first_page, ui.icons().last_page);
         let last = dir.pick(ui.icons().last_page, ui.icons().first_page);
-        let nav = |ui: &mut Ui, salt: &'static str, icon, msg: &str, enabled: bool| {
+        let nav = |ui: &mut Ui, salt: &'static str, icon, msg: crate::Msg, enabled: bool| {
             rt.ui(ui)
                 .mineral(
                     IconButton::new(self.salt.child(salt), icon, crate::tr(rt.i18n(), msg))
@@ -229,10 +230,10 @@ impl Composite for Pagination<'_> {
         };
         let r = parts::row(ui, dir, crate::adaptive::min_interactive(ui.density()), |ui| {
             ui.spacing_mut().item_spacing.x = crate::adaptive::grid(1);
-            if self.first_last && nav(ui, "first", first, "mineral-pagination-first", cur > 1) {
+            if self.first_last && nav(ui, "first", first, msg::PAGINATION_FIRST, cur > 1) {
                 target = 1;
             }
-            if nav(ui, "prev", back, "mineral-pagination-prev", cur > 1) {
+            if nav(ui, "prev", back, msg::PAGINATION_PREV, cur > 1) {
                 target = cur - 1;
             }
             let spread = Spread {
@@ -243,7 +244,7 @@ impl Composite for Pagination<'_> {
                 match item {
                     PageItem::Page(n) => {
                         let label = fmt.count(n);
-                        let name = rt.i18n().tr("mineral-pagination-page", &[("page", (&label).into())]);
+                        let name = rt.i18n().tr(msg::PaginationPage { page: (&label).into() });
                         let resp = rt.ui(ui).mineral(PageButton {
                             salt: self.salt.child(("page", n)),
                             key: StableId::of(&self.salt, (n, "page-button")),
@@ -270,10 +271,10 @@ impl Composite for Pagination<'_> {
                     _ => {}
                 }
             }
-            if nav(ui, "next", fwd, "mineral-pagination-next", cur < total) {
+            if nav(ui, "next", fwd, msg::PAGINATION_NEXT, cur < total) {
                 target = cur + 1;
             }
-            if self.first_last && nav(ui, "last", last, "mineral-pagination-last", cur < total) {
+            if self.first_last && nav(ui, "last", last, msg::PAGINATION_LAST, cur < total) {
                 target = total;
             }
         });
@@ -464,7 +465,7 @@ impl Breadcrumbs {
         let dir = rt.i18n().direction();
         let id = ui.make_persistent_id(self.salt.id_salt());
         semantic::emit_parent(ctx, id, || {
-            let name = crate::tr_or(rt.i18n(), self.label.as_deref(), "mineral-breadcrumbs");
+            let name = crate::tr_or(rt.i18n(), self.label.as_deref(), msg::BREADCRUMBS);
             let mut n = SemanticNode::new(StableId::of(&self.salt, "breadcrumbs"), Role::Navigation, name);
             n.state.disabled = self.disabled;
             n
@@ -484,7 +485,7 @@ impl Breadcrumbs {
                 }
                 first = false;
             };
-            let current_name = crate::tr(rt.i18n(), "mineral-breadcrumbs-current");
+            let current_name = crate::tr(rt.i18n(), msg::BREADCRUMBS_CURRENT);
             let crumb = |ui: &mut Ui, i: usize| {
                 rt.ui(ui)
                     .mineral(Crumb {
@@ -512,7 +513,7 @@ impl Breadcrumbs {
                     }
                     separator(ui);
                     let hidden = before..n - after;
-                    let label = crate::tr(rt.i18n(), "mineral-breadcrumbs-more");
+                    let label = crate::tr(rt.i18n(), msg::BREADCRUMBS_MORE);
                     let anchor = rt.ui(ui).mineral(
                         IconButton::new(self.salt.child("more-button"), rt.icons().more_horiz, &label)
                             .disabled(self.disabled)

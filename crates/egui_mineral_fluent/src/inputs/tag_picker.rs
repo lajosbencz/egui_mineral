@@ -1,3 +1,4 @@
+use crate::msg;
 use std::{collections::HashSet, sync::Arc};
 
 use egui::{CornerRadius, Key, Modifiers, Pos2, Rangef, Rect, Sense, Stroke, StrokeKind, TextFormat, vec2};
@@ -471,9 +472,9 @@ impl TagPicker<'_> {
         );
         let rt = ui.rt();
         semantic::emit(rt.ctx(), Some(resp.id), hit, || {
-            let name = rt
-                .i18n()
-                .tr("mineral-tag-picker-remove", &[("label", value_text.into())]);
+            let name = rt.i18n().tr(msg::TagPickerRemove {
+                label: value_text.into(),
+            });
             let mut n = SemanticNode::new(self.key.id(&self.salt).sub((index, "dismiss")), Role::Button, &name)
                 .clickable(Availability::disabled_if(self.disabled));
             n.depth = 1;

@@ -1,3 +1,4 @@
+use crate::msg;
 use egui_mineral::semantic::AgentKey;
 
 use crate::Material;
@@ -138,13 +139,10 @@ impl<'a> Rating<'a> {
     fn text(&self, i18n: &egui_mineral::i18n::I18n, v: f64) -> String {
         let f = i18n.format();
         let digits = i16::from(self.half);
-        i18n.tr(
-            "mineral-rating-value",
-            &[
-                ("value", f.number_lossy(v, Some(digits)).into()),
-                ("max", f.integer(i64::from(self.max)).into()),
-            ],
-        )
+        i18n.tr(msg::RatingValue {
+            value: f.number_lossy(v, Some(digits)).into(),
+            max: f.integer(i64::from(self.max)).into(),
+        })
     }
 }
 

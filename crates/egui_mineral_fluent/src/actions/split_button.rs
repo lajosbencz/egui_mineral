@@ -1,3 +1,4 @@
+use crate::msg;
 use crate::widget::vocab::{ButtonAppearance, ButtonShape};
 use egui::{KeyboardShortcut, Response, Vec2};
 use egui_mineral::{
@@ -118,7 +119,7 @@ impl SplitButton {
     /// Shows both parts in a row.
     pub fn show(self, ui: &mut MineralUi<'_, Fluent>) -> SplitButtonResponse {
         let rt = ui.rt();
-        let menu_label = crate::tr_or(rt.i18n(), self.menu_label.as_deref(), "mineral-split-button-menu");
+        let menu_label = crate::tr_or(rt.i18n(), self.menu_label.as_deref(), msg::SPLIT_BUTTON_MENU);
         let mut lead = PushButton::new(self.salt.clone(), self.label)
             .appearance(self.appearance)
             .size(self.size)

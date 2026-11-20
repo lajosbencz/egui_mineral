@@ -165,7 +165,7 @@ fn close_control<K: Stylekit>(rt: &Runtime<K>, ui: &mut Ui, salt: &KeyedSalt, vi
         // doc(hidden) on egui 0.37; see `InputContext::tap_on`.
         response.flags |= egui::response::Flags::FAKE_PRIMARY_CLICKED;
     }
-    let label = rt.i18n().tr("mineral-window-close", &[]);
+    let label = rt.i18n().tr(crate::i18n::msg::WINDOW_CLOSE);
     crate::semantic::emit(ui.ctx(), Some(id), hit, || {
         SemanticNode::new(StableId::of(salt, "close"), Role::Button, label).clickable(Availability::Enabled)
     });

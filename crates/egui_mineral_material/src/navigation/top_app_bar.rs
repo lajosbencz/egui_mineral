@@ -1,6 +1,7 @@
 use crate::Material;
 use crate::MaterialExt;
 use crate::MaterialUiExt as _;
+use crate::msg;
 use egui_mineral::i18n::Sides;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::semantic::StableId;
@@ -344,7 +345,7 @@ impl<'a> TopAppBar<'a> {
         let fit = ((row.rect.width() - start - end) / row.slot).floor().max(0.0) as usize;
         let shown = inline_actions(self.actions.len(), fit.min(cap));
         if shown < self.actions.len() {
-            let label = crate::tr(rt.i18n(), "mineral-app-bar-more");
+            let label = crate::tr(rt.i18n(), msg::APP_BAR_MORE);
             let anchor = egui_mineral::layout::child(
                 ui,
                 "overflow",

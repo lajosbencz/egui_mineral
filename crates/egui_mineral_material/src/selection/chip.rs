@@ -3,6 +3,7 @@ use crate::Material;
 use crate::MaterialExt;
 use crate::MaterialUiExt as _;
 use crate::actions::button::Surface;
+use crate::msg;
 use crate::widget::common::elevation_tokens;
 use egui_mineral::i18n::I18n;
 use egui_mineral::semantic::AgentKey;
@@ -391,7 +392,9 @@ impl Core<'_> {
         };
         parts::paint_icon_part(ui, rm, center, &part, t);
         semantic::emit(ctx, Some(rm.id), rm.rect, || {
-            let name = rt.i18n().tr("mineral-chip-remove", &[("label", (&self.label).into())]);
+            let name = rt.i18n().tr(msg::ChipRemove {
+                label: (&self.label).into(),
+            });
             let mut n = SemanticNode::new(self.key.id(&self.salt).sub("remove"), Role::Button, name)
                 .clickable(Availability::disabled_if(self.disabled));
             n.depth = 1;

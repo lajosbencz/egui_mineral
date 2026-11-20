@@ -1,3 +1,4 @@
+use crate::msg;
 use egui::{
     Align2, CornerRadius, Frame, Id, KeyboardShortcut, Margin, Rangef, ScrollArea, Sense, Stroke, StrokeKind, Ui, Vec2,
     pos2, text::LayoutJob, vec2,
@@ -198,7 +199,7 @@ impl<'a> CommandPalette<'a> {
         st: &mut State,
     ) -> Id {
         let rt = ui.rt();
-        let placeholder = crate::tr_or(rt.i18n(), placeholder, "mineral-command-placeholder");
+        let placeholder = crate::tr_or(rt.i18n(), placeholder, msg::COMMAND_PLACEHOLDER);
         let before = query.clone();
         let r = ui.mineral(
             SearchBox::new(salt.child("search"), &placeholder, &mut *query)
@@ -221,7 +222,7 @@ impl<'a> CommandPalette<'a> {
             SemanticNode::new(
                 StableId::of(f.salt, "commands"),
                 Role::ListBox,
-                crate::tr(rt.i18n(), "mineral-command-results"),
+                crate::tr(rt.i18n(), msg::COMMAND_RESULTS),
             )
         });
         let mut inner = ui.new_child(egui::UiBuilder::new().max_rect(rect));
@@ -236,7 +237,7 @@ impl<'a> CommandPalette<'a> {
                 },
                 t.color(ColorNeutralForeground3),
             );
-            let text = crate::tr(rt.i18n(), "mineral-command-empty");
+            let text = crate::tr(rt.i18n(), msg::COMMAND_EMPTY);
             let galley = ui.painter().layout_job(LayoutJob::single_section(text, format.clone()));
             ui.painter().galley(
                 rect.center_top() + vec2(-galley.size().x / 2.0, ROW_PAD_V),

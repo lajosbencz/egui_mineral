@@ -1,3 +1,4 @@
+use crate::msg;
 use std::sync::Arc;
 
 use egui::{Align2, Galley, Id, Rect, Response, Sense, Ui, UiBuilder, epaint::TextShape, pos2, text::LayoutJob, vec2};
@@ -404,7 +405,7 @@ impl<'a> Accordion<'a> {
         });
         let response = scope.response;
         semantic::emit(ui.ctx(), None, response.rect, || {
-            SemanticNode::new(key, Role::Group, crate::tr(rt.i18n(), "mineral-accordion"))
+            SemanticNode::new(key, Role::Group, crate::tr(rt.i18n(), msg::ACCORDION))
         });
         let (inner, toggled) = scope.inner;
         AccordionResponse {

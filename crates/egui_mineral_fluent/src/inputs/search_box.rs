@@ -1,3 +1,4 @@
+use crate::msg;
 use egui::{Pos2, Rangef, Rect, Sense, vec2};
 use egui_mineral::{
     i18n::{I18n, Sides},
@@ -202,7 +203,7 @@ impl MineralWidget for SearchBox<'_> {
                 SemanticNode::new(
                     StableId::of(&self.salt, "clear-button"),
                     Role::Button,
-                    crate::tr(rt.i18n(), "mineral-search-clear"),
+                    crate::tr(rt.i18n(), msg::SEARCH_CLEAR),
                 )
                 .pressable(Availability::Enabled)
             });

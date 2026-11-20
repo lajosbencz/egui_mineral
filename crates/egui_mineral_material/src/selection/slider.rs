@@ -1,6 +1,7 @@
 use crate::Material;
 use crate::MaterialExt;
 use crate::Rt;
+use crate::msg;
 use egui::{Color32, CursorIcon, Pos2, Rangef, Rect, Sense, Ui, Vec2, epaint::CornerRadiusF32, pos2};
 use egui_mineral::i18n::I18n;
 use egui_mineral::semantic::AgentKey;
@@ -587,12 +588,12 @@ impl ValueSlider<'_> {
         }
         for (i, th) in pc.thumbs.iter().enumerate() {
             semantic::emit(ctx, Some(th.id), th.rect, || {
-                let msg = if i == 0 {
-                    "mineral-range-start"
+                let label = (&self.label).into();
+                let name = if i == 0 {
+                    rt.i18n().tr(msg::RangeStart { label })
                 } else {
-                    "mineral-range-end"
+                    rt.i18n().tr(msg::RangeEnd { label })
                 };
-                let name = rt.i18n().tr(msg, &[("label", (&self.label).into())]);
                 let mut n = self.node(
                     rt.i18n(),
                     self.key.id(&self.salt).sub(if i == 0 { "start" } else { "end" }),
@@ -694,13 +695,10 @@ impl MineralWidget for ValueSlider<'_> {
 
     fn semantics(&self, i18n: &I18n, _: &WidgetResponse, _: &ValueSliderState) -> Option<SemanticNode> {
         Some(if let [a, b] = &*self.values {
-            let value = i18n.tr(
-                "mineral-range-value",
-                &[
-                    ("start", self.text(i18n, *a).into()),
-                    ("end", self.text(i18n, *b).into()),
-                ],
-            );
+            let value = i18n.tr(msg::RangeValue {
+                start: self.text(i18n, *a).into(),
+                end: self.text(i18n, *b).into(),
+            });
             let mut n = SemanticNode::new(self.key.id(&self.salt), Role::Group, &self.label).value(value);
             n.state.disabled = self.disabled;
             n

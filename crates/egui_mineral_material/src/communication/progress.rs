@@ -1,5 +1,6 @@
 use crate::Material;
 use crate::MaterialExt;
+use crate::msg;
 use egui_mineral::layout::Fraction;
 use egui_mineral::semantic::AgentKey;
 use egui_mineral::semantic::KeyedSalt;
@@ -28,7 +29,7 @@ use crate::{
 use defaults::progress_indicator as pi;
 
 fn node(i18n: &egui_mineral::i18n::I18n, id: StableId, label: Option<&str>, value: Option<f32>) -> SemanticNode {
-    let name = label.map_or_else(|| crate::tr(i18n, "mineral-progress"), str::to_owned);
+    let name = label.map_or_else(|| crate::tr(i18n, msg::PROGRESS), str::to_owned);
     let mut n = SemanticNode::new(id, Role::ProgressIndicator, name);
     if let Some(v) = value {
         n.state.range = Some(NumericRange {
@@ -38,7 +39,7 @@ fn node(i18n: &egui_mineral::i18n::I18n, id: StableId, label: Option<&str>, valu
             step: None,
         });
         let pct = (f64::from(v) * 100.0).round();
-        n.value = Some(i18n.tr("mineral-percent", &[("value", pct.into())]));
+        n.value = Some(i18n.tr(msg::Percent { value: pct.into() }));
     }
     n
 }

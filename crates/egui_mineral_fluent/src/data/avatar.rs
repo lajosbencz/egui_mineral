@@ -1,3 +1,4 @@
+use crate::msg;
 use egui::{Color32, CornerRadius, Pos2, Rect, Shape, Stroke, StrokeKind, Vec2, epaint::RectShape, pos2, vec2};
 use egui_mineral::{
     i18n::I18n,
@@ -701,8 +702,8 @@ impl<'a> Avatar<'a> {
         }
         match self.active {
             AvatarActive::Unset => {}
-            AvatarActive::Active => parts.push(crate::tr(i18n, "mineral-avatar-active")),
-            AvatarActive::Inactive => parts.push(crate::tr(i18n, "mineral-avatar-inactive")),
+            AvatarActive::Active => parts.push(crate::tr(i18n, msg::AVATAR_ACTIVE)),
+            AvatarActive::Inactive => parts.push(crate::tr(i18n, msg::AVATAR_INACTIVE)),
         }
         parts.retain(|p| !p.is_empty());
         parts.join(", ")

@@ -1,3 +1,4 @@
+use crate::msg;
 use egui::{Color32, CornerRadius, CursorIcon, Painter, Pos2, Rangef, Rect, pos2, vec2};
 use egui_mineral::{
     i18n::{Direction, I18n},
@@ -276,13 +277,10 @@ impl MineralWidget for Rating<'_> {
     fn semantics(&self, i18n: &I18n, _: &WidgetResponse, (): &()) -> Option<SemanticNode> {
         let v = *self.value;
         let digits = i16::from(self.half);
-        let text = i18n.tr(
-            "mineral-rating-value",
-            &[
-                ("value", i18n.format().number_lossy(v, Some(digits)).into()),
-                ("max", i18n.format().integer(i64::from(self.max)).into()),
-            ],
-        );
+        let text = i18n.tr(msg::RatingValue {
+            value: i18n.format().number_lossy(v, Some(digits)).into(),
+            max: i18n.format().integer(i64::from(self.max)).into(),
+        });
         let mut n = SemanticNode::new(self.key.id(&self.salt), Role::Slider, &self.label).value(text);
         n.state.range = Some(self.model().numeric(v));
         n.actions.extend([
@@ -484,13 +482,10 @@ impl MineralWidget for RatingDisplay {
 
     fn semantics(&self, i18n: &I18n, _: &WidgetResponse, (): &()) -> Option<SemanticNode> {
         let f = i18n.format();
-        let text = i18n.tr(
-            "mineral-rating-value",
-            &[
-                ("value", f.number_lossy(self.value, Some(1)).into()),
-                ("max", f.integer(i64::from(self.max)).into()),
-            ],
-        );
+        let text = i18n.tr(msg::RatingValue {
+            value: f.number_lossy(self.value, Some(1)).into(),
+            max: f.integer(i64::from(self.max)).into(),
+        });
         Some(SemanticNode::new(self.key.id(&self.salt), Role::Image, &self.label).value(text))
     }
 }

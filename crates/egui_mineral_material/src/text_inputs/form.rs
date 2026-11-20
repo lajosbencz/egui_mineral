@@ -1,5 +1,6 @@
 use crate::Material;
 use crate::MaterialExt;
+use crate::msg;
 use egui_mineral::form::{FieldCtx, FieldKind, Form, FormFooter, FormResponse};
 use egui_mineral::widget::MineralUi;
 
@@ -37,7 +38,7 @@ fn footer(ui: &mut MineralUi<'_, Material>, f: &FormFooter<'_>) -> bool {
     }
     let label = f
         .submit_label
-        .map_or_else(|| crate::tr(rt.i18n(), "mineral-submit"), str::to_owned);
+        .map_or_else(|| crate::tr(rt.i18n(), msg::SUBMIT), str::to_owned);
     rt.ui(ui)
         .mineral(PushButton::new(f.form_salt.child("submit"), label).disabled(!f.enabled))
         .clicked()

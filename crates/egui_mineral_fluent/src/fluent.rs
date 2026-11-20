@@ -138,7 +138,7 @@ impl Stylekit for Fluent {
     }
 
     fn catalogs(&self) -> &'static [Catalog] {
-        static CATALOGS: [Catalog; 1] = [Catalog::new("en-US", include_str!("../locales/en-US.ftl"))];
+        static CATALOGS: [Catalog; 1] = [Catalog::new("en-US", crate::msg::SOURCE)];
         &CATALOGS
     }
 

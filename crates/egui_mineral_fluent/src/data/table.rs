@@ -1,3 +1,4 @@
+use crate::msg;
 use std::{borrow::Cow, ops::Range, sync::Arc};
 
 use egui::{CursorIcon, Galley, Id, Rangef, Rect, Sense, Stroke, StrokeKind, UiBuilder, pos2, text::LayoutJob, vec2};
@@ -719,7 +720,7 @@ fn header(
         } else {
             let selected = tb.selection.as_deref().map_or(0, |s| order.selected(s));
             let mut all = selected == order.len() && selected > 0;
-            let label = crate::tr(rt.i18n(), "mineral-table-select-all");
+            let label = crate::tr(rt.i18n(), msg::TABLE_SELECT_ALL);
             let mut check = Checkbox::new(tb.salt.child("select-all"), label, &mut all)
                 .mixed(selected > 0 && selected < order.len())
                 .label_visible(false);
@@ -758,10 +759,10 @@ fn header(
             ev.sort = true;
         }
         semantic::emit(ui.ctx(), Some(hid), rect, || {
-            let label = || [("label", col.label.clone().into())];
+            let label = || (&col.label).into();
             let name = match sorted {
-                Some(SortOrder::Ascending) => rt.i18n().tr("mineral-table-sorted-ascending", &label()),
-                Some(SortOrder::Descending) => rt.i18n().tr("mineral-table-sorted-descending", &label()),
+                Some(SortOrder::Ascending) => rt.i18n().tr(msg::TableSortedAscending { label: label() }),
+                Some(SortOrder::Descending) => rt.i18n().tr(msg::TableSortedDescending { label: label() }),
                 None => col.label.clone(),
             };
             let mut n = SemanticNode::new(StableId::of(&tb.salt, ("header", c)), Role::ColumnHeader, name);
@@ -833,7 +834,7 @@ fn body_row(
     if selectable {
         let single = single(tb.selection.as_deref());
         let mut on = selected;
-        let label = crate::tr(rt.i18n(), "mineral-table-select-row");
+        let label = crate::tr(rt.i18n(), msg::TABLE_SELECT_ROW);
         let mut check = Checkbox::new(tb.salt.child(("select", data)), label, &mut on).label_visible(false);
         if single {
             check = check.shape(CheckboxShape::Circular);

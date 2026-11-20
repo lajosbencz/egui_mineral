@@ -1,5 +1,6 @@
 use crate::Material;
 use crate::MaterialExt;
+use crate::msg;
 use egui_mineral::runtime::Core;
 use egui_mineral::widget::MineralUi;
 use std::sync::Arc;
@@ -84,7 +85,7 @@ pub(crate) fn action_slot(dir: egui_mineral::i18n::Direction, size: f32, bar: Re
 }
 
 pub(crate) fn close_button(ui: &mut MineralUi<'_, Material>, salt: egui_mineral::semantic::KeyedSalt) -> bool {
-    let label = crate::tr(ui.i18n(), "mineral-close");
+    let label = crate::tr(ui.i18n(), msg::CLOSE);
     ui.mineral(crate::actions::IconButton::new(salt, ui.icons().close, label))
         .clicked()
 }

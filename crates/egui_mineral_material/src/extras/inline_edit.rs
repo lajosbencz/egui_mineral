@@ -1,6 +1,7 @@
 use crate::Material;
 use crate::MaterialExt;
 use crate::MaterialUiExt as _;
+use crate::msg;
 use egui::{
     Align, Color32, CursorIcon, Key, Rangef, Rect, pos2,
     text::{CCursor, CCursorRange},
@@ -147,12 +148,12 @@ impl InlineEdit<'_> {
             let submit = IconButton::new(
                 self.salt.child("submit"),
                 rt.icons().check,
-                tr(rt.i18n(), "mineral-inline-submit"),
+                tr(rt.i18n(), msg::INLINE_SUBMIT),
             );
             let cancel = IconButton::new(
                 self.salt.child("cancel"),
                 rt.icons().close,
-                tr(rt.i18n(), "mineral-inline-cancel"),
+                tr(rt.i18n(), msg::INLINE_CANCEL),
             );
             let button = submit.footprint(density);
             let edit_w = (width - 2.0 * (button.x + ui.spacing().item_spacing.x)).max(button.x);

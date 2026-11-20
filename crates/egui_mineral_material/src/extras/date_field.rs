@@ -1,6 +1,7 @@
 use crate::Material;
 use crate::MaterialExt;
 use crate::MaterialUiExt as _;
+use crate::msg;
 use crate::text_inputs::text_field::FieldChrome;
 use egui::{
     CursorIcon, Event, IMEPurpose, ImeEvent, Key, Rangef, Rect, Ui,
@@ -101,11 +102,11 @@ fn separator(fmt: &dyn i18n::LocaleFormat) -> String {
     sep
 }
 
-fn hint_id(f: Field) -> &'static str {
+fn hint_id(f: Field) -> crate::Msg {
     match f {
-        Field::Year => "mineral-date-hint-year",
-        Field::Month => "mineral-date-hint-month",
-        Field::Day => "mineral-date-hint-day",
+        Field::Year => msg::DATE_HINT_YEAR,
+        Field::Month => msg::DATE_HINT_MONTH,
+        Field::Day => msg::DATE_HINT_DAY,
     }
 }
 
@@ -324,9 +325,9 @@ impl MineralWidget for DateField<'_> {
         }
         let complete_invalid = !seg.is_empty() && (0..3).all(|i| seg.value(i).is_some()) && parsed.is_none();
         let error = if out_of_range {
-            Some(tr(rt.i18n(), "mineral-date-out-of-range"))
+            Some(tr(rt.i18n(), msg::DATE_OUT_OF_RANGE))
         } else if complete_invalid {
-            Some(tr(rt.i18n(), "mineral-date-invalid"))
+            Some(tr(rt.i18n(), msg::DATE_INVALID))
         } else {
             self.chrome.error.clone()
         };

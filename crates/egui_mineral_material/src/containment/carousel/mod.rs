@@ -1,4 +1,5 @@
 // Compose carousel/Carousel.kt, Keylines.kt, KeylineList.kt, Arrangement.kt, Strategy.kt, KeylineSnapPosition.kt
+use crate::msg;
 use egui_mineral::kit::state::TempState;
 use std::sync::Arc;
 
@@ -502,7 +503,7 @@ impl<'a> Carousel<'a> {
             let mut n = SemanticNode::new(
                 StableId::of(&self.salt, "carousel"),
                 Role::List,
-                crate::tr_or(rt.i18n(), self.label.as_deref(), "mineral-carousel"),
+                crate::tr_or(rt.i18n(), self.label.as_deref(), msg::CAROUSEL),
             );
             n.state.disabled = self.disabled;
             n
@@ -688,10 +689,10 @@ impl<'a> Carousel<'a> {
         semantic::emit(ctx, Some(id), rect, || {
             let name = self.item_label.as_ref().map_or_else(
                 || {
-                    rt.i18n().tr(
-                        "mineral-carousel-item",
-                        &[("index", (i + 1).into()), ("count", self.count.into())],
-                    )
+                    rt.i18n().tr(msg::CarouselItem {
+                        index: (i + 1).into(),
+                        count: self.count.into(),
+                    })
                 },
                 |f| f(i),
             );

@@ -1,5 +1,6 @@
 use crate::Material;
 use crate::MaterialExt;
+use crate::msg;
 use egui::{
     Color32, ImageSource, Painter, Pos2, Rangef, Rect, Stroke, Ui, Vec2, load::TexturePoll, text::LayoutJob, vec2,
 };
@@ -246,10 +247,12 @@ impl AvatarGroup {
 
     fn node(&self, i18n: &egui_mineral::i18n::I18n) -> SemanticNode {
         let (_, hidden) = self.split();
-        let name = i18n.tr("mineral-avatar-group", &[("count", self.avatars.len().into())]);
+        let name = i18n.tr(msg::AvatarGroup {
+            count: self.avatars.len().into(),
+        });
         let mut n = SemanticNode::new(self.key.id(&self.salt), Role::Group, name);
         if hidden > 0 {
-            n.value = Some(i18n.tr("mineral-avatar-more", &[("count", hidden.into())]));
+            n.value = Some(i18n.tr(msg::AvatarMore { count: hidden.into() }));
         }
         n
     }
@@ -289,7 +292,7 @@ impl AvatarGroup {
                 Stroke::new(RING_WIDTH, t.color.surface),
             );
             let count = rt.i18n().format().count(hidden);
-            let text = rt.i18n().tr("mineral-avatar-overflow", &[("count", (&count).into())]);
+            let text = rt.i18n().tr(msg::AvatarOverflow { count: (&count).into() });
             paint_label(p, r.center(), text, r.width(), t.role(OVERFLOW_LABEL_COLOR));
         }
     }

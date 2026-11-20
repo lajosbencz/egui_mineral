@@ -2,6 +2,7 @@ use crate::Material;
 use crate::MaterialExt;
 use crate::MaterialUiExt as _;
 use crate::actions::button::{ContainerVariant, Space};
+use crate::msg;
 use egui_mineral::i18n::I18n;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::MineralUi;
@@ -203,7 +204,7 @@ impl SplitButton {
         let trail = Trailing {
             salt: self.salt.child("menu"),
             key: StableId::of(&self.salt, "split-menu-button"),
-            label: crate::tr_or(rt.i18n(), self.menu_label.as_deref(), "mineral-split-button-menu"),
+            label: crate::tr_or(rt.i18n(), self.menu_label.as_deref(), msg::SPLIT_BUTTON_MENU),
             variant: self.variant.into(),
             size: self.size,
             metrics: m,

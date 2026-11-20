@@ -487,8 +487,11 @@ pub fn mnemonic_job(
             }
             MnemonicMark::At(_) => part(text, plain),
             MnemonicMark::Suffix => {
-                let args = [("label", text.into()), ("key", m.char().to_string().into())];
-                part(&core.i18n().tr("mineral-mnemonic-suffix", &args), plain);
+                let suffixed = crate::i18n::msg::MnemonicSuffix {
+                    label: text.into(),
+                    key: m.char().to_string().into(),
+                };
+                part(&core.i18n().tr(suffixed), plain);
             }
         },
         None => part(text, plain),

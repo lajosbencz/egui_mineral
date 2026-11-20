@@ -1,3 +1,4 @@
+use crate::msg;
 use egui::{Align, Id, Key, Response, Sense, Stroke, StrokeKind, Ui, UiBuilder};
 use egui_mineral::{
     focus::{self as roving, RovingFocus, TabStop},
@@ -140,7 +141,7 @@ impl<'a> List<'a> {
         let response = scope.response;
         let (inner, activated, changed) = scope.inner;
         semantic::emit(ui.ctx(), None, response.rect, || {
-            SemanticNode::new(key, role, crate::tr(rt.i18n(), "mineral-list"))
+            SemanticNode::new(key, role, crate::tr(rt.i18n(), msg::LIST))
         });
         ListResponse {
             response,

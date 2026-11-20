@@ -1,3 +1,4 @@
+use crate::msg;
 use egui::{Color32, CornerRadius, Rect, Sense, vec2};
 use egui_mineral::{
     i18n::I18n,
@@ -138,7 +139,7 @@ impl Skeleton {
         let id = ui.make_persistent_id((self.salt.id_salt(), "skeleton"));
         let r = ui.interact(inner.response.rect, id, Sense::hover());
         semantic::emit(ui.ctx(), Some(r.id), r.rect, || {
-            let name = crate::tr_or(rt.i18n(), self.label.as_deref(), "mineral-skeleton-loading");
+            let name = crate::tr_or(rt.i18n(), self.label.as_deref(), msg::SKELETON_LOADING);
             SemanticNode::new(self.key.id(&self.salt), Role::ProgressIndicator, name)
         });
         SkeletonResponse {

@@ -1,3 +1,4 @@
+use crate::msg;
 use std::time::Duration;
 
 use egui::{Color32, Id, Rect, Sense, Stroke, StrokeKind, Ui, UiBuilder, vec2};
@@ -432,7 +433,7 @@ impl<'a> Carousel<'a> {
                 ui.spacing_mut().item_spacing.x = d::NAV_MARGIN;
                 ui.add_space(lead);
                 let start = ui.cursor().min.x;
-                let label = |at: usize, id: &str| {
+                let label = |at: usize, id: crate::Msg| {
                     let over = self.buttons.get(at).and_then(Option::as_deref);
                     crate::tr_or(rt.i18n(), over, id)
                 };
@@ -454,7 +455,7 @@ impl<'a> Carousel<'a> {
                     } else {
                         rt.icons().play
                     };
-                    if button(ui, "autoplay", &label(2, "mineral-carousel-autoplay"), icon, reduced) {
+                    if button(ui, "autoplay", &label(2, msg::CAROUSEL_AUTOPLAY), icon, reduced) {
                         auto.playing = !auto.playing;
                         auto.since = ctx.input(|i| i.time);
                     }
@@ -474,7 +475,7 @@ impl<'a> Carousel<'a> {
                     egui_mineral::i18n::Direction::Rtl => (rt.icons().chevron_right, rt.icons().chevron_left),
                 };
                 let at_start = !self.circular && *next == 0;
-                if button(ui, "previous", &label(0, "mineral-carousel-previous"), prev, at_start) {
+                if button(ui, "previous", &label(0, msg::CAROUSEL_PREVIOUS), prev, at_start) {
                     picked = Some(self.step(*next, len, false));
                 }
                 for (i, label) in labels.iter().enumerate() {
@@ -491,7 +492,7 @@ impl<'a> Carousel<'a> {
                     ids.push(out.id);
                 }
                 let at_end = !self.circular && *next + 1 >= len;
-                if button(ui, "next", &label(1, "mineral-carousel-next"), following, at_end) {
+                if button(ui, "next", &label(1, msg::CAROUSEL_NEXT), following, at_end) {
                     picked = Some(self.step(*next, len, true));
                 }
                 (ui.cursor().min.x - start).abs()

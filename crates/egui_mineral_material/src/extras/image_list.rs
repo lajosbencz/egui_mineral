@@ -1,5 +1,6 @@
 use crate::Material;
 use crate::MaterialExt;
+use crate::msg;
 use std::{cmp::Ordering, ops::Range, sync::Arc};
 
 use egui::{Color32, CornerRadius, ImageSource, Rangef, Rect, Sense, UiBuilder, pos2, vec2};
@@ -287,10 +288,10 @@ impl<'a> ImageList<'a> {
     fn tile_node(&self, i18n: &I18n, i: usize) -> SemanticNode {
         let name = self.item_label.as_ref().map_or_else(
             || {
-                i18n.tr(
-                    "mineral-image-list-item",
-                    &[("index", (i + 1).into()), ("count", self.count.into())],
-                )
+                i18n.tr(msg::ImageListItem {
+                    index: (i + 1).into(),
+                    count: self.count.into(),
+                })
             },
             |f| f(i),
         );
@@ -314,7 +315,7 @@ impl<'a> ImageList<'a> {
         let dir = rt.i18n().direction();
         let availability = Availability::disabled_if(self.disabled);
         semantic::emit_parent(&ctx, id, || {
-            let name = crate::tr_or(rt.i18n(), self.label.as_deref(), "mineral-image-list");
+            let name = crate::tr_or(rt.i18n(), self.label.as_deref(), msg::IMAGE_LIST);
             let mut n = SemanticNode::new(StableId::of(&self.salt, "image-list"), Role::Grid, name);
             n.state.disabled = self.disabled;
             n

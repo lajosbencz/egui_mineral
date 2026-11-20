@@ -27,6 +27,9 @@ that `Runtime::pass` hands out. A minimal headless pass:
 ```rust
 use egui_mineral::{i18n::Catalog, policy::Policies, runtime::{Runtime, Stylekit}};
 
+// hello = Hello
+egui_mineral::i18n::messages!(mod msg = "tests/locales/en-US.ftl");
+
 struct Kit;
 
 impl Stylekit for Kit {
@@ -34,7 +37,7 @@ impl Stylekit for Kit {
         Policies::baseline()
     }
     fn catalogs(&self) -> &'static [Catalog] {
-        static CATALOGS: [Catalog; 1] = [Catalog::new("en", "hello = Hello")];
+        static CATALOGS: [Catalog; 1] = [Catalog::new("en-US", msg::SOURCE)];
         &CATALOGS
     }
     fn setup(&self, _: &egui::Context) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -49,7 +52,7 @@ let ctx = egui::Context::default();
 let rt = Runtime::new(&ctx, Kit)?;
 let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
     rt.pass(ui, |ui| {
-        let hello = ui.core().i18n().tr("hello", &[]);
+        let hello = ui.core().i18n().tr(msg::HELLO);
         ui.label(hello);
     });
 });

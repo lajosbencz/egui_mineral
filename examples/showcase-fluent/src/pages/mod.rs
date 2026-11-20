@@ -52,7 +52,7 @@ impl Page {
 
     pub(crate) fn title(self, i18n: &I18n) -> String {
         match self {
-            Self::Foundations => "Foundations".to_owned(),
+            Self::Foundations => i18n.tr(crate::msg::FOUNDATIONS),
             Self::Category(c) => c.title(i18n),
         }
     }

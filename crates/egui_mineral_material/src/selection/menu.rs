@@ -663,7 +663,7 @@ impl Menu {
 
     /// Dropdown opened by [`Self::show`] on `anchor` is open.
     pub fn is_open(ctx: &egui::Context, anchor: &Response) -> bool {
-        MenuState::try_load(ctx, anchor.id.with("mineral-menu")).is_some_and(|st| st.open)
+        MenuState::try_load(ctx, anchor.id.with("mineral::menu")).is_some_and(|st| st.open)
     }
 
     /// Context menu opened by [`Self::show_context`] on `target` is open.
@@ -720,7 +720,7 @@ impl Menu {
     pub fn show(self, rt: &Rt, anchor: &Response) -> MenuResponse {
         let this = self.resolved();
         let ctx = anchor.ctx.clone();
-        let id = anchor.id.with("mineral-menu");
+        let id = anchor.id.with("mineral::menu");
         let mut st = MenuState::load(&ctx, id);
         if this.bind_shortcuts(&ctx, shortcut::scope_of(&ctx, anchor.layer_id)) || this.disabled {
             st.open = false;

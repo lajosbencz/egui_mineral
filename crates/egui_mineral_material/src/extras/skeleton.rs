@@ -1,6 +1,7 @@
 // Accompanist placeholder-material3 v0.32.0 (Placeholder.kt, PlaceholderHighlight.kt, PlaceholderDefaults); deprecated upstream
 use crate::Material;
 use crate::MaterialExt;
+use crate::msg;
 use egui_mineral::semantic::AgentKey;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::MineralUi;
@@ -175,7 +176,7 @@ impl Skeleton {
     }
 
     fn node(&self, i18n: &egui_mineral::i18n::I18n) -> SemanticNode {
-        let name = crate::tr(i18n, "mineral-skeleton");
+        let name = crate::tr(i18n, msg::SKELETON);
         let mut n = SemanticNode::new(self.key.id(&self.salt), Role::Status, name);
         n.state.live = Some(egui_mineral::semantic::Live::Polite);
         n

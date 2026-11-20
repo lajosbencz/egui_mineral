@@ -1,5 +1,6 @@
 use crate::Material;
 use crate::MaterialExt;
+use crate::msg;
 use egui_mineral::i18n::I18n;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::MineralUi;
@@ -110,7 +111,7 @@ impl FileDropZone {
     }
 
     fn shown_title(&self, i18n: &egui_mineral::i18n::I18n) -> String {
-        crate::tr_or(i18n, self.title.as_deref(), "mineral-file-drop")
+        crate::tr_or(i18n, self.title.as_deref(), msg::FILE_DROP)
     }
 
     fn accepts(&self, file: &DroppedFileHandle) -> bool {
@@ -277,7 +278,7 @@ impl MineralWidget for FileDropZone {
             }
             ui.add_space(d::TEXT_BOTTOM_PADDING);
             ui.mineral(
-                PushButton::new(self.salt.child("browse"), tr(rt.i18n(), "mineral-file-browse"))
+                PushButton::new(self.salt.child("browse"), tr(rt.i18n(), msg::FILE_BROWSE))
                     .variant(ButtonVariant::Tonal)
                     .icon(ui.icons().attach_file)
                     .disabled(self.disabled)

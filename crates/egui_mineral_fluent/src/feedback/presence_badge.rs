@@ -1,3 +1,4 @@
+use crate::msg;
 use egui::{Color32, FontId, Pos2, Shape, Stroke, pos2, vec2};
 use egui_mineral::{
     i18n::I18n,
@@ -49,16 +50,16 @@ impl PresenceStatus {
         Self::Blocked,
     ];
 
-    const fn message(self) -> &'static str {
+    const fn message(self) -> crate::Msg {
         match self {
-            Self::Available => "mineral-presence-available",
-            Self::Away => "mineral-presence-away",
-            Self::Busy => "mineral-presence-busy",
-            Self::DoNotDisturb => "mineral-presence-do-not-disturb",
-            Self::Offline => "mineral-presence-offline",
-            Self::OutOfOffice => "mineral-presence-out-of-office",
-            Self::Unknown => "mineral-presence-unknown",
-            Self::Blocked => "mineral-presence-blocked",
+            Self::Available => msg::PRESENCE_AVAILABLE,
+            Self::Away => msg::PRESENCE_AWAY,
+            Self::Busy => msg::PRESENCE_BUSY,
+            Self::DoNotDisturb => msg::PRESENCE_DO_NOT_DISTURB,
+            Self::Offline => msg::PRESENCE_OFFLINE,
+            Self::OutOfOffice => msg::PRESENCE_OUT_OF_OFFICE,
+            Self::Unknown => msg::PRESENCE_UNKNOWN,
+            Self::Blocked => msg::PRESENCE_BLOCKED,
         }
     }
 
@@ -185,7 +186,7 @@ impl PresenceBadge {
     pub(crate) fn name(&self, i18n: &I18n) -> String {
         let status = crate::tr(i18n, self.status.message());
         if self.out_of_office && self.status != PresenceStatus::OutOfOffice {
-            i18n.tr("mineral-presence-with-out-of-office", &[("status", status.into())])
+            i18n.tr(msg::PresenceWithOutOfOffice { status: status.into() })
         } else {
             status
         }

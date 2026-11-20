@@ -1,3 +1,4 @@
+use crate::msg;
 use std::sync::Arc;
 
 use egui::{Color32, Galley, Pos2, Rangef, Rect, Shape, Stroke, pos2, vec2};
@@ -310,7 +311,7 @@ impl MineralWidget for Spinner {
     }
 
     fn semantics(&self, i18n: &I18n, _: &WidgetResponse, (): &()) -> Option<SemanticNode> {
-        let name = crate::tr_or(i18n, self.label.as_deref(), "mineral-progress");
+        let name = crate::tr_or(i18n, self.label.as_deref(), msg::PROGRESS);
         Some(SemanticNode::new(
             self.key.id(&self.salt),
             Role::ProgressIndicator,

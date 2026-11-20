@@ -3,6 +3,7 @@ use crate::MaterialExt;
 use crate::MaterialUiExt as _;
 use crate::Rt;
 use crate::adaptive::Density;
+use crate::msg;
 use egui::{Color32, Pos2, Rangef, Rect, Sense, Stroke, UiBuilder, pos2, vec2};
 use egui_mineral::i18n::I18n;
 use egui_mineral::semantic::KeyedSalt;
@@ -62,14 +63,14 @@ impl StepLabel {
     }
 }
 
-fn status_id(s: StepStatus) -> &'static str {
+fn status_id(s: StepStatus) -> crate::Msg {
     match s {
-        StepStatus::Pending => "mineral-step-pending",
-        StepStatus::Active => "mineral-step-active",
-        StepStatus::Complete => "mineral-step-complete",
-        StepStatus::Skipped => "mineral-step-skipped",
-        StepStatus::Error => "mineral-step-error",
-        StepStatus::Disabled => "mineral-step-disabled",
+        StepStatus::Pending => msg::STEP_PENDING,
+        StepStatus::Active => msg::STEP_ACTIVE,
+        StepStatus::Complete => msg::STEP_COMPLETE,
+        StepStatus::Skipped => msg::STEP_SKIPPED,
+        StepStatus::Error => msg::STEP_ERROR,
+        StepStatus::Disabled => msg::STEP_DISABLED,
     }
 }
 
@@ -226,10 +227,10 @@ impl MineralWidget for StepHeader<'_> {
     }
 
     fn semantics(&self, i18n: &I18n, _: &WidgetResponse, (): &()) -> Option<SemanticNode> {
-        let name = i18n.tr(
-            "mineral-step",
-            &[("number", (&self.number).into()), ("label", (&self.label.label).into())],
-        );
+        let name = i18n.tr(msg::Step {
+            number: (&self.number).into(),
+            label: (&self.label.label).into(),
+        });
         let mut n =
             SemanticNode::new(self.key.clone(), Role::Button, name).value(crate::tr(i18n, status_id(self.status)));
         n.state.selected = Some(self.status == StepStatus::Active);
@@ -322,7 +323,7 @@ impl<'a> Stepper<'a> {
             optional: self
                 .steps
                 .is_optional(i)
-                .then(|| crate::tr(rt.i18n(), "mineral-step-optional")),
+                .then(|| crate::tr(rt.i18n(), msg::STEP_OPTIONAL)),
             selectable: !self.disabled && self.steps.can_select(i) && i != self.steps.current(),
             label_w,
             full_width: self.axis == Axis::Vertical,
@@ -488,7 +489,7 @@ impl<'a> Stepper<'a> {
         let current = self.steps.current();
         let mut out = None;
         semantic::emit_parent(ctx, id, || {
-            let name = crate::tr_or(rt.i18n(), self.label.as_deref(), "mineral-stepper");
+            let name = crate::tr_or(rt.i18n(), self.label.as_deref(), msg::STEPPER);
             let mut n = SemanticNode::new(StableId::of(&self.salt, "stepper"), Role::Group, name);
             n.state.disabled = self.disabled;
             n

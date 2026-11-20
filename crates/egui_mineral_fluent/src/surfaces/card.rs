@@ -1,3 +1,4 @@
+use crate::msg;
 use crate::tokens::ShadowTint;
 use egui::{Align, Frame, Margin, Rect, Response, Sense, Shape, Stroke, StrokeKind, Ui, UiBuilder, pos2, vec2};
 use egui_mineral::{
@@ -269,7 +270,7 @@ impl<'a> Card<'a> {
         let Some(sel) = self.selected.as_deref_mut() else {
             return false;
         };
-        let label = crate::tr(rt.i18n(), "mineral-card-select");
+        let label = crate::tr(rt.i18n(), msg::CARD_SELECT);
         let inset = d::SELECT_INSET;
         let place = Rect::from_min_max(
             pos2(rect.left() + inset, rect.top() + inset),
@@ -397,10 +398,7 @@ impl<'a> Card<'a> {
             changed |= flipped;
             clicked |= flipped;
         }
-        let label = self
-            .label
-            .take()
-            .unwrap_or_else(|| crate::tr(rt.i18n(), "mineral-card"));
+        let label = self.label.take().unwrap_or_else(|| crate::tr(rt.i18n(), msg::CARD));
         let key = self.key.id(&self.salt);
         let selectable = self.selected.is_some();
         semantic::emit(ui.ctx(), Some(response.id), rect, || {

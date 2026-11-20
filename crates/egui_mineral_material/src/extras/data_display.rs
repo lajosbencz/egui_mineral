@@ -2,6 +2,7 @@ use crate::Material;
 use crate::MaterialExt;
 use crate::Rt;
 use crate::TextAction;
+use crate::msg;
 use egui_mineral::semantic::AgentKey;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::MineralUi;
@@ -27,8 +28,10 @@ use crate::{
 };
 
 pub(crate) fn pair(rt: &Rt, first: &str, second: &str) -> String {
-    rt.i18n()
-        .tr("mineral-pair", &[("first", first.into()), ("second", second.into())])
+    rt.i18n().tr(msg::Pair {
+        first: first.into(),
+        second: second.into(),
+    })
 }
 
 fn centered(ui: &Ui, text: &str, scale: TypeScale, color: Color32, width: f32) -> Arc<Galley> {
@@ -270,9 +273,10 @@ impl Statistic {
         let digits = self.fraction_digits.map(i16::from);
         let number = fmt.number_lossy(self.value, digits);
         let value = match &self.unit {
-            Some(u) => rt
-                .i18n()
-                .tr("mineral-stat-unit", &[("value", (&number).into()), ("unit", u.into())]),
+            Some(u) => rt.i18n().tr(msg::StatUnit {
+                value: (&number).into(),
+                unit: u.into(),
+            }),
             None => number,
         };
         let trend = self.trend.map(|tr| {
@@ -280,14 +284,15 @@ impl Statistic {
             let shown = match tr {
                 Trend::Percent(_) => {
                     let mag = fmt.number_lossy(v.abs(), Some(1));
-                    rt.i18n().tr("mineral-stat-percent", &[("value", (&mag).into())])
+                    rt.i18n().tr(msg::StatPercent { value: (&mag).into() })
                 }
                 Trend::Absolute(_) => fmt.number_lossy(v.abs(), digits),
             };
-            let (icon, msg) = match v.partial_cmp(&0.0) {
-                Some(std::cmp::Ordering::Greater) => (ui.icons().trending_up, "mineral-stat-increase"),
-                Some(std::cmp::Ordering::Less) => (ui.icons().trending_down, "mineral-stat-decrease"),
-                _ => (ui.icons().trending_flat, "mineral-stat-unchanged"),
+            let sign = v.partial_cmp(&0.0);
+            let icon = match sign {
+                Some(std::cmp::Ordering::Greater) => ui.icons().trending_up,
+                Some(std::cmp::Ordering::Less) => ui.icons().trending_down,
+                _ => ui.icons().trending_flat,
             };
             let good = (v > 0.0) != self.inverted;
             let color = if v == 0.0 {
@@ -297,7 +302,7 @@ impl Statistic {
             } else {
                 t.color.error
             };
-            (icon, shown, color, msg)
+            (icon, shown, color, sign)
         });
         let r = ui.with_layout(dir.column(), |ui| {
             ui.spacing_mut().item_spacing.y = crate::adaptive::grid(1);
@@ -318,8 +323,13 @@ impl Statistic {
         });
         semantic::emit(&ctx, Some(r.response.id), r.response.rect, || {
             let mut n = SemanticNode::new(self.key.id(&self.salt), Role::Group, &self.label).value(&value);
-            if let Some((_, shown, _, msg)) = &trend {
-                let change = rt.i18n().tr(msg, &[("value", shown.into())]);
+            if let Some((_, shown, _, sign)) = &trend {
+                let shown = shown.into();
+                let change = match sign {
+                    Some(std::cmp::Ordering::Greater) => rt.i18n().tr(msg::StatIncrease { value: shown }),
+                    Some(std::cmp::Ordering::Less) => rt.i18n().tr(msg::StatDecrease { value: shown }),
+                    _ => rt.i18n().tr(msg::STAT_UNCHANGED),
+                };
                 n.value = Some(pair(rt, &value, &change));
             }
             n
@@ -526,7 +536,7 @@ impl DescriptionList {
         let dir = rt.i18n().direction();
         let id = ui.make_persistent_id(self.salt.id_salt());
         semantic::emit_parent(&ctx, id, || {
-            let name = crate::tr_or(rt.i18n(), self.label.as_deref(), "mineral-description-list");
+            let name = crate::tr_or(rt.i18n(), self.label.as_deref(), msg::DESCRIPTION_LIST);
             SemanticNode::new(
                 StableId::of(&self.salt, "description-list"),
                 Role::DescriptionList,
@@ -732,7 +742,7 @@ impl Timeline {
         let dir = rt.i18n().direction();
         let id = ui.make_persistent_id(self.salt.id_salt());
         semantic::emit_parent(&ctx, id, || {
-            let name = crate::tr_or(rt.i18n(), self.label.as_deref(), "mineral-timeline");
+            let name = crate::tr_or(rt.i18n(), self.label.as_deref(), msg::TIMELINE);
             SemanticNode::new(StableId::of(&self.salt, "timeline"), Role::List, name)
         });
         let total = ui.available_width();

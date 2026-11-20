@@ -1,3 +1,4 @@
+use crate::msg;
 use egui::Sense;
 use egui_mineral::{
     i18n::I18n,
@@ -123,13 +124,10 @@ impl MineralWidget for RangeSlider<'_> {
 
     fn semantics(&self, i18n: &I18n, _: &WidgetResponse, (): &()) -> Option<SemanticNode> {
         let RangeValue { start, end } = *self.value;
-        let value = i18n.tr(
-            "mineral-range-value",
-            &[
-                ("start", self.bar.text(i18n, start).into()),
-                ("end", self.bar.text(i18n, end).into()),
-            ],
-        );
+        let value = i18n.tr(msg::RangeValue {
+            start: self.bar.text(i18n, start).into(),
+            end: self.bar.text(i18n, end).into(),
+        });
         let mut n = SemanticNode::new(self.key.id(&self.salt), Role::Group, &self.label).value(value);
         n.state.disabled = self.bar.disabled;
         Some(n)

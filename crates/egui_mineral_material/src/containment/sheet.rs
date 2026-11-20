@@ -2,6 +2,7 @@ use crate::Material;
 use crate::MaterialExt;
 use crate::MaterialUiExt as _;
 use crate::Rt;
+use crate::msg;
 use crate::widget::modal_focus::ModalFocus;
 use egui::{
     Color32, Context, CornerRadius, Frame, Id, Key, Margin, Rangef, Rect, ScrollArea, Sense, Shadow, UiBuilder, Vec2,
@@ -172,7 +173,7 @@ impl BottomSheet {
         };
         let w = screen.width().min(defaults::sheet::MAX_WIDTH);
         let top = screen.bottom() - h + (1.0 - e) * h;
-        let name = crate::tr_or(rt.i18n(), self.label.as_deref(), "mineral-sheet-bottom");
+        let name = crate::tr_or(rt.i18n(), self.label.as_deref(), msg::SHEET_BOTTOM);
         let surface = EdgeSurface {
             id: self.id,
             name: &name,
@@ -338,11 +339,11 @@ fn paint_handle(
         }
     }
     semantic::emit(ctx, Some(hid), zone, || {
-        let name = crate::tr(rt.i18n(), "mineral-sheet-handle");
-        let value = rt.i18n().tr(
-            "mineral-sheet-detent",
-            &[("index", (detent + 1).into()), ("count", detents.into())],
-        );
+        let name = crate::tr(rt.i18n(), msg::SHEET_HANDLE);
+        let value = rt.i18n().tr(msg::SheetDetent {
+            index: (detent + 1).into(),
+            count: detents.into(),
+        });
         SemanticNode::new(StableId::of(salt, "drag-handle"), Role::Button, name)
             .value(value)
             .clickable(Availability::Enabled)
@@ -494,7 +495,7 @@ impl SideSheet {
         let Some(e) = edge_surface::slide(rt, self.id, *open) else {
             return OverlayResponse::closed();
         };
-        let name = crate::tr_or(rt.i18n(), self.headline.as_deref(), "mineral-sheet-side");
+        let name = crate::tr_or(rt.i18n(), self.headline.as_deref(), msg::SHEET_SIDE);
         let (inner, response, closed) = surface(&self, e, &name);
         let dismissed = edge_surface::dismiss(open, closed);
         OverlayResponse::shown(response, inner, dismissed)
@@ -645,7 +646,7 @@ impl SideSheet {
             1.0,
         );
         crate::containment::drag_handle::paint(ui, &handle, pos2(edge, sheet.center().y), Axis::Horizontal, false);
-        let label = crate::tr(rt.i18n(), "mineral-sheet-resize");
+        let label = crate::tr(rt.i18n(), msg::SHEET_RESIZE);
         semantic::emit(ui.ctx(), Some(handle.id), rect, || {
             SemanticNode::new(StableId::of(&self.salt, "resize"), Role::Splitter, label)
                 .ranged(range.numeric(v), Availability::Enabled)

@@ -1,3 +1,4 @@
+use crate::msg;
 use egui::{Color32, CornerRadius, Rect, vec2};
 use egui_mineral::{
     i18n::{Direction, I18n},
@@ -207,7 +208,7 @@ impl MineralWidget for ProgressBar {
     }
 
     fn semantics(&self, i18n: &I18n, _: &WidgetResponse, (): &()) -> Option<SemanticNode> {
-        let name = crate::tr_or(i18n, self.label.as_deref(), "mineral-progress");
+        let name = crate::tr_or(i18n, self.label.as_deref(), msg::PROGRESS);
         let mut node = SemanticNode::new(self.key.id(&self.salt), Role::ProgressIndicator, name);
         if let Some(v) = self.value {
             let v = f64::from(v.clamp(0.0, self.max));
@@ -218,7 +219,7 @@ impl MineralWidget for ProgressBar {
                 step: None,
             });
             let pct = (v / f64::from(self.max) * 100.0).round();
-            node.value = Some(i18n.tr("mineral-percent", &[("value", pct.into())]));
+            node.value = Some(i18n.tr(msg::Percent { value: pct.into() }));
         }
         Some(node)
     }

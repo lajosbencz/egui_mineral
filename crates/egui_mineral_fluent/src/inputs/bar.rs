@@ -1,3 +1,4 @@
+use crate::msg;
 use egui::{Color32, CornerRadius, CursorIcon, Pos2, Rangef, Rect, Response, Sense, Stroke, Vec2, pos2, vec2};
 use egui_mineral::{
     focus::{self, TabStop},
@@ -376,12 +377,12 @@ impl Bar {
             for (i, th) in thumbs.iter().enumerate() {
                 semantic::emit(ctx, Some(th.id), th.rect, || {
                     let (salt, label) = names;
-                    let msg = if i == 0 {
-                        "mineral-range-start"
+                    let label = label.into();
+                    let name = if i == 0 {
+                        rt.i18n().tr(msg::RangeStart { label })
                     } else {
-                        "mineral-range-end"
+                        rt.i18n().tr(msg::RangeEnd { label })
                     };
-                    let name = rt.i18n().tr(msg, &[("label", label.into())]);
                     let mut n = self.node(
                         rt.i18n(),
                         StableId::of(salt, if i == 0 { "slider-start" } else { "slider-end" }),
