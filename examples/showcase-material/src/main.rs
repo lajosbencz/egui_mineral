@@ -302,13 +302,10 @@ impl Shell {
 }
 
 impl MineralApp<Material> for Shell {
-    fn ui(&mut self, ui: &mut MaterialUi<'_>) {
-        self.page(ui);
-    }
-
-    fn frame(&mut self, frame: &mut eframe::Frame) {
+    fn ui(&mut self, ui: &mut MaterialUi<'_>, frame: &mut eframe::Frame) {
         self.inspector
             .set_cpu_time(frame.info().cpu_usage.map(Duration::from_secs_f32));
+        self.page(ui);
     }
 
     fn after_pass(&mut self, rt: &Rt) {
@@ -480,7 +477,7 @@ mod tests {
         let mut raw = screen();
         raw.events = events;
         let mut out = ctx.run_ui(raw, |ui| {
-            app.show(ui);
+            app.show(ui, &mut eframe::Frame::_new_kittest());
         });
         out.textures_delta.clear();
         out.viewport_output

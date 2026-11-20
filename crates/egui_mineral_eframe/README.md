@@ -17,7 +17,7 @@ use egui_mineral_eframe::{EframeApp, MineralApp};
 struct Counter(u32);
 
 impl<K: Stylekit> MineralApp<K> for Counter {
-    fn ui(&mut self, ui: &mut MineralUi<'_, K>) {
+    fn ui(&mut self, ui: &mut MineralUi<'_, K>, _frame: &mut eframe::Frame) {
         if ui.button(format!("Clicked {} times", self.0)).clicked() {
             self.0 += 1;
         }

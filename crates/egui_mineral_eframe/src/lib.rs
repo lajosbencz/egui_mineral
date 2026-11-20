@@ -12,7 +12,7 @@
 //! struct Counter(u32);
 //!
 //! impl<K: Stylekit> MineralApp<K> for Counter {
-//!     fn ui(&mut self, ui: &mut MineralUi<'_, K>) {
+//!     fn ui(&mut self, ui: &mut MineralUi<'_, K>, _frame: &mut eframe::Frame) {
 //!         if ui.button(format!("Clicked {} times", self.0)).clicked() {
 //!             self.0 += 1;
 //!         }
@@ -42,7 +42,7 @@
 
 use std::sync::Arc;
 
-use egui_mineral::egui::Ui;
+use egui_mineral::egui::{Context, RawInput, Ui};
 use egui_mineral::runtime::{Runtime, Stylekit};
 use egui_mineral::widget::MineralUi;
 
@@ -53,17 +53,18 @@ pub use eframe;
 /// eframe's `on_exit` is not forwarded: its signature depends on eframe's `glow` feature, which any crate in
 /// the graph may enable.
 pub trait MineralApp<K: Stylekit> {
-    /// Draws the frame inside the runtime's pass.
-    fn ui(&mut self, ui: &mut MineralUi<'_, K>);
-
-    /// Before the pass, with eframe's per-frame data (`frame.info()`: CPU time, web location).
-    fn frame(&mut self, _frame: &mut eframe::Frame) {}
+    /// Draws the frame inside the runtime's pass; `frame` is eframe's per-frame data (`frame.info()`: CPU
+    /// time, web location).
+    fn ui(&mut self, ui: &mut MineralUi<'_, K>, frame: &mut eframe::Frame);
 
     /// After the pass; for tools observing it, e.g. an inspector in its own viewport.
     fn after_pass(&mut self, _rt: &Runtime<K>) {}
 
     /// As [`eframe::App::save`].
     fn save(&mut self, _storage: &mut dyn eframe::Storage) {}
+
+    /// As [`eframe::App::raw_input_hook`]; e.g. sets `raw_input.system_theme` where the platform reports none.
+    fn raw_input_hook(&mut self, _ctx: &Context, _raw_input: &mut RawInput) {}
 }
 
 /// [`eframe::App`] owning the [`Runtime`] and running `A` inside its pass.
@@ -99,22 +100,25 @@ impl<K: Stylekit, A: MineralApp<K>> EframeApp<K, A> {
         &mut self.app
     }
 
-    /// One frame on `ui` without eframe: the pass, then [`MineralApp::after_pass`]. Headless runs call it on
-    /// the root `Ui` of `Context::run_ui`.
-    pub fn show(&mut self, ui: &mut Ui) {
+    /// One frame on `ui`: the pass, then [`MineralApp::after_pass`]. Headless runs call it on the root `Ui`
+    /// of `Context::run_ui`.
+    pub fn show(&mut self, ui: &mut Ui, frame: &mut eframe::Frame) {
         let Self { rt, app } = self;
-        rt.pass(ui, |ui| app.ui(ui));
+        rt.pass(ui, |ui| app.ui(ui, frame));
         app.after_pass(rt);
     }
 }
 
 impl<K: Stylekit, A: MineralApp<K>> eframe::App for EframeApp<K, A> {
     fn ui(&mut self, ui: &mut Ui, frame: &mut eframe::Frame) {
-        self.app.frame(frame);
-        self.show(ui);
+        self.show(ui, frame);
     }
 
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
         self.app.save(storage);
+    }
+
+    fn raw_input_hook(&mut self, ctx: &Context, raw_input: &mut RawInput) {
+        self.app.raw_input_hook(ctx, raw_input);
     }
 }

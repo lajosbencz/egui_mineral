@@ -246,13 +246,10 @@ impl Shell {
 }
 
 impl MineralApp<Fluent> for Shell {
-    fn ui(&mut self, ui: &mut FluentUi<'_>) {
-        self.page(ui);
-    }
-
-    fn frame(&mut self, frame: &mut eframe::Frame) {
+    fn ui(&mut self, ui: &mut FluentUi<'_>, frame: &mut eframe::Frame) {
         self.inspector
             .set_cpu_time(frame.info().cpu_usage.map(std::time::Duration::from_secs_f32));
+        self.page(ui);
     }
 
     fn after_pass(&mut self, rt: &Rt) {
