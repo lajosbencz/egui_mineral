@@ -1,9 +1,9 @@
-use egui::Sense;
+use egui::{Sense, emath::Numeric};
 use egui_mineral::{
     i18n::I18n,
     kit,
     layout::{Axis, Constraints, Measure, MinTarget},
-    range::RangeModel,
+    range::{self, RangeModel},
     semantic::{AgentKey, KeyedSalt, SemanticNode},
     widget::{MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
 };
@@ -11,24 +11,24 @@ use egui_mineral::{
 use super::bar::Bar;
 use crate::{Fluent, Size};
 
-/// Fluent `Slider`: one thumb on a rail bound to `value`.
+/// Fluent `Slider`: one thumb on a rail bound to `value`, any [`Numeric`].
 #[derive(Debug)]
 #[must_use = "show with ui.mineral(..)"]
-pub struct Slider<'a> {
+pub struct Slider<'a, N = f64> {
     salt: KeyedSalt,
     key: AgentKey,
     label: String,
-    value: &'a mut f64,
+    value: &'a mut N,
     bar: Bar,
 }
 
-impl<'a> Slider<'a> {
-    /// `range` sets the bounds and step; `label` is the accessible name. Agent key `<id_salt>-slider`.
+impl<'a, N: Numeric> Slider<'a, N> {
+    /// `range` sets the bounds and step, whole for integer `N`; `label` is the accessible name. Agent key `<id_salt>-slider`.
     pub fn new(
         id_salt: impl Into<KeyedSalt>,
         label: impl Into<String>,
         range: impl Into<RangeModel>,
-        value: &'a mut f64,
+        value: &'a mut N,
     ) -> Self {
         Self {
             salt: id_salt.into(),
@@ -36,7 +36,7 @@ impl<'a> Slider<'a> {
             label: label.into(),
             value,
             bar: Bar {
-                range: range.into(),
+                range: range.into().for_numeric::<N>(),
                 size: Size::Medium,
                 axis: Axis::Horizontal,
                 disabled: false,
@@ -68,7 +68,7 @@ impl<'a> Slider<'a> {
     }
 }
 
-impl MineralWidget for Slider<'_> {
+impl<N: Numeric> MineralWidget for Slider<'_, N> {
     type Kit = Fluent;
     type State = ();
     type Output = ();
@@ -96,14 +96,18 @@ impl MineralWidget for Slider<'_> {
     }
 
     fn update(&mut self, ui: &mut MineralUi<'_, Fluent>, frame: &WidgetFrame<'_>, (): &mut ()) -> WidgetResponse {
-        let before = *self.value;
+        let before = self.value.to_f64();
         let mut v = [before];
         self.bar.update(ui, frame, &mut v, (&self.salt, &self.label));
-        *self.value = v[0];
-        WidgetResponse::new(frame.response.clone(), ()).with_changed((before - v[0]).abs() > f64::EPSILON)
+        *self.value = range::to_numeric(v[0]);
+        let changed = (before - self.value.to_f64()).abs() > f64::EPSILON;
+        WidgetResponse::new(frame.response.clone(), ()).with_changed(changed)
     }
 
     fn semantics(&self, i18n: &I18n, _: &WidgetResponse, (): &()) -> Option<SemanticNode> {
-        Some(self.bar.node(i18n, self.key.id(&self.salt), &self.label, *self.value))
+        Some(
+            self.bar
+                .node(i18n, self.key.id(&self.salt), &self.label, self.value.to_f64()),
+        )
     }
 }

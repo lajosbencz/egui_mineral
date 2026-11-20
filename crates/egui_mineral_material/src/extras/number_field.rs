@@ -16,7 +16,7 @@ use egui_mineral::{
     input::button_steps,
     layout::Constraints,
     number::{self, NumberEdit, NumberSource},
-    range::{RangeModel, Track},
+    range::{self, RangeModel, Track},
     widget::{SizeExt, WidgetResponse},
 };
 
@@ -39,7 +39,7 @@ pub struct NumberField<'a, N: Numeric = f64> {
     label: String,
     value: &'a mut N,
     range: RangeModel,
-    format: Option<Box<dyn Fn(f64) -> String + 'a>>,
+    format: Option<Box<dyn Fn(N) -> String + 'a>>,
     disabled: bool,
     commit_on_submit: bool,
     scrub: bool,
@@ -80,14 +80,7 @@ impl<'a, N: Numeric> NumberField<'a, N> {
         value: &'a mut N,
     ) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
-        let mut range = range.into();
-        if N::INTEGRAL {
-            let step = range.step_size().unwrap_or(1.0);
-            range = range.step(if step >= 1.0 { step.round() } else { 1.0 });
-            if let Some(i) = range.increment_size() {
-                range = range.increment(i.round().max(1.0));
-            }
-        }
+        let range = range.into().for_numeric::<N>();
         Self {
             chrome: FieldChrome::default(),
             salt: id_salt,
@@ -130,7 +123,7 @@ impl<'a, N: Numeric> NumberField<'a, N> {
     /// Display text of the value; default the locale number format at the range's fraction digits
     /// (else the step's or increment's decimals)
     /// (the value's own digits without [`Self::snap_typed`]).
-    pub fn format(mut self, format: impl Fn(f64) -> String + 'a) -> Self {
+    pub fn format(mut self, format: impl Fn(N) -> String + 'a) -> Self {
         self.format = Some(Box::new(format));
         self
     }
@@ -236,7 +229,7 @@ impl<'a, N: Numeric> NumberField<'a, N> {
 
     fn text(&self, i18n: &egui_mineral::i18n::I18n, v: f64) -> String {
         match &self.format {
-            Some(f) => f(v),
+            Some(f) => f(range::to_numeric(v)),
             None => i18n
                 .format()
                 .number_lossy(v, self.snap_typed.then(|| fraction_digits(&self.range)).flatten()),
@@ -342,7 +335,7 @@ impl<N: Numeric> Composite for NumberField<'_, N> {
         }
         let (v, source) = (pass.value(), pass.source());
         if !self.commit_on_submit || stepped || scrubbed || event.is_some() {
-            *self.value = N::from_f64(if N::INTEGRAL { v.round() } else { v });
+            *self.value = range::to_numeric(v);
             edit.wrote(self.value.to_f64());
         }
         edit.store(ctx, state_id);

@@ -2,7 +2,7 @@ use crate::Material;
 use crate::MaterialExt;
 use crate::Rt;
 use crate::msg;
-use egui::{Color32, CursorIcon, Pos2, Rangef, Rect, Sense, Ui, Vec2, epaint::CornerRadiusF32, pos2};
+use egui::{Color32, CursorIcon, Pos2, Rangef, Rect, Sense, Ui, Vec2, emath::Numeric, epaint::CornerRadiusF32, pos2};
 use egui_mineral::i18n::I18n;
 use egui_mineral::semantic::AgentKey;
 use egui_mineral::semantic::KeyedSalt;
@@ -134,15 +134,17 @@ impl TrackAxis {
 
 /// MD3 slider, one thumb or a range (Compose `Slider`, `RangeSlider`).
 #[must_use = "show with ui.mineral(..)"]
-pub struct ValueSlider<'a> {
+pub struct ValueSlider<'a, N = f64> {
     salt: KeyedSalt,
     key: AgentKey,
     label: String,
-    values: &'a mut [f64],
+    bound: &'a mut [N],
+    // Working copy of `bound`, written back at the end of `update`.
+    values: Vec<f64>,
     range: RangeModel,
     ticks: bool,
     indicator: bool,
-    format: Option<Box<dyn Fn(f64) -> String + 'a>>,
+    format: Option<Box<dyn Fn(N) -> String + 'a>>,
     disabled: bool,
     size: Size,
     centered: bool,
@@ -158,7 +160,7 @@ struct EndIcons {
     max: Option<Icon>,
 }
 
-egui_mineral::kit::opaque_debug!(ValueSlider<'_>);
+egui_mineral::kit::opaque_debug!(ValueSlider<'_, N>);
 
 // The range's fraction digits, else the step's (then the increment's) decimals; the value's own
 // (`None`) on a significant-digit grid; else 2.
@@ -178,13 +180,14 @@ pub(crate) fn fraction_digits(range: &RangeModel) -> Option<i16> {
     }
 }
 
-impl<'a> ValueSlider<'a> {
-    /// One thumb bound to `value`; `range` sets the bounds and step. Agent key `<id_salt>-slider`.
+impl<'a, N: Numeric> ValueSlider<'a, N> {
+    /// One thumb bound to `value`; `range` sets the bounds and step, whole for integer `N`. Agent key
+    /// `<id_salt>-slider`.
     pub fn new(
         id_salt: impl Into<KeyedSalt>,
         label: impl Into<String>,
         range: impl Into<RangeModel>,
-        value: &'a mut f64,
+        value: &'a mut N,
     ) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         Self::with_values(id_salt, label, range.into(), std::slice::from_mut(value))
@@ -195,7 +198,7 @@ impl<'a> ValueSlider<'a> {
         id_salt: impl Into<KeyedSalt>,
         label: impl Into<String>,
         range: impl Into<RangeModel>,
-        values: &'a mut [f64; 2],
+        values: &'a mut [N; 2],
     ) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         Self::with_values(id_salt, label, range.into(), values)
@@ -205,7 +208,7 @@ impl<'a> ValueSlider<'a> {
         id_salt: impl Into<KeyedSalt>,
         label: impl Into<String>,
         range: RangeModel,
-        values: &'a mut [f64],
+        bound: &'a mut [N],
     ) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         let label = label.into();
@@ -213,8 +216,9 @@ impl<'a> ValueSlider<'a> {
             key: egui_mineral::agent_key!("slider"),
             salt: id_salt,
             label,
-            values,
-            range,
+            values: bound.iter().map(|v| v.to_f64()).collect(),
+            bound,
+            range: range.for_numeric::<N>(),
             ticks: false,
             indicator: true,
             format: None,
@@ -241,7 +245,7 @@ impl<'a> ValueSlider<'a> {
     }
 
     /// Value label text; default the locale number format.
-    pub fn format(mut self, format: impl Fn(f64) -> String + 'a) -> Self {
+    pub fn format(mut self, format: impl Fn(N) -> String + 'a) -> Self {
         self.format = Some(Box::new(format));
         self
     }
@@ -296,13 +300,13 @@ impl<'a> ValueSlider<'a> {
 
     fn text(&self, i18n: &I18n, v: f64) -> String {
         if let Some(f) = &self.format {
-            return f(v);
+            return f(egui_mineral::range::to_numeric(v));
         }
         i18n.format().number_lossy(v, fraction_digits(&self.range))
     }
 
     fn order(&mut self, moved: usize) {
-        if let [a, b] = self.values {
+        if let [a, b] = &mut self.values[..] {
             if moved == 0 {
                 *a = a.min(*b);
             } else {
@@ -355,7 +359,7 @@ struct PaintCx<'a> {
     active: Option<usize>,
 }
 
-impl ValueSlider<'_> {
+impl<N: Numeric> ValueSlider<'_, N> {
     fn slider_layout(&self, rt: &Rt, density: Density, rect: Rect) -> SliderLayout {
         let m = metrics(self.size, density);
         let full = self.axis.main_range(rect);
@@ -445,7 +449,7 @@ impl ValueSlider<'_> {
         let pointer = thumbs.iter().position(egui::Response::drag_started).or_else(|| {
             (r.drag_started() || r.clicked()).then(|| {
                 let at = r.interact_pointer_pos().map_or(0.0, value_at);
-                nearest_thumb(self.values, at).unwrap_or(0)
+                nearest_thumb(&self.values, at).unwrap_or(0)
             })
         });
         if pointer.is_some() {
@@ -467,7 +471,7 @@ impl ValueSlider<'_> {
         if let Some(p) = frame.tapped
             && !r.clicked()
         {
-            let i = nearest_thumb(self.values, value_at(p)).unwrap_or(0);
+            let i = nearest_thumb(&self.values, value_at(p)).unwrap_or(0);
             self.values[i] = value_at(p);
             self.order(i);
         }
@@ -607,7 +611,7 @@ impl ValueSlider<'_> {
     }
 }
 
-impl MineralWidget for ValueSlider<'_> {
+impl<N: Numeric> MineralWidget for ValueSlider<'_, N> {
     type Kit = Material;
     type State = ValueSliderState;
     type Output = ();
@@ -661,8 +665,8 @@ impl MineralWidget for ValueSlider<'_> {
         let track = frame.zones.visual;
         let lay = self.slider_layout(rt, ui.density(), track);
         let r = &frame.response;
-        let before: Vec<f64> = self.values.to_vec();
-        for v in self.values.iter_mut() {
+        let before = self.values.clone();
+        for v in &mut self.values {
             *v = self.range.snap(*v);
         }
         let thumbs = self.thumbs(ui, r, frame.pan, &lay);
@@ -686,15 +690,19 @@ impl MineralWidget for ValueSlider<'_> {
         if let Some(field) = field {
             self.show_value_field(ui, field);
         }
+        for (b, v) in self.bound.iter_mut().zip(&mut self.values) {
+            *b = egui_mineral::range::to_numeric(*v);
+            *v = b.to_f64();
+        }
         let changed = before
             .iter()
-            .zip(self.values.iter())
+            .zip(&self.values)
             .any(|(a, b)| (a - b).abs() > f64::EPSILON);
         WidgetResponse::new(r.clone(), ()).with_changed(changed)
     }
 
     fn semantics(&self, i18n: &I18n, _: &WidgetResponse, _: &ValueSliderState) -> Option<SemanticNode> {
-        Some(if let [a, b] = &*self.values {
+        Some(if let [a, b] = &self.values[..] {
             let value = i18n.tr(msg::RangeValue {
                 start: self.text(i18n, *a).into(),
                 end: self.text(i18n, *b).into(),
@@ -714,7 +722,7 @@ impl MineralWidget for ValueSlider<'_> {
 }
 
 #[cfg(feature = "extras")]
-impl ValueSlider<'_> {
+impl<N: Numeric> ValueSlider<'_, N> {
     // The track rect and, with `value_field`, the rect of the field at the end.
     fn split_value_field(&self, rt: &Rt, visual: Rect) -> (Rect, Option<Rect>) {
         if !self.has_value_field() {
@@ -752,7 +760,7 @@ impl ValueSlider<'_> {
     }
 }
 
-impl ValueSlider<'_> {
+impl<N: Numeric> ValueSlider<'_, N> {
     fn node(&self, i18n: &I18n, id: StableId, name: String, v: f64) -> SemanticNode {
         SemanticNode::new(id, Role::Slider, name)
             .value(self.text(i18n, v))

@@ -1,11 +1,11 @@
-use egui::{Color32, CornerRadius, Galley, Pos2, Rangef, Rect, Sense, vec2};
+use egui::{Color32, CornerRadius, Galley, Pos2, Rangef, Rect, Sense, emath::Numeric, vec2};
 use egui_mineral::{
     edit::{EditEvent, FieldFocus},
     i18n::{Direction, I18n},
     kit::{self, state::TempState},
     layout::{Constraints, Measure, MinTarget},
     number::{NumberEdit, NumberSource},
-    range::RangeModel,
+    range::{self, RangeModel},
     semantic::{AgentKey, KeyedSalt, Role, SemanticNode},
     widget::{Availability, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
 };
@@ -34,15 +34,15 @@ use crate::{
     },
 };
 
-/// Fluent `SpinButton`: a number field with step buttons, bound to `value`. Typed text commits on Enter or blur,
+/// Fluent `SpinButton`: a number field with step buttons, bound to `value`, any [`Numeric`]. Typed text commits on Enter or blur,
 /// arrow and page keys and the buttons step; `changed` reports a committed value.
 #[derive(Debug)]
 #[must_use = "show with ui.mineral(..)"]
-pub struct SpinButton<'a> {
+pub struct SpinButton<'a, N = f64> {
     salt: KeyedSalt,
     key: AgentKey,
     label: String,
-    value: &'a mut f64,
+    value: &'a mut N,
     range: RangeModel,
     appearance: InputAppearance,
     size: Size,
@@ -54,21 +54,21 @@ pub struct SpinButton<'a> {
     unit: Option<String>,
 }
 
-impl<'a> SpinButton<'a> {
-    /// `range` sets the bounds, `step` and page `jump`; `label` is the accessible name. Agent key
+impl<'a, N: Numeric> SpinButton<'a, N> {
+    /// `range` sets the bounds, `step` (whole for integer `N`) and page `jump`; `label` is the accessible name. Agent key
     /// `<id_salt>-spin-button`.
     pub fn new(
         id_salt: impl Into<KeyedSalt>,
         label: impl Into<String>,
         range: impl Into<RangeModel>,
-        value: &'a mut f64,
+        value: &'a mut N,
     ) -> Self {
         Self {
             salt: id_salt.into(),
             key: egui_mineral::agent_key!("spin-button"),
             label: label.into(),
             value,
-            range: range.into(),
+            range: range.into().for_numeric::<N>(),
             appearance: InputAppearance::Outline,
             size: Size::Medium,
             invalid: false,
@@ -352,7 +352,7 @@ impl<'a> SpinButton<'a> {
     }
 }
 
-impl MineralWidget for SpinButton<'_> {
+impl<N: Numeric> MineralWidget for SpinButton<'_, N> {
     type Kit = Fluent;
     type State = ();
     type Output = ();
@@ -384,7 +384,7 @@ impl MineralWidget for SpinButton<'_> {
         let base = ui.make_persistent_id(self.salt.id_salt());
         let (edit_id, state_id) = (base.with("edit"), base.with("number"));
         let visual = frame.zones.visual;
-        let before = *self.value;
+        let before = self.value.to_f64();
         let focused = ctx.memory(|m| m.has_focus(edit_id));
         let escape = focused && !self.disabled && kit::layer::consume_escape_from(ctx, edit_id);
         let fmt = |v: f64| self.text(rt.i18n(), v);
@@ -454,17 +454,17 @@ impl MineralWidget for SpinButton<'_> {
         let value = pass.value();
         edit.store(ctx, state_id);
         if stepped || event == Some(EditEvent::Committed) {
-            *self.value = self.range.clamp(value);
+            *self.value = range::to_numeric(self.range.clamp(value));
         }
-        let changed = (before - *self.value).abs() > f64::EPSILON;
+        let changed = (before - self.value.to_f64()).abs() > f64::EPSILON;
         WidgetResponse::new(te, ()).with_changed(changed)
     }
 
     fn semantics(&self, i18n: &I18n, _: &WidgetResponse, (): &()) -> Option<SemanticNode> {
         let mut n = SemanticNode::new(self.key.id(&self.salt), Role::SpinButton, &self.label)
-            .value(self.text(i18n, *self.value))
+            .value(self.text(i18n, self.value.to_f64()))
             .ranged(
-                self.range.numeric(*self.value),
+                self.range.numeric(self.value.to_f64()),
                 Availability::disabled_if(self.disabled),
             );
         n.state.invalid = self.invalid;

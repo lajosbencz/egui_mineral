@@ -5,6 +5,7 @@
 use egui::{
     Id, Key, Rangef,
     accesskit::{Action, ActionData},
+    emath::Numeric,
 };
 
 use crate::{
@@ -284,6 +285,18 @@ impl RangeModel {
         match check_size("step", step) {
             Ok(()) => self.step = Some(step),
             Err(e) => crate::kit::sanitize::report(format_args!("{e}; ignored")),
+        }
+        self
+    }
+
+    /// Grid of a [`Numeric`] value type: integer types get a whole step (default 1) and a whole increment; float
+    /// types keep the model.
+    #[must_use]
+    pub fn for_numeric<N: Numeric>(mut self) -> Self {
+        if N::INTEGRAL {
+            let step = self.step.unwrap_or(1.0);
+            self.step = Some(if step >= 1.0 { step.round() } else { 1.0 });
+            self.increment = self.increment.map(|i| i.round().max(1.0));
         }
         self
     }
@@ -747,9 +760,27 @@ fn decimal_places(v: f64) -> Option<i32> {
     i32::try_from(places).ok().filter(|p| *p <= 15)
 }
 
+/// `value` as `N`, rounded for integer types; widgets keep `f64` internally and write back through it.
+pub fn to_numeric<N: Numeric>(value: f64) -> N {
+    N::from_f64(if N::INTEGRAL { value.round() } else { value })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn integer_types_get_a_whole_grid_and_round() {
+        let r = RangeModel::from(0.0..=10.0)
+            .step(0.25)
+            .increment(2.6)
+            .for_numeric::<u8>();
+        assert_eq!(r.step_size(), Some(1.0));
+        assert_eq!(r.increment_size(), Some(3.0));
+        assert_eq!(RangeModel::from(0.0..=10.0).for_numeric::<f32>().step_size(), None);
+        assert_eq!(to_numeric::<i32>(2.6), 3);
+        assert!((to_numeric::<f32>(2.5) - 2.5).abs() < f32::EPSILON);
+    }
 
     #[test]
     fn significant_digits_grid_log_steps_and_keep_bounds_exact() {
