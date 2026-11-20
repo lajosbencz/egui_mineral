@@ -150,7 +150,7 @@ impl<'a> SegmentedButton<'a> {
     /// Radio group over segments that carry values, like [`RadioGroup`](crate::selection::RadioGroup): the
     /// segment whose value equals `value` is selected (none when no segment matches) and a pick writes that
     /// segment's value. Segments added later with [`Self::item`] carry no value and cannot be picked.
-    pub fn value<T: PartialEq + Clone + 'a>(
+    pub fn bound<T: PartialEq + Clone + 'a>(
         id_salt: impl Into<KeyedSalt>,
         label: impl Into<String>,
         segments: impl IntoIterator<Item = (T, impl Into<Segment>)>,

@@ -397,7 +397,7 @@ impl<'a> Select<'a> {
     /// Single select over options that carry values, like [`RadioGroup`](crate::selection::RadioGroup): shows
     /// the option whose value equals `value` (none when no option matches) and a pick writes that option's
     /// value. Bind an `Option<T>` with `Some(..)` option values to start empty.
-    pub fn value<T: PartialEq + Clone + 'a>(
+    pub fn bound<T: PartialEq + Clone + 'a>(
         id_salt: impl Into<KeyedSalt>,
         label: impl Into<String>,
         options: impl IntoIterator<Item = (T, impl Into<SelectOption>)>,

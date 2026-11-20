@@ -167,7 +167,7 @@ fn select_value_binds_the_option_value() {
             (Fruit::Banana, "Banana"),
             (Fruit::Cherry, "Cherry"),
         ];
-        *changes += u32::from(ui.mineral(Select::value("fruit", "Fruit", options, fruit)).changed());
+        *changes += u32::from(ui.mineral(Select::bound("fruit", "Fruit", options, fruit)).changed());
     });
     h.click("fruit-select");
     h.press(Key::ArrowDown);

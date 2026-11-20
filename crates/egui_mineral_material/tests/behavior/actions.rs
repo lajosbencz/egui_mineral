@@ -379,7 +379,7 @@ fn auto_targets_keep_their_height_through_ewebs_touchless_pointerdown_pass() {
 fn segmented_button_value_binds_the_segment_value() {
     let mut h = harness(SCREEN, ('w', 0), |ui, (period, changes)| {
         let segments = [('d', "Day"), ('w', "Week"), ('m', "Month")];
-        let r = SegmentedButton::value("period", "Period", segments, period).show(ui);
+        let r = SegmentedButton::bound("period", "Period", segments, period).show(ui);
         *changes += u32::from(r.changed);
     });
     assert_eq!(
