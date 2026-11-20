@@ -4,7 +4,6 @@ use egui_mineral::{
     focus::{self as roving, RovingFocus},
     layout::Axis,
     semantic::{self, AgentKey, KeyedSalt, Role, SemanticNode},
-    shortcut::ActionId,
     widget::MineralUi,
 };
 
@@ -33,7 +32,7 @@ struct Base {
     appearance: ButtonAppearance,
     disabled: bool,
     salt: Option<KeyedSalt>,
-    action_key: Option<ActionId>,
+    action_key: Option<egui_mineral::action::ActionKey>,
 }
 
 impl Base {
@@ -78,10 +77,10 @@ macro_rules! item_setters {
                 self
             }
 
-            /// App key reported as [`Clicked::key`] in [`ToolbarResponse::clicked`]; several items may
+            /// App key of any type, reported as [`Clicked::key`] in [`ToolbarResponse::clicked`]; several items may
             /// share one.
-            pub fn key(mut self, key: impl Into<ActionId>) -> Self {
-                self.0.action_key = Some(key.into());
+            pub fn key<K: std::any::Any + Clone + PartialEq + Send + Sync>(mut self, key: K) -> Self {
+                self.0.action_key = Some(egui_mineral::action::ActionKey::new(key));
                 self
             }
 
@@ -156,9 +155,9 @@ impl<'a> ToolbarToggleButton<'a> {
         self
     }
 
-    /// App key reported as [`Clicked::key`] in [`ToolbarResponse::clicked`]; several items may share one.
-    pub fn key(mut self, key: impl Into<ActionId>) -> Self {
-        self.base.action_key = Some(key.into());
+    /// App key of any type, reported as [`Clicked::key`] in [`ToolbarResponse::clicked`]; several items may share one.
+    pub fn key<K: std::any::Any + Clone + PartialEq + Send + Sync>(mut self, key: K) -> Self {
+        self.base.action_key = Some(egui_mineral::action::ActionKey::new(key));
         self
     }
 

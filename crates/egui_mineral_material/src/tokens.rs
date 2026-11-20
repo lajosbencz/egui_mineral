@@ -264,7 +264,7 @@ impl Tokens {
 
     /// Mode of [`Self::color`].
     pub const fn theme(&self) -> Theme {
-        self.color.theme()
+        self.color.theme
     }
 
     /// Shadow of `level`, via [`Self::shadow_dp`].

@@ -14,10 +14,10 @@ pub use avatar::{
 };
 pub use avatar_group::{AvatarGroup, AvatarGroupLayout, AvatarGroupResponse};
 pub use image::{Image, ImageFit, ImageShape};
-pub use list::{List, ListItem, ListNavigation, ListResponse, ListUi};
+pub use list::{List, ListItem, ListItemResponse, ListNavigation, ListResponse, ListUi};
 pub use persona::{Persona, PersonaSize, PersonaTextAlignment, PersonaTextPosition};
 pub use table::{DataGrid, Table, TableCellLayout, TableColumn, TableResponse, TableRowAppearance, TableSize};
 pub use tag::{
     InteractionTag, InteractionTagResponse, Tag, TagAppearance, TagGroup, TagGroupResponse, TagShape, TagSize,
 };
-pub use text::{Text, TextAlign, TextFont, TextSize, TextWeight};
+pub use text::{Text, TextAlign, TextFont, TextMetrics, TextSize, TextWeight};

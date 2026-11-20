@@ -8,7 +8,11 @@ pub fn to_markdown(tree: &SemanticTree) -> String {
         let s = &n.state;
         let mut notes: Vec<String> = Vec::new();
         notes.extend(n.value.iter().map(|v| format!("value: {v:?}")));
-        notes.extend(n.shortcut.iter().map(|shortcut| format!("shortcut: {shortcut}")));
+        notes.extend(
+            n.shortcut
+                .iter()
+                .map(|shortcut| format!("shortcut: {}", shortcut.format(&egui::ModifierNames::NAMES, false))),
+        );
         notes.extend(n.access_key.iter().map(|key| format!("access key: {}", key.char())));
         notes.extend(
             s.range
@@ -87,7 +91,7 @@ mod tests {
     fn markdown_lists_shortcut_and_access_key() {
         let tree = SemanticTree {
             nodes: vec![SemanticNode {
-                shortcut: Some("Ctrl+S".into()),
+                shortcut: Some(egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::S)),
                 access_key: Some(crate::shortcut::Mnemonic::new('s')),
                 ..SemanticNode::new(StableId::new("save-item"), Role::MenuItem, "Save")
             }],

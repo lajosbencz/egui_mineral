@@ -76,10 +76,10 @@ fn reorderable_rows_click_and_open_context_menu() {
     let mut h = still(WIDE, Rows::default(), |ui, s| {
         let r = ReorderableList::new("list", "List", &items)
             .show(ui, |_, c| ListItem::new(("row", *c), c.to_string()).clickable(true));
-        assert_eq!(r.rows().len(), items.len());
+        assert_eq!(r.rows.len(), items.len());
         s.moved = s.moved.or(r.moved);
-        s.rects = r.rows().iter().map(|w| w.rect).collect();
-        for (i, row) in r.rows().iter().enumerate() {
+        s.rects = r.rows.iter().map(|(_, w)| w.rect).collect();
+        for (i, row) in r.rows.iter() {
             if row.output().activated {
                 s.activated = Some(i);
             }
@@ -120,8 +120,8 @@ fn clicked_row_keeps_focus_while_moving_with_alt_arrow() {
         |ui, (items, rects, focused): &mut (Vec<char>, Vec<Rect>, Option<char>)| {
             let r = ReorderableList::new("list", "List", items)
                 .show(ui, |_, c| ListItem::new(("row", *c), c.to_string()).clickable(true));
-            *rects = r.rows().iter().map(|w| w.rect).collect();
-            *focused = r.rows().iter().position(|w| w.has_focus()).map(|i| items[i]);
+            *rects = r.rows.iter().map(|(_, w)| w.rect).collect();
+            *focused = r.rows.iter().position(|(_, w)| w.has_focus()).map(|i| items[i]);
             if let Some(m) = r.moved {
                 m.apply(items);
             }

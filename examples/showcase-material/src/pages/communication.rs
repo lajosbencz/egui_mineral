@@ -19,6 +19,12 @@ pub(crate) const TOPICS: &[&str] = &[
     "Tour",
 ];
 
+#[derive(Clone, Copy, PartialEq)]
+enum TipAction {
+    Learn,
+    Archive,
+}
+
 const SEVERITIES: [(Severity, &str); 4] = [
     (Severity::Info, "Info"),
     (Severity::Success, "Success"),
@@ -252,13 +258,13 @@ fn tooltips(ui: &mut MaterialUi<'_>, shared: &mut Shared) {
         let r = row.mineral(PushButton::new("tip-rich-3", "With actions").variant(ButtonVariant::Tonal));
         let tip = RichTooltip::new("tip-rich-3-tooltip", "Move the file to the archive folder.")
             .title("Archive")
-            .action(TextAction::new("Learn more").key("learn"))
-            .action(TextAction::new("Archive now").key("archive"))
+            .action(TextAction::new("Learn more").key(TipAction::Learn))
+            .action(TextAction::new("Archive now").key(TipAction::Archive))
             .show(rt, r.response());
-        match tip.clicked.as_ref().and_then(Clicked::key_str) {
-            Some("learn") => shared.toast("Tooltip action: Learn more"),
-            Some("archive") => shared.toast("Tooltip action: Archive now"),
-            _ => {}
+        match tip.clicked.as_ref().and_then(Clicked::key::<TipAction>) {
+            Some(TipAction::Learn) => shared.toast("Tooltip action: Learn more"),
+            Some(TipAction::Archive) => shared.toast("Tooltip action: Archive now"),
+            None => {}
         }
     });
 }

@@ -9,12 +9,12 @@ use crate::spec::TypeScale;
 use egui_mineral::i18n::{I18n, RowCursor};
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::MineralUi;
-use std::{collections::BTreeMap, f32::consts::FRAC_PI_2};
+use std::f32::consts::FRAC_PI_2;
 
 use egui::{Color32, DragAndDrop, Id, Key, Modifiers, Rangef, Rect, Response, Sense, StrokeKind, Ui, Vec2, pos2, vec2};
 use egui_mineral::widget::Availability;
 use egui_mineral::{
-    action::Clicked,
+    action::{ActionKey, Clicked, ItemResponses},
     dnd,
     expand::Expansion,
     focus::{self, Typeahead},
@@ -97,7 +97,6 @@ pub struct TreeAction<K> {
 /// Result of [`TreeView::show`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-#[expect(clippy::partial_pub_fields, reason = "per-item responses are read through accessors")]
 pub struct TreeViewResponse<K> {
     /// Tree container response.
     pub response: egui::Response,
@@ -109,7 +108,9 @@ pub struct TreeViewResponse<K> {
     pub activated: Option<K>,
     /// Selection or expansion.
     pub changed: bool,
-    rows: BTreeMap<K, Response>,
+    /// Responses of the rendered rows by row index and node key (`rows.get_by_key(&key)`,
+    /// `rows.iter_keyed::<K>()`), for context menus and modifiers.
+    pub rows: ItemResponses<Response>,
     /// Row's leading [`ListControl`](crate::containment::ListControl) toggled (click, Space, agent); apply a checkbox with
     /// [`tree::toggle_check`] or app logic.
     pub leading_toggled: Option<K>,
@@ -117,18 +118,6 @@ pub struct TreeViewResponse<K> {
     pub clicked: Option<TreeAction<K>>,
     /// Drag and drop or Alt+arrow move; apply with [`TreeMove::apply`].
     pub moved: Option<TreeMove<K>>,
-}
-
-impl<K: Ord> TreeViewResponse<K> {
-    /// Response of the row of `node`, for context menus and modifiers; `None` while the row is not rendered.
-    pub fn row(&self, node: &K) -> Option<&Response> {
-        self.rows.get(node)
-    }
-
-    /// Rendered rows by node key, in key order.
-    pub fn rows(&self) -> impl Iterator<Item = (&K, &Response)> {
-        self.rows.iter()
-    }
 }
 
 impl<K> TreeViewResponse<K> {
@@ -139,7 +128,7 @@ impl<K> TreeViewResponse<K> {
             collapsed: None,
             activated: None,
             changed: false,
-            rows: BTreeMap::new(),
+            rows: ItemResponses::default(),
             leading_toggled: None,
             clicked: None,
             moved: None,
@@ -974,7 +963,7 @@ impl<'a, N: TreeData> TreeView<'a, N> {
                         state.stop = Some(key.clone());
                     }
                     let (resp, o) = r.into_parts();
-                    out.rows.insert(key.clone(), resp);
+                    out.rows.push(i, Some(ActionKey::new(key.clone())), resp);
                     if o.toggle || o.select.is_some() || o.activated || o.toggled || o.action.is_some() {
                         events.push((i, o));
                     }

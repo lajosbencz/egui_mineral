@@ -12,7 +12,7 @@ use egui_mineral_fluent::{
 use crate::support::{FluentHarness, Harness, harness};
 
 fn key(clicked: Option<&Clicked>) -> Option<&str> {
-    clicked.and_then(Clicked::key_str)
+    clicked.and_then(Clicked::key::<&str>).copied()
 }
 
 #[test]

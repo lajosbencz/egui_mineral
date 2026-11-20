@@ -100,7 +100,7 @@ pub struct FabMenuItem {
     icon: Icon,
     label: String,
     command: Option<ActionId>,
-    action_key: Option<ActionId>,
+    action_key: Option<egui_mineral::action::ActionKey>,
     disabled: bool,
     salt: Option<egui_mineral::semantic::KeyedSalt>,
 }

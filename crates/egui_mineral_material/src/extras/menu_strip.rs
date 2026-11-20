@@ -33,7 +33,7 @@ const BAR_H: f32 = 40.0;
 const BAR_INSET: f32 = 4.0;
 
 /// Item of a [`MenuStrip`]: menu index on the bar, item index within that [`Menu`].
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct MenuPath {
     /// Menu index on the bar.
     pub menu: usize,

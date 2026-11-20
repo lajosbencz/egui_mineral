@@ -246,9 +246,9 @@ mod tag_group {
             let State { values, selection } = s;
             let mut g = TagGroup::new("g", "Tags").dismissible(true).selection(selection);
             for v in values.iter() {
-                g = g.interaction_tag(InteractionTag::new(v.clone(), v.to_uppercase()));
+                g = g.interaction_tag(v.clone(), InteractionTag::new(v.clone(), v.to_uppercase()));
             }
-            g = g.tag(Tag::new("t", "Static").dismissible(false));
+            g = g.tag("t".to_owned(), Tag::new("t", "Static").dismissible(false));
             let out = g.show(ui);
             if let Some(gone) = out.removed {
                 values.retain(|v| *v != gone);

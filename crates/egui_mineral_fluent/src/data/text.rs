@@ -42,10 +42,20 @@ pub enum TextSize {
     S1000,
 }
 
+/// Font metrics of a [`TextSize`], in points.
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[non_exhaustive]
+pub struct TextMetrics {
+    /// Font size.
+    pub font_size: f32,
+    /// Line height.
+    pub line_height: f32,
+}
+
 impl TextSize {
-    /// Font size and line height in points.
-    pub const fn metrics(self) -> (f32, f32) {
-        match self {
+    /// Font size and line height.
+    pub const fn metrics(self) -> TextMetrics {
+        let (font_size, line_height) = match self {
             Self::S100 => (ty::FONT_SIZE_BASE_100, ty::LINE_HEIGHT_BASE_100),
             Self::S200 => (ty::FONT_SIZE_BASE_200, ty::LINE_HEIGHT_BASE_200),
             Self::S300 => (ty::FONT_SIZE_BASE_300, ty::LINE_HEIGHT_BASE_300),
@@ -56,7 +66,8 @@ impl TextSize {
             Self::S800 => (ty::FONT_SIZE_HERO_800, ty::LINE_HEIGHT_HERO_800),
             Self::S900 => (ty::FONT_SIZE_HERO_900, ty::LINE_HEIGHT_HERO_900),
             Self::S1000 => (ty::FONT_SIZE_HERO_1000, ty::LINE_HEIGHT_HERO_1000),
-        }
+        };
+        TextMetrics { font_size, line_height }
     }
 }
 
@@ -236,7 +247,10 @@ impl Text {
     }
 
     fn galley(&self, ui: &MineralUi<'_, Fluent>, width: f32, color: egui::Color32) -> Arc<Galley> {
-        let (size, line_height) = self.size.metrics();
+        let TextMetrics {
+            font_size: size,
+            line_height,
+        } = self.size.metrics();
         let font = match self.font {
             TextFont::Monospace => FontId::new(size, FontFamily::Monospace),
             TextFont::Base | TextFont::Numeric => crate::typography::font(ui.ctx(), size, self.weight.value()),

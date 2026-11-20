@@ -453,7 +453,7 @@ fn menu_reports_item_keys_through_submenus() {
             .item(MenuItem::new("More").submenu(|m| m.item(MenuItem::new("Nested").key("nested"))))
             .item(MenuItem::new("Last").key("last"))
             .show(ui.rt(), &anchor);
-        seen.extend(r.clicked.map(|c| (c.index(), c.key_str().map(String::from))));
+        seen.extend(r.clicked.map(|c| (c.index(), c.key::<&str>().map(|k| (*k).to_owned()))));
     });
     h.click("anchor-button");
     h.click("menu-0-menu-item");

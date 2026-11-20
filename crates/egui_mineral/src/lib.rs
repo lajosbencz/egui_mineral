@@ -276,7 +276,7 @@ pub mod window;
 /// Common imports for apps; widget authors add [`kit::prelude`].
 pub mod prelude {
     pub use crate::{
-        action::Clicked,
+        action::{ActionKey, Clicked, ItemResponses},
         anchor::Side,
         bus::{Bus, Spawner, SpawnerExt},
         date::{Date, DateBounds, DateRange, Time},

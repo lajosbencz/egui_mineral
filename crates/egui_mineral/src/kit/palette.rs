@@ -5,7 +5,7 @@ use std::{collections::HashMap, hash::Hash};
 use egui::{Context, Id, KeyboardShortcut};
 
 use crate::{
-    action::Clicked,
+    action::{ActionKey, Clicked},
     combobox::{ComboAction, ComboKind, ComboList, ComboState},
     filter::Query,
     kit::state::{Memo, TempState},
@@ -27,7 +27,7 @@ pub trait Entry {
     /// Shortcut bound to [`action`](Self::action) while the palette is shown.
     fn accelerator(&self) -> Option<KeyboardShortcut>;
     /// App key reported with the entry when it runs.
-    fn action_key(&self) -> Option<&ActionId>;
+    fn action_key(&self) -> Option<&ActionKey>;
 }
 
 /// Row of the filtered list.
@@ -235,7 +235,7 @@ mod tests {
         fn accelerator(&self) -> Option<KeyboardShortcut> {
             None
         }
-        fn action_key(&self) -> Option<&ActionId> {
+        fn action_key(&self) -> Option<&ActionKey> {
             None
         }
     }

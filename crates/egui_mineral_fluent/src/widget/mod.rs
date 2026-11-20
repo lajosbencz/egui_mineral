@@ -24,11 +24,11 @@ macro_rules! setters {
         }
     };
     ($(#[$m:meta])* action_key) => {
-        /// App key reported as [`Clicked::key`](egui_mineral::action::Clicked::key) when the item runs;
+        /// App key of any type, reported as [`Clicked::key`](egui_mineral::action::Clicked::key) when the item runs;
         /// several items may share one.
         $(#[$m])*
-        pub fn key(mut self, key: impl Into<egui_mineral::shortcut::ActionId>) -> Self {
-            self.action_key = Some(key.into());
+        pub fn key<K: std::any::Any + Clone + PartialEq + Send + Sync>(mut self, key: K) -> Self {
+            self.action_key = Some(egui_mineral::action::ActionKey::new(key));
             self
         }
     };

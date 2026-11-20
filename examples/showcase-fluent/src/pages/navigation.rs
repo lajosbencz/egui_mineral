@@ -125,6 +125,14 @@ fn toolbars(ui: &mut FluentUi<'_>, s: &mut State) {
         .show(ui);
 }
 
+#[derive(Clone, Copy, PartialEq)]
+enum Edit {
+    Cut,
+    Paste,
+    PastePlain,
+    SelectAll,
+}
+
 fn breadcrumbs(ui: &mut FluentUi<'_>, s: &mut State) {
     heading(ui, "h-breadcrumb", "Breadcrumb");
     for (i, size) in Size::ALL.iter().copied().enumerate() {
@@ -142,7 +150,10 @@ fn breadcrumbs(ui: &mut FluentUi<'_>, s: &mut State) {
         .item(BreadcrumbButton::new("Docs").disabled(true))
         .item(BreadcrumbButton::new("Page").current(true))
         .show(ui);
-    ui.label(format!("Clicked: {:?}", s.crumb.as_ref().and_then(Clicked::key_str)));
+    ui.label(format!(
+        "Clicked: {:?}",
+        s.crumb.as_ref().and_then(Clicked::key::<&str>)
+    ));
 }
 
 fn overflow(ui: &mut FluentUi<'_>, s: &mut State) {
@@ -163,7 +174,7 @@ fn overflow(ui: &mut FluentUi<'_>, s: &mut State) {
     });
     ui.label(format!(
         "Clicked: {:?}",
-        s.overflow_last.as_ref().and_then(Clicked::key_str)
+        s.overflow_last.as_ref().and_then(Clicked::key::<&str>)
     ));
 }
 
@@ -211,7 +222,12 @@ fn menus(ui: &mut FluentUi<'_>, s: &mut State) {
         ..
     } = s;
     let r = Menu::new("menu", "Edit").show(rt, &trigger, menu_open, |m| {
-        m.item(MenuItem::new("Cut").icon(ICON_CUT).secondary_text("Ctrl+X").key("cut"));
+        m.item(
+            MenuItem::new("Cut")
+                .icon(ICON_CUT)
+                .secondary_text("Ctrl+X")
+                .key(Edit::Cut),
+        );
         m.item(MenuItem::new("Paste").disabled(true));
         m.divider();
         m.checkbox_item("Word wrap", wrap);
@@ -219,19 +235,19 @@ fn menus(ui: &mut FluentUi<'_>, s: &mut State) {
             m.radio_item("Small", size, 0);
             m.radio_item("Large", size, 1);
         });
-        m.split_item(MenuItem::new("Paste").key("paste"), |m| {
-            m.item(MenuItem::new("Paste as plain text").key("paste-plain"));
+        m.split_item(MenuItem::new("Paste").key(Edit::Paste), |m| {
+            m.item(MenuItem::new("Paste as plain text").key(Edit::PastePlain));
         });
         m.submenu("More", |m| {
-            m.item(MenuItem::new("Select all").key("select-all"));
+            m.item(MenuItem::new("Select all").key(Edit::SelectAll));
         });
     });
-    match r.clicked.as_ref().and_then(Clicked::key_str) {
-        Some("cut") => *last = "Cut",
-        Some("paste") => *last = "Paste",
-        Some("paste-plain") => *last = "Paste as plain text",
-        Some("select-all") => *last = "Select all",
-        _ => {}
+    match r.clicked.as_ref().and_then(Clicked::key::<Edit>) {
+        Some(Edit::Cut) => *last = "Cut",
+        Some(Edit::Paste) => *last = "Paste",
+        Some(Edit::PastePlain) => *last = "Paste as plain text",
+        Some(Edit::SelectAll) => *last = "Select all",
+        None => {}
     }
     ui.label(format!("Last: {}", s.last));
 }

@@ -578,7 +578,7 @@ pub struct Tag<'a> {
 }
 
 impl<'a> Tag<'a> {
-    /// `value` identifies the tag in a [`TagGroup`] and salts its id; `label` is the text and accessible name.
+    /// `value` salts its id and is unique within a [`TagGroup`]; `label` is the text and accessible name.
     /// Agent key `<value>-tag`.
     pub fn new(value: impl Into<String>, label: impl Into<String>) -> Self {
         let value = value.into();
@@ -703,7 +703,7 @@ pub struct InteractionTagResponse {
 }
 
 impl<'a> InteractionTag<'a> {
-    /// `value` identifies the tag in a [`TagGroup`] and salts its id; `label` is the text and accessible name.
+    /// `value` salts its id and is unique within a [`TagGroup`]; `label` is the text and accessible name.
     /// Agent key `<value>-interaction-tag`, and `<value>-dismiss` for the secondary button.
     pub fn new(value: impl Into<String>, label: impl Into<String>) -> Self {
         let value = value.into();
@@ -915,31 +915,33 @@ impl Entry<'_> {
 /// Result of showing a [`TagGroup`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct TagGroupResponse {
+pub struct TagGroupResponse<K> {
     /// Spans every tag; `mark_changed` when the selection changed.
     pub response: egui::Response,
-    /// `value` of the tag whose dismiss button was pressed this frame: remove it from the data.
-    pub removed: Option<String>,
+    /// Key of the tag whose dismiss button was pressed this frame: remove it from the data.
+    pub removed: Option<K>,
     /// Agrees with `response.changed()`: a primary click toggled the bound selection.
     pub changed: bool,
 }
 
 /// Fluent `TagGroup`: a row of tags with one Tab stop and arrow-key roving focus. Dismissing moves focus to
-/// the next tag, else the previous.
+/// the next tag, else the previous. Each tag is added with the app key `K` that names it in the bound
+/// [`Selection`] and in [`TagGroupResponse::removed`].
 #[derive(Debug)]
 #[must_use = "call .show(..)"]
-pub struct TagGroup<'a> {
+pub struct TagGroup<'a, K: Ord> {
     salt: KeyedSalt,
     key: AgentKey,
     label: String,
     defaults: Defaults,
-    selection: Option<&'a mut Selection<String>>,
+    selection: Option<&'a mut Selection<K>>,
+    keys: Vec<K>,
     entries: Vec<Entry<'a>>,
 }
 
 egui_mineral::kit::opaque_debug!(Entry<'_>);
 
-impl<'a> TagGroup<'a> {
+impl<'a, K: Ord + Clone> TagGroup<'a, K> {
     /// `label` names the group for assistive technology; agent key `<id_salt>-tag-group`.
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>) -> Self {
         Self {
@@ -948,6 +950,7 @@ impl<'a> TagGroup<'a> {
             label: label.into(),
             defaults: Defaults::default(),
             selection: None,
+            keys: Vec::new(),
             entries: Vec::new(),
         }
     }
@@ -976,21 +979,23 @@ impl<'a> TagGroup<'a> {
         self
     }
 
-    /// `selectedValues` and `onTagSelect`: primary clicks of [`InteractionTag`]s toggle their `value`.
-    pub fn selection(mut self, selection: &'a mut Selection<String>) -> Self {
+    /// `selectedValues` and `onTagSelect`: primary clicks of [`InteractionTag`]s toggle their key.
+    pub fn selection(mut self, selection: &'a mut Selection<K>) -> Self {
         self.defaults.selectable = true;
         self.selection = Some(selection);
         self
     }
 
-    /// Appends a [`Tag`].
-    pub fn tag(mut self, tag: Tag<'a>) -> Self {
+    /// Appends a [`Tag`] named `key`.
+    pub fn tag(mut self, key: K, tag: Tag<'a>) -> Self {
+        self.keys.push(key);
         self.entries.push(Entry::Tag(tag));
         self
     }
 
-    /// Appends an [`InteractionTag`].
-    pub fn interaction_tag(mut self, tag: InteractionTag<'a>) -> Self {
+    /// Appends an [`InteractionTag`] named `key`.
+    pub fn interaction_tag(mut self, key: K, tag: InteractionTag<'a>) -> Self {
+        self.keys.push(key);
         self.entries.push(Entry::Interaction(tag));
         self
     }
@@ -1001,7 +1006,7 @@ impl<'a> TagGroup<'a> {
     }
 
     /// Shows the group.
-    pub fn show(self, ui: &mut MineralUi<'_, Fluent>) -> TagGroupResponse {
+    pub fn show(self, ui: &mut MineralUi<'_, Fluent>) -> TagGroupResponse<K> {
         let rt = ui.rt();
         let Self {
             salt,
@@ -1009,6 +1014,7 @@ impl<'a> TagGroup<'a> {
             label,
             defaults,
             mut selection,
+            keys,
             entries,
         } = self;
         let id = ui.make_persistent_id(salt.id_salt());
@@ -1023,13 +1029,13 @@ impl<'a> TagGroup<'a> {
         let stop = focus::tab_stop(ui.ctx(), id, target, disabled.len(), enabled);
         let gap = defaults.size.metrics().group_gap;
         let mut ids: Vec<egui::Id> = Vec::with_capacity(disabled.len());
-        let mut dismissed: Option<String> = None;
+        let mut dismissed: Option<(&K, &str)> = None;
         let mut toggled = false;
         let group = ui
             .push_id(salt.id_salt(), |ui| {
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing.x = gap;
-                    for entry in &entries {
+                    for (key, entry) in keys.iter().zip(&entries) {
                         let first = ids.len();
                         let stops = |n: usize| TabStop::at(first + n, stop);
                         match entry {
@@ -1040,19 +1046,19 @@ impl<'a> TagGroup<'a> {
                                     ids.push(r.id);
                                 }
                                 if *r.output() && dismissible {
-                                    dismissed = Some(t.value.clone());
+                                    dismissed = Some((key, &t.value));
                                 }
                             }
                             Entry::Interaction(t) => {
-                                let selected = selection.as_ref().is_some_and(|s| s.is_selected(&t.value));
+                                let selected = selection.as_ref().is_some_and(|s| s.is_selected(key));
                                 let r = t.show_in(rt, ui, defaults, selected, [stops(0), stops(1)], &mut ids);
                                 if r.clicked
                                     && let Some(s) = selection.as_mut()
                                 {
-                                    toggled |= s.toggle(t.value.clone());
+                                    toggled |= s.toggle(key.clone());
                                 }
                                 if r.dismiss_clicked {
-                                    dismissed = Some(t.value.clone());
+                                    dismissed = Some((key, &t.value));
                                 }
                             }
                         }
@@ -1061,7 +1067,7 @@ impl<'a> TagGroup<'a> {
                 .response
             })
             .inner;
-        if let Some(value) = &dismissed {
+        if let Some((_, value)) = dismissed {
             let in_group = ids.iter().any(|i| ui.ctx().memory(|m| m.has_focus(*i)));
             if let (true, Some(next)) = (in_group, neighbor(&entries, defaults, value)) {
                 ui.ctx().data_mut(|d| d.insert_temp(refocus_id, next));
@@ -1082,7 +1088,7 @@ impl<'a> TagGroup<'a> {
         }
         TagGroupResponse {
             response,
-            removed: dismissed,
+            removed: dismissed.map(|(key, _)| key.clone()),
             changed: toggled,
         }
     }

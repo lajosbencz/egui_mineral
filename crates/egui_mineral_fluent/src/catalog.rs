@@ -420,12 +420,16 @@ meta!(
     "InteractionTag",
     "react-tags/library/src/components/InteractionTag/useInteractionTagStyles.styles.ts"
 );
-meta!(
-    TagGroup<'a>,
-    Data,
-    "TagGroup",
-    "react-tags/library/src/components/TagGroup/useTagGroupStyles.styles.ts"
-);
+impl<K: Ord> Component for TagGroup<'_, K> {
+    const META: ComponentMeta = ComponentMeta {
+        name: "TagGroup",
+        category: Category::Data,
+        origin: Origin::ReactV9 {
+            react: "TagGroup",
+            styles: "react-tags/library/src/components/TagGroup/useTagGroupStyles.styles.ts",
+        },
+    };
+}
 meta!(
     Table<'a>,
     Data,
@@ -776,7 +780,7 @@ pub const CATALOG: &[ComponentMeta] = &[
     <Persona<'static>>::META,
     <Tag<'static>>::META,
     <InteractionTag<'static>>::META,
-    <TagGroup<'static>>::META,
+    <TagGroup<'static, usize>>::META,
     <Table<'static>>::META,
     <DataGrid<'static>>::META,
     TableColumn::META,

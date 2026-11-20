@@ -1,4 +1,8 @@
-use egui_mineral::{action::Clicked, semantic::KeyedSalt, shortcut::ActionId};
+use egui_mineral::{
+    action::{ActionKey, Clicked},
+    semantic::KeyedSalt,
+    shortcut::ActionId,
+};
 
 use crate::Icon;
 
@@ -28,7 +32,7 @@ pub struct IconAction {
     pub(crate) icon: Icon,
     pub(crate) label: String,
     pub(crate) command: Option<ActionId>,
-    pub(crate) action_key: Option<ActionId>,
+    pub(crate) action_key: Option<ActionKey>,
     pub(crate) selected: Option<bool>,
     pub(crate) disabled: bool,
     pub(crate) salt: Option<KeyedSalt>,
@@ -82,7 +86,7 @@ impl IconAction {
 pub struct TextAction {
     pub(crate) label: String,
     pub(crate) command: Option<ActionId>,
-    pub(crate) action_key: Option<ActionId>,
+    pub(crate) action_key: Option<ActionKey>,
 }
 
 impl TextAction {
@@ -155,7 +159,7 @@ impl<'a> ValueBinding<'a> {
 pub(crate) fn clicked<T>(
     items: &[T],
     index: Option<usize>,
-    key: impl FnOnce(&T) -> Option<&ActionId>,
+    key: impl FnOnce(&T) -> Option<&ActionKey>,
 ) -> Option<Clicked> {
     index.map(|i| Clicked::new(i, items.get(i).and_then(key).cloned()))
 }
@@ -287,11 +291,11 @@ macro_rules! setters {
         }
     };
     ($(#[$m:meta])* action_key) => {
-        /// App key reported as [`Clicked::key`](egui_mineral::action::Clicked::key) when the item is clicked;
+        /// App key of any type, reported as [`Clicked::key`](egui_mineral::action::Clicked::key) when the item is clicked;
         /// keys may repeat within a collection.
         $(#[$m])*
-        pub fn key(mut self, key: impl Into<egui_mineral::shortcut::ActionId>) -> Self {
-            self.action_key = Some(key.into());
+        pub fn key<K: std::any::Any + Clone + PartialEq + Send + Sync>(mut self, key: K) -> Self {
+            self.action_key = Some(egui_mineral::action::ActionKey::new(key));
             self
         }
     };

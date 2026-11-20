@@ -404,14 +404,11 @@ fn button_group_reports_the_item_key() {
     });
     h.click("grp-0-button");
     let copy = h.state().value.clone();
-    assert_eq!(
-        copy.as_ref().and_then(egui_mineral::action::Clicked::key_str),
-        Some("copy")
-    );
+    assert_eq!(copy.as_ref().and_then(|c| c.key::<&str>().copied()), Some("copy"));
     h.click("grp-1-button");
     let paste = h.state().value.clone();
     assert_eq!(
-        paste.map(|c| (c.index(), c.key().is_none())),
+        paste.map(|c| (c.index(), c.key::<&str>().is_none())),
         Some((1, true)),
         "an item without a key"
     );

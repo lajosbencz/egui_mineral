@@ -125,7 +125,7 @@ impl Skeleton {
         self,
         ui: &mut MineralUi<'_, Fluent>,
         add: impl FnOnce(&mut MineralUi<'_, Fluent>, SkeletonContext) -> R,
-    ) -> egui::InnerResponse<R> {
+    ) -> SkeletonResponse<R> {
         let rt = ui.rt();
         let dir = ui.i18n().direction();
         let cx = self.context;
@@ -141,8 +141,21 @@ impl Skeleton {
             let name = crate::tr_or(rt.i18n(), self.label.as_deref(), "mineral-skeleton-loading");
             SemanticNode::new(self.key.id(&self.salt), Role::ProgressIndicator, name)
         });
-        egui::InnerResponse::new(inner.inner, inner.response)
+        SkeletonResponse {
+            response: inner.response,
+            inner: inner.inner,
+        }
     }
+}
+
+/// Result of [`Skeleton::show`].
+#[derive(Clone, Debug)]
+#[non_exhaustive]
+pub struct SkeletonResponse<R> {
+    /// Spans the placeholders.
+    pub response: egui::Response,
+    /// Value of the content closure.
+    pub inner: R,
 }
 
 /// Fluent `SkeletonItem`: a placeholder shape for content that is loading.

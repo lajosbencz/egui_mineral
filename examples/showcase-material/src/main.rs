@@ -21,6 +21,12 @@ use pages::{Cmd, Evt, LOCALES, Page, Settings, Shared, States, THEMES, VARIANTS,
 use spawn::AppSpawner;
 
 const CONTENT_MAX_W: f32 = 1040.0;
+#[derive(Clone, Copy, PartialEq)]
+enum BarAction {
+    Search,
+    Theme,
+}
+
 const PALETTE: KeyboardShortcut = KeyboardShortcut::new(Modifiers::COMMAND, Key::K);
 const INSPECTOR: KeyboardShortcut = KeyboardShortcut::new(Modifiers::NONE, Key::F12);
 // Subsets written by build.rs.
@@ -77,13 +83,13 @@ impl App {
                 }
             }
         });
-        // Keyed by the page route; a page's topics share its key.
+        // Keyed by the page; a page's topics share its key.
         let mut commands: Vec<PaletteCommand> = Page::ALL
             .iter()
             .flat_map(|&p| {
                 std::iter::once(PaletteCommand::new(p.title()).icon(p.icon()).group("Pages"))
                     .chain(p.topics().iter().map(move |t| PaletteCommand::new(*t).group(p.title())))
-                    .map(move |c| c.key(p.to_string()))
+                    .map(move |c| c.key(p))
             })
             .collect();
         // Same commands and shortcuts as the View menu on the navigation page.
@@ -173,16 +179,16 @@ impl Shell {
             egui::ThemePreference::Dark => icons::ICON_DARK_MODE,
         };
         let bar = bar
-            .action(IconAction::new(icons::ICON_SEARCH, search).key("search"))
-            .action(IconAction::new(theme_icon, format!("Theme: {theme_name}")).key("theme"));
+            .action(IconAction::new(icons::ICON_SEARCH, search).key(BarAction::Search))
+            .action(IconAction::new(theme_icon, format!("Theme: {theme_name}")).key(BarAction::Theme));
         let r = bar.show(ui);
         if r.leading_clicked {
             self.drawer_open = true;
         }
-        match r.clicked.as_ref().and_then(Clicked::key_str) {
-            Some("search") => self.palette_open = true,
-            Some("theme") => self.shared.settings.theme = (self.shared.settings.theme + 1) % THEMES.len(),
-            _ => {}
+        match r.clicked.as_ref().and_then(Clicked::key::<BarAction>) {
+            Some(BarAction::Search) => self.palette_open = true,
+            Some(BarAction::Theme) => self.shared.settings.theme = (self.shared.settings.theme + 1) % THEMES.len(),
+            None => {}
         }
     }
 
@@ -292,7 +298,7 @@ impl Shell {
             .shortcut(PALETTE)
             .show_modal(rt, &mut self.palette_open)
             .clicked;
-        if let Some(page) = picked.as_ref().and_then(Clicked::key_str).and_then(|k| k.parse().ok()) {
+        if let Some(&page) = picked.as_ref().and_then(Clicked::key::<Page>) {
             self.navigate(page);
         }
         SnackbarHost::new(&mut self.shared.toasts).show(rt);
@@ -546,8 +552,7 @@ mod tests {
             .and_then(|t| t.find_key("nav-mb-file-file-new-menu-item").cloned())
             .expect("menu item in tree");
         assert_eq!(new.access_key.map(shortcut::Mnemonic::char), Some('N'));
-        let ctrl_n = shortcut::label(&ctx, &KeyboardShortcut::new(Modifiers::COMMAND, Key::N));
-        assert_eq!(new.shortcut.as_deref(), Some(ctrl_n.as_str()));
+        assert_eq!(new.shortcut, Some(KeyboardShortcut::new(Modifiers::COMMAND, Key::N)));
 
         step(&mut app, &ctx, press(Key::N, Modifiers::NONE));
         step_until(&mut app, &ctx, "New activating", |a| {

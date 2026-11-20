@@ -232,10 +232,10 @@ macro_rules! roles {
         /// MD3 color roles resolved for one theme mode.
         #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
         #[non_exhaustive]
-        #[expect(clippy::partial_pub_fields, reason = "the theme is fixed at generation, roles are tweakable")]
         pub struct ColorScheme {
             $(#[doc = concat!("MD3 `", stringify!($role), "` role.")] pub $role: Color32,)*
-            theme: Theme,
+            /// Mode the roles were generated for.
+            pub theme: Theme,
         }
 
         impl ColorScheme {
@@ -300,11 +300,6 @@ roles!(
 );
 
 impl ColorScheme {
-    /// Mode the scheme was generated for; fixed.
-    pub const fn theme(&self) -> Theme {
-        self.theme
-    }
-
     /// Scheme of [`BASELINE_SEED`] with default spec settings.
     pub fn baseline(theme: Theme) -> Self {
         SchemeSpec::default().scheme(theme)
@@ -328,7 +323,7 @@ mod tests {
     fn one_spec_yields_both_brightnesses() {
         let spec = SchemeSpec::new(Color32::from_rgb(0x20, 0x90, 0x40));
         let [light, dark] = spec.schemes();
-        assert_eq!((light.theme(), dark.theme()), (Theme::Light, Theme::Dark));
+        assert_eq!((light.theme, dark.theme), (Theme::Light, Theme::Dark));
         assert_eq!(spec.scheme(Theme::Light), light);
         assert_eq!(spec.scheme(Theme::Dark), dark);
         assert_ne!(light.primary, dark.primary);

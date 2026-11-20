@@ -2,7 +2,9 @@
 
 use egui::Color32;
 
-use crate::{icon::Icon, layout::Elide};
+use std::any::Any;
+
+use crate::{action::ActionKey, icon::Icon, layout::Elide};
 
 /// Progress indicator of a [`StatusItem`]: the fraction done, `None` for indeterminate.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -50,6 +52,7 @@ pub struct StatusItem {
     lead: Option<StatusLead>,
     tooltip: Option<String>,
     clickable: bool,
+    key: Option<ActionKey>,
     tone: StatusTone,
     elide: Option<Elide>,
     tabular: bool,
@@ -63,6 +66,7 @@ impl StatusItem {
             lead: None,
             tooltip: None,
             clickable: false,
+            key: None,
             tone: StatusTone::Default,
             elide: None,
             tabular: false,
@@ -90,6 +94,14 @@ impl StatusItem {
     /// Focusable button, reported as clicked by the bar; default `false`.
     pub fn clickable(mut self, clickable: bool) -> Self {
         self.clickable = clickable;
+        self
+    }
+
+    /// App key of any type, reported as [`Clicked::key`](crate::action::Clicked::key) by the bar when the item
+    /// is clicked; makes the item [`clickable`](Self::clickable). See [`action`](crate::action).
+    pub fn key<K: Any + Clone + PartialEq + Send + Sync>(mut self, key: K) -> Self {
+        self.key = Some(ActionKey::new(key));
+        self.clickable = true;
         self
     }
 
@@ -132,6 +144,11 @@ impl StatusItem {
     /// Value of [`Self::clickable`].
     pub fn is_clickable(&self) -> bool {
         self.clickable
+    }
+
+    /// Value of [`Self::key`].
+    pub fn action_key(&self) -> Option<&ActionKey> {
+        self.key.as_ref()
     }
 
     /// Value of [`Self::tone`].

@@ -203,7 +203,7 @@ fn tags(ui: &mut FluentUi<'_>, s: &mut State) {
         .dismissible(true)
         .selection(selection);
     for v in values.iter() {
-        group = group.interaction_tag(InteractionTag::new(v.clone(), v.clone()));
+        group = group.interaction_tag(v.clone(), InteractionTag::new(v.clone(), v.clone()));
     }
     // Upstream TagGroup does not wrap; narrow windows scroll it.
     let rt = ui.rt();

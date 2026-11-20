@@ -628,9 +628,7 @@ fn node_of<W: MineralWidget>(
 ) -> Option<SemanticNode> {
     let mut node = widget.semantics(core.i18n(), out, state)?;
     node.access_key = access_key.or(node.access_key);
-    if let Some(accelerator) = accelerator {
-        node.shortcut = Some(shortcut::label(core.ctx(), &accelerator));
-    }
+    node.shortcut = accelerator.or(node.shortcut);
     Some(node)
 }
 

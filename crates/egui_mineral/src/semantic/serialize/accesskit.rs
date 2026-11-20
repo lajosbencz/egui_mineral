@@ -4,6 +4,7 @@ use crate::{select::Check, semantic::SemanticNode};
 
 /// Writes into egui's own AccessKit node for `id`; no-op when AccessKit is inactive.
 pub fn write(ctx: &Context, id: Id, node: &SemanticNode) {
+    let shortcut = node.shortcut.map(|s| crate::shortcut::label(ctx, &s));
     ctx.accesskit_node_builder(id, |b| {
         let s = &node.state;
         b.set_role(node.role);
@@ -50,8 +51,8 @@ pub fn write(ctx: &Context, id: Id, node: &SemanticNode) {
         if let Some(live) = s.live {
             b.set_live(live);
         }
-        if let Some(label) = &node.shortcut {
-            b.set_keyboard_shortcut(label.as_str());
+        if let Some(shortcut) = shortcut {
+            b.set_keyboard_shortcut(shortcut);
         }
         if let Some(key) = node.access_key {
             b.set_access_key(key.char().to_string());

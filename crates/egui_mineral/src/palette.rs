@@ -1,9 +1,16 @@
 //! Command palette data: entries and the result a stylekit's palette reports.
 
+use std::any::Any;
+
 use egui::KeyboardShortcut;
 
 use crate::{
-    action::Clicked, icon::Icon, kit::palette::Entry, overlay::Dismiss, semantic::KeyedSalt, shortcut::ActionId,
+    action::{ActionKey, Clicked},
+    icon::Icon,
+    kit::palette::Entry,
+    overlay::Dismiss,
+    semantic::KeyedSalt,
+    shortcut::ActionId,
 };
 
 /// Entry of a stylekit's command palette.
@@ -13,7 +20,7 @@ pub struct PaletteCommand {
     label: String,
     group: Option<String>,
     id: Option<ActionId>,
-    key: Option<ActionId>,
+    key: Option<ActionKey>,
     shortcut: Option<KeyboardShortcut>,
     icon: Option<Icon>,
     disabled: bool,
@@ -48,10 +55,10 @@ impl PaletteCommand {
         self
     }
 
-    /// App key reported as [`Clicked::key`] in [`CommandPaletteResponse::clicked`] when the entry runs; several
-    /// entries may share one (a page and its topics). See [`action`](crate::action).
-    pub fn key(mut self, key: impl Into<ActionId>) -> Self {
-        self.key = Some(key.into());
+    /// App key of any type, reported as [`Clicked::key`] in [`CommandPaletteResponse::clicked`] when the entry
+    /// runs; several entries may share one (a page and its topics). See [`action`](crate::action).
+    pub fn key<K: Any + Clone + PartialEq + Send + Sync>(mut self, key: K) -> Self {
+        self.key = Some(ActionKey::new(key));
         self
     }
 
@@ -108,7 +115,7 @@ impl Entry for PaletteCommand {
         self.shortcut
     }
 
-    fn action_key(&self) -> Option<&ActionId> {
+    fn action_key(&self) -> Option<&ActionKey> {
         self.key.as_ref()
     }
 }

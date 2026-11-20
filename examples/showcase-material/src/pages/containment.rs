@@ -50,6 +50,12 @@ const CAROUSELS: [(CarouselLayout, &str); 5] = [
 const TEXTURE_COUNT: usize = 8;
 const TEX: usize = 64;
 
+#[derive(Clone, Copy, PartialEq)]
+enum RowAction {
+    Top,
+    Bottom,
+}
+
 pub(crate) struct State {
     card_clicks: u32,
     dialog_basic: bool,
@@ -563,25 +569,26 @@ fn reorder(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
             .clickable(true)
     });
     let mut moved = r.moved;
-    for (i, row) in r.rows().iter().enumerate() {
+    for (i, row) in r.rows.iter() {
         if row.output().activated {
             shared.toast(format!("Activated {}", rows[i]));
         }
         if Menu::context_requested(rt, row) {
             let menu = Menu::new(("reorder-menu", i), "Row actions")
-                .item(MenuItem::new("Move to top").key("top").disabled(i == 0))
+                .item(MenuItem::new("Move to top").key(RowAction::Top).disabled(i == 0))
                 .item(
                     MenuItem::new("Move to bottom")
-                        .key("bottom")
+                        .key(RowAction::Bottom)
                         .disabled(i + 1 == rows.len()),
                 );
-            moved = match menu.show_context(rt, row).clicked.as_ref().and_then(Clicked::key_str) {
-                Some("top") => Some(Reorder { from: i, to: 0 }),
-                Some("bottom") => Some(Reorder {
+            let clicked = menu.show_context(rt, row).clicked;
+            moved = match clicked.as_ref().and_then(Clicked::key::<RowAction>) {
+                Some(RowAction::Top) => Some(Reorder { from: i, to: 0 }),
+                Some(RowAction::Bottom) => Some(Reorder {
                     from: i,
                     to: rows.len() - 1,
                 }),
-                _ => moved,
+                None => moved,
             };
         }
     }
