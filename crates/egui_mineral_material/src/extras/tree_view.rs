@@ -14,6 +14,7 @@ use std::{collections::BTreeMap, f32::consts::FRAC_PI_2};
 use egui::{Color32, DragAndDrop, Id, Key, Modifiers, Rangef, Rect, Response, Sense, StrokeKind, Ui, Vec2, pos2, vec2};
 use egui_mineral::widget::Availability;
 use egui_mineral::{
+    action::Clicked,
     dnd,
     expand::Expansion,
     focus::{self, Typeahead},
@@ -87,8 +88,8 @@ impl<K> Default for TreeState<K> {
 pub struct TreeAction<K> {
     /// Row node key.
     pub node: K,
-    /// Index into the row's [`TreeView::actions`].
-    pub action: usize,
+    /// Action of the row's [`TreeView::actions`], with its [`IconAction::key`].
+    pub action: Clicked,
     /// Action target, e.g. to anchor a menu with [`Menu::show_at`](crate::selection::Menu::show_at).
     pub rect: Rect,
 }
@@ -96,6 +97,7 @@ pub struct TreeAction<K> {
 /// Result of [`TreeView::show`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
+#[expect(clippy::partial_pub_fields, reason = "per-item responses are read through accessors")]
 pub struct TreeViewResponse<K> {
     /// Tree container response.
     pub response: egui::Response,
@@ -107,8 +109,7 @@ pub struct TreeViewResponse<K> {
     pub activated: Option<K>,
     /// Selection or expansion.
     pub changed: bool,
-    /// Responses of the rendered rows, for context menus and modifiers.
-    pub rows: BTreeMap<K, Response>,
+    rows: BTreeMap<K, Response>,
     /// Row's leading [`ListControl`](crate::containment::ListControl) toggled (click, Space, agent); apply a checkbox with
     /// [`tree::toggle_check`] or app logic.
     pub leading_toggled: Option<K>,
@@ -116,6 +117,18 @@ pub struct TreeViewResponse<K> {
     pub clicked: Option<TreeAction<K>>,
     /// Drag and drop or Alt+arrow move; apply with [`TreeMove::apply`].
     pub moved: Option<TreeMove<K>>,
+}
+
+impl<K: Ord> TreeViewResponse<K> {
+    /// Response of the row of `node`, for context menus and modifiers; `None` while the row is not rendered.
+    pub fn row(&self, node: &K) -> Option<&Response> {
+        self.rows.get(node)
+    }
+
+    /// Rendered rows by node key, in key order.
+    pub fn rows(&self) -> impl Iterator<Item = (&K, &Response)> {
+        self.rows.iter()
+    }
 }
 
 impl<K> TreeViewResponse<K> {
@@ -140,7 +153,7 @@ struct RowOut {
     select: Option<Modifiers>,
     activated: bool,
     toggled: bool,
-    action: Option<(usize, Rect)>,
+    action: Option<(Clicked, Rect)>,
 }
 
 /// [`DragAndDrop`] payload of a [`reorderable`](TreeView::reorderable) row while it drags; drop zones
@@ -369,13 +382,16 @@ impl MineralWidget for RowWidget<'_> {
             c.toggled |= !self.disabled && r.has_focus() && ui.input(|i| i.key_pressed(Key::Space));
             out.toggled = c.toggled;
         }
-        out.action = actions
+        let hit = actions
             .iter()
+            .zip(&self.actions)
             .enumerate()
-            .find_map(|(i, a)| a.clicked().then_some((i, a.rect)));
-        if let Some(c) = out.action.and_then(|(i, _)| self.actions[i].command.as_ref()) {
-            shortcut::fire(ui.ctx(), c);
-            out.action = None;
+            .find_map(|(i, (r, a))| r.clicked().then_some((i, r.rect, a)));
+        if let Some((i, rect, a)) = hit {
+            match &a.command {
+                Some(c) => shortcut::fire(ui.ctx(), c),
+                None => out.action = Some((Clicked::new(i, a.action_key.clone()), rect)),
+            }
         }
         let on_control = out.toggled || out.action.is_some();
         if parts::press(ui, frame, Availability::disabled_if(self.disabled)).clicked && !on_control {

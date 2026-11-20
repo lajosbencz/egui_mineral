@@ -523,7 +523,7 @@ impl Breadcrumbs {
                         menu = menu.item(MenuItem::new(&self.items[i]));
                     }
                     if let Some(k) = menu.show(rt, anchor.response()).clicked {
-                        out = Some(hidden.start + k);
+                        out = Some(hidden.start + k.index());
                     }
                     for i in n - after..n {
                         separator(ui);

@@ -1,4 +1,3 @@
-use crate::Mui;
 use egui::{Rect, vec2};
 use egui_mineral_material::{
     catalog::Component,
@@ -53,7 +52,7 @@ impl Default for State {
     }
 }
 
-pub(crate) fn show(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+pub(crate) fn show(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     section(ui, TOPICS[0], Some(Badge::META), |ui| badges(ui, s));
     section(ui, TOPICS[1], Some(LinearProgressIndicator::META), |ui| linear(ui, s));
     let circular_meta = CircularProgressIndicator::META;
@@ -68,7 +67,7 @@ pub(crate) fn show(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     });
 }
 
-fn badges(ui: &mut Mui<'_>, s: &mut State) {
+fn badges(ui: &mut MaterialUi<'_>, s: &mut State) {
     sub(ui, "Count badge on icons; dot and overflow (max 99)");
     super::row(ui, |row| {
         row.mineral(IconButton::new("badge-mail", ICON_MAIL, "Mail").badge(Badge::count(s.badge_count).max(99)));
@@ -100,7 +99,7 @@ fn badges(ui: &mut Mui<'_>, s: &mut State) {
     });
 }
 
-fn linear(ui: &mut Mui<'_>, s: &mut State) {
+fn linear(ui: &mut MaterialUi<'_>, s: &mut State) {
     sub(ui, "Driven by slider");
     ui.mineral(ValueSlider::new(
         "lin-slider",
@@ -127,7 +126,7 @@ fn linear(ui: &mut Mui<'_>, s: &mut State) {
     );
 }
 
-fn circular(ui: &mut Mui<'_>, s: &mut State) {
+fn circular(ui: &mut MaterialUi<'_>, s: &mut State) {
     let v = (s.progress / 100.0) as f32;
     sub(ui, "Determinate (value from the slider above), sizes 24/48/72");
     super::row(ui, |row| {
@@ -169,7 +168,7 @@ fn circular(ui: &mut Mui<'_>, s: &mut State) {
     });
 }
 
-fn loading(ui: &mut Mui<'_>) {
+fn loading(ui: &mut MaterialUi<'_>) {
     sub(ui, "Uncontained and contained, sizes 32/48/96");
     super::row(ui, |row| {
         for (i, size) in [32.0, 48.0, 96.0].into_iter().enumerate() {
@@ -187,7 +186,7 @@ fn loading(ui: &mut Mui<'_>) {
     });
 }
 
-fn snackbars(ui: &mut Mui<'_>, shared: &mut Shared) {
+fn snackbars(ui: &mut MaterialUi<'_>, shared: &mut Shared) {
     ui.label("The shell hosts the queue at the bottom of the window.");
     super::row(ui, |row| {
         if row.mineral(PushButton::new("snack-plain", "Single line")).clicked() {
@@ -229,7 +228,7 @@ fn snackbars(ui: &mut Mui<'_>, shared: &mut Shared) {
     });
 }
 
-fn tooltips(ui: &mut Mui<'_>, shared: &mut Shared) {
+fn tooltips(ui: &mut MaterialUi<'_>, shared: &mut Shared) {
     let rt = ui.rt();
     sub(ui, "Plain tooltip: hover");
     super::row(ui, |row| {
@@ -253,17 +252,18 @@ fn tooltips(ui: &mut Mui<'_>, shared: &mut Shared) {
         let r = row.mineral(PushButton::new("tip-rich-3", "With actions").variant(ButtonVariant::Tonal));
         let tip = RichTooltip::new("tip-rich-3-tooltip", "Move the file to the archive folder.")
             .title("Archive")
-            .actions(["Learn more", "Archive now"])
+            .action(TextAction::new("Learn more").key("learn"))
+            .action(TextAction::new("Archive now").key("archive"))
             .show(rt, r.response());
-        match tip.clicked {
-            Some(0) => shared.toast("Tooltip action: Learn more"),
-            Some(_) => shared.toast("Tooltip action: Archive now"),
-            None => {}
+        match tip.clicked.as_ref().and_then(Clicked::key_str) {
+            Some("learn") => shared.toast("Tooltip action: Learn more"),
+            Some("archive") => shared.toast("Tooltip action: Archive now"),
+            _ => {}
         }
     });
 }
 
-fn alerts(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+fn alerts(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     for (vi, (variant, vname)) in ALERT_VARIANTS.into_iter().enumerate() {
         sub(ui, vname);
         for (si, (sev, name)) in SEVERITIES.into_iter().enumerate() {
@@ -289,7 +289,7 @@ fn alerts(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
             s.dismissed[i] = true;
         }
         if let Some(a) = r.clicked {
-            shared.toast(format!("{name} alert action {a}"));
+            shared.toast(format!("{name} alert action {}", a.index()));
         }
     }
     if s.dismissed.iter().any(|d| *d)
@@ -301,7 +301,7 @@ fn alerts(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     }
 }
 
-fn skeletons(ui: &mut Mui<'_>) {
+fn skeletons(ui: &mut MaterialUi<'_>) {
     sub(ui, "Text lines");
     let width = 480.0_f32.min(ui.available_width());
     ui.allocate_ui(vec2(width, 0.0), |ui| {
@@ -325,7 +325,7 @@ fn skeletons(ui: &mut Mui<'_>) {
     });
 }
 
-fn tour(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+fn tour(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     ui.label("Each step highlights one of the widgets below.");
     if ui
         .mineral(PushButton::new("tour-start", "Start tour").icon(ICON_ADD))

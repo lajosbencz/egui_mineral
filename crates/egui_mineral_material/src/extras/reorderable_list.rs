@@ -17,13 +17,25 @@ use egui_mineral::kit;
 /// Result of [`ReorderableList::show`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
+#[expect(clippy::partial_pub_fields, reason = "per-item responses are read through accessors")]
 pub struct ReorderableListResponse {
     /// List response.
     pub response: egui::Response,
     /// Move committed this frame; the app applies it to `items`.
     pub moved: Option<Reorder>,
-    /// Per-item responses, index-aligned with the items.
-    pub rows: Vec<WidgetResponse<ListItemOutput>>,
+    rows: Vec<WidgetResponse<ListItemOutput>>,
+}
+
+impl ReorderableListResponse {
+    /// Response of the row of item `index`.
+    pub fn row(&self, index: usize) -> Option<&WidgetResponse<ListItemOutput>> {
+        self.rows.get(index)
+    }
+
+    /// Row responses, index-aligned with the items.
+    pub fn rows(&self) -> &[WidgetResponse<ListItemOutput>] {
+        &self.rows
+    }
 }
 
 /// List whose rows reorder by drag or Alt+arrows; non-MD3 (Flutter `ReorderableListView` pattern).

@@ -22,9 +22,11 @@ fn bar(ui: &mut Mui<'_>, n: usize, out: &mut Bar) {
     let r = TopAppBar::new("bar", "Title")
         .actions((0..n).map(|i| IconAction::new(ICON_STAR, format!("Action {i}"))))
         .show(ui);
-    out.inline = (0..n).map(|i| r.actions.contains_key(&i)).collect();
+    out.inline = (0..n).map(|i| r.action(i).is_some()).collect();
     out.overflow = r.overflow.is_some();
-    out.clicked = out.clicked.or(r.clicked);
+    out.clicked = out
+        .clicked
+        .or(r.clicked.as_ref().map(egui_mineral::action::Clicked::index));
 }
 
 #[test]
@@ -88,7 +90,9 @@ fn enter_with_focus(focus: Option<&str>) -> Option<usize> {
                         .hint_text("Notes"),
                 );
             });
-        form.action = form.action.or(r.clicked);
+        form.action = form
+            .action
+            .or(r.clicked.as_ref().map(egui_mineral::action::Clicked::index));
     });
     if let Some(f) = focus {
         let id = if f.ends_with("-button") {
@@ -373,4 +377,27 @@ fn docked_toolbar_hides_custom_items_that_do_not_fit() {
     h.run();
     assert!(h.tree().find_key("wide-button").is_none(), "overflowed item is hidden");
     assert!(h.tree().find_key("go-button").is_some(), "the one that fits stays");
+}
+
+#[test]
+fn top_app_bar_reports_action_keys_inline_and_overflowed() {
+    let state: (Vec<String>, bool) = (Vec::new(), false);
+    let mut h = harness(SCREEN, state, |ui, (keys, anchored)| {
+        let r = TopAppBar::new("bar", "Title")
+            .actions((0..5).map(|i| IconAction::new(ICON_STAR, format!("Action {i}")).key(format!("k{i}"))))
+            .show(ui);
+        *anchored = r.action_by_key(&"k0".into()).is_some() && r.action_by_key(&"k4".into()).is_none();
+        keys.extend(
+            r.clicked
+                .as_ref()
+                .and_then(egui_mineral::action::Clicked::key_str)
+                .map(String::from),
+        );
+    });
+    h.click("bar-0-action-button");
+    h.click("bar-overflow-button");
+    h.click("bar-4-action-button");
+    let (keys, anchored) = &h.state().value;
+    assert_eq!(keys, &["k0", "k4"]);
+    assert!(anchored, "inline actions resolve by key, overflowed ones do not");
 }

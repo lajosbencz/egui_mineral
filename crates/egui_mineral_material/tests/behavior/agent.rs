@@ -193,7 +193,9 @@ fn inserting_a_toolbar_action_keeps_the_keys_of_identified_ones() {
                 IconAction::new(icons::ICON_CONTENT_PASTE, "Paste").salt("paste"),
             ]);
         let out = Toolbar::floating("tb", "Edit").actions(actions).show(ui);
-        *pastes += usize::from(out.clicked == Some(usize::from(*insert) + 1));
+        *pastes += usize::from(
+            out.clicked.as_ref().map(egui_mineral::action::Clicked::index) == Some(usize::from(*insert) + 1),
+        );
     });
     let keys = ["tb-edit-copy-button", "tb-paste-button"];
     let rects = keys.map(|k| h.rect(k));

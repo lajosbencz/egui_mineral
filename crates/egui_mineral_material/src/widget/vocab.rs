@@ -1,4 +1,4 @@
-use egui_mineral::{semantic::KeyedSalt, shortcut::ActionId};
+use egui_mineral::{action::Clicked, semantic::KeyedSalt, shortcut::ActionId};
 
 use crate::Icon;
 
@@ -28,6 +28,7 @@ pub struct IconAction {
     pub(crate) icon: Icon,
     pub(crate) label: String,
     pub(crate) command: Option<ActionId>,
+    pub(crate) action_key: Option<ActionId>,
     pub(crate) selected: Option<bool>,
     pub(crate) disabled: bool,
     pub(crate) salt: Option<KeyedSalt>,
@@ -40,6 +41,7 @@ impl IconAction {
             icon: icon.into(),
             label: label.into(),
             command: None,
+            action_key: None,
             selected: None,
             disabled: false,
             salt: None,
@@ -56,6 +58,10 @@ impl IconAction {
     pub fn command(mut self, id: impl Into<ActionId>) -> Self {
         self.command = Some(id.into());
         self
+    }
+
+    crate::widget::setters! {
+        action_key
     }
 
     /// Toggle action.
@@ -76,6 +82,7 @@ impl IconAction {
 pub struct TextAction {
     pub(crate) label: String,
     pub(crate) command: Option<ActionId>,
+    pub(crate) action_key: Option<ActionId>,
 }
 
 impl TextAction {
@@ -84,7 +91,12 @@ impl TextAction {
         Self {
             label: label.into(),
             command: None,
+            action_key: None,
         }
+    }
+
+    crate::widget::setters! {
+        action_key
     }
 
     /// Pressing it also fires the app action `id` ([`shortcut::fire`](egui_mineral::shortcut::fire)).
@@ -98,6 +110,54 @@ impl TextAction {
             egui_mineral::shortcut::fire(ctx, command);
         }
     }
+}
+
+pub(crate) struct ValueBinding<'a> {
+    index: Option<usize>,
+    set: Box<dyn FnMut(usize) -> bool + 'a>,
+}
+
+impl std::fmt::Debug for ValueBinding<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ValueBinding")
+            .field("index", &self.index)
+            .finish_non_exhaustive()
+    }
+}
+
+impl<'a> ValueBinding<'a> {
+    pub(crate) fn new<T: PartialEq + Clone + 'a>(values: Vec<T>, value: &'a mut T) -> Self {
+        Self {
+            index: values.iter().position(|v| v == value),
+            set: Box::new(move |i| match values.get(i) {
+                Some(v) if v != value => {
+                    *value = v.clone();
+                    true
+                }
+                _ => false,
+            }),
+        }
+    }
+
+    pub(crate) fn index(&self) -> Option<usize> {
+        self.index
+    }
+
+    pub(crate) fn pick(&mut self, i: usize) -> bool {
+        let changed = (self.set)(i);
+        if changed {
+            self.index = Some(i);
+        }
+        changed
+    }
+}
+
+pub(crate) fn clicked<T>(
+    items: &[T],
+    index: Option<usize>,
+    key: impl FnOnce(&T) -> Option<&ActionId>,
+) -> Option<Clicked> {
+    index.map(|i| Clicked::new(i, items.get(i).and_then(key).cloned()))
 }
 
 pub(crate) fn item_salt(
@@ -223,6 +283,15 @@ macro_rules! setters {
         $(#[$m])*
         pub fn salt(mut self, id_salt: impl Into<egui_mineral::semantic::KeyedSalt>) -> Self {
             self.salt = Some(id_salt.into());
+            self
+        }
+    };
+    ($(#[$m:meta])* action_key) => {
+        /// App key reported as [`Clicked::key`](egui_mineral::action::Clicked::key) when the item is clicked;
+        /// keys may repeat within a collection.
+        $(#[$m])*
+        pub fn key(mut self, key: impl Into<egui_mineral::shortcut::ActionId>) -> Self {
+            self.action_key = Some(key.into());
             self
         }
     };

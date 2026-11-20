@@ -1,4 +1,3 @@
-use crate::Mui;
 use egui::{Align, Layout, Sense, Ui, UiBuilder, Vec2, Widget, vec2};
 use egui_mineral::kit::prelude::*;
 use egui_mineral::widget::MineralUi;
@@ -101,12 +100,12 @@ impl<W: Widget> MineralWidget for Interop<W> {
     }
 }
 
-pub(crate) fn show_page(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+pub(crate) fn show_page(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     raw(ui, s);
     keyed(ui, s, shared);
 }
 
-fn raw(ui: &mut Mui<'_>, s: &mut State) {
+fn raw(ui: &mut MaterialUi<'_>, s: &mut State) {
     let rt = ui.rt();
     section(ui, TOPICS[0], None, |ui| {
         ui.label(
@@ -135,7 +134,7 @@ fn raw(ui: &mut Mui<'_>, s: &mut State) {
     });
 }
 
-fn keyed(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+fn keyed(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     let rt = ui.rt();
     section(ui, TOPICS[1], None, |ui| {
         ui.label(

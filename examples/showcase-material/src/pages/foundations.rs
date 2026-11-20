@@ -1,4 +1,3 @@
-use crate::Mui;
 use egui::{Align2, Color32, CornerRadius, Frame, Margin, RichText, Sense, Stroke, StrokeKind, vec2};
 use egui_mineral::{
     i18n::{self, DateFields, DateLength, HourCycle, ListKind, NameWidth},
@@ -88,7 +87,7 @@ impl Default for State {
     }
 }
 
-pub(crate) fn show(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+pub(crate) fn show(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     section(ui, TOPICS[0], None, |ui| theme(ui, shared));
     section(ui, TOPICS[1], None, colors);
     section(ui, TOPICS[2], None, typography);
@@ -100,7 +99,7 @@ pub(crate) fn show(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     section(ui, TOPICS[8], None, environment);
 }
 
-fn environment(ui: &mut Mui<'_>) {
+fn environment(ui: &mut MaterialUi<'_>) {
     let rt = ui.rt();
     let ctx = ui.ctx().clone();
     let width = ctx.content_rect().width();
@@ -132,7 +131,7 @@ fn contrast(bg: Color32) -> Color32 {
     if lum > 140.0 { Color32::BLACK } else { Color32::WHITE }
 }
 
-fn theme(ui: &mut Mui<'_>, shared: &mut Shared) {
+fn theme(ui: &mut MaterialUi<'_>, shared: &mut Shared) {
     let s = &mut shared.settings;
     let mut theme = Some(s.theme);
     ui.mineral(Select::new("set-theme", "Theme", THEMES.map(|(_, n)| n), &mut theme).preferred_width(240.0));
@@ -191,7 +190,7 @@ fn theme(ui: &mut Mui<'_>, shared: &mut Shared) {
     );
 }
 
-fn colors(ui: &mut Mui<'_>) {
+fn colors(ui: &mut MaterialUi<'_>) {
     let rt = ui.rt();
     let t = rt.tokens();
     let c = &t.color;
@@ -284,7 +283,7 @@ fn colors(ui: &mut Mui<'_>) {
     );
 }
 
-fn typography(ui: &mut Mui<'_>) {
+fn typography(ui: &mut MaterialUi<'_>) {
     let rt = ui.rt();
     let t = rt.tokens();
     for (scale, name) in SCALES {
@@ -308,7 +307,7 @@ fn typography(ui: &mut Mui<'_>) {
     }
 }
 
-fn shapes(ui: &mut Mui<'_>) {
+fn shapes(ui: &mut MaterialUi<'_>) {
     let rt = ui.rt();
     let t = rt.tokens();
     let sh = t.shape;
@@ -347,7 +346,7 @@ fn shapes(ui: &mut Mui<'_>) {
     });
 }
 
-fn elevation(ui: &mut Mui<'_>) {
+fn elevation(ui: &mut MaterialUi<'_>) {
     let rt = ui.rt();
     let t = rt.tokens();
     ui.add_space(8.0);
@@ -373,7 +372,7 @@ fn elevation(ui: &mut Mui<'_>) {
     ui.add_space(12.0);
 }
 
-fn spacing(ui: &mut Mui<'_>) {
+fn spacing(ui: &mut MaterialUi<'_>) {
     let rt = ui.rt();
     let t = rt.tokens();
     for steps in [1, 2, 4, 6, 8] {
@@ -389,7 +388,7 @@ fn spacing(ui: &mut Mui<'_>) {
     }
 }
 
-fn motion_demo(ui: &mut Mui<'_>, s: &mut State) {
+fn motion_demo(ui: &mut MaterialUi<'_>, s: &mut State) {
     let rt = ui.rt();
     let ctx = ui.ctx().clone();
     let t = rt.tokens();
@@ -474,7 +473,7 @@ fn motion_demo(ui: &mut Mui<'_>, s: &mut State) {
     spring_demo(ui, s, label_w, track_w);
 }
 
-fn spring_demo(ui: &mut Mui<'_>, s: &mut State, label_w: f32, track_w: f32) {
+fn spring_demo(ui: &mut MaterialUi<'_>, s: &mut State, label_w: f32, track_w: f32) {
     let rt = ui.rt();
     let ctx = ui.ctx().clone();
     let t = rt.tokens();
@@ -520,7 +519,7 @@ fn spring_demo(ui: &mut Mui<'_>, s: &mut State, label_w: f32, track_w: f32) {
     );
 }
 
-fn locale(ui: &mut Mui<'_>, s: &mut State) {
+fn locale(ui: &mut MaterialUi<'_>, s: &mut State) {
     let rt = ui.rt();
     let f = rt.i18n().format();
     let sample = Date::constant(2026, 11, 15);

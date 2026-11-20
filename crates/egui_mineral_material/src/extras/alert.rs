@@ -5,6 +5,7 @@ use crate::MaterialUiExt as _;
 use crate::Rt;
 use crate::TextAction;
 use egui::{Color32, Frame, Sense, Stroke, Ui, Vec2, vec2};
+use egui_mineral::action::Clicked;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::MineralUi;
 use egui_mineral::{
@@ -97,8 +98,8 @@ pub enum AlertVariant {
 pub struct AlertResponse {
     /// Alert surface.
     pub response: egui::Response,
-    /// Index of the clicked action.
-    pub clicked: Option<usize>,
+    /// Clicked action, with its [`TextAction::key`].
+    pub clicked: Option<Clicked>,
     /// Why it closed this frame; only with [`Alert::dismissible`].
     pub dismissed: Option<Dismiss>,
 }
@@ -154,7 +155,7 @@ impl Alert {
         self
     }
 
-    /// Appends a text button; reported by index in [`AlertResponse::clicked`].
+    /// Appends a text button; reported in [`AlertResponse::clicked`].
     pub fn action(mut self, action: impl Into<TextAction>) -> Self {
         self.actions.push(action.into());
         self
@@ -220,7 +221,7 @@ impl Alert {
         }
         AlertResponse {
             response: inner.response,
-            clicked: action,
+            clicked: crate::widget::clicked(&self.actions, action, |a| a.action_key.as_ref()),
             dismissed,
         }
     }

@@ -171,8 +171,8 @@ fn rich_tooltip_reports_each_action_slot() {
             let r = RichTooltip::new("tip", "Supporting")
                 .actions(["Primary", "Secondary"])
                 .show(ui.rt(), anchor.response());
-            *primary |= r.clicked == Some(0);
-            *secondary |= r.clicked == Some(1);
+            *primary |= r.clicked.as_ref().map(egui_mineral::action::Clicked::index) == Some(0);
+            *secondary |= r.clicked.as_ref().map(egui_mineral::action::Clicked::index) == Some(1);
         });
         let anchor = h.rect("anchor-button").center();
         h.hover_at(anchor);
@@ -368,7 +368,7 @@ fn popover_opened_by_a_menu_pick_survives_the_picking_press() {
         }
         let picked = Menu::new("m", "More")
             .item(MenuItem::new("Rename"))
-            .show_at(ui, more.rect, menu)
+            .show_at(ui.rt(), more.rect, menu)
             .clicked;
         *pop |= picked.is_some();
         ui.add_space(200.0);
@@ -407,14 +407,14 @@ fn menu_opened_by_a_menu_pick_survives_the_picking_press() {
         }
         let picked = Menu::new("a", "More")
             .item(MenuItem::new("Rename"))
-            .show_at(ui, more.rect, first)
+            .show_at(ui.rt(), more.rect, first)
             .clicked;
         *second |= picked.is_some();
         ui.add_space(200.0);
         let target = ui.mineral(PushButton::new("target", "Target")).response().rect;
         Menu::new("b", "Target")
             .item(MenuItem::new("Copy"))
-            .show_at(ui, target, second);
+            .show_at(ui.rt(), target, second);
     });
     h.click("more-button");
     h.click("a-0-menu-item");

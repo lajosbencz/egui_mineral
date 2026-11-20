@@ -2,7 +2,9 @@ use crate::Material;
 use crate::MaterialExt;
 use crate::Rt;
 use egui::{Align, Color32, Frame, Id, Layout, Margin, Rangef, Rect, Sense, Ui, UiBuilder, pos2, vec2};
+use egui_mineral::action::Clicked;
 use egui_mineral::semantic::KeyedSalt;
+use egui_mineral::shortcut::ActionId;
 use egui_mineral::widget::MineralUi;
 use egui_mineral::{
     i18n::{Direction, I18n},
@@ -227,6 +229,7 @@ pub struct DialogAction {
     mnemonic: Option<Mnemonic>,
     disabled: bool,
     salt: Option<egui_mineral::semantic::KeyedSalt>,
+    action_key: Option<ActionId>,
 }
 
 impl DialogAction {
@@ -242,7 +245,12 @@ impl DialogAction {
             mnemonic: None,
             disabled: false,
             salt: None,
+            action_key: None,
         }
+    }
+
+    crate::widget::setters! {
+        action_key
     }
 
     /// Alt+letter activates the action while the dialog is the topmost modal.
@@ -287,8 +295,8 @@ pub struct DialogResponse<R> {
     pub response: Option<egui::Response>,
     /// Output of the content closure; `None` while closed.
     pub inner: Option<R>,
-    /// Index of the clicked action.
-    pub clicked: Option<usize>,
+    /// Clicked action, with its [`DialogAction::key`].
+    pub clicked: Option<Clicked>,
     /// Why it closed without an action.
     pub dismissed: Option<Dismiss>,
 }
@@ -598,7 +606,7 @@ impl Dialog {
         DialogResponse {
             response: Some(r.response),
             inner: Some(r.inner),
-            clicked: action,
+            clicked: crate::widget::clicked(&self.actions, action, |a| a.action_key.as_ref()),
             dismissed,
         }
     }
@@ -711,7 +719,7 @@ impl FullScreenDialog {
         self
     }
 
-    /// Text button at the end of the header; reported as `clicked == Some(0)`.
+    /// Text button at the end of the header; reported in `clicked` with index 0 and its [`DialogAction::key`].
     pub fn confirm(mut self, action: impl Into<DialogAction>) -> Self {
         self.confirm = Some(action.into());
         self
@@ -803,7 +811,7 @@ impl FullScreenDialog {
         DialogResponse {
             response: Some(r.response),
             inner: Some(r.inner),
-            clicked: action,
+            clicked: action.map(|i| Clicked::new(i, self.confirm.as_ref().and_then(|a| a.action_key.clone()))),
             dismissed,
         }
     }

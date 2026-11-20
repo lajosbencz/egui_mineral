@@ -150,7 +150,7 @@ pub use egui_mineral;
 pub use egui_mineral::egui;
 pub use egui_mineral::icon::Icon;
 pub use icon_set::IconSet;
-pub use material::{Material, MaterialExt, MaterialUiExt, Rt};
+pub use material::{Material, MaterialExt, MaterialUi, MaterialUiExt, Rt};
 pub use material_icon::MaterialIcon;
 pub use widget::{
     leading::{Leading, LeadingPaint},

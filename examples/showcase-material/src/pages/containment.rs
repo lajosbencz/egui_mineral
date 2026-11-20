@@ -1,4 +1,3 @@
-use crate::Mui;
 use egui::{Color32, ColorImage, RichText, Sense, TextureHandle, TextureOptions, Ui, UiBuilder, vec2};
 use egui::{ecolor::Hsva, load::SizedTexture};
 use egui_mineral::anchor::Align;
@@ -146,7 +145,7 @@ fn ensure_textures(ctx: &egui::Context, textures: &mut Vec<TextureHandle>) {
     }
 }
 
-fn boxed(ui: &mut Mui<'_>, height: f32, add: impl FnOnce(&mut Mui<'_>)) {
+fn boxed(ui: &mut MaterialUi<'_>, height: f32, add: impl FnOnce(&mut MaterialUi<'_>)) {
     let rt = ui.rt();
     let width = ui.available_width();
     let (rect, _) = ui.allocate_exact_size(vec2(width, height), Sense::hover());
@@ -164,7 +163,7 @@ fn pane(ui: &mut Ui, text: &str, color: Color32) {
     });
 }
 
-pub(crate) fn show(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+pub(crate) fn show(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     ensure_textures(ui.ctx(), &mut s.textures);
     section(ui, TOPICS[0], Some(Card::META), |ui| cards(ui, s, shared));
     section(ui, TOPICS[1], Some(Dialog::META), |ui| dialogs(ui, s, shared));
@@ -201,7 +200,7 @@ fn card(id: impl Into<KeyedSalt>, label: &str) -> Card {
         .content_padding(Card::CONTENT_PADDING)
 }
 
-fn cards(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+fn cards(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     let rt = ui.rt();
     sub(ui, "Variants");
     super::row(ui, |row| {
@@ -240,7 +239,7 @@ fn cards(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     });
 }
 
-fn dialogs(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+fn dialogs(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     let rt = ui.rt();
     super::row(ui, |row| {
         s.dialog_basic |= row.mineral(PushButton::new("dlg-open-basic", "Basic dialog")).clicked();
@@ -258,7 +257,7 @@ fn dialogs(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
         .default_action(1)
         .show_modal(rt, &mut s.dialog_basic, |_| {});
     if let Some(a) = r.clicked {
-        shared.toast(format!("Dialog action {a}"));
+        shared.toast(format!("Dialog action {}", a.index()));
     }
     if let Some(d) = r.dismissed {
         shared.toast(format!("Dialog dismissed: {d:?}"));
@@ -279,7 +278,7 @@ fn dialogs(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
             );
         });
     if let Some(a) = r.clicked {
-        shared.toast(format!("Dialog action {a}"));
+        shared.toast(format!("Dialog action {}", a.index()));
     }
     let r = Dialog::full_screen("dlg-full", "New event")
         .confirm(DialogAction::new("Save"))
@@ -288,11 +287,11 @@ fn dialogs(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
             ui.label("Full-screen content area. The confirm button is in the header.");
         });
     if let Some(a) = r.clicked {
-        shared.toast(format!("Full-screen action {a}"));
+        shared.toast(format!("Full-screen action {}", a.index()));
     }
 }
 
-fn sheet_body(ui: &mut Mui<'_>, id: &'static str, shared: &mut Shared) {
+fn sheet_body(ui: &mut MaterialUi<'_>, id: &'static str, shared: &mut Shared) {
     for i in 0..4 {
         let r = ui.mineral(
             ListItem::new((id, i), format!("Sheet row {}", i + 1))
@@ -305,7 +304,7 @@ fn sheet_body(ui: &mut Mui<'_>, id: &'static str, shared: &mut Shared) {
     }
 }
 
-fn bottom_sheets(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+fn bottom_sheets(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     let rt = ui.rt();
     ui.label("Sheets attach to the window edge.");
     super::row(ui, |row| {
@@ -324,7 +323,7 @@ fn bottom_sheets(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
         .show(rt, &mut s.bottom_standard, |ui| sheet_body(ui, "bs-std-row", shared));
 }
 
-fn side_sheets(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+fn side_sheets(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     let rt = ui.rt();
     super::row(ui, |row| {
         s.side_modal |= row
@@ -364,7 +363,7 @@ fn side_sheets(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     });
 }
 
-fn dividers(ui: &mut Mui<'_>) {
+fn dividers(ui: &mut MaterialUi<'_>) {
     sub(ui, "Full");
     ui.mineral(Divider::new("div-full"));
     sub(ui, "Inset (16 start)");
@@ -381,7 +380,7 @@ fn dividers(ui: &mut Mui<'_>) {
     });
 }
 
-fn carousels(ui: &mut Mui<'_>, s: &mut State) {
+fn carousels(ui: &mut MaterialUi<'_>, s: &mut State) {
     let rt = ui.rt();
     let t = rt.tokens();
     ui.label(format!("Clicked item: {:?}", s.carousel_clicked));
@@ -408,7 +407,7 @@ fn carousels(ui: &mut Mui<'_>, s: &mut State) {
         .show_images(ui, |idx| SizedTexture::from_handle(&textures[idx]));
 }
 
-fn list_items(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+fn list_items(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     sub(
         ui,
         "One line, leading kinds (click to select; the checkbox and radio toggle on their own)",
@@ -500,7 +499,7 @@ fn list_items(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     list_states(ui, s);
 }
 
-fn list_states(ui: &mut Mui<'_>, s: &mut State) {
+fn list_states(ui: &mut MaterialUi<'_>, s: &mut State) {
     sub(ui, "Selected, disabled, and selection rows (the whole row toggles)");
     ui.mineral(
         ListItem::new("li-sel", "Selected")
@@ -522,7 +521,7 @@ fn list_states(ui: &mut Mui<'_>, s: &mut State) {
     }
 }
 
-fn swipe(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+fn swipe(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     ui.label("Swipe rows: end action archives (tap to confirm), start action deletes (full swipe).");
     let mut removed = None;
     for (i, name) in s.swipe_rows.iter().enumerate() {
@@ -553,7 +552,7 @@ fn swipe(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     }
 }
 
-fn reorder(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+fn reorder(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     let rt = ui.rt();
     ui.label("Drag a row, or focus a row and press Alt+Up/Down. Right-click or long-press for a menu.");
     let rows = s.reorder.clone();
@@ -564,17 +563,21 @@ fn reorder(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
             .clickable(true)
     });
     let mut moved = r.moved;
-    for (i, row) in r.rows.iter().enumerate() {
+    for (i, row) in r.rows().iter().enumerate() {
         if row.output().activated {
             shared.toast(format!("Activated {}", rows[i]));
         }
         if Menu::context_requested(rt, row) {
             let menu = Menu::new(("reorder-menu", i), "Row actions")
-                .item(MenuItem::new("Move to top").disabled(i == 0))
-                .item(MenuItem::new("Move to bottom").disabled(i + 1 == rows.len()));
-            moved = match menu.show_context(rt, row).clicked {
-                Some(0) => Some(Reorder { from: i, to: 0 }),
-                Some(1) => Some(Reorder {
+                .item(MenuItem::new("Move to top").key("top").disabled(i == 0))
+                .item(
+                    MenuItem::new("Move to bottom")
+                        .key("bottom")
+                        .disabled(i + 1 == rows.len()),
+                );
+            moved = match menu.show_context(rt, row).clicked.as_ref().and_then(Clicked::key_str) {
+                Some("top") => Some(Reorder { from: i, to: 0 }),
+                Some("bottom") => Some(Reorder {
                     from: i,
                     to: rows.len() - 1,
                 }),
@@ -587,7 +590,7 @@ fn reorder(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     }
 }
 
-fn accordions(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+fn accordions(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     let mut density = f64::from(shared.settings.density);
     ui.mineral(
         ValueSlider::new(
@@ -632,7 +635,7 @@ fn accordions(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     });
 }
 
-fn popovers(ui: &mut Mui<'_>, s: &mut State) {
+fn popovers(ui: &mut MaterialUi<'_>, s: &mut State) {
     let rt = ui.rt();
     ui.label(format!(
         "Click the trigger; Escape or an outside press closes. Last dismiss: {:?}",
@@ -680,7 +683,7 @@ fn popovers(ui: &mut Mui<'_>, s: &mut State) {
     }
 }
 
-fn hover_cards(ui: &mut Mui<'_>) {
+fn hover_cards(ui: &mut MaterialUi<'_>) {
     let rt = ui.rt();
     ui.label("Hover or focus the triggers.");
     super::row(ui, |row| {
@@ -704,7 +707,7 @@ fn hover_cards(ui: &mut Mui<'_>) {
     });
 }
 
-fn floating(ui: &mut Mui<'_>, s: &mut State) {
+fn floating(ui: &mut MaterialUi<'_>, s: &mut State) {
     let rt = ui.rt();
     super::row(ui, |row| {
         let r = row.mineral(PushButton::new("fp-open", "Resizable panel"));
@@ -727,7 +730,7 @@ fn floating(ui: &mut Mui<'_>, s: &mut State) {
         });
 }
 
-fn split_panes(ui: &mut Mui<'_>) {
+fn split_panes(ui: &mut MaterialUi<'_>) {
     sub(ui, "Horizontal (side by side)");
     boxed(ui, 180.0, |ui| {
         SplitPane::new("split-h", "Resize panes")
@@ -760,7 +763,7 @@ fn split_panes(ui: &mut Mui<'_>) {
     });
 }
 
-fn image_lists(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+fn image_lists(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     let textures = &s.textures;
     let mut clicked = None;
     sub(ui, "Standard, 4 columns, titled tiles");

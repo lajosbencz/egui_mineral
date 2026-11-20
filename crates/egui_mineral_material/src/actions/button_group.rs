@@ -5,10 +5,12 @@ use egui_mineral::kit::state::TempState;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::MineralUi;
 use egui_mineral::{
+    action::Clicked,
     focus::{self, RovingFocus, TabStop},
     layout::{Axis, Constraints},
     select::{Selection, SelectionMode},
     semantic::{self, Role, SemanticNode, StableId},
+    shortcut::ActionId,
     widget::MineralWidget,
 };
 
@@ -34,6 +36,7 @@ pub struct ButtonGroupItem {
     icon: Option<Icon>,
     disabled: bool,
     salt: Option<egui_mineral::semantic::KeyedSalt>,
+    action_key: Option<ActionId>,
 }
 
 impl ButtonGroupItem {
@@ -50,7 +53,12 @@ impl ButtonGroupItem {
             icon: None,
             disabled: false,
             salt: None,
+            action_key: None,
         }
+    }
+
+    crate::widget::setters! {
+        action_key
     }
 
     /// `false` with an [`icon`](Self::icon) makes an icon-only button; the label stays for
@@ -76,8 +84,8 @@ impl ButtonGroupItem {
 pub struct ButtonGroupResponse {
     /// Toggle outcome; empty without [`ButtonGroup::selection`].
     pub selection: SelectionResponse,
-    /// Index of the button clicked this frame.
-    pub clicked: Option<usize>,
+    /// Button clicked this frame, with its [`ButtonGroupItem::key`].
+    pub clicked: Option<Clicked>,
 }
 
 /// MD3 button group types.
@@ -345,7 +353,7 @@ impl<'a> ButtonGroup<'a> {
         self.announce(ctx, &response);
         ButtonGroupResponse {
             selection: SelectionResponse::new(response, selected, changed),
-            clicked,
+            clicked: crate::widget::clicked(&self.items, clicked, |i| i.action_key.as_ref()),
         }
     }
 

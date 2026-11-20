@@ -11,7 +11,6 @@ pub(crate) mod text_inputs;
 
 pub(crate) use egui_mineral_material::adaptive::{wrapping_row as row, wrapping_row_top as top_row};
 
-use crate::Mui;
 use egui::RichText;
 use egui_mineral_material::MaterialExt;
 use std::sync::Arc;
@@ -246,7 +245,7 @@ pub(crate) struct States {
     pub(crate) interop: interop::State,
 }
 
-pub(crate) fn show(page: Page, ui: &mut Mui<'_>, s: &mut States, shared: &mut Shared) {
+pub(crate) fn show(page: Page, ui: &mut MaterialUi<'_>, s: &mut States, shared: &mut Shared) {
     match page {
         Page::Foundations => foundations::show(ui, &mut s.foundations, shared),
         Page::Actions => actions::show(ui, &mut s.actions, shared),
@@ -261,7 +260,7 @@ pub(crate) fn show(page: Page, ui: &mut Mui<'_>, s: &mut States, shared: &mut Sh
     }
 }
 
-pub(crate) fn caption(ui: &mut Mui<'_>, scale: TypeScale, text: &str) {
+pub(crate) fn caption(ui: &mut MaterialUi<'_>, scale: TypeScale, text: &str) {
     let rt = ui.rt();
     let t = rt.tokens();
     ui.label(
@@ -271,7 +270,7 @@ pub(crate) fn caption(ui: &mut Mui<'_>, scale: TypeScale, text: &str) {
     );
 }
 
-pub(crate) fn sub(ui: &mut Mui<'_>, text: &str) {
+pub(crate) fn sub(ui: &mut MaterialUi<'_>, text: &str) {
     let rt = ui.rt();
     let t = rt.tokens();
     ui.add_space(adaptive::grid(2));
@@ -282,7 +281,7 @@ pub(crate) fn sub(ui: &mut Mui<'_>, text: &str) {
     );
 }
 
-pub(crate) fn choice(ui: &mut Mui<'_>, id: &'static str, label: &str, labels: &[&str], current: usize) -> usize {
+pub(crate) fn choice(ui: &mut MaterialUi<'_>, id: &'static str, label: &str, labels: &[&str], current: usize) -> usize {
     let mut sel = Selection::single().required(true).with([current]);
     ButtonGroup::new(id, label)
         .variant(ButtonGroupVariant::Connected)
@@ -292,7 +291,7 @@ pub(crate) fn choice(ui: &mut Mui<'_>, id: &'static str, label: &str, labels: &[
     sel.first().copied().unwrap_or(current)
 }
 
-pub(crate) fn count(ui: &mut Mui<'_>, id: &'static str, label: &str, value: &mut usize, max: usize) {
+pub(crate) fn count(ui: &mut MaterialUi<'_>, id: &'static str, label: &str, value: &mut usize, max: usize) {
     let mut v = *value as f64;
     ui.mineral(NumberField::new(id, label, RangeModel::new(0.0, max as f64).step(1.0), &mut v).preferred_width(140.0));
     #[expect(clippy::cast_sign_loss, reason = "the range starts at 0")]
@@ -301,15 +300,20 @@ pub(crate) fn count(ui: &mut Mui<'_>, id: &'static str, label: &str, value: &mut
 }
 
 pub(crate) fn section(
-    ui: &mut Mui<'_>,
+    ui: &mut MaterialUi<'_>,
     title: &'static str,
     meta: Option<ComponentMeta>,
-    add: impl FnOnce(&mut Mui<'_>),
+    add: impl FnOnce(&mut MaterialUi<'_>),
 ) {
     ui.push_id(title, |ui| section_body(ui, title, meta, add));
 }
 
-fn section_body(ui: &mut Mui<'_>, title: &'static str, meta: Option<ComponentMeta>, add: impl FnOnce(&mut Mui<'_>)) {
+fn section_body(
+    ui: &mut MaterialUi<'_>,
+    title: &'static str,
+    meta: Option<ComponentMeta>,
+    add: impl FnOnce(&mut MaterialUi<'_>),
+) {
     let rt = ui.rt();
     let t = rt.tokens();
     ui.add_space(adaptive::grid(6));

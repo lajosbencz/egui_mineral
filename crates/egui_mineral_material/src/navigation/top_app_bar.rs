@@ -9,7 +9,8 @@ use std::{collections::BTreeMap, sync::Arc};
 
 use egui::{Rangef, Rect, Sense, Ui, pos2, vec2};
 use egui_mineral::{
-    shortcut::{self},
+    action::Clicked,
+    shortcut::{self, ActionId},
     widget::SizeExt,
 };
 
@@ -77,21 +78,35 @@ pub struct TopAppBar<'a> {
 /// Result of [`TopAppBar::show`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
+#[expect(clippy::partial_pub_fields, reason = "per-item responses are read through accessors")]
 pub struct TopAppBarResponse {
     /// Bar container response.
     pub response: egui::Response,
     /// Navigation icon clicked; see [`TopAppBar::navigation`].
     pub leading_clicked: bool,
-    /// Index of the clicked action without a [`IconAction::command`], inline or overflowed.
-    pub clicked: Option<usize>,
-    /// Buttons of the inline actions by index, to anchor popups; overflowed actions are absent.
-    pub actions: BTreeMap<usize, egui::Response>,
+    /// Clicked action without a [`IconAction::command`], inline or overflowed, with its [`IconAction::key`].
+    pub clicked: Option<Clicked>,
+    actions: BTreeMap<usize, egui::Response>,
+    keys: Vec<Option<ActionId>>,
     /// Overflow menu button; `None` while every action is inline.
     pub overflow: Option<egui::Response>,
     /// Search query edited; only with [`TopAppBar::search`].
     pub changed: bool,
     /// Enter pressed in the search field.
     pub submitted: bool,
+}
+
+impl TopAppBarResponse {
+    /// Button of the inline action at `index`, to anchor popups; `None` when overflowed or out of range.
+    pub fn action(&self, index: usize) -> Option<&egui::Response> {
+        self.actions.get(&index)
+    }
+
+    /// Button of the first inline action with the [`IconAction::key`] `key`; see [`Self::action`].
+    pub fn action_by_key(&self, key: &ActionId) -> Option<&egui::Response> {
+        let index = self.keys.iter().position(|k| k.as_ref() == Some(key))?;
+        self.action(index)
+    }
 }
 
 impl<'a> TopAppBar<'a> {
@@ -291,6 +306,7 @@ impl<'a> TopAppBar<'a> {
             leading_clicked: false,
             clicked: None,
             actions: BTreeMap::new(),
+            keys: self.actions.iter().map(|a| a.action_key.clone()).collect(),
             overflow: None,
             changed: false,
             submitted: false,
@@ -317,6 +333,10 @@ impl<'a> TopAppBar<'a> {
         }
         self.paint_titles(ui, rect, &row, Insets { start, end }, collapse, &t);
         out
+    }
+
+    fn clicked(&self, index: usize) -> Option<Clicked> {
+        crate::widget::clicked(&self.actions, Some(index), |a| a.action_key.as_ref())
     }
 
     fn show_actions(
@@ -370,7 +390,7 @@ impl<'a> TopAppBar<'a> {
                 menu = menu.item(item);
             }
             if let Some(k) = menu.show(rt, &anchor).clicked {
-                out.clicked = Some(shown + k);
+                out.clicked = self.clicked(shown + k.index());
             }
             out.overflow = Some(anchor);
             end += row.slot;
@@ -393,7 +413,7 @@ impl<'a> TopAppBar<'a> {
             if resp.clicked() {
                 match &a.command {
                     Some(c) => shortcut::fire(ctx, c),
-                    None => out.clicked = Some(idx),
+                    None => out.clicked = self.clicked(idx),
                 }
             }
             out.actions.insert(idx, resp);

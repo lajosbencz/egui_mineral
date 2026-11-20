@@ -1,4 +1,3 @@
-use crate::Mui;
 use egui::{Key, KeyboardShortcut, Modifiers};
 use egui_mineral::{
     edit,
@@ -133,7 +132,7 @@ impl Default for State {
     }
 }
 
-pub(crate) fn show(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+pub(crate) fn show(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     text_fields(ui, s, shared);
     numbers(ui, s);
     otp(ui, s, shared);
@@ -145,7 +144,7 @@ pub(crate) fn show(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     inspector(ui, s);
 }
 
-fn text_fields(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+fn text_fields(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     // One row per variant: outlined fields reserve the floating label's overhang above the box.
     super::section(ui, TOPICS[0], Some(<TextField<'static>>::META), |ui| {
         caption(ui, TypeScale::LabelMedium, "Filled");
@@ -155,7 +154,7 @@ fn text_fields(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     });
 }
 
-fn filled_fields(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+fn filled_fields(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     super::top_row(ui, |row| {
         row.mineral(TextField::new("ti-filled", "Filled", &mut s.filled).preferred_width(260.0));
         let f = TextField::new("ti-icons", "Search", &mut s.icons)
@@ -221,7 +220,7 @@ fn outlined(f: TextField<'_>) -> TextField<'_> {
     f.variant(TextFieldVariant::Outlined)
 }
 
-fn outlined_fields(ui: &mut Mui<'_>, s: &mut State) {
+fn outlined_fields(ui: &mut MaterialUi<'_>, s: &mut State) {
     super::top_row(ui, |row| {
         row.mineral(outlined(TextField::new("ti-outlined", "Outlined", &mut s.outlined)).preferred_width(260.0));
         row.mineral(
@@ -269,7 +268,7 @@ fn outlined_fields(ui: &mut Mui<'_>, s: &mut State) {
 const SAVE: ActionId = ActionId::from_static("showcase.save");
 const SAVE_KEY: KeyboardShortcut = KeyboardShortcut::new(Modifiers::COMMAND, Key::S);
 
-fn buffered(ui: &mut Mui<'_>, s: &mut State) {
+fn buffered(ui: &mut MaterialUi<'_>, s: &mut State) {
     let ctx = ui.ctx().clone();
     shortcut::bind(&ctx, Scope::Global, SAVE_KEY, SAVE);
     let saving = shortcut::take_action(&ctx, &SAVE);
@@ -314,7 +313,7 @@ fn buffered(ui: &mut Mui<'_>, s: &mut State) {
     ));
 }
 
-fn formatted_numbers(ui: &mut Mui<'_>, s: &mut State) {
+fn formatted_numbers(ui: &mut MaterialUi<'_>, s: &mut State) {
     super::top_row(ui, |row| {
         row.add(|ui| {
             ui.mineral(
@@ -357,7 +356,7 @@ fn formatted_numbers(ui: &mut Mui<'_>, s: &mut State) {
     });
 }
 
-fn numbers(ui: &mut Mui<'_>, s: &mut State) {
+fn numbers(ui: &mut MaterialUi<'_>, s: &mut State) {
     super::section(ui, TOPICS[1], Some(<NumberField<'static>>::META), |ui| {
         super::top_row(ui, |row| {
             row.add(|ui| {
@@ -430,7 +429,7 @@ fn numbers(ui: &mut Mui<'_>, s: &mut State) {
     });
 }
 
-fn otp(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+fn otp(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     super::section(ui, TOPICS[2], Some(<OtpField<'static>>::META), |ui| {
         let f = OtpField::new("ti-otp", "Verification code (paste a full code to fill)", 6, &mut s.otp);
         if ui.mineral(f).output().completed {
@@ -447,7 +446,7 @@ fn otp(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     });
 }
 
-fn tags(ui: &mut Mui<'_>, s: &mut State) {
+fn tags(ui: &mut MaterialUi<'_>, s: &mut State) {
     super::section(ui, TOPICS[3], Some(<TagsField<'static>>::META), |ui| {
         let f = TagsField::new("ti-tags", "Topics", &mut s.tags)
             .placeholder("Type and press Enter or comma")
@@ -479,7 +478,7 @@ fn tags(ui: &mut Mui<'_>, s: &mut State) {
     });
 }
 
-fn inline(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+fn inline(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     super::section(ui, TOPICS[4], Some(<InlineEdit<'static>>::META), |ui| {
         caption(
             ui,
@@ -508,7 +507,7 @@ fn inline(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     });
 }
 
-fn dates(ui: &mut Mui<'_>, s: &mut State) {
+fn dates(ui: &mut MaterialUi<'_>, s: &mut State) {
     super::section(ui, TOPICS[5], Some(<DateField<'static>>::META), |ui| {
         super::top_row(ui, |row| {
             row.mineral(
@@ -550,7 +549,7 @@ fn dates(ui: &mut Mui<'_>, s: &mut State) {
     });
 }
 
-fn form(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+fn form(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     super::section(ui, TOPICS[6], None, |ui| {
         // Narrow form column; the section divider keeps the full width.
         ui.scope(|ui| {
@@ -620,7 +619,7 @@ fn form(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     });
 }
 
-fn files(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+fn files(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     super::section(ui, TOPICS[7], Some(FileDropZone::META), |ui| {
         caption(
             ui,
@@ -717,7 +716,7 @@ impl Validator for PasswordPolicy {
     }
 }
 
-fn inspector(ui: &mut Mui<'_>, s: &mut State) {
+fn inspector(ui: &mut MaterialUi<'_>, s: &mut State) {
     let rt = ui.rt();
     super::section(ui, TOPICS[8], None, |ui| {
         caption(
@@ -727,7 +726,7 @@ fn inspector(ui: &mut Mui<'_>, s: &mut State) {
         );
         let [x, y, angle, opacity] = &mut s.inspector;
         let name = &mut s.inspector_name;
-        let group = |ui: &mut Mui<'_>, id, rows: &mut dyn FnMut(&mut egui::Ui)| {
+        let group = |ui: &mut MaterialUi<'_>, id, rows: &mut dyn FnMut(&mut egui::Ui)| {
             egui::Grid::new(id)
                 .num_columns(2)
                 .min_col_width(64.0)

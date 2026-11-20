@@ -186,6 +186,10 @@ impl Stylekit for Material {
 /// Runtime of a Material app.
 pub type Rt = Runtime<Material>;
 
+/// `Ui` of a Material app: what [`Rt::pass`](Runtime::pass), [`Rt::ui`](Runtime::ui) and every Material
+/// container hand out. Named apart from `egui::Ui` so both preludes glob-import together.
+pub type MaterialUi<'a> = MineralUi<'a, Material>;
+
 mod sealed {
     pub trait Sealed {}
     impl Sealed for super::Rt {}

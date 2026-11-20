@@ -15,6 +15,7 @@ use egui::{
 };
 use egui_mineral::widget::Availability;
 use egui_mineral::{
+    action::Clicked,
     anchor::{Align, Anchor, SafeTriangle, Side, Surroundings},
     focus::{self, Modality, RovingFocus, Typeahead},
     i18n::Direction,
@@ -224,6 +225,7 @@ pub struct MenuItem {
     leading: Option<Leading>,
     trailing: Option<MenuTrailing>,
     command: Option<ActionId>,
+    action_key: Option<ActionId>,
     mnemonic: Option<Mnemonic>,
     tooltip: Option<String>,
     selected: bool,
@@ -248,6 +250,7 @@ impl MenuItem {
             leading: None,
             trailing: None,
             command: None,
+            action_key: None,
             mnemonic: None,
             tooltip: None,
             selected: false,
@@ -255,6 +258,10 @@ impl MenuItem {
             salt: None,
             submenu: Vec::new(),
         }
+    }
+
+    crate::widget::setters! {
+        action_key
     }
 
     /// Overrides the `<menu-key>-<item>-menu-item` default (`<item>` from [`Self::salt`]).
@@ -335,6 +342,20 @@ fn disable_all(entries: &mut [Entry]) {
     }
 }
 
+fn item_at<'e>(entries: &'e [Entry], target: usize, next: &mut usize) -> Option<&'e MenuItem> {
+    for e in entries {
+        let Entry::Item(i) = e else { continue };
+        if *next == target {
+            return Some(i);
+        }
+        *next += 1;
+        if let Some(found) = item_at(&i.submenu, target, next) {
+            return Some(found);
+        }
+    }
+    None
+}
+
 fn count(entries: &[Entry]) -> usize {
     entries
         .iter()
@@ -358,14 +379,15 @@ struct Geometry {
     groups: Vec<Rect>,
 }
 
-/// Result of [`Menu::show`] and [`Menu::show_context`].
+/// Result of [`Menu::show`], [`Menu::show_context`] and [`Menu::show_at`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub struct MenuResponse {
     /// Menu surface; `None` while closed.
     pub response: Option<Response>,
-    /// Clicked item without a [`MenuItem::command`]; command items fire their command instead.
-    pub clicked: Option<usize>,
+    /// Clicked item without a [`MenuItem::command`], with its [`MenuItem::key`]; command items fire their
+    /// command instead.
+    pub clicked: Option<Clicked>,
     /// Why it closed without an activation.
     pub dismissed: Option<Dismiss>,
 }
@@ -401,7 +423,8 @@ pub(crate) struct MenuState {
     pub(crate) pending: HoverIntent<(usize, Option<usize>)>,
     pub(crate) focus: Option<(usize, FocusTarget)>,
     pub(crate) focused: bool,
-    // Frame the menu opened in: its presses are not outside presses.
+    // Layer under the anchor when `show_at` opened it.
+    pub(crate) parent: LayerId,
 }
 
 impl TempState for MenuState {}
@@ -415,6 +438,7 @@ impl Default for MenuState {
             pending: HoverIntent::default(),
             focus: None,
             focused: false,
+            parent: LayerId::background(),
         }
     }
 }
@@ -731,7 +755,7 @@ impl Menu {
         this.emit_trigger(&ctx, anchor, open, Role::Button, "menu-button", None);
         MenuResponse {
             response: out.panel,
-            clicked: out.activated,
+            clicked: this.clicked(out.activated),
             dismissed: out.dismissed.or(toggled_closed.then_some(Dismiss::Close)),
         }
     }
@@ -757,40 +781,50 @@ impl Menu {
         ctx.accesskit_node_builder(target.id, |b| b.set_has_popup(HasPopup::Menu));
         MenuResponse {
             response: out.panel,
-            clicked: out.activated,
+            clicked: this.clicked(out.activated),
             dismissed: out.dismissed,
         }
     }
 
     /// Menu at `anchor` while `open`, which the app owns: e.g. a rect from
-    /// [`ToolbarResponse::actions`](crate::navigation::ToolbarResponse::actions) or
+    /// [`ToolbarResponse::action_rect`](crate::navigation::ToolbarResponse::action_rect) or
     /// `TreeAction::rect`. Closing (an item, Escape, an outside press other than
-    /// on `anchor`) clears `open`.
-    pub fn show_at(self, ui: &MineralUi<'_, Material>, anchor: Rect, open: &mut bool) -> MenuResponse {
+    /// on `anchor`) clears `open`. State is keyed by the menu's `id_salt` alone, unique per window.
+    pub fn show_at(self, rt: &Rt, anchor: Rect, open: &mut bool) -> MenuResponse {
         let this = self.resolved();
-        let rt = ui.rt();
-        let ctx = ui.ctx().clone();
-        let id = ui.make_persistent_id(this.salt.id_salt()).with("mineral::menu_at");
+        let ctx = rt.ctx().clone();
+        let id = kit::scoped_id(rt.core(), Id::unique(("mineral::menu_at", this.salt.id_salt())));
         let mut st = MenuState::load(&ctx, id);
-        if this.bind_shortcuts(&ctx, shortcut::scope_of(&ctx, ui.layer_id())) || this.disabled {
-            *open = false;
-        }
         if *open && !st.open {
+            st.parent = ctx.layer_id_at(anchor.center()).unwrap_or_else(LayerId::background);
             Self::open(&mut st, anchor, open_focus(&ctx));
+        }
+        if this.bind_shortcuts(&ctx, shortcut::scope_of(&ctx, st.parent)) || this.disabled {
+            *open = false;
         }
         st.open = *open;
         if st.open {
             st.anchor = anchor;
         }
         let place = common::popup_anchor(Side::Bottom, Align::Start);
-        let out = this.run(rt, id, &mut st, place, Some(anchor), ui.layer_id());
+        let parent = st.parent;
+        let out = this.run(rt, id, &mut st, place, Some(anchor), parent);
         *open = st.open;
         st.store(&ctx, id);
         MenuResponse {
             response: out.panel,
-            clicked: out.activated,
+            clicked: this.clicked(out.activated),
             dismissed: out.dismissed,
         }
+    }
+
+    pub(crate) fn clicked(&self, index: Option<usize>) -> Option<Clicked> {
+        index.map(|i| {
+            Clicked::new(
+                i,
+                item_at(&self.entries, i, &mut 0).and_then(|item| item.action_key.clone()),
+            )
+        })
     }
 
     pub(crate) fn open(st: &mut MenuState, anchor: Rect, focus: Option<FocusTarget>) {

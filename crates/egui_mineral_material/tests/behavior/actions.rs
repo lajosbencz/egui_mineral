@@ -374,3 +374,45 @@ fn auto_targets_keep_their_height_through_ewebs_touchless_pointerdown_pass() {
         "{heights:?}"
     );
 }
+
+#[test]
+fn segmented_button_value_binds_the_segment_value() {
+    let mut h = harness(SCREEN, ('w', 0), |ui, (period, changes)| {
+        let segments = [('d', "Day"), ('w', "Week"), ('m', "Month")];
+        let r = SegmentedButton::value("period", "Period", segments, period).show(ui);
+        *changes += u32::from(r.changed);
+    });
+    assert_eq!(
+        h.node("period-1-segment").state.selected,
+        Some(true),
+        "the segment equal to the value is selected"
+    );
+    h.click("period-2-segment");
+    h.click("period-2-segment");
+    assert_eq!(h.state().value, ('m', 1));
+}
+
+#[test]
+fn button_group_reports_the_item_key() {
+    let mut h = harness(SCREEN, None, |ui, clicked| {
+        let r = ButtonGroup::new("grp", "Actions")
+            .items([ButtonGroupItem::new("Copy").key("copy"), ButtonGroupItem::new("Paste")])
+            .show(ui);
+        if r.clicked.is_some() {
+            *clicked = r.clicked;
+        }
+    });
+    h.click("grp-0-button");
+    let copy = h.state().value.clone();
+    assert_eq!(
+        copy.as_ref().and_then(egui_mineral::action::Clicked::key_str),
+        Some("copy")
+    );
+    h.click("grp-1-button");
+    let paste = h.state().value.clone();
+    assert_eq!(
+        paste.map(|c| (c.index(), c.key().is_none())),
+        Some((1, true)),
+        "an item without a key"
+    );
+}

@@ -11,11 +11,12 @@ use egui_mineral::widget::MineralUi;
 use egui::{Id, Layout, Rangef, Rect, Response, Sense, Ui, UiBuilder, pos2, vec2};
 use egui_mineral::widget::Availability;
 use egui_mineral::{
+    action::Clicked,
     focus::RovingFocus,
     i18n::Direction,
     layout::{Axis, Constraints, Edge, Measure},
     semantic::{self, Role, SemanticNode, StableId},
-    shortcut,
+    shortcut::{self, ActionId},
     widget::{MineralWidget, WidgetFrame, WidgetResponse},
 };
 
@@ -51,16 +52,40 @@ fn dense_height(height: f32, item: f32) -> f32 {
 /// Result of [`DockedToolbar::show`] and [`FloatingToolbar::show`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
+#[expect(clippy::partial_pub_fields, reason = "per-item responses are read through accessors")]
 pub struct ToolbarResponse {
     /// Toolbar container response.
     pub response: Response,
-    /// Index of the clicked action, counting icon actions only.
-    pub clicked: Option<usize>,
-    /// Shown action targets, in action order (custom items excluded); empty while the toolbar is off screen or collapsed. Anchor a menu
-    /// to one with [`Menu::show_at`](crate::selection::Menu::show_at).
-    pub actions: Vec<Rect>,
+    /// Clicked action without a [`IconAction::command`], with its [`IconAction::key`]; the index counts icon
+    /// actions only.
+    pub clicked: Option<Clicked>,
+    actions: Vec<Shown>,
     /// Paired FAB clicked; see [`FloatingToolbar::fab`].
     pub fab_clicked: bool,
+}
+
+#[derive(Clone, Debug)]
+struct Shown {
+    index: usize,
+    key: Option<ActionId>,
+    rect: Rect,
+}
+
+impl ToolbarResponse {
+    /// Target of the icon action at `index` (custom items excluded), e.g. to anchor a
+    /// [`Menu::show_at`](crate::selection::Menu::show_at); `None` while the action is not shown (overflowed,
+    /// toolbar off screen or collapsed).
+    pub fn action_rect(&self, index: usize) -> Option<Rect> {
+        self.actions.iter().find(|a| a.index == index).map(|a| a.rect)
+    }
+
+    /// Target of the first shown action with the [`IconAction::key`] `key`; see [`Self::action_rect`].
+    pub fn action_rect_by_key(&self, key: &ActionId) -> Option<Rect> {
+        self.actions
+            .iter()
+            .find(|a| a.key.as_ref() == Some(key))
+            .map(|a| a.rect)
+    }
 }
 
 // Room offered to a custom item so it measures at its natural width.
@@ -130,7 +155,7 @@ fn items(
     palette: Palette,
     axis: Axis,
     gap: f32,
-) -> (Option<usize>, Vec<Rect>) {
+) -> (Option<Clicked>, Vec<Shown>) {
     let rt = ui.rt();
     let layout = match axis {
         Axis::Horizontal => rt.i18n().direction().row(),
@@ -166,11 +191,15 @@ fn items(
                     if r.clicked() {
                         match &a.command {
                             Some(c) => shortcut::fire(ui.ctx(), c),
-                            None => clicked = Some(i),
+                            None => clicked = Some(Clicked::new(i, a.action_key.clone())),
                         }
                     }
                     stops.push((r.response().id, !a.disabled));
-                    rects.push(r.response().rect);
+                    rects.push(Shown {
+                        index: i,
+                        key: a.action_key.clone(),
+                        rect: r.response().rect,
+                    });
                 }
                 Item::Custom(c) => {
                     let Some(add) = c.add.take() else { continue };
@@ -569,7 +598,7 @@ impl FloatingToolbar<'_> {
         place: BarPlace,
         axis: Axis,
         widths: &[Option<f32>],
-    ) -> (Option<usize>, Vec<Rect>) {
+    ) -> (Option<Clicked>, Vec<Shown>) {
         let BarPlace {
             bar,
             content,

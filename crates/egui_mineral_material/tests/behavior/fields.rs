@@ -151,3 +151,30 @@ fn multiline_fields_in_one_ui_scroll_independently() {
     h.click("a-field");
     h.press(Key::End);
 }
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Fruit {
+    Apple,
+    Banana,
+    Cherry,
+}
+
+#[test]
+fn select_value_binds_the_option_value() {
+    let mut h = harness(SCREEN, (Fruit::Banana, 0), |ui, (fruit, changes)| {
+        let options = [
+            (Fruit::Apple, "Apple"),
+            (Fruit::Banana, "Banana"),
+            (Fruit::Cherry, "Cherry"),
+        ];
+        *changes += u32::from(ui.mineral(Select::value("fruit", "Fruit", options, fruit)).changed());
+    });
+    h.click("fruit-select");
+    h.press(Key::ArrowDown);
+    h.press(Key::Enter);
+    assert_eq!(
+        h.state().value,
+        (Fruit::Cherry, 1),
+        "down from the bound Banana picks Cherry"
+    );
+}

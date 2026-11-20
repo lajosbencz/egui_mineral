@@ -14,6 +14,7 @@ use egui::{
 };
 use egui_mineral::widget::Availability;
 use egui_mineral::{
+    action::Clicked,
     focus::RovingFocus,
     i18n::Direction,
     layout::{Axis, Constraints, Measure},
@@ -99,6 +100,7 @@ pub struct FabMenuItem {
     icon: Icon,
     label: String,
     command: Option<ActionId>,
+    action_key: Option<ActionId>,
     disabled: bool,
     salt: Option<egui_mineral::semantic::KeyedSalt>,
 }
@@ -115,9 +117,14 @@ impl FabMenuItem {
             icon: icon.into(),
             label: label.into(),
             command: None,
+            action_key: None,
             disabled: false,
             salt: None,
         }
+    }
+
+    crate::widget::setters! {
+        action_key
     }
 
     /// Activation fires the app action `id` ([`shortcut::fire`]) instead of reporting the item as clicked.
@@ -150,8 +157,9 @@ fn stagger(rt: &crate::Rt, id: Id, target: usize) -> usize {
 pub struct FabMenuResponse {
     /// Toggle FAB response.
     pub response: Response,
-    /// Index of the item clicked this frame; clicking closes the menu.
-    pub clicked: Option<usize>,
+    /// Item without a [`FabMenuItem::command`] clicked this frame, with its [`FabMenuItem::key`]; clicking
+    /// closes the menu.
+    pub clicked: Option<Clicked>,
     /// Menu state after this frame.
     pub open: bool,
     /// Why the menu closed this frame without an item click.
@@ -296,7 +304,7 @@ impl FabMenu {
         self.announce(ctx, base, menu_rect, open);
         FabMenuResponse {
             response: fab.into_response(),
-            clicked,
+            clicked: crate::widget::clicked(&self.items, clicked, |i| i.action_key.as_ref()),
             open,
             dismissed,
         }

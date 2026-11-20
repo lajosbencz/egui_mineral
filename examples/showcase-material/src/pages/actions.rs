@@ -1,4 +1,3 @@
-use crate::Mui;
 use egui::vec2;
 use egui_mineral_material::MaterialExt;
 use egui_mineral_material::{
@@ -103,7 +102,7 @@ impl Default for State {
     }
 }
 
-pub(crate) fn show(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+pub(crate) fn show(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     button(ui, s, shared);
     icon_button(ui, s, shared);
     fab(ui, shared);
@@ -114,7 +113,7 @@ pub(crate) fn show(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     split_button(ui, s);
 }
 
-fn button(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+fn button(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     section(ui, TOPICS[0], Some(PushButton::META), |ui| {
         sub(ui, "Variants");
         super::row(ui, |row| {
@@ -202,7 +201,7 @@ fn button(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     });
 }
 
-fn icon_button(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+fn icon_button(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     section(
         ui,
         TOPICS[1],
@@ -293,7 +292,7 @@ fn icon_button(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     );
 }
 
-fn fab(ui: &mut Mui<'_>, shared: &mut Shared) {
+fn fab(ui: &mut MaterialUi<'_>, shared: &mut Shared) {
     section(ui, TOPICS[2], Some(Fab::META), |ui| {
         sub(ui, "Colors (regular)");
         super::row(ui, |row| {
@@ -326,7 +325,7 @@ fn fab(ui: &mut Mui<'_>, shared: &mut Shared) {
     });
 }
 
-fn extended_fab(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+fn extended_fab(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     section(ui, TOPICS[3], Some(ExtendedFab::META), |ui| {
         sub(ui, "Sizes and colors");
         super::row(ui, |row| {
@@ -370,7 +369,7 @@ fn extended_fab(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     });
 }
 
-fn fab_menu(ui: &mut Mui<'_>, shared: &mut Shared) {
+fn fab_menu(ui: &mut MaterialUi<'_>, shared: &mut Shared) {
     let rt = ui.rt();
     section(ui, TOPICS[4], Some(FabMenu::META), |ui| {
         ui.label("Opens upward from the bottom end of the box.");
@@ -393,12 +392,12 @@ fn fab_menu(ui: &mut Mui<'_>, shared: &mut Shared) {
             ])
             .show(&mut rt.ui(&mut inner));
         if let Some(i) = r.clicked {
-            shared.toast(format!("FAB menu item {i}"));
+            shared.toast(format!("FAB menu item {}", i.index()));
         }
     });
 }
 
-fn button_group(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+fn button_group(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     section(ui, TOPICS[5], Some(<ButtonGroup<'static>>::META), |ui| {
         sub(ui, "Standard, plain actions");
         let r = ButtonGroup::new("grp-std", "Actions")
@@ -410,7 +409,7 @@ fn button_group(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
             .button_variant(ContainerVariant::Tonal)
             .show(ui);
         if let Some(i) = r.clicked {
-            shared.toast(format!("Group item {i}"));
+            shared.toast(format!("Group item {}", i.index()));
         }
         sub(ui, "Standard, single selection (mixed text/icon)");
         ButtonGroup::new("grp-single", "Alignment")
@@ -460,7 +459,7 @@ fn button_group(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     });
 }
 
-fn segmented_button(ui: &mut Mui<'_>, s: &mut State) {
+fn segmented_button(ui: &mut MaterialUi<'_>, s: &mut State) {
     section(ui, TOPICS[6], Some(<SegmentedButton<'static>>::META), |ui| {
         sub(ui, "Single choice");
         SegmentedButton::single("seg-period", "Period", &mut s.segment_period)
@@ -489,7 +488,7 @@ fn segmented_button(ui: &mut Mui<'_>, s: &mut State) {
     });
 }
 
-fn split_button(ui: &mut Mui<'_>, s: &mut State) {
+fn split_button(ui: &mut MaterialUi<'_>, s: &mut State) {
     section(ui, TOPICS[7], Some(SplitButton::META), |ui| {
         let menu = || {
             Menu::new("split-menu", "More save options")
@@ -510,7 +509,7 @@ fn split_button(ui: &mut Mui<'_>, s: &mut State) {
                     s.last_menu = format!("{name} main action");
                 }
                 if let Some(m) = r.clicked {
-                    s.last_menu = format!("{name} menu item {m}");
+                    s.last_menu = format!("{name} menu item {}", m.index());
                 }
             }
         });
@@ -522,7 +521,7 @@ fn split_button(ui: &mut Mui<'_>, s: &mut State) {
                     s.last_menu = format!("{name} size main action");
                 }
                 if let Some(m) = r.clicked {
-                    s.last_menu = format!("{name} size menu item {m}");
+                    s.last_menu = format!("{name} size menu item {}", m.index());
                 }
             }
         });
