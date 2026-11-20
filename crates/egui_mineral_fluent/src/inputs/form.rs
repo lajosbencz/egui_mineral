@@ -1,5 +1,7 @@
+use egui::emath::Numeric;
 use egui_mineral::date::Date;
-use egui_mineral::form::{FieldCtx, FieldSpec, Form, FormFooter, FormResponse, FormUi};
+use egui_mineral::form::{Blank, FieldCtx, FieldSpec, Form, FormFooter, FormResponse, FormUi};
+use egui_mineral::range::RangeModel;
 use egui_mineral::select::{ItemKey, Selection};
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::MineralUi;
@@ -7,7 +9,7 @@ use egui_mineral::widget::MineralUi;
 use crate::Fluent;
 use crate::actions::{ButtonAppearance, PushButton};
 use crate::feedback::{MessageBar, MessageBarIntent};
-use crate::inputs::{Checkbox, DatePicker, Dropdown, Field, FieldContext, Input, Textarea, Validation};
+use crate::inputs::{Checkbox, DatePicker, Dropdown, Field, FieldContext, Input, SpinButton, Textarea, Validation};
 use crate::msg;
 
 mod sealed {
@@ -86,6 +88,16 @@ pub trait FormUiExt: sealed::Sealed {
         label: impl Into<String>,
         value: &mut Option<Date>,
         build: impl FnOnce(FieldSpec<Option<Date>>) -> FieldSpec<Option<Date>>,
+    ) -> egui::Response;
+
+    /// [`SpinButton`] over `range`; a step or committed text commits the field.
+    fn number<N: Numeric + Blank>(
+        &mut self,
+        salt: impl Into<KeyedSalt>,
+        label: impl Into<String>,
+        value: &mut N,
+        range: impl Into<RangeModel>,
+        build: impl FnOnce(FieldSpec<N>) -> FieldSpec<N>,
     ) -> egui::Response;
 }
 
@@ -206,6 +218,26 @@ impl FormUiExt for FormUi<'_, '_, Fluent> {
             let label = f.spec().label();
             let r = wrapped(ui, f, true, |ui, salt, day, cx| {
                 ui.mineral(DatePicker::new(salt, label, day).validation(cx.validation))
+                    .into_response()
+            });
+            pick(f, &r);
+            r
+        })
+    }
+
+    fn number<N: Numeric + Blank>(
+        &mut self,
+        salt: impl Into<KeyedSalt>,
+        label: impl Into<String>,
+        value: &mut N,
+        range: impl Into<RangeModel>,
+        build: impl FnOnce(FieldSpec<N>) -> FieldSpec<N>,
+    ) -> egui::Response {
+        let range = range.into();
+        self.field(salt, &build(FieldSpec::new(label)), value, |ui, f| {
+            let label = f.spec().label();
+            let r = wrapped(ui, f, true, |ui, salt, n, cx| {
+                ui.mineral(SpinButton::new(salt, label, range, n).validation(cx.validation))
                     .into_response()
             });
             pick(f, &r);

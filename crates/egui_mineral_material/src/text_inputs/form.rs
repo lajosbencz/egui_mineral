@@ -1,8 +1,10 @@
 use crate::Material;
 use crate::MaterialExt;
 use crate::msg;
+use egui::emath::Numeric;
 use egui_mineral::date::Date;
-use egui_mineral::form::{FieldCtx, FieldSpec, Form, FormFooter, FormResponse, FormUi};
+use egui_mineral::form::{Blank, FieldCtx, FieldSpec, Form, FormFooter, FormResponse, FormUi};
+use egui_mineral::range::RangeModel;
 use egui_mineral::select::{ItemKey, Selection};
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::MineralUi;
@@ -89,6 +91,17 @@ pub trait FormUiExt: sealed::Sealed {
         label: impl Into<String>,
         value: &mut Option<Date>,
         build: impl FnOnce(FieldSpec<Option<Date>>) -> FieldSpec<Option<Date>>,
+    ) -> egui::Response;
+
+    /// [`NumberField`](crate::extras::NumberField) over `range`; a step or committed text commits the field.
+    #[cfg(feature = "extras")]
+    fn number<N: Numeric + Blank>(
+        &mut self,
+        salt: impl Into<KeyedSalt>,
+        label: impl Into<String>,
+        value: &mut N,
+        range: impl Into<RangeModel>,
+        build: impl FnOnce(FieldSpec<N>) -> FieldSpec<N>,
     ) -> egui::Response;
 }
 
@@ -221,6 +234,29 @@ impl FormUiExt for FormUi<'_, '_, Material> {
             let r = picker.show(ui);
             pick(f, r.changed, false);
             r.response
+        })
+    }
+
+    #[cfg(feature = "extras")]
+    fn number<N: Numeric + Blank>(
+        &mut self,
+        salt: impl Into<KeyedSalt>,
+        label: impl Into<String>,
+        value: &mut N,
+        range: impl Into<RangeModel>,
+        build: impl FnOnce(FieldSpec<N>) -> FieldSpec<N>,
+    ) -> egui::Response {
+        let range = range.into();
+        self.field(salt, &build(FieldSpec::new(label)), value, |ui, f| {
+            let (error, label) = decor(ui, f);
+            let spec = f.spec();
+            let mut field = crate::extras::NumberField::new(f.salt(), label, range, f.value()).maybe_error(error);
+            if let Some(h) = spec.supporting_text() {
+                field = field.supporting(h);
+            }
+            let r = ui.mineral(field);
+            pick(f, r.changed(), r.lost_focus());
+            r.into_response()
         })
     }
 }

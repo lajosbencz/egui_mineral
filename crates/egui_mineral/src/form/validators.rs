@@ -1,3 +1,5 @@
+use egui::emath::Numeric;
+
 use super::{Blank, ValidationError, Validator};
 use crate::i18n::{LocaleFormat, msg};
 use crate::select::Selection;
@@ -64,7 +66,7 @@ impl<K: Ord + Clone> Validator<Selection<K>> for MaxLength {
     }
 }
 
-/// Fails on text that is not a locale number and on numbers outside the optional bounds.
+/// Fails on numbers outside the optional bounds.
 #[derive(Clone, Debug, PartialEq)]
 pub struct NumberRange {
     /// Inclusive lower bound; `None` is open.
@@ -73,11 +75,9 @@ pub struct NumberRange {
     pub max: Option<f64>,
 }
 
-impl Validator<String> for NumberRange {
-    fn validate(&self, value: &String, locale: &dyn LocaleFormat) -> Result<(), ValidationError> {
-        let Some(n) = locale.parse_number(value) else {
-            return Err(ValidationError::localized(msg::NUMBER));
-        };
+impl<N: Numeric> Validator<N> for NumberRange {
+    fn validate(&self, value: &N, _locale: &dyn LocaleFormat) -> Result<(), ValidationError> {
+        let n = value.to_f64();
         let err = match (self.min, self.max) {
             (Some(a), Some(b)) if n < a || n > b => ValidationError::localized(msg::RangeBetween {
                 min: a.into(),
@@ -106,11 +106,8 @@ mod tests {
             min: Some(1.0),
             max: None,
         };
-        assert_eq!(
-            r.validate(&"0.5".to_owned(), &en).unwrap_err().code,
-            "mineral-range-min"
-        );
-        assert!(r.validate(&"x".to_owned(), &en).is_err(), "not a number");
+        assert_eq!(r.validate(&0.5, &en).unwrap_err().code, "mineral-range-min");
+        assert!(r.validate(&3u8, &en).is_ok());
         assert!(Required.validate(&false, &en).is_err());
         assert!(Required.validate(&Some(3), &en).is_ok());
     }

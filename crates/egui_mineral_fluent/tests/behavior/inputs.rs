@@ -618,3 +618,31 @@ fn form_renders_typed_kinds_and_submits_their_values() {
     assert!(*submitted);
     assert_eq!((value.terms, value.role), (true, Some(Role::Dev)));
 }
+
+#[test]
+fn form_number_field_binds_integers_and_validates_them() {
+    use egui_mineral_fluent::{
+        egui_mineral::form::{Form, FormState, NumberRange},
+        inputs::{FormExt, FormUiExt},
+    };
+
+    let mut h = harness((FormState::default(), 0u8, false), |ui, (state, value, submitted)| {
+        let r = Form::new("f", state, value).show(ui, |f, v| {
+            f.number("years", "Years", v, 0.0..=10.0, |s| {
+                s.validator(NumberRange {
+                    min: None,
+                    max: Some(1.0),
+                })
+            });
+        });
+        *submitted |= r.submitted;
+    });
+    h.click("f-years-spin-button");
+    h.press(Key::ArrowUp);
+    h.press(Key::ArrowUp);
+    h.click("f-submit-button");
+    let (state, value, submitted) = &h.state().value;
+    assert_eq!(*value, 2, "whole steps on a u8");
+    assert!(!submitted, "above the validator's max");
+    assert!(state.field("years").and_then(|f| f.error()).is_some());
+}

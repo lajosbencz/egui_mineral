@@ -558,7 +558,7 @@ fn form(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
             let width = ui.available_width().min(420.0);
             ui.set_max_width(width);
             let r = Form::new("signup", &mut s.form, &mut s.signup)
-                .check(|v: &Signup| {
+                .rule(|v: &Signup| {
                     if v.password == v.confirm {
                         Ok(())
                     } else {
@@ -696,6 +696,13 @@ fn signup_fields(f: &mut FormUi<'_, '_, Material>, v: &mut Signup) {
         |s| s.validator(MaxLength(2)),
     );
     f.date("start", "Start date (optional)", &mut v.start, |s| s);
+    f.number(
+        "experience",
+        "Years of experience",
+        &mut v.experience,
+        0.0..=50.0,
+        |s| s,
+    );
     f.check("terms", "I accept the terms", &mut v.terms, |s| s.required(true));
 }
 
@@ -709,6 +716,7 @@ struct Signup {
     role: Option<Role>,
     topics: Selection<Topic>,
     start: Option<Date>,
+    experience: u8,
     terms: bool,
 }
 

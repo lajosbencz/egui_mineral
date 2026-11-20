@@ -74,7 +74,8 @@ impl std::fmt::Display for ValidationError {
 
 impl std::error::Error for ValidationError {}
 
-/// Value a field binds; [`Required`] fails and optional fields skip their validators while it is blank.
+/// Value a field binds; [`Required`] fails and optional fields skip their validators while it is blank. Numbers and
+/// dates are never blank.
 pub trait Blank {
     /// Blank text, unchecked, nothing picked.
     fn is_blank(&self) -> bool;
@@ -121,6 +122,19 @@ impl Blank for Date {
         false
     }
 }
+
+// Numbers always hold a value; a field that may be empty binds `Option<N>`.
+macro_rules! never_blank {
+    ($($t:ty),*) => {$(
+        impl Blank for $t {
+            fn is_blank(&self) -> bool {
+                false
+            }
+        }
+    )*};
+}
+
+never_blank!(i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, f32, f64);
 
 /// Check of a field value of type `V`; `locale` parses locale-formatted input (numbers, dates).
 pub trait Validator<V: ?Sized>: Send + Sync {
@@ -209,12 +223,12 @@ pub struct FormState {
 
 impl FormState {
     /// `None` for a field the form has not shown; [`Form::show_with`] drops fields a pass does not show.
-    pub fn field_state(&self, salt: impl Into<KeyedSalt>) -> Option<&FieldState> {
+    pub fn field(&self, salt: impl Into<KeyedSalt>) -> Option<&FieldState> {
         self.fields.get(&field_id(&salt.into()))
     }
 
     /// Inserts a default state on first access.
-    pub fn field(&mut self, salt: impl Into<KeyedSalt>) -> &mut FieldState {
+    pub fn field_mut(&mut self, salt: impl Into<KeyedSalt>) -> &mut FieldState {
         self.fields.entry(field_id(&salt.into())).or_default()
     }
 
@@ -245,17 +259,28 @@ impl FormState {
 
     /// Server-side or async validation result of the field `salt`.
     pub fn set_error(&mut self, salt: impl Into<KeyedSalt>, error: Option<ValidationError>) {
-        let f = self.field(salt);
+        let f = self.field_mut(salt);
         f.error = error;
         f.pending = false;
     }
 
-    /// Ends a submission; `Err` lands in `form_error`, `Ok` clears every dirty flag.
-    pub fn finish_submit(&mut self, result: Result<(), ValidationError>) {
+    /// Ends a submission: `Ok` clears every dirty flag; each `Err` entry shows on its field, or on the form when it
+    /// targets the form or a field not shown (the last such entry wins).
+    pub fn finish_submit(&mut self, result: Result<(), Vec<CheckError>>) {
         self.submitting = false;
         match result {
             Ok(()) => self.fields.values_mut().for_each(|f| f.dirty = false),
-            Err(e) => self.form_error = Some(e),
+            Err(errors) => errors.into_iter().for_each(|e| self.show_check(e)),
+        }
+    }
+
+    fn show_check(&mut self, CheckError { field, error }: CheckError) {
+        match field.and_then(|id| self.fields.get_mut(&id)) {
+            Some(f) => {
+                f.touched = true;
+                f.error = Some(error);
+            }
+            None => self.form_error = Some(error),
         }
     }
 
@@ -265,14 +290,11 @@ impl FormState {
     }
 }
 
-/// Failed cross-field rule, attached to a field or to the form.
+/// Failed form rule or submission, attached to a field or to the form.
 #[derive(Clone, Debug, PartialEq)]
-#[non_exhaustive]
 pub struct CheckError {
-    /// Id of the field the error shows on (see [`Self::on_field`]); `None` for the form.
-    pub field: Option<Id>,
-    /// What failed.
-    pub error: ValidationError,
+    field: Option<Id>,
+    error: ValidationError,
 }
 
 impl CheckError {
@@ -288,9 +310,19 @@ impl CheckError {
     pub fn on_form(error: ValidationError) -> Self {
         Self { field: None, error }
     }
+
+    /// Shows on the field with salt `salt`; `false` for a form error.
+    pub fn targets(&self, salt: impl Into<KeyedSalt>) -> bool {
+        self.field == Some(field_id(&salt.into()))
+    }
+
+    /// What failed.
+    pub fn error(&self) -> &ValidationError {
+        &self.error
+    }
 }
 
-type FormCheck<T> = Box<dyn Fn(&T) -> Result<(), CheckError> + Send + Sync>;
+type FormRule<T> = Box<dyn Fn(&T) -> Result<(), CheckError> + Send + Sync>;
 
 /// Declaration of one field: label, help text, required flag, validation timing and typed validators.
 #[must_use]
@@ -562,7 +594,7 @@ pub struct Form<'a, T> {
     salt: KeyedSalt,
     state: &'a mut FormState,
     value: &'a mut T,
-    checks: Vec<FormCheck<T>>,
+    rules: Vec<FormRule<T>>,
     submit_label: Option<String>,
     locale: Option<Arc<dyn LocaleFormat>>,
 }
@@ -577,7 +609,7 @@ impl<'a, T> Form<'a, T> {
             salt: id_salt.into(),
             state,
             value,
-            checks: Vec::new(),
+            rules: Vec::new(),
             submit_label: None,
             locale: None,
         }
@@ -589,10 +621,10 @@ impl<'a, T> Form<'a, T> {
         self
     }
 
-    /// Cross-field rule over the whole value, run on submit; [`CheckError::field`] attaches the error to a field,
-    /// `None` to the form.
-    pub fn check(mut self, check: impl Fn(&T) -> Result<(), CheckError> + Send + Sync + 'static) -> Self {
-        self.checks.push(Box::new(check));
+    /// Cross-field rule over the whole value, run on submit; the error shows on its [`CheckError::field`], or on
+    /// the form.
+    pub fn rule(mut self, rule: impl Fn(&T) -> Result<(), CheckError> + Send + Sync + 'static) -> Self {
+        self.rules.push(Box::new(rule));
         self
     }
 
@@ -616,12 +648,9 @@ impl<'a, T> Form<'a, T> {
                 f.error.clone_from(&f.latest);
             }
         }
-        for check in &self.checks {
-            if let Err(CheckError { field, error }) = check(self.value) {
-                match field.and_then(|id| self.state.fields.get_mut(&id)) {
-                    Some(f) => f.error = Some(error),
-                    None => self.state.form_error = Some(error),
-                }
+        for rule in &self.rules {
+            if let Err(e) = rule(self.value) {
+                self.state.show_check(e);
             }
         }
         self.state.submitting = self.state.is_valid();
@@ -719,7 +748,7 @@ mod tests {
         let show_extra = app.show_extra;
         let r = Form::new("f", &mut app.state, &mut app.value)
             .locale(Arc::new(crate::test_support::en_us()))
-            .check(|v: &Signup| {
+            .rule(|v: &Signup| {
                 if v.pw == v.pw2 {
                     Ok(())
                 } else {
@@ -765,7 +794,7 @@ mod tests {
     }
 
     fn code(app: &App, field: &'static str) -> Option<String> {
-        let f = app.state.field_state(field)?;
+        let f = app.state.field(field)?;
         f.error().map(|e| e.code.to_string())
     }
 
@@ -839,7 +868,7 @@ mod tests {
         assert!(!h.state().value.submitted, "the required extra blocks");
         h.state_mut().value.show_extra = false;
         h.run();
-        assert!(h.state().value.state.field_state("extra").is_none());
+        assert!(h.state().value.state.field("extra").is_none());
         h.state_mut().value.press = true;
         h.run();
         assert!(h.state().value.submitted);
@@ -848,11 +877,32 @@ mod tests {
     #[test]
     fn async_errors_and_pending_block_validity() {
         let mut state = FormState::default();
-        state.field("name").set_pending(true);
+        state.field_mut("name").set_pending(true);
         assert!(!state.is_valid(), "a pending check blocks validity");
         state.set_error("name", Some(ValidationError::new("taken", "Name taken")));
-        let f = state.field_state("name").expect("field");
+        let f = state.field("name").expect("field");
         assert!(!f.pending() && f.error().is_some());
         assert!(!state.is_valid());
+    }
+
+    #[test]
+    fn rejected_submission_shows_on_fields_and_form() {
+        let mut h = harness(show, App::default());
+        h.run();
+        let taken = CheckError::on_field("email", ValidationError::new("taken", "Email taken"));
+        assert!(taken.targets("email") && !taken.targets("pw"));
+        let state = &mut h.state_mut().value.state;
+        state.finish_submit(Err(vec![
+            CheckError::on_field("email", ValidationError::new("taken", "Email taken")),
+            CheckError::on_field("gone", ValidationError::new("x", "Unshown")),
+        ]));
+        assert_eq!(code(&h.state().value, "email").as_deref(), Some("taken"));
+        let state = &h.state().value.state;
+        assert!(state.field("email").is_some_and(FieldState::touched));
+        assert_eq!(
+            state.form_error().map(|e| e.code.as_ref()),
+            Some("x"),
+            "unshown field falls back"
+        );
     }
 }

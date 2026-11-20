@@ -26,7 +26,6 @@ mineral-max-picks = { $max ->
     [one] Pick at most { $max } option
    *[other] Pick at most { $max } options
 }
-mineral-number = Enter a number
 mineral-range-between = Enter a number between { $min } and { $max }
 mineral-range-min = Enter a number of at least { $min }
 mineral-range-max = Enter a number of at most { $max }
