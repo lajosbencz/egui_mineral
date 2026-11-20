@@ -9,10 +9,10 @@ pub use crate::actions::{
 pub use crate::data::{
     Avatar, AvatarActive, AvatarActiveAppearance, AvatarColor, AvatarGroup, AvatarGroupLayout, AvatarGroupResponse,
     AvatarNamedColor, AvatarShape, AvatarSize, DataGrid, Image, ImageFit, ImageShape, InteractionTag,
-    InteractionTagResponse, List, ListItem, ListNavigation, ListResponse, ListUi, Persona, PersonaSize,
-    PersonaTextAlignment, PersonaTextPosition, Table, TableCellLayout, TableColumn, TableResponse, TableRowAppearance,
-    TableSize, Tag, TagAppearance, TagGroup, TagGroupResponse, TagShape, TagSize, Text, TextAlign, TextFont, TextSize,
-    TextWeight,
+    InteractionTagResponse, List, ListItem, ListItemResponse, ListNavigation, ListResponse, ListUi, Persona,
+    PersonaSize, PersonaTextAlignment, PersonaTextPosition, Table, TableCellLayout, TableColumn, TableResponse,
+    TableRowAppearance, TableSize, Tag, TagAppearance, TagGroup, TagGroupResponse, TagShape, TagSize, Text, TextAlign,
+    TextFont, TextMetrics, TextSize, TextWeight,
 };
 #[cfg(feature = "extras")]
 pub use crate::extras::{
@@ -21,10 +21,11 @@ pub use crate::extras::{
 };
 pub use crate::feedback::{
     Badge, BadgeAppearance, BadgeColor, BadgeShape, BadgeSize, CounterBadge, CounterBadgeAppearance, CounterBadgeColor,
-    MessageBar, MessageBarGroup, MessageBarIntent, MessageBarLayout, MessageBarResponse, MessageBarShape,
-    PresenceBadge, PresenceStatus, ProgressBar, ProgressShape, ProgressThickness, Skeleton, SkeletonAnimation,
-    SkeletonAppearance, SkeletonContext, SkeletonItem, SkeletonShape, Spinner, SpinnerAppearance, SpinnerLabelPosition,
-    SpinnerSize, Toast, ToastAction, ToastIntent, ToastLink, ToastPosition, Toaster, ToasterResponse, toast_queue,
+    MessageBar, MessageBarGroup, MessageBarGroupResponse, MessageBarIntent, MessageBarLayout, MessageBarResponse,
+    MessageBarShape, PresenceBadge, PresenceStatus, ProgressBar, ProgressShape, ProgressThickness, Skeleton,
+    SkeletonAnimation, SkeletonAppearance, SkeletonContext, SkeletonItem, SkeletonResponse, SkeletonShape, Spinner,
+    SpinnerAppearance, SpinnerLabelPosition, SpinnerSize, Toast, ToastAction, ToastIntent, ToastLink, ToastPosition,
+    Toaster, ToasterResponse, toast_queue,
 };
 pub use crate::inputs::{
     Calendar, Checkbox, CheckboxLabelPosition, CheckboxShape, ColorPicker, ColorShape, Combobox, DatePicker, Dropdown,

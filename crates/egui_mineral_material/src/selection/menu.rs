@@ -225,7 +225,7 @@ pub struct MenuItem {
     leading: Option<Leading>,
     trailing: Option<MenuTrailing>,
     command: Option<ActionId>,
-    action_key: Option<ActionId>,
+    action_key: Option<egui_mineral::action::ActionKey>,
     mnemonic: Option<Mnemonic>,
     tooltip: Option<String>,
     selected: bool,
@@ -787,7 +787,7 @@ impl Menu {
     }
 
     /// Menu at `anchor` while `open`, which the app owns: e.g. a rect from
-    /// [`ToolbarResponse::action_rect`](crate::navigation::ToolbarResponse::action_rect) or
+    /// [`ToolbarResponse::actions`](crate::navigation::ToolbarResponse::actions) or
     /// `TreeAction::rect`. Closing (an item, Escape, an outside press other than
     /// on `anchor`) clears `open`. State is keyed by the menu's `id_salt` alone, unique per window.
     pub fn show_at(self, rt: &Rt, anchor: Rect, open: &mut bool) -> MenuResponse {
@@ -1461,12 +1461,12 @@ impl MineralWidget for MenuRow<'_> {
         WidgetResponse::new(response.clone(), ())
     }
 
-    fn semantics(&self, _: &I18n, r: &WidgetResponse, (): &()) -> Option<SemanticNode> {
+    fn semantics(&self, _: &I18n, _: &WidgetResponse, (): &()) -> Option<SemanticNode> {
         let item = self.item;
         let mut n = SemanticNode::new(self.key.clone(), Role::MenuItem, &item.label)
             .clickable(Availability::disabled_if(item.disabled));
         n.shortcut = match item.trailing {
-            Some(MenuTrailing::Shortcut(s)) => Some(shortcut::label(&r.response().ctx, &s)),
+            Some(MenuTrailing::Shortcut(s)) => Some(s),
             _ => None,
         };
         n.access_key = item.mnemonic;

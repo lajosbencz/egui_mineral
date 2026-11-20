@@ -5,7 +5,6 @@ use egui_mineral::{
     motion::{self, Visibility},
     overlay::{self, Dismiss},
     semantic::{self, AgentKey, KeyedSalt, Role, SemanticNode},
-    shortcut::ActionId,
     widget::MineralUi,
 };
 
@@ -59,7 +58,7 @@ pub struct DialogAction {
     pub(super) appearance: ButtonAppearance,
     pub(super) disabled: bool,
     pub(super) salt: Option<KeyedSalt>,
-    action_key: Option<ActionId>,
+    action_key: Option<egui_mineral::action::ActionKey>,
 }
 
 impl DialogAction {

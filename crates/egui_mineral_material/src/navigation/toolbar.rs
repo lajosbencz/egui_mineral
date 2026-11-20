@@ -11,12 +11,12 @@ use egui_mineral::widget::MineralUi;
 use egui::{Id, Layout, Rangef, Rect, Response, Sense, Ui, UiBuilder, pos2, vec2};
 use egui_mineral::widget::Availability;
 use egui_mineral::{
-    action::Clicked,
+    action::{Clicked, ItemResponses},
     focus::RovingFocus,
     i18n::Direction,
     layout::{Axis, Constraints, Edge, Measure},
     semantic::{self, Role, SemanticNode, StableId},
-    shortcut::{self, ActionId},
+    shortcut,
     widget::{MineralWidget, WidgetFrame, WidgetResponse},
 };
 
@@ -52,40 +52,18 @@ fn dense_height(height: f32, item: f32) -> f32 {
 /// Result of [`DockedToolbar::show`] and [`FloatingToolbar::show`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-#[expect(clippy::partial_pub_fields, reason = "per-item responses are read through accessors")]
 pub struct ToolbarResponse {
     /// Toolbar container response.
     pub response: Response,
     /// Clicked action without a [`IconAction::command`], with its [`IconAction::key`]; the index counts icon
     /// actions only.
     pub clicked: Option<Clicked>,
-    actions: Vec<Shown>,
+    /// Targets of the shown icon actions by index (custom items excluded) and [`IconAction::key`], e.g. to
+    /// anchor a [`Menu::show_at`](crate::selection::Menu::show_at); actions that are not shown (overflowed,
+    /// toolbar off screen or collapsed) have none.
+    pub actions: ItemResponses<Rect>,
     /// Paired FAB clicked; see [`FloatingToolbar::fab`].
     pub fab_clicked: bool,
-}
-
-#[derive(Clone, Debug)]
-struct Shown {
-    index: usize,
-    key: Option<ActionId>,
-    rect: Rect,
-}
-
-impl ToolbarResponse {
-    /// Target of the icon action at `index` (custom items excluded), e.g. to anchor a
-    /// [`Menu::show_at`](crate::selection::Menu::show_at); `None` while the action is not shown (overflowed,
-    /// toolbar off screen or collapsed).
-    pub fn action_rect(&self, index: usize) -> Option<Rect> {
-        self.actions.iter().find(|a| a.index == index).map(|a| a.rect)
-    }
-
-    /// Target of the first shown action with the [`IconAction::key`] `key`; see [`Self::action_rect`].
-    pub fn action_rect_by_key(&self, key: &ActionId) -> Option<Rect> {
-        self.actions
-            .iter()
-            .find(|a| a.key.as_ref() == Some(key))
-            .map(|a| a.rect)
-    }
 }
 
 // Room offered to a custom item so it measures at its natural width.
@@ -155,7 +133,7 @@ fn items(
     palette: Palette,
     axis: Axis,
     gap: f32,
-) -> (Option<Clicked>, Vec<Shown>) {
+) -> (Option<Clicked>, ItemResponses<Rect>) {
     let rt = ui.rt();
     let layout = match axis {
         Axis::Horizontal => rt.i18n().direction().row(),
@@ -163,7 +141,7 @@ fn items(
     };
     let item = slot(ui);
     let mut clicked = None;
-    let mut rects = Vec::new();
+    let mut rects = ItemResponses::default();
     // (widget id, enabled) in roving order
     let mut stops: Vec<(Id, bool)> = Vec::new();
     ui.scope_builder(UiBuilder::new().max_rect(rect).layout(layout), |ui| {
@@ -195,11 +173,7 @@ fn items(
                         }
                     }
                     stops.push((r.response().id, !a.disabled));
-                    rects.push(Shown {
-                        index: i,
-                        key: a.action_key.clone(),
-                        rect: r.response().rect,
-                    });
+                    rects.push(i, a.action_key.clone(), r.response().rect);
                 }
                 Item::Custom(c) => {
                     let Some(add) = c.add.take() else { continue };
@@ -389,7 +363,7 @@ impl<'a> DockedToolbar<'a> {
         let id = ui.make_persistent_id(core.salt.id_salt());
         let (rect, _) = ui.allocate_exact_size(vec2(w, dense_height(docked::CONTAINER_HEIGHT, item)), Sense::hover());
         let response = ui.interact(rect, id, Sense::hover());
-        let (mut clicked, mut shown) = (None, Vec::new());
+        let (mut clicked, mut shown) = (None, ItemResponses::default());
         if ui.is_rect_visible(rect) {
             let (fill, palette) = core.container(Kind::Docked);
             let r = docked::CONTAINER_SHAPE.corner_radius(&t.shape, rt.i18n().direction());
@@ -513,7 +487,7 @@ impl<'a> FloatingToolbar<'a> {
         let mut out = ToolbarResponse {
             response,
             clicked: None,
-            actions: Vec::new(),
+            actions: ItemResponses::default(),
             fab_clicked: false,
         };
         if !ui.is_rect_visible(rect) {
@@ -598,7 +572,7 @@ impl FloatingToolbar<'_> {
         place: BarPlace,
         axis: Axis,
         widths: &[Option<f32>],
-    ) -> (Option<Clicked>, Vec<Shown>) {
+    ) -> (Option<Clicked>, ItemResponses<Rect>) {
         let BarPlace {
             bar,
             content,
@@ -606,7 +580,7 @@ impl FloatingToolbar<'_> {
         } = place;
         let rt = ui.rt();
         if bar.width() <= 0.0 || bar.height() <= 0.0 {
-            return (None, Vec::new());
+            return (None, ItemResponses::default());
         }
         let t = rt.tokens();
         let item = slot(ui);

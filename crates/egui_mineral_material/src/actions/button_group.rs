@@ -10,7 +10,6 @@ use egui_mineral::{
     layout::{Axis, Constraints},
     select::{Selection, SelectionMode},
     semantic::{self, Role, SemanticNode, StableId},
-    shortcut::ActionId,
     widget::MineralWidget,
 };
 
@@ -36,7 +35,7 @@ pub struct ButtonGroupItem {
     icon: Option<Icon>,
     disabled: bool,
     salt: Option<egui_mineral::semantic::KeyedSalt>,
-    action_key: Option<ActionId>,
+    action_key: Option<egui_mineral::action::ActionKey>,
 }
 
 impl ButtonGroupItem {

@@ -26,6 +26,16 @@ pub enum ListNavigation {
     Composite,
 }
 
+/// Result of [`ListUi::item`].
+#[derive(Clone, Debug)]
+#[non_exhaustive]
+pub struct ListItemResponse<R> {
+    /// Spans the item.
+    pub response: Response,
+    /// Value of the content closure.
+    pub inner: R,
+}
+
 /// Result of showing a [`List`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
@@ -206,7 +216,7 @@ impl ListUi<'_, '_> {
         &mut self,
         item: impl Into<ListItem>,
         add: impl FnOnce(&mut MineralUi<'_, Fluent>) -> R,
-    ) -> (Response, R) {
+    ) -> ListItemResponse<R> {
         let i = self.index;
         self.index += 1;
         let ListItem { label, disabled, salt } = item.into();
@@ -293,7 +303,10 @@ impl ListUi<'_, '_> {
             }
             n
         });
-        (response, scope.inner)
+        ListItemResponse {
+            response,
+            inner: scope.inner,
+        }
     }
 }
 

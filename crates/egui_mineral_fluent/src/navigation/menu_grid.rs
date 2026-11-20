@@ -8,7 +8,6 @@ use egui_mineral::{
     layout::{Constraints, Measure, MinTarget},
     overlay::{self, Dismiss, Popup},
     semantic::{self, AgentKey, KeyedSalt, Role, SemanticNode},
-    shortcut::ActionId,
     widget::{Availability, Interaction, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
 };
 
@@ -43,7 +42,7 @@ pub struct MenuGridItem {
     icon: Option<Icon>,
     sub_text: Option<String>,
     disabled: bool,
-    action_key: Option<ActionId>,
+    action_key: Option<egui_mineral::action::ActionKey>,
 }
 
 impl MenuGridItem {
@@ -93,7 +92,7 @@ pub struct MenuGridAction {
     label: String,
     icon: Icon,
     disabled: bool,
-    action_key: Option<ActionId>,
+    action_key: Option<egui_mineral::action::ActionKey>,
 }
 
 impl MenuGridAction {
@@ -160,7 +159,7 @@ impl MenuGridCell {
         }
     }
 
-    fn action_key(&self) -> Option<&ActionId> {
+    fn action_key(&self) -> Option<&egui_mineral::action::ActionKey> {
         match self {
             Self::Item(i) => i.action_key.as_ref(),
             Self::Action(a) => a.action_key.as_ref(),

@@ -5,7 +5,6 @@ use egui_mineral::{
     i18n::Direction,
     layout::Axis,
     semantic::{self, AgentKey, KeyedSalt, Role, SemanticNode},
-    shortcut::ActionId,
     widget::MineralUi,
 };
 
@@ -30,7 +29,7 @@ pub struct BreadcrumbButton {
     icon: Option<Icon>,
     current: bool,
     disabled: bool,
-    action_key: Option<ActionId>,
+    action_key: Option<egui_mineral::action::ActionKey>,
 }
 
 impl BreadcrumbButton {

@@ -8,7 +8,6 @@ use egui_mineral::{
     kit::state::TempState,
     motion::{self, Visibility},
     semantic::{self, Live, Role, SemanticNode, StableId},
-    shortcut::ActionId,
     toast::{ToastId, ToastQueue},
 };
 
@@ -116,7 +115,7 @@ impl ToastIntent {
 #[must_use]
 pub struct ToastLink {
     label: String,
-    action_key: Option<ActionId>,
+    action_key: Option<egui_mineral::action::ActionKey>,
 }
 
 impl ToastLink {
@@ -152,7 +151,7 @@ struct ActionLink {
 }
 
 /// Action of a toast pressed this frame ([`ToasterResponse::action_clicked`]).
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct ToastAction {
     /// Toast the action belongs to.

@@ -122,20 +122,26 @@ fn dialogs(ui: &mut FluentUi<'_>, s: &mut State) {
                 .close_button(kind != DialogKind::Alert)
                 .fluid_actions(fluid)
                 .actions_position(DialogActionsPosition::End)
-                .action(DialogAction::new("Cancel").key("cancel"))
+                .action(DialogAction::new("Cancel").key(Choice::Cancel))
                 .action(
                     DialogAction::new("Confirm")
                         .appearance(ButtonAppearance::Primary)
-                        .key("confirm"),
+                        .key(Choice::Confirm),
                 )
                 .show_modal(rt, &mut s.dialogs[i], |ui| {
                     ui.mineral(Text::new(("dialog-text", i), "Dialog content."));
                 });
-            if let Some(key) = r.clicked.as_ref().and_then(Clicked::key_str) {
-                s.last = format!("{label} action {key}");
+            if let Some(choice) = r.clicked.as_ref().and_then(Clicked::key::<Choice>) {
+                s.last = format!("{label} action {choice:?}");
             }
         }
     });
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Choice {
+    Cancel,
+    Confirm,
 }
 
 fn drawers(ui: &mut FluentUi<'_>, s: &mut State) {

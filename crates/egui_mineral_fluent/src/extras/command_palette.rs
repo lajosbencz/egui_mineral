@@ -368,11 +368,10 @@ impl<'a> CommandPalette<'a> {
                 StrokeKind::Outside,
             );
         }
-        let shortcut_label = cmd.accelerator().map(|s| shortcut::label(ui.ctx(), &s));
         semantic::emit(ui.ctx(), Some(resp.id), rect, || {
             SemanticNode::new(StableId::of(&own, "command"), Role::ListBoxOption, cmd.label())
                 .pressable(Availability::disabled_if(cmd.is_disabled()))
-                .shortcut(shortcut_label.clone())
+                .shortcut(cmd.accelerator())
         });
         resp
     }

@@ -1,4 +1,5 @@
 use egui::Key;
+use egui_mineral::action::Clicked;
 use egui_mineral_fluent::actions::PushButton;
 use egui_mineral_fluent::extras::{
     BarMenu, CommandPalette, MenuBar, Pagination, PaletteCommand, SplitPane, StatusBar, StatusItem, StatusProgress,
@@ -43,14 +44,14 @@ fn narrow<R>(ui: &mut FluentUi<'_>, width: f32, add: impl FnOnce(&mut FluentUi<'
 }
 
 // Text advances differ with the fonts installed; one-letter labels and the lead indicators keep the widths close.
-fn status_bar(ui: &mut FluentUi<'_>, width: f32) -> Option<usize> {
+fn status_bar(ui: &mut FluentUi<'_>, width: f32) -> Option<Clicked> {
     narrow(ui, width, |ui| {
         StatusBar::new("status", "Status")
             .item(StatusItem::new("x").progress(StatusProgress::Circular(None)))
             .trailing(
                 StatusItem::new("x")
                     .progress(StatusProgress::Linear(None))
-                    .clickable(true),
+                    .key(Status::Position),
             )
             .item(
                 StatusItem::new("x")
@@ -63,10 +64,15 @@ fn status_bar(ui: &mut FluentUi<'_>, width: f32) -> Option<usize> {
     })
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Status {
+    Position,
+}
+
 #[test]
 fn status_bar_reports_clicks_and_drops_what_does_not_fit() {
     let mut h = harness(None, |ui, clicked| {
-        *clicked = clicked.or(status_bar(ui, 185.0));
+        *clicked = clicked.take().or(status_bar(ui, 185.0));
     });
     h.run();
     let bar = h.rect("status-status-bar");
@@ -82,7 +88,12 @@ fn status_bar_reports_clicks_and_drops_what_does_not_fit() {
         "overflow is dropped"
     );
     h.click("status-1-status-item");
-    assert_eq!(h.state().value, Some(1));
+    let clicked = h
+        .state()
+        .value
+        .as_ref()
+        .map(|c| (c.index(), c.key::<Status>().copied()));
+    assert_eq!(clicked, Some((1, Some(Status::Position))));
 }
 
 #[test]
@@ -130,17 +141,22 @@ fn pagination_moves_a_stale_page_onto_the_last() {
     assert_eq!(h.node("pg-pagination").role, egui_mineral::semantic::Role::Navigation);
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Cmd {
+    Open,
+}
+
 #[test]
 fn command_palette_reports_the_clicked_entry() {
     let mut h = harness((true, String::new(), None), |ui, (open, query, clicked)| {
-        let commands = [PaletteCommand::new("Save"), PaletteCommand::new("Open").key("open")];
+        let commands = [PaletteCommand::new("Save"), PaletteCommand::new("Open").key(Cmd::Open)];
         let r = CommandPalette::new("pal", commands, query).show_modal(ui.rt(), open);
         *clicked = clicked.take().or(r.clicked);
     });
     h.run();
     h.click("pal-1-command");
-    let clicked = h.state().value.2.as_ref().map(|c| (c.index(), c.key_str()));
-    assert_eq!((h.state().value.0, clicked), (false, Some((1, Some("open")))));
+    let clicked = h.state().value.2.as_ref().map(|c| (c.index(), c.key::<Cmd>().copied()));
+    assert_eq!((h.state().value.0, clicked), (false, Some((1, Some(Cmd::Open)))));
 }
 
 #[test]
@@ -157,7 +173,7 @@ fn command_palette_keys_skip_disabled_entries() {
     h.run();
     h.press(Key::ArrowDown);
     h.press(Key::Enter);
-    let clicked = h.state().value.2.as_ref().map(|c| (c.index(), c.key()));
+    let clicked = h.state().value.2.as_ref().map(|c| (c.index(), c.key::<Cmd>().copied()));
     assert_eq!((h.state().value.0, clicked), (false, Some((2, None))));
 }
 

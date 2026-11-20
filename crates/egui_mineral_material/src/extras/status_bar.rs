@@ -7,6 +7,7 @@ use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::status::StatusLead;
 use egui_mineral::widget::{Availability, MineralUi};
 use egui_mineral::{
+    action::Clicked,
     i18n::Direction,
     semantic::{self, Role, SemanticNode, StableId},
 };
@@ -50,8 +51,8 @@ fn lead_width(lead: StatusLead) -> f32 {
 pub struct StatusBarResponse {
     /// Bar response.
     pub response: Response,
-    /// Index, in insertion order, of the clickable item clicked this frame.
-    pub clicked: Option<usize>,
+    /// Clickable item clicked this frame: its index in insertion order and its [`StatusItem::key`].
+    pub clicked: Option<Clicked>,
 }
 
 /// Desktop status bar: items at the reading start and end of a full-width strip; non-MD3. Show it
@@ -161,7 +162,7 @@ impl StatusBar {
             let resp = ui.interact(r, id.with(i), sense);
             if clickable {
                 if resp.clicked() {
-                    clicked = Some(i);
+                    clicked = Some(Clicked::new(i, item.action_key().cloned()));
                 }
                 let state = Interaction::of(&resp, Availability::Enabled);
                 common::state_focus(ui.painter(), r, 0, content, state, &t);

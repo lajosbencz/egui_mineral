@@ -209,8 +209,11 @@ fn singles() -> Vec<(String, Add)> {
             InteractionTag::new("c", "Tag").dismissible(true).show(ui).response
         }),
         group("TagGroup", |ui| {
-            let group = TagGroup::new("c", "Tags").tag(Tag::new("a", "One"));
-            group.interaction_tag(InteractionTag::new("b", "Two")).show(ui).response
+            let group = TagGroup::new("c", "Tags").tag(0, Tag::new("a", "One"));
+            group
+                .interaction_tag(1, InteractionTag::new("b", "Two"))
+                .show(ui)
+                .response
         }),
     ]
 }

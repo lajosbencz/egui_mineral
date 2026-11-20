@@ -22,7 +22,7 @@ fn bar(ui: &mut Mui<'_>, n: usize, out: &mut Bar) {
     let r = TopAppBar::new("bar", "Title")
         .actions((0..n).map(|i| IconAction::new(ICON_STAR, format!("Action {i}"))))
         .show(ui);
-    out.inline = (0..n).map(|i| r.action(i).is_some()).collect();
+    out.inline = (0..n).map(|i| r.actions.get(i).is_some()).collect();
     out.overflow = r.overflow.is_some();
     out.clicked = out
         .clicked
@@ -386,12 +386,13 @@ fn top_app_bar_reports_action_keys_inline_and_overflowed() {
         let r = TopAppBar::new("bar", "Title")
             .actions((0..5).map(|i| IconAction::new(ICON_STAR, format!("Action {i}")).key(format!("k{i}"))))
             .show(ui);
-        *anchored = r.action_by_key(&"k0".into()).is_some() && r.action_by_key(&"k4".into()).is_none();
+        *anchored =
+            r.actions.get_by_key(&"k0".to_owned()).is_some() && r.actions.get_by_key(&"k4".to_owned()).is_none();
         keys.extend(
             r.clicked
                 .as_ref()
-                .and_then(egui_mineral::action::Clicked::key_str)
-                .map(String::from),
+                .and_then(egui_mineral::action::Clicked::key::<String>)
+                .cloned(),
         );
     });
     h.click("bar-0-action-button");

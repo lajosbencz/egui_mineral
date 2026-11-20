@@ -8,7 +8,6 @@ use egui_mineral::{
     layout::{Axis, Constraints, Measure, MinTarget},
     overlay::{self, Dismiss, Popup},
     semantic::{self, AgentKey, KeyedSalt, Role, SemanticNode},
-    shortcut::ActionId,
     widget::{Availability, Interaction, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
 };
 
@@ -42,7 +41,7 @@ pub struct MenuItem {
     secondary: Option<String>,
     disabled: bool,
     salt: Option<KeyedSalt>,
-    action_key: Option<ActionId>,
+    action_key: Option<egui_mineral::action::ActionKey>,
 }
 
 impl MenuItem {

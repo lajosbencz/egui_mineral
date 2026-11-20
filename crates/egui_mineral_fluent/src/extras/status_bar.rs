@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use egui::{Color32, Galley, Rangef, Rect, Response, Sense, Stroke, UiBuilder, pos2, text::LayoutJob, vec2};
 use egui_mineral::{
+    action::Clicked,
     i18n::Direction,
     kit::strip,
     semantic::{self, KeyedSalt, Role, SemanticNode, StableId},
@@ -46,8 +47,8 @@ fn lead_width(lead: StatusLead) -> f32 {
 pub struct StatusBarResponse {
     /// Bar response.
     pub response: Response,
-    /// Index, in insertion order, of the clickable item clicked this frame.
-    pub clicked: Option<usize>,
+    /// Clickable item clicked this frame: its index in insertion order and its [`StatusItem::key`].
+    pub clicked: Option<Clicked>,
 }
 
 /// Desktop status bar: items at the reading start and end of a full-width strip; not in Fluent UI React v9. Show it
@@ -151,7 +152,8 @@ impl StatusBar {
         for (i, text) in galleys.into_iter().enumerate() {
             let Some(r) = slots[i] else { continue };
             if self.paint_item(ui, id, i, r, text) {
-                clicked = Some(i);
+                let key = self.items.get(i).and_then(|(item, _)| item.action_key().cloned());
+                clicked = Some(Clicked::new(i, key));
             }
         }
         semantic::emit(ui.ctx(), Some(response.id), rect, || {

@@ -5,6 +5,7 @@ use egui_mineral::semantic::AgentKey;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::MineralUi;
 use egui_mineral::{
+    action::ItemResponses,
     dnd::{self, Reorder, RowView},
     semantic::{self, Role, SemanticNode},
     widget::WidgetResponse,
@@ -17,25 +18,13 @@ use egui_mineral::kit;
 /// Result of [`ReorderableList::show`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-#[expect(clippy::partial_pub_fields, reason = "per-item responses are read through accessors")]
 pub struct ReorderableListResponse {
     /// List response.
     pub response: egui::Response,
     /// Move committed this frame; the app applies it to `items`.
     pub moved: Option<Reorder>,
-    rows: Vec<WidgetResponse<ListItemOutput>>,
-}
-
-impl ReorderableListResponse {
-    /// Response of the row of item `index`.
-    pub fn row(&self, index: usize) -> Option<&WidgetResponse<ListItemOutput>> {
-        self.rows.get(index)
-    }
-
-    /// Row responses, index-aligned with the items.
-    pub fn rows(&self) -> &[WidgetResponse<ListItemOutput>] {
-        &self.rows
-    }
+    /// Row responses by item index.
+    pub rows: ItemResponses<WidgetResponse<ListItemOutput>>,
 }
 
 /// List whose rows reorder by drag or Alt+arrows; non-MD3 (Flutter `ReorderableListView` pattern).
@@ -112,10 +101,10 @@ fn reorderable_list<T: AsIdSalt>(
     salt: &KeyedSalt,
     items: &[T],
     mut item: impl FnMut(usize, &T) -> ListItem,
-) -> (Option<Reorder>, Vec<WidgetResponse<ListItemOutput>>) {
+) -> (Option<Reorder>, ItemResponses<WidgetResponse<ListItemOutput>>) {
     let rt = ui.rt();
     let mut focused = None;
-    let mut rows = Vec::with_capacity(items.len());
+    let mut rows = ItemResponses::default();
     let t = rt.tokens();
     let res = dnd::reorder_list(ui, salt.clone(), items, |ui, i, it, view| {
         let w = item(i, it).drag_indicator(&rt.icons());
@@ -125,11 +114,11 @@ fn reorderable_list<T: AsIdSalt>(
                 if r.has_focus() {
                     focused = Some(i);
                 }
-                rows.push(r);
+                rows.push(i, None, r);
             }
             RowView::Dragged => {
                 ui.multiply_opacity(t.state.disabled_content);
-                rows.push(rt.ui(ui).mineral(w));
+                rows.push(i, None, rt.ui(ui).mineral(w));
             }
             RowView::Preview => {
                 rt.ui(ui).mineral(w.dragged(true));

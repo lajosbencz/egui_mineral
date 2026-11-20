@@ -14,7 +14,7 @@ fn text_is_one_line_box_of_its_size() {
         let h = harness((), move |ui, ()| {
             ui.mineral(Text::new("t", "Hello").size(size));
         });
-        assert_eq!(h.rect("t-text").height(), size.metrics().1, "{size:?}");
+        assert_eq!(h.rect("t-text").height(), size.metrics().line_height, "{size:?}");
     }
 }
 

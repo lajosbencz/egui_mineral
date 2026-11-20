@@ -24,6 +24,12 @@ pub(crate) const TOPICS: &[&str] = &[
 const ROWS: usize = 1_000;
 const NAMES: [&str; 8] = ["Ada", "Grace", "Linus", "Margaret", "Dennis", "Barbara", "Ken", "Radia"];
 const TEAMS: [&str; 4] = ["Platform", "Design", "Runtime", "Docs"];
+#[derive(Clone, Copy, PartialEq)]
+enum NodeAction {
+    Details,
+    Delete,
+}
+
 const JOB_BASE: u32 = 1_000_000;
 
 struct Node {
@@ -278,15 +284,16 @@ fn tree(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
             .reorderable(true)
             .show(ui)
     });
-    for (key, row) in r.rows() {
+    for (key, row) in r.rows.iter_keyed::<u32>() {
         if Menu::context_requested(rt, row) {
             let menu = Menu::new(("tree-menu", *key), "Node actions")
-                .item(MenuItem::new("Details").key("details"))
-                .item(MenuItem::new("Delete").key("delete"));
-            match menu.show_context(rt, row).clicked.as_ref().and_then(Clicked::key_str) {
-                Some("details") => shared.toast(format!("Node {key}")),
-                Some("delete") => remove_node(&mut s.tree, *key),
-                _ => {}
+                .item(MenuItem::new("Details").key(NodeAction::Details))
+                .item(MenuItem::new("Delete").key(NodeAction::Delete));
+            let clicked = menu.show_context(rt, row).clicked;
+            match clicked.as_ref().and_then(Clicked::key::<NodeAction>) {
+                Some(NodeAction::Details) => shared.toast(format!("Node {key}")),
+                Some(NodeAction::Delete) => remove_node(&mut s.tree, *key),
+                None => {}
             }
         }
     }

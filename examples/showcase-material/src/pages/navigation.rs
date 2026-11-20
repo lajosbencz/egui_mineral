@@ -35,7 +35,23 @@ pub(crate) const TOPICS: &[&str] = &[
     "Status bar",
 ];
 
-const SHARE: ActionId = ActionId::from_static("share");
+#[derive(Clone, Copy, PartialEq)]
+enum StatusAction {
+    Branch,
+    ResetZoom,
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum BarAction {
+    Share,
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum Format {
+    Bold,
+    Italic,
+}
+
 const WORDS: [&str; 12] = [
     "Alpine lake",
     "Alpaca farm",
@@ -181,13 +197,13 @@ pub(crate) fn show(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) 
 fn status_bar(ui: &mut MaterialUi<'_>, s: &mut State) {
     super::section(ui, TOPICS[14], Some(StatusBar::META), |ui| {
         let r = StatusBar::new("nav-status", "Editor status")
-            .item(StatusItem::new("main").icon(ICON_CALL_SPLIT).clickable(true))
+            .item(StatusItem::new("main").icon(ICON_CALL_SPLIT).key(StatusAction::Branch))
             .item(
                 StatusItem::new("Indexing")
                     .progress(StatusProgress::Circular(None))
                     .tooltip("Background task"),
             )
-            .trailing(StatusItem::new(format!("Zoom {}%", s.zoom)).clickable(true))
+            .trailing(StatusItem::new(format!("Zoom {}%", s.zoom)).key(StatusAction::ResetZoom))
             .item(StatusItem::new("Uploading").progress(StatusProgress::Linear(Some(0.4))))
             .item(StatusItem::new("Syncing").progress(StatusProgress::Linear(None)))
             .item(
@@ -197,10 +213,10 @@ fn status_bar(ui: &mut MaterialUi<'_>, s: &mut State) {
             )
             .trailing(StatusItem::new("UTF-8"))
             .show(ui);
-        match r.clicked {
-            Some(0) => "Status: branch".clone_into(&mut s.last_action),
-            Some(2) => s.zoom = 100,
-            _ => {}
+        match r.clicked.as_ref().and_then(Clicked::key::<StatusAction>) {
+            Some(StatusAction::Branch) => "Status: branch".clone_into(&mut s.last_action),
+            Some(StatusAction::ResetZoom) => s.zoom = 100,
+            None => {}
         }
     });
 }
@@ -411,7 +427,7 @@ fn app_bar_overflow(ui: &mut MaterialUi<'_>, shared: &mut Shared) {
         .navigation(ICON_ARROW_BACK, "Back")
         .actions([
             IconAction::new(ICON_SEARCH, "Search"),
-            IconAction::new(ICON_SHARE, "Share").key(SHARE),
+            IconAction::new(ICON_SHARE, "Share").key(BarAction::Share),
             IconAction::new(ICON_EDIT, "Edit").disabled(true),
             IconAction::new(ICON_BOOKMARK, "Bookmark"),
             IconAction::new(ICON_DELETE, "Delete"),
@@ -419,7 +435,7 @@ fn app_bar_overflow(ui: &mut MaterialUi<'_>, shared: &mut Shared) {
             IconAction::new(ICON_CONTENT_COPY, "Copy").command(&COMMANDS[COPY].0),
         ])
         .show(ui);
-    if let Some(share) = r.action_by_key(&SHARE) {
+    if let Some(share) = r.actions.get_by_key(&BarAction::Share) {
         let menu = Menu::new("nav-appbar-share-menu", "Share")
             .item(MenuItem::new("Mail").leading(ICON_MAIL))
             .item(MenuItem::new("Copy link").leading(ICON_CONTENT_COPY));
@@ -427,7 +443,7 @@ fn app_bar_overflow(ui: &mut MaterialUi<'_>, shared: &mut Shared) {
             shared.toast(format!("Share via item {}", i.index()));
         }
     }
-    if !r.clicked.as_ref().is_some_and(|c| c.is(&SHARE)) {
+    if !r.clicked.as_ref().is_some_and(|c| c.is(&BarAction::Share)) {
         report_bar(&r, shared);
     }
 }
@@ -511,21 +527,21 @@ fn toolbars(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
         let r = Toolbar::docked("nav-toolbar-docked", "Formatting")
             .action(
                 IconAction::new(ICON_FORMAT_BOLD, "Bold")
-                    .key("bold")
+                    .key(Format::Bold)
                     .selected(s.toolbar_bold),
             )
             .action(
                 IconAction::new(ICON_FORMAT_ITALIC, "Italic")
-                    .key("italic")
+                    .key(Format::Italic)
                     .selected(s.toolbar_italic),
             )
             .action(IconAction::new(ICON_FORMAT_UNDERLINED, "Underline").disabled(true))
             .action(IconAction::new(ICON_CONTENT_CUT, "Cut"))
             .show(ui);
-        match r.clicked.as_ref().and_then(Clicked::key_str) {
-            Some("bold") => s.toolbar_bold = !s.toolbar_bold,
-            Some("italic") => s.toolbar_italic = !s.toolbar_italic,
-            _ => report_action(&r, shared),
+        match r.clicked.as_ref().and_then(Clicked::key::<Format>) {
+            Some(Format::Bold) => s.toolbar_bold = !s.toolbar_bold,
+            Some(Format::Italic) => s.toolbar_italic = !s.toolbar_italic,
+            None => report_action(&r, shared),
         }
         ui.add_space(8.0);
         caption(ui, TypeScale::LabelMedium, "Docked, with a segmented button");

@@ -4,7 +4,7 @@ pub mod serialize;
 mod key;
 
 pub use egui::accesskit::{Action, Live, Role};
-use egui::{Context, Id, Rect};
+use egui::{Context, Id, KeyboardShortcut, Rect};
 pub use key::{AgentKey, KeyParts, KeySalt, KeyedSalt, StableId};
 
 use crate::{
@@ -75,8 +75,8 @@ pub struct SemanticNode {
     pub widget_id: Option<Id>,
     /// Widget id of the highlighted item a composite (combobox, listbox) controls while it keeps focus.
     pub active_descendant: Option<Id>,
-    /// Human-readable accelerator label, e.g. `Ctrl+S` (see `shortcut::label`).
-    pub shortcut: Option<String>,
+    /// Accelerator; AccessKit gets its `shortcut::label`, the agent markdown platform-neutral names (`Ctrl+S`).
+    pub shortcut: Option<KeyboardShortcut>,
     /// Mnemonic letter that activates the node while its menu or dialog is active.
     pub access_key: Option<Mnemonic>,
     /// Indent level in the agent markdown; 0 for top-level nodes.
@@ -145,9 +145,9 @@ impl SemanticNode {
         self
     }
 
-    /// Label as produced by `shortcut::label`.
+    /// Accelerator that activates the node.
     #[must_use]
-    pub fn shortcut(mut self, shortcut: Option<String>) -> Self {
+    pub fn shortcut(mut self, shortcut: Option<KeyboardShortcut>) -> Self {
         self.shortcut = shortcut;
         self
     }

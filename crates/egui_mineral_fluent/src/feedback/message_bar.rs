@@ -342,6 +342,16 @@ impl MessageBar {
     }
 }
 
+/// Result of [`MessageBarGroup::show`].
+#[derive(Clone, Debug)]
+#[non_exhaustive]
+pub struct MessageBarGroupResponse<R> {
+    /// Spans the bars.
+    pub response: egui::Response,
+    /// Value of the content closure.
+    pub inner: R,
+}
+
 /// Fluent `MessageBarGroup`: stacks message bars in a column.
 #[derive(Clone, Debug)]
 #[must_use = "call .show(..)"]
@@ -360,15 +370,20 @@ impl MessageBarGroup {
         self,
         ui: &mut MineralUi<'_, Fluent>,
         add: impl FnOnce(&mut MineralUi<'_, Fluent>) -> R,
-    ) -> egui::InnerResponse<R> {
+    ) -> MessageBarGroupResponse<R> {
         let rt = ui.rt();
         let dir = ui.i18n().direction();
-        ui.push_id(self.salt.id_salt(), |ui| {
-            ui.scope_builder(UiBuilder::new().layout(dir.column()), |ui| {
-                ui.spacing_mut().item_spacing.y = 0.0;
-                add(&mut rt.ui(ui))
+        let out = ui
+            .push_id(self.salt.id_salt(), |ui| {
+                ui.scope_builder(UiBuilder::new().layout(dir.column()), |ui| {
+                    ui.spacing_mut().item_spacing.y = 0.0;
+                    add(&mut rt.ui(ui))
+                })
             })
-        })
-        .inner
+            .inner;
+        MessageBarGroupResponse {
+            response: out.response,
+            inner: out.inner,
+        }
     }
 }

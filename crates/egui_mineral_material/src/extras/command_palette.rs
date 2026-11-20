@@ -393,8 +393,7 @@ fn command_row(
     let own = crate::widget::item_salt(salt, cmd.item_salt(), cmd.action(), index);
     let resp = row.show(ui, id.with(own.id_salt()), width, &cx.metrics, t);
     semantic::emit(ui.ctx(), Some(resp.id), resp.rect, || {
-        row.pick_node(StableId::of(&own, "command"))
-            .shortcut(shortcut_label.clone())
+        row.pick_node(StableId::of(&own, "command")).shortcut(cmd.accelerator())
     });
     resp
 }

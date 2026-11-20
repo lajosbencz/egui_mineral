@@ -49,17 +49,22 @@ fn command_palette_returns_focus_and_reports_dismissal() {
     assert_focus_returns(h, |s| s.0);
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Cmd {
+    Open,
+}
+
 #[test]
 fn command_palette_reports_the_clicked_entry() {
     let mut h = still(WIDE, (true, String::new(), None), |ui, (open, query, clicked)| {
-        let commands = [PaletteCommand::new("Save"), PaletteCommand::new("Open").key("open")];
+        let commands = [PaletteCommand::new("Save"), PaletteCommand::new("Open").key(Cmd::Open)];
         let r = CommandPalette::new("pal", commands, query).show_modal(ui.rt(), open);
         *clicked = clicked.take().or(r.clicked);
     });
     h.run();
     h.click("pal-1-command");
-    let clicked = h.state().value.2.as_ref().map(|c| (c.index(), c.key_str()));
-    assert_eq!((h.state().value.0, clicked), (false, Some((1, Some("open")))));
+    let clicked = h.state().value.2.as_ref().map(|c| (c.index(), c.key::<Cmd>().copied()));
+    assert_eq!((h.state().value.0, clicked), (false, Some((1, Some(Cmd::Open)))));
 }
 
 #[test]
@@ -79,7 +84,7 @@ fn command_palette_applies_the_keys_of_a_pass_in_order_past_disabled_entries() {
     h.input_mut().events.extend(keys.into_iter().flatten());
     h.run();
     h.press(Key::Enter);
-    let clicked = h.state().value.2.as_ref().map(|c| (c.index(), c.key()));
+    let clicked = h.state().value.2.as_ref().map(|c| (c.index(), c.key::<Cmd>().copied()));
     assert_eq!((h.state().value.0, clicked), (false, Some((2, None))));
 }
 

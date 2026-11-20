@@ -5,12 +5,12 @@ use egui_mineral::i18n::Sides;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::semantic::StableId;
 use egui_mineral::widget::MineralUi;
-use std::{collections::BTreeMap, sync::Arc};
+use std::sync::Arc;
 
 use egui::{Rangef, Rect, Sense, Ui, pos2, vec2};
 use egui_mineral::{
-    action::Clicked,
-    shortcut::{self, ActionId},
+    action::{Clicked, ItemResponses},
+    shortcut,
     widget::SizeExt,
 };
 
@@ -78,7 +78,6 @@ pub struct TopAppBar<'a> {
 /// Result of [`TopAppBar::show`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-#[expect(clippy::partial_pub_fields, reason = "per-item responses are read through accessors")]
 pub struct TopAppBarResponse {
     /// Bar container response.
     pub response: egui::Response,
@@ -86,27 +85,15 @@ pub struct TopAppBarResponse {
     pub leading_clicked: bool,
     /// Clicked action without a [`IconAction::command`], inline or overflowed, with its [`IconAction::key`].
     pub clicked: Option<Clicked>,
-    actions: BTreeMap<usize, egui::Response>,
-    keys: Vec<Option<ActionId>>,
+    /// Buttons of the inline actions by index and [`IconAction::key`], to anchor popups; overflowed actions
+    /// have none.
+    pub actions: ItemResponses<egui::Response>,
     /// Overflow menu button; `None` while every action is inline.
     pub overflow: Option<egui::Response>,
     /// Search query edited; only with [`TopAppBar::search`].
     pub changed: bool,
     /// Enter pressed in the search field.
     pub submitted: bool,
-}
-
-impl TopAppBarResponse {
-    /// Button of the inline action at `index`, to anchor popups; `None` when overflowed or out of range.
-    pub fn action(&self, index: usize) -> Option<&egui::Response> {
-        self.actions.get(&index)
-    }
-
-    /// Button of the first inline action with the [`IconAction::key`] `key`; see [`Self::action`].
-    pub fn action_by_key(&self, key: &ActionId) -> Option<&egui::Response> {
-        let index = self.keys.iter().position(|k| k.as_ref() == Some(key))?;
-        self.action(index)
-    }
 }
 
 impl<'a> TopAppBar<'a> {
@@ -305,8 +292,7 @@ impl<'a> TopAppBar<'a> {
             response,
             leading_clicked: false,
             clicked: None,
-            actions: BTreeMap::new(),
-            keys: self.actions.iter().map(|a| a.action_key.clone()).collect(),
+            actions: ItemResponses::default(),
             overflow: None,
             changed: false,
             submitted: false,
@@ -416,7 +402,7 @@ impl<'a> TopAppBar<'a> {
                     None => out.clicked = self.clicked(idx),
                 }
             }
-            out.actions.insert(idx, resp);
+            out.actions.push(idx, a.action_key.clone(), resp);
             end += row.slot;
         }
         end

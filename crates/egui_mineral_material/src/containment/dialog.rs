@@ -4,7 +4,6 @@ use crate::Rt;
 use egui::{Align, Color32, Frame, Id, Layout, Margin, Rangef, Rect, Sense, Ui, UiBuilder, pos2, vec2};
 use egui_mineral::action::Clicked;
 use egui_mineral::semantic::KeyedSalt;
-use egui_mineral::shortcut::ActionId;
 use egui_mineral::widget::MineralUi;
 use egui_mineral::{
     i18n::{Direction, I18n},
@@ -229,7 +228,7 @@ pub struct DialogAction {
     mnemonic: Option<Mnemonic>,
     disabled: bool,
     salt: Option<egui_mineral::semantic::KeyedSalt>,
-    action_key: Option<ActionId>,
+    action_key: Option<egui_mineral::action::ActionKey>,
 }
 
 impl DialogAction {
