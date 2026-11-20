@@ -408,9 +408,9 @@ impl<'a, const N: usize> Message<'a, N> {
     }
 }
 
-/// A [`Message`] or the arguments struct of one; implemented by the items [`messages!`] generates.
+/// Implemented by the items [`messages!`] generates: a [`Message`] itself or the arguments struct of one.
 pub trait IntoMessage<'a, const N: usize> {
-    /// The message with its arguments in place.
+    /// Message id with the arguments in place.
     fn into_message(self) -> Message<'a, N>;
 }
 
