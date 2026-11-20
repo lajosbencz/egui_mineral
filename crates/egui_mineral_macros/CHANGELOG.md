@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral_macros-v0.6.0...egui_mineral_macros-v0.7.0) - 2026-11-20
+
+### Other
+
+- Merge remote-tracking branch 'origin/master'
+- *(core)* [**breaking**] nav::__private::segment drops its unused field parameter.
+- *(i18n)* [**breaking**] typed message ids generated from the source catalog by i18n::messages!; I18n::tr, kit::tr and ValidationError::localized take them instead of string ids. Stylekit catalogs inherit the core message schema at compile time and unused catalog messages fail dead_code.
+
 ## [0.6.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral_macros-v0.5.0...egui_mineral_macros-v0.6.0) - 2026-11-19
 
 ### Added
