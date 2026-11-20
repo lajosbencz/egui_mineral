@@ -36,7 +36,7 @@ pub use combobox::Combobox;
 pub use date_picker::DatePicker;
 pub use dropdown::Dropdown;
 pub use field::{Field, FieldContext, FieldResponse, Validation};
-pub use form::FormExt;
+pub use form::{FormExt, FormUiExt};
 pub use info_label::InfoLabel;
 pub use input::Input;
 pub use label::FieldLabel;

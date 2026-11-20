@@ -1,8 +1,10 @@
 use crate::Material;
 use crate::MaterialExt;
 use crate::msg;
-use egui_mineral::form::{FieldCtx, FieldKind, FieldValue, Form, FormFooter, FormResponse};
-use egui_mineral::select::Selection;
+use egui_mineral::date::Date;
+use egui_mineral::form::{FieldCtx, FieldSpec, Form, FormFooter, FormResponse, FormUi};
+use egui_mineral::select::{ItemKey, Selection};
+use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::MineralUi;
 
 use crate::actions::PushButton;
@@ -13,19 +15,233 @@ use crate::widget::parts;
 
 mod sealed {
     pub trait Sealed {}
-    impl Sealed for egui_mineral::form::Form<'_> {}
+    impl<T> Sealed for egui_mineral::form::Form<'_, T> {}
+    impl Sealed for egui_mineral::form::FormUi<'_, '_, crate::Material> {}
 }
 
 /// Shows a core [`Form`] with stylekit fields; sealed.
-pub trait FormExt: sealed::Sealed {
-    /// Paints text kinds as [`TextField`]s, checkboxes as [`CheckButton`]s, selects as [`Select`]s and dates as
-    /// docked [`DatePicker`]s, and the submit as a filled [`PushButton`]; form errors use the field error style.
-    fn show(self, ui: &mut MineralUi<'_, crate::Material>) -> FormResponse;
+pub trait FormExt<T>: sealed::Sealed {
+    /// `add` places the fields with [`FormUiExt`]; the submit is a filled [`PushButton`] after them, form errors use
+    /// the field error style.
+    fn show<R>(
+        self,
+        ui: &mut MineralUi<'_, Material>,
+        add: impl FnOnce(&mut FormUi<'_, '_, Material>, &mut T) -> R,
+    ) -> FormResponse<R>;
 }
 
-impl FormExt for Form<'_> {
-    fn show(self, ui: &mut MineralUi<'_, crate::Material>) -> FormResponse {
-        self.show_with(ui, field, footer)
+impl<T> FormExt<T> for Form<'_, T> {
+    fn show<R>(
+        self,
+        ui: &mut MineralUi<'_, Material>,
+        add: impl FnOnce(&mut FormUi<'_, '_, Material>, &mut T) -> R,
+    ) -> FormResponse<R> {
+        self.show_with(ui, add, footer)
+    }
+}
+
+/// Typed fields of a Material form; sealed. `build` adds the spec's required flag, help text and validators; a
+/// required field's label gets a `*`.
+pub trait FormUiExt: sealed::Sealed {
+    /// [`TextField`]; masked and multi-row per [`FieldSpec::masked`] and [`FieldSpec::rows`]. Enter in a single
+    /// row submits.
+    fn text(
+        &mut self,
+        salt: impl Into<KeyedSalt>,
+        label: impl Into<String>,
+        value: &mut String,
+        build: impl FnOnce(FieldSpec<String>) -> FieldSpec<String>,
+    ) -> egui::Response;
+
+    /// [`CheckButton`] labeled by the field label; required means checked.
+    fn check(
+        &mut self,
+        salt: impl Into<KeyedSalt>,
+        label: impl Into<String>,
+        value: &mut bool,
+        build: impl FnOnce(FieldSpec<bool>) -> FieldSpec<bool>,
+    ) -> egui::Response;
+
+    /// Optional [`Select`] of `(value, label)` options.
+    fn select<K: ItemKey>(
+        &mut self,
+        salt: impl Into<KeyedSalt>,
+        label: impl Into<String>,
+        value: &mut Option<K>,
+        options: impl IntoIterator<Item = (K, impl Into<String>)>,
+        build: impl FnOnce(FieldSpec<Option<K>>) -> FieldSpec<Option<K>>,
+    ) -> egui::Response;
+
+    /// Multi [`Select`] of `(value, label)` options.
+    fn multi_select<K: ItemKey>(
+        &mut self,
+        salt: impl Into<KeyedSalt>,
+        label: impl Into<String>,
+        value: &mut Selection<K>,
+        options: impl IntoIterator<Item = (K, impl Into<String>)>,
+        build: impl FnOnce(FieldSpec<Selection<K>>) -> FieldSpec<Selection<K>>,
+    ) -> egui::Response;
+
+    /// Docked [`DatePicker`] in input mode.
+    fn date(
+        &mut self,
+        salt: impl Into<KeyedSalt>,
+        label: impl Into<String>,
+        value: &mut Option<Date>,
+        build: impl FnOnce(FieldSpec<Option<Date>>) -> FieldSpec<Option<Date>>,
+    ) -> egui::Response;
+}
+
+impl FormUiExt for FormUi<'_, '_, Material> {
+    fn text(
+        &mut self,
+        salt: impl Into<KeyedSalt>,
+        label: impl Into<String>,
+        value: &mut String,
+        build: impl FnOnce(FieldSpec<String>) -> FieldSpec<String>,
+    ) -> egui::Response {
+        self.field(salt, &build(FieldSpec::new(label)), value, |ui, f| {
+            let (error, label) = decor(ui, f);
+            let spec = f.spec();
+            let mut tf = TextField::new(f.salt(), label, f.value())
+                .masked(spec.is_masked())
+                .rows(spec.row_count())
+                .maybe_error(error);
+            if let Some(h) = spec.supporting_text() {
+                tf = tf.supporting(h);
+            }
+            let r = ui.mineral(tf);
+            if r.changed() {
+                f.changed();
+            }
+            if r.lost_focus() {
+                f.blurred();
+                if spec.row_count() == 1 && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                    f.submit();
+                }
+            }
+            r.into_response()
+        })
+    }
+
+    fn check(
+        &mut self,
+        salt: impl Into<KeyedSalt>,
+        label: impl Into<String>,
+        value: &mut bool,
+        build: impl FnOnce(FieldSpec<bool>) -> FieldSpec<bool>,
+    ) -> egui::Response {
+        self.field(salt, &build(FieldSpec::new(label)), value, |ui, f| {
+            let (error, label) = decor(ui, f);
+            let spec = f.spec();
+            let has_error = error.is_some();
+            let salt = f.salt();
+            let rt = ui.rt();
+            let (response, changed, lost_focus) = ui
+                .scope(|ui| {
+                    let r = rt
+                        .ui(ui)
+                        .mineral(CheckButton::new(salt, label, f.value()).maybe_error(error));
+                    if let Some(h) = spec.supporting_text().filter(|_| !has_error) {
+                        let t = rt.tokens();
+                        parts::type_label(ui, h, m::SUPPORTING_FONT, t.role(m::SUPPORTING_COLOR), 0);
+                    }
+                    (r.response().clone(), r.changed(), r.lost_focus())
+                })
+                .inner;
+            pick(f, changed, lost_focus);
+            response
+        })
+    }
+
+    fn select<K: ItemKey>(
+        &mut self,
+        salt: impl Into<KeyedSalt>,
+        label: impl Into<String>,
+        value: &mut Option<K>,
+        options: impl IntoIterator<Item = (K, impl Into<String>)>,
+        build: impl FnOnce(FieldSpec<Option<K>>) -> FieldSpec<Option<K>>,
+    ) -> egui::Response {
+        self.field(salt, &build(FieldSpec::new(label)), value, |ui, f| {
+            let (error, label) = decor(ui, f);
+            let spec = f.spec();
+            let options = options.into_iter().map(|(k, l)| (k, l.into()));
+            let mut select = Select::optional(f.salt(), label, f.value())
+                .items(options)
+                .maybe_error(error);
+            if let Some(h) = spec.supporting_text() {
+                select = select.supporting(h);
+            }
+            let r = ui.mineral(select);
+            pick(f, r.changed(), r.lost_focus());
+            r.response().clone()
+        })
+    }
+
+    fn multi_select<K: ItemKey>(
+        &mut self,
+        salt: impl Into<KeyedSalt>,
+        label: impl Into<String>,
+        value: &mut Selection<K>,
+        options: impl IntoIterator<Item = (K, impl Into<String>)>,
+        build: impl FnOnce(FieldSpec<Selection<K>>) -> FieldSpec<Selection<K>>,
+    ) -> egui::Response {
+        self.field(salt, &build(FieldSpec::new(label)), value, |ui, f| {
+            let (error, label) = decor(ui, f);
+            let spec = f.spec();
+            let options = options.into_iter().map(|(k, l)| (k, l.into()));
+            let mut select = Select::multi(f.salt(), label, f.value())
+                .items(options)
+                .maybe_error(error);
+            if let Some(h) = spec.supporting_text() {
+                select = select.supporting(h);
+            }
+            let r = ui.mineral(select);
+            pick(f, r.changed(), r.lost_focus());
+            r.response().clone()
+        })
+    }
+
+    fn date(
+        &mut self,
+        salt: impl Into<KeyedSalt>,
+        label: impl Into<String>,
+        value: &mut Option<Date>,
+        build: impl FnOnce(FieldSpec<Option<Date>>) -> FieldSpec<Option<Date>>,
+    ) -> egui::Response {
+        self.field(salt, &build(FieldSpec::new(label)), value, |ui, f| {
+            let (error, label) = decor(ui, f);
+            let spec = f.spec();
+            let mut picker = DatePicker::new(f.salt(), label, f.value())
+                .input_mode(DisplayMode::Input)
+                .maybe_error(error);
+            if let Some(h) = spec.supporting_text() {
+                picker = picker.supporting(h);
+            }
+            let r = picker.show(ui);
+            pick(f, r.changed, false);
+            r.response
+        })
+    }
+}
+
+// Shown error text and the label, starred when required.
+fn decor<V: ?Sized>(ui: &MineralUi<'_, Material>, f: &FieldCtx<'_, V>) -> (Option<String>, String) {
+    let spec = f.spec();
+    let label = if spec.is_required() {
+        format!("{}*", spec.label())
+    } else {
+        spec.label().to_owned()
+    };
+    (f.visible_error().map(|e| e.message(ui.i18n())), label)
+}
+
+// A pick commits the field, as a blur does for text.
+fn pick<V: ?Sized>(f: &mut FieldCtx<'_, V>, changed: bool, lost_focus: bool) {
+    if changed {
+        f.committed();
+    } else if lost_focus {
+        f.blurred();
     }
 }
 
@@ -44,109 +260,4 @@ fn footer(ui: &mut MineralUi<'_, Material>, f: &FormFooter<'_>) -> bool {
     rt.ui(ui)
         .mineral(PushButton::new(f.form_salt.child("submit"), label).disabled(!f.enabled))
         .clicked()
-}
-
-fn field(ui: &mut MineralUi<'_, Material>, f: &mut FieldCtx<'_>) -> egui::Response {
-    let rt = ui.rt();
-    let error = f.visible_error().map(|e| e.message(ui.i18n()));
-    let spec = f.spec;
-    let label = if spec.is_required() {
-        format!("{}*", spec.label())
-    } else {
-        spec.label().to_owned()
-    };
-    let salt = f.form_salt.child(spec.name().to_owned());
-    let options = || spec.field_options().iter().map(|o| (o.key.clone(), o.label.clone()));
-    let (response, changed, lost_focus) = match f.state.value_mut() {
-        FieldValue::Text(text) => {
-            let mut tf = TextField::new(salt, label, text)
-                .masked(spec.input_kind() == FieldKind::Password)
-                .rows(if spec.input_kind() == FieldKind::Multiline {
-                    3
-                } else {
-                    1
-                })
-                .maybe_error(error);
-            if let Some(h) = spec.supporting_text() {
-                tf = tf.supporting(h);
-            }
-            let r = rt.ui(ui).mineral(tf);
-            return text_result(f, r.changed(), r.lost_focus(), r.into_response());
-        }
-        FieldValue::Bool(checked) => {
-            let has_error = error.is_some();
-            let r = ui
-                .scope(|ui| {
-                    let r = rt
-                        .ui(ui)
-                        .mineral(CheckButton::new(salt, label, checked).maybe_error(error));
-                    if let Some(h) = spec.supporting_text().filter(|_| !has_error) {
-                        let t = rt.tokens();
-                        parts::type_label(ui, h, m::SUPPORTING_FONT, t.role(m::SUPPORTING_COLOR), 0);
-                    }
-                    r
-                })
-                .inner;
-            (r.response().clone(), r.changed(), r.lost_focus())
-        }
-        FieldValue::Choice(picked) => {
-            let mut select = Select::optional(salt, label, picked)
-                .items(options())
-                .maybe_error(error);
-            if let Some(h) = spec.supporting_text() {
-                select = select.supporting(h);
-            }
-            let r = rt.ui(ui).mineral(select);
-            (r.response().clone(), r.changed(), r.lost_focus())
-        }
-        FieldValue::Choices(keys) => {
-            let mut picked: Selection<String> = keys.iter().cloned().collect();
-            let mut select = Select::multi(salt, label, &mut picked)
-                .items(options())
-                .maybe_error(error);
-            if let Some(h) = spec.supporting_text() {
-                select = select.supporting(h);
-            }
-            let r = rt.ui(ui).mineral(select);
-            if r.changed() {
-                *keys = spec
-                    .field_options()
-                    .iter()
-                    .filter(|o| picked.is_selected(&o.key))
-                    .map(|o| o.key.clone())
-                    .collect();
-            }
-            (r.response().clone(), r.changed(), r.lost_focus())
-        }
-        FieldValue::Date(day) => {
-            let mut picker = DatePicker::new(salt, label, day)
-                .input_mode(DisplayMode::Input)
-                .maybe_error(error);
-            if let Some(h) = spec.supporting_text() {
-                picker = picker.supporting(h);
-            }
-            let r = picker.show(&mut rt.ui(ui));
-            (r.response, r.changed, false)
-        }
-        // Kinds this renderer does not know take no space.
-        _ => return ui.allocate_response(egui::Vec2::ZERO, egui::Sense::hover()),
-    };
-    // A pick commits the field, as a blur does for text.
-    if changed {
-        f.changed();
-        f.blurred();
-    } else if lost_focus {
-        f.blurred();
-    }
-    response
-}
-
-fn text_result(f: &mut FieldCtx<'_>, changed: bool, lost_focus: bool, response: egui::Response) -> egui::Response {
-    if changed {
-        f.changed();
-    }
-    if lost_focus {
-        f.blurred();
-    }
-    response
 }

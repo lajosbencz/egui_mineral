@@ -3,5 +3,5 @@
 pub(crate) mod form;
 pub(crate) mod text_field;
 
-pub use form::FormExt;
+pub use form::{FormExt, FormUiExt};
 pub use text_field::{Elide, TextField, TextFieldOutput, TextFieldVariant};

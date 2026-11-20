@@ -190,29 +190,48 @@ fn combobox_toggle_opens_every_option_from_cold() {
 #[test]
 fn form_renders_typed_kinds_and_submits_their_values() {
     use egui_mineral_material::{
-        egui_mineral::form::{FieldKind, Form, FormState},
-        text_inputs::FormExt,
+        egui_mineral::form::{Form, FormState},
+        text_inputs::{FormExt, FormUiExt},
     };
 
-    let mut h = harness(SCREEN, (FormState::default(), None), |ui, (state, submitted)| {
-        let r = Form::new("signup", state)
-            .field("role", "Role", |f| {
-                f.kind(FieldKind::Select).options([("dev", "Developer"), ("pm", "PM")])
-            })
-            .field("terms", "Accept", |f| f.kind(FieldKind::Checkbox).required(true))
-            .show(ui);
-        if r.submitted.is_some() {
-            *submitted = r.submitted;
-        }
-    });
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, egui_mineral::semantic::KeySalt)]
+    enum Role {
+        Dev,
+        Pm,
+    }
+
+    #[derive(Default)]
+    struct Signup {
+        role: Option<Role>,
+        terms: bool,
+    }
+
+    let mut h = harness(
+        SCREEN,
+        (FormState::default(), Signup::default(), false),
+        |ui, (state, value, submitted)| {
+            let r = Form::new("signup", state, value).show(ui, |f, v| {
+                f.select(
+                    "role",
+                    "Role",
+                    &mut v.role,
+                    [(Role::Dev, "Developer"), (Role::Pm, "PM")],
+                    |s| s,
+                );
+                f.check("terms", "Accept", &mut v.terms, |s| s.required(true));
+            });
+            *submitted |= r.submitted;
+        },
+    );
     h.click("signup-submit-button");
-    assert!(h.state().value.1.is_none(), "the unchecked required box blocks");
+    assert!(!h.state().value.2, "the unchecked required box blocks");
     h.click("signup-terms-checkbox");
     h.click("signup-role-select");
     h.run();
     h.click("signup-role-select-dev-option");
     h.run();
     h.click("signup-submit-button");
-    let values = h.state().value.1.clone().expect("submitted");
-    assert_eq!((values.bool("terms"), values.choice("role")), (Some(true), Some("dev")));
+    let (_, value, submitted) = &h.state().value;
+    assert!(*submitted);
+    assert_eq!((value.terms, value.role), (true, Some(Role::Dev)));
 }

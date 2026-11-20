@@ -43,7 +43,7 @@ pub use crate::selection::{
     MenuColors, MenuItem, MenuResponse, MenuTrailing, PickerModalResponse, PickerResponse, Radio, RadioGroup,
     RadioOption, Select, SelectOption, SelectState, Switch, SwitchState, TimePicker, ValueSlider, ValueSliderState,
 };
-pub use crate::text_inputs::{Elide, FormExt, TextField, TextFieldOutput, TextFieldVariant};
+pub use crate::text_inputs::{Elide, FormExt, FormUiExt, TextField, TextFieldOutput, TextFieldVariant};
 pub use crate::{
     IconAction, IconSet, Leading, LeadingPaint, Material, MaterialExt, MaterialIcon, MaterialUi, MaterialUiExt, Rt,
     Size, TextAction, adaptive::Density, color::Contrast, icons, spec::TypeScale,

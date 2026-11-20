@@ -47,7 +47,7 @@ pub fn scoped_id(core: &crate::runtime::Core, id: egui::Id) -> egui::Id {
 }
 
 /// Implements `Debug` printing the type name only, for types holding closures, trait objects or borrows.
-/// Takes the type name with optional lifetime or type arguments: `opaque_debug!(Form<'_>)`, `opaque_debug!(Runtime<K>)`.
+/// Takes the type name with optional lifetime or type arguments: `opaque_debug!(Form<'_, T>)`, `opaque_debug!(Runtime<K>)`.
 pub use crate::__opaque_debug as opaque_debug;
 
 /// Forwards every `MineralWidget` method except `layout`, `update` and `semantics` to field `$field` (`0`,

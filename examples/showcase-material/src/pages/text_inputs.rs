@@ -1,7 +1,7 @@
 use egui::{Key, KeyboardShortcut, Modifiers};
 use egui_mineral::{
     edit,
-    form::{CheckError, FieldKind, FieldValue, MaxLength, MinLength, ValidateOn, ValidationError, Validator},
+    form::{CheckError, FormUi, MaxLength, MinLength, ValidateOn, ValidationError, Validator},
     i18n::LocaleFormat,
     shortcut::{self, Scope},
 };
@@ -67,6 +67,7 @@ pub(crate) struct State {
     date_outlined: Option<Date>,
     date_bounded: Option<Date>,
     form: FormState,
+    signup: Signup,
     form_done: Option<String>,
     files: Vec<String>,
     rejected: Vec<String>,
@@ -102,6 +103,7 @@ impl Default for State {
             date_outlined: None,
             date_bounded: None,
             form: FormState::default(),
+            signup: Signup::default(),
             form_done: None,
             files: Vec::new(),
             rejected: Vec::new(),
@@ -555,46 +557,9 @@ fn form(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
         ui.scope(|ui| {
             let width = ui.available_width().min(420.0);
             ui.set_max_width(width);
-            let r = Form::new("signup", &mut s.form)
-                .field("username", "Username", |f| {
-                    f.required(true)
-                        .supporting("At least 3 characters")
-                        .validator(MinLength(3))
-                        .validate_on(ValidateOn::Change)
-                })
-                .field("email", "Email", |f| f.required(true).validator(EmailValidator))
-                .field("password", "Password", |f| {
-                    f.required(true)
-                        .kind(FieldKind::Password)
-                        .supporting("8+ characters, 3 of: lower, upper, digit, symbol")
-                        .validator(PasswordPolicy {
-                            min_len: 8,
-                            min_classes: 3,
-                        })
-                        .validate_on(ValidateOn::Change)
-                })
-                .field("confirm", "Confirm password", |f| {
-                    f.required(true).kind(FieldKind::Password)
-                })
-                .field("bio", "About you (optional)", |f| f.kind(FieldKind::Multiline))
-                .field("role", "Role", |f| {
-                    f.kind(FieldKind::Select).required(true).options([
-                        ("dev", "Developer"),
-                        ("design", "Designer"),
-                        ("pm", "Product manager"),
-                    ])
-                })
-                .field("topics", "Topics (up to 2)", |f| {
-                    f.kind(FieldKind::MultiSelect)
-                        .options([("ui", "UI"), ("a11y", "Accessibility"), ("perf", "Performance")])
-                        .validator(MaxLength(2))
-                })
-                .field("start", "Start date (optional)", |f| f.kind(FieldKind::Date))
-                .field("terms", "I accept the terms", |f| {
-                    f.kind(FieldKind::Checkbox).required(true)
-                })
-                .check(|st| {
-                    if st.value("password") == st.value("confirm") {
+            let r = Form::new("signup", &mut s.form, &mut s.signup)
+                .check(|v: &Signup| {
+                    if v.password == v.confirm {
                         Ok(())
                     } else {
                         Err(CheckError::on_field(
@@ -604,16 +569,16 @@ fn form(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
                     }
                 })
                 .submit_label("Sign up")
-                .show(ui);
-            if let Some(values) = r.submitted {
-                let text = |name| values.text(name).unwrap_or_default();
+                .show(ui, signup_fields);
+            if r.submitted {
+                let v = &s.signup;
                 s.form_done = Some(format!(
-                    "{} <{}>, {}, topics {:?}, start {:?}",
-                    text("username"),
-                    text("email"),
-                    values.choice("role").unwrap_or_default(),
-                    values.choices("topics").unwrap_or_default(),
-                    values.date("start"),
+                    "{} <{}>, {:?}, topics {:?}, start {:?}",
+                    v.username,
+                    v.email,
+                    v.role,
+                    v.topics.selected().collect::<Vec<_>>(),
+                    v.start,
                 ));
                 s.form.finish_submit(Ok(()));
                 shared.toast("Signed up");
@@ -625,6 +590,7 @@ fn form(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
                     .clicked()
                 {
                     s.form.reset();
+                    s.signup = Signup::default();
                     s.form_done = None;
                 }
                 row.add(|ui| {
@@ -683,13 +649,87 @@ fn files(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     });
 }
 
+fn signup_fields(f: &mut FormUi<'_, '_, Material>, v: &mut Signup) {
+    f.text("username", "Username", &mut v.username, |s| {
+        s.required(true)
+            .supporting("At least 3 characters")
+            .validator(MinLength(3))
+            .validate_on(ValidateOn::Change)
+    });
+    f.text("email", "Email", &mut v.email, |s| {
+        s.required(true).validator(EmailValidator)
+    });
+    f.text("password", "Password", &mut v.password, |s| {
+        s.required(true)
+            .masked(true)
+            .supporting("8+ characters, 3 of: lower, upper, digit, symbol")
+            .validator(PasswordPolicy {
+                min_len: 8,
+                min_classes: 3,
+            })
+            .validate_on(ValidateOn::Change)
+    });
+    f.text("confirm", "Confirm password", &mut v.confirm, |s| {
+        s.required(true).masked(true)
+    });
+    f.text("bio", "About you (optional)", &mut v.bio, |s| s.rows(3));
+    f.select(
+        "role",
+        "Role",
+        &mut v.role,
+        [
+            (Role::Dev, "Developer"),
+            (Role::Design, "Designer"),
+            (Role::Pm, "Product manager"),
+        ],
+        |s| s.required(true),
+    );
+    f.multi_select(
+        "topics",
+        "Topics (up to 2)",
+        &mut v.topics,
+        [
+            (Topic::Ui, "UI"),
+            (Topic::A11y, "Accessibility"),
+            (Topic::Perf, "Performance"),
+        ],
+        |s| s.validator(MaxLength(2)),
+    );
+    f.date("start", "Start date (optional)", &mut v.start, |s| s);
+    f.check("terms", "I accept the terms", &mut v.terms, |s| s.required(true));
+}
+
+#[derive(Default)]
+struct Signup {
+    username: String,
+    email: String,
+    password: String,
+    confirm: String,
+    bio: String,
+    role: Option<Role>,
+    topics: Selection<Topic>,
+    start: Option<Date>,
+    terms: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, egui_mineral::semantic::KeySalt)]
+enum Role {
+    Dev,
+    Design,
+    Pm,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, egui_mineral::semantic::KeySalt)]
+enum Topic {
+    Ui,
+    A11y,
+    Perf,
+}
+
 struct EmailValidator;
 
-impl Validator for EmailValidator {
-    fn validate(&self, value: &FieldValue, _locale: &dyn LocaleFormat) -> Result<(), ValidationError> {
-        let Some(value) = value.as_text() else {
-            return Ok(());
-        };
+impl Validator<String> for EmailValidator {
+    fn validate(&self, value: &String, _locale: &dyn LocaleFormat) -> Result<(), ValidationError> {
         let err = || Err(ValidationError::new("email", "Enter a valid email address"));
         let Some((local, domain)) = value.split_once('@') else {
             return err();
@@ -718,11 +758,8 @@ struct PasswordPolicy {
     min_classes: usize,
 }
 
-impl Validator for PasswordPolicy {
-    fn validate(&self, value: &FieldValue, _locale: &dyn LocaleFormat) -> Result<(), ValidationError> {
-        let Some(value) = value.as_text() else {
-            return Ok(());
-        };
+impl Validator<String> for PasswordPolicy {
+    fn validate(&self, value: &String, _locale: &dyn LocaleFormat) -> Result<(), ValidationError> {
         let classes = [
             value.chars().any(char::is_lowercase),
             value.chars().any(char::is_uppercase),

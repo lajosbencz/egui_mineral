@@ -543,59 +543,78 @@ fn salted_dropdown_option_keeps_its_key_and_picks_when_an_option_is_inserted_bef
 fn form_blocks_an_empty_required_field_then_submits() {
     use egui_mineral_fluent::{
         egui_mineral::form::{Form, FormState},
-        inputs::FormExt,
+        inputs::{FormExt, FormUiExt},
     };
 
-    let mut h = harness((FormState::default(), None), |ui, (state, submitted)| {
-        let r = Form::new("signup", state)
-            .field("name", "Name", |f| f.required(true).supporting("Shown to others"))
-            .show(ui);
-        if r.submitted.is_some() {
-            *submitted = r.submitted;
-        }
-    });
+    let mut h = harness(
+        (FormState::default(), String::new(), false),
+        |ui, (state, name, submitted)| {
+            let r = Form::new("signup", state, name).show(ui, |f, name| {
+                f.text("name", "Name", name, |s| s.required(true).supporting("Shown to others"));
+            });
+            *submitted |= r.submitted;
+        },
+    );
     h.run();
     assert_eq!(h.node("signup-name-field-hint").name, "Shown to others");
     h.click("signup-submit-button");
-    assert!(h.state().value.1.is_none());
+    assert!(!h.state().value.2);
     assert_eq!(h.node("signup-name-input").role, Role::TextInput);
     assert_eq!(
         h.node("signup-name-field-validation-message").name,
         "This field is required"
     );
-    h.state_mut().value.0.field("name").set_value("Ada");
+    "Ada".clone_into(&mut h.state_mut().value.1);
     h.run();
     h.click("signup-submit-button");
-    assert_eq!(h.state().value.1.as_ref().and_then(|v| v.text("name")), Some("Ada"));
+    assert!(h.state().value.2, "the value set from code submits");
 }
 
 #[test]
 fn form_renders_typed_kinds_and_submits_their_values() {
     use egui_mineral_fluent::{
-        egui_mineral::form::{FieldKind, Form, FormState},
-        inputs::FormExt,
+        egui_mineral::form::{Form, FormState},
+        inputs::{FormExt, FormUiExt},
     };
 
-    let mut h = harness((FormState::default(), None), |ui, (state, submitted)| {
-        let r = Form::new("signup", state)
-            .field("role", "Role", |f| {
-                f.kind(FieldKind::Select).options([("dev", "Developer"), ("pm", "PM")])
-            })
-            .field("terms", "Accept", |f| f.kind(FieldKind::Checkbox).required(true))
-            .show(ui);
-        if r.submitted.is_some() {
-            *submitted = r.submitted;
-        }
-    });
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, egui_mineral::semantic::KeySalt)]
+    enum Role {
+        Dev,
+        Pm,
+    }
+
+    #[derive(Default)]
+    struct Signup {
+        role: Option<Role>,
+        terms: bool,
+    }
+
+    let mut h = harness(
+        (FormState::default(), Signup::default(), false),
+        |ui, (state, value, submitted)| {
+            let r = Form::new("signup", state, value).show(ui, |f, v| {
+                f.select(
+                    "role",
+                    "Role",
+                    &mut v.role,
+                    [(Role::Dev, "Developer"), (Role::Pm, "PM")],
+                    |s| s,
+                );
+                f.check("terms", "Accept", &mut v.terms, |s| s.required(true));
+            });
+            *submitted |= r.submitted;
+        },
+    );
     h.run();
     h.click("signup-submit-button");
-    assert!(h.state().value.1.is_none(), "the unchecked required box blocks");
+    assert!(!h.state().value.2, "the unchecked required box blocks");
     h.click("signup-terms-checkbox");
     h.click("signup-role-dropdown");
     h.run();
     h.click("signup-role-dropdown-dev-option");
     h.run();
     h.click("signup-submit-button");
-    let values = h.state().value.1.clone().expect("submitted");
-    assert_eq!((values.bool("terms"), values.choice("role")), (Some(true), Some("dev")));
+    let (_, value, submitted) = &h.state().value;
+    assert!(*submitted);
+    assert_eq!((value.terms, value.role), (true, Some(Role::Dev)));
 }

@@ -29,7 +29,7 @@ pub use crate::feedback::{
 };
 pub use crate::inputs::{
     Calendar, Checkbox, CheckboxLabelPosition, CheckboxShape, ColorPicker, ColorShape, Combobox, DatePicker, Dropdown,
-    Field, FieldContext, FieldLabel, FieldOutput, FieldResponse, FormExt, InfoLabel, Input, InputAppearance,
+    Field, FieldContext, FieldLabel, FieldOutput, FieldResponse, FormExt, FormUiExt, InfoLabel, Input, InputAppearance,
     ListOption, OptionGroup, Radio, RadioGroup, RadioLabelPosition, RadioLayout, RadioOption, RangeSlider, RangeValue,
     Rating, RatingAppearance, RatingColor, RatingDisplay, RatingSize, SearchBox, Select, Slider, SpinButton, Swatch,
     SwatchLayout, SwatchPicker, SwatchShape, SwatchSize, SwatchSpacing, Switch, SwitchLabelPosition, TagPicker,
