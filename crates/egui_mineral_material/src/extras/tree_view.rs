@@ -6,7 +6,7 @@ use egui_mineral::kit::state::TempState;
 use crate::Material;
 use crate::MaterialExt;
 use crate::Rt;
-use crate::spec::TypeScale;
+use crate::spec::{ColorRole, TypeScale};
 use egui_mineral::i18n::{I18n, RowCursor};
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::MineralUi;
@@ -174,6 +174,7 @@ struct RowWidget<'a> {
     look: RowLook,
     tab_stop: focus::TabStop,
     disabled: bool,
+    container: Option<ColorRole>,
     actions: Vec<IconAction>,
 }
 
@@ -406,9 +407,9 @@ impl MineralWidget for RowWidget<'_> {
             disabled: self.disabled,
             dragged: false,
         };
-        let col = RowColors::of(row, &t);
+        let col = RowColors::of(row, &t).container(row, self.container, &t);
         let shape = row.shape(&t, dir);
-        row_parts::paint_container(ui.painter(), rect, row, shape, &t);
+        row_parts::paint_container(ui.painter(), rect, row, shape, &col, &t);
         if !self.disabled {
             // A hovered control is still over its row (Compose hover reaches both).
             let on_control = control.iter().map(|c| &c.target).chain(&actions).any(Response::hovered);
@@ -495,6 +496,7 @@ pub struct TreeView<'a, N: TreeData> {
     actions: Option<ActionsFn<'a, N>>,
     reorderable: bool,
     disabled: bool,
+    container: Option<ColorRole>,
 }
 
 impl<N: TreeData> std::fmt::Debug for TreeView<'_, N> {
@@ -527,6 +529,7 @@ impl<'a, N: TreeData> TreeView<'a, N> {
             actions: None,
             reorderable: false,
             disabled: false,
+            container: None,
         }
     }
 
@@ -544,6 +547,13 @@ impl<'a, N: TreeData> TreeView<'a, N> {
     crate::widget::setters! {
         /// Greys out every row; nothing toggles or selects.
         disabled
+    }
+
+    /// Container of idle and disabled rows, e.g. the surface the tree sits on; default
+    /// [`ColorRole::Surface`] (Compose `ListItemColors.containerColor`).
+    pub fn container_color(mut self, role: ColorRole) -> Self {
+        self.container = Some(role);
+        self
     }
 
     /// Leading slot per node, e.g. a checkbox derived with [`tree::check_state`] and an icon.
@@ -655,6 +665,7 @@ impl<'a, N: TreeData> TreeView<'a, N> {
             },
             tab_stop,
             disabled: self.disabled,
+            container: self.container,
             actions: self.actions.as_ref().map_or_default(|f| f(row.node)),
         }
     }
@@ -724,7 +735,7 @@ impl<'a, N: TreeData> TreeView<'a, N> {
         let size = vec2(g.size().x + lead + pad, row_h);
         let (rect, _) = ui.allocate_exact_size(size, Sense::hover());
         let p = ui.painter();
-        row_parts::paint_container(p, rect, row, row.shape(&t, rt.i18n().direction()), &t);
+        row_parts::paint_container(p, rect, row, row.shape(&t, rt.i18n().direction()), &col, &t);
         let dir = rt.i18n().direction();
         let mut cur = look.cursor(rect, 0.0, dir);
         if let Some(v) = visual {

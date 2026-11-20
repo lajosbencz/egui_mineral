@@ -103,7 +103,7 @@ impl<'a, N: Numeric> NumberField<'a, N> {
         }
     }
 
-    crate::text_inputs::text_field::field_chrome_setters!(no_icon);
+    crate::text_inputs::text_field::field_chrome_setters!();
     crate::text_inputs::text_field::field_chrome_setters!(text);
     crate::text_inputs::text_field::field_chrome_setters!(align);
 

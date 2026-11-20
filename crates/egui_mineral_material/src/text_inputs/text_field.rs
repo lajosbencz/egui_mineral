@@ -705,9 +705,18 @@ pub(crate) struct FieldChrome {
     pub label_hidden: bool,
     pub text_align: Option<Edge>,
     pub tabular: bool,
+    pub tooltip: Option<String>,
 }
 
-/// `variant`, `supporting`, `error`, `maybe_error` and (unless `no_icon`) `icon` builders over a
+impl FieldChrome {
+    pub(crate) fn show_tooltip(&self, rt: &Rt, response: &Response) {
+        if let Some(tip) = &self.tooltip {
+            crate::communication::PlainTooltip::new(tip.clone()).show(rt, response);
+        }
+    }
+}
+
+/// `variant`, `supporting`, `error`, `maybe_error`, `tooltip` and (unless `no_icon`) `icon` builders over a
 /// `chrome: FieldChrome` field.
 macro_rules! field_chrome_setters {
     () => {
@@ -787,6 +796,13 @@ macro_rules! field_chrome_setters {
         /// Helper text below the field; replaced by an error.
         pub fn supporting(mut self, supporting: impl Into<String>) -> Self {
             self.chrome.supporting = Some(supporting.into());
+            self
+        }
+
+        /// [`PlainTooltip`]($crate::communication::PlainTooltip) on hover; also the field's accessible
+        /// description.
+        pub fn tooltip(mut self, text: impl Into<String>) -> Self {
+            self.chrome.tooltip = Some(text.into());
             self
         }
 
@@ -1496,6 +1512,7 @@ impl MineralWidget for TextField<'_> {
                 self.elide.unwrap_or_default(),
             );
         }
+        self.chrome.show_tooltip(rt, &te);
 
         WidgetResponse::new(te, out).with_changed(changed)
     }

@@ -28,7 +28,7 @@ use crate::widget::{
 };
 use crate::{
     Icon,
-    spec::{defaults, tokens::list},
+    spec::{ColorRole, defaults, tokens::list},
     tokens::Tokens,
 };
 use egui_mineral::layout::Edge;
@@ -121,6 +121,7 @@ pub struct ListItem {
     clickable: bool,
     disabled: bool,
     dragged: bool,
+    container: Option<ColorRole>,
     key: AgentKey,
     swipe_start: Option<SwipeAction>,
     swipe_end: Option<SwipeAction>,
@@ -157,6 +158,7 @@ impl ListItem {
             clickable: false,
             disabled: false,
             dragged: false,
+            container: None,
             swipe_start: None,
             swipe_end: None,
         }
@@ -230,6 +232,13 @@ impl ListItem {
     crate::widget::setters! {
         /// Greys out the row and ignores input.
         disabled
+    }
+
+    /// Container of the idle and disabled row, e.g. the surface the list sits on; default
+    /// [`ColorRole::Surface`] (Compose `ListItemColors.containerColor`).
+    pub fn container_color(mut self, role: ColorRole) -> Self {
+        self.container = Some(role);
+        self
     }
 
     crate::widget::setters! {
@@ -570,7 +579,7 @@ impl MineralWidget for ListItem {
             disabled: self.disabled,
             dragged: self.dragged,
         };
-        let col = RowColors::of(row, &t);
+        let col = RowColors::of(row, &t).container(row, self.container, &t);
         let shape = row.shape(&t, dir);
         let lines = self.resolved_lines();
 
@@ -597,7 +606,7 @@ impl MineralWidget for ListItem {
         if leading_toggled || trailing_toggled {
             clicked = false;
         }
-        row_parts::paint_container(ui.painter(), rect, row, shape, &t);
+        row_parts::paint_container(ui.painter(), rect, row, shape, &col, &t);
         if row_target {
             // A hovered control is still over its row (Compose hover reaches both).
             let i = i.with_hovered(i.hovered || controls.iter().flatten().any(|c| c.target.hovered()));

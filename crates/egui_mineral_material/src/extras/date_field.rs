@@ -363,15 +363,13 @@ impl MineralWidget for DateField<'_> {
             focused.then_some(st.active),
             fmt.as_ref(),
         );
-        if !self.disabled {
-            if r.hovered() {
-                ctx.set_cursor_icon(CursorIcon::Text);
-            }
-            if let Some(pt) = frame.press_pos() {
-                r.request_focus();
-                seg.commit();
-                st.active = nearest_segment(&seg_rects, pt);
-            }
+        if r.hovered() && !self.disabled {
+            ctx.set_cursor_icon(CursorIcon::Text);
+        }
+        if let Some(pt) = frame.press_pos().filter(|_| !self.disabled) {
+            r.request_focus();
+            seg.commit();
+            st.active = nearest_segment(&seg_rects, pt);
         }
         if focused && !self.disabled && ctx.memory(|m| m.owns_ime_events(r.id)) {
             request_ime(ui, field, seg_rects[st.active.min(2)]);
@@ -381,6 +379,7 @@ impl MineralWidget for DateField<'_> {
 
         st.segments = Some(seg);
         st.last = *self.value;
+        self.chrome.show_tooltip(rt, &r);
         WidgetResponse::new(r, ()).with_changed(*self.value != before)
     }
 

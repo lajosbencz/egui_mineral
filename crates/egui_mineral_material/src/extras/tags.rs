@@ -273,6 +273,7 @@ impl MineralWidget for TagsField<'_> {
         }
         input.store(ctx, input_id);
         let changed = self.tags.len() != before || !out.added.is_empty();
+        self.chrome.show_tooltip(rt, &te);
         WidgetResponse::new(te, out).with_changed(changed)
     }
 

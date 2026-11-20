@@ -782,6 +782,7 @@ impl MineralWidget for Select<'_> {
         let (mut changed, moved) = self.drive_combo(ui.rt(), &r, state, pressed);
         changed |= self.paint_value(ui, frame, state);
         changed |= self.show_popup(ui, frame, state, moved, was_open);
+        self.chrome.show_tooltip(ui.rt(), &r);
         WidgetResponse::new(r, ()).with_changed(changed)
     }
 

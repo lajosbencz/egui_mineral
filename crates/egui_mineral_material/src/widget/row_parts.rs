@@ -114,6 +114,16 @@ pub(crate) struct RowColors {
 }
 
 impl RowColors {
+    // Compose ListItemColors.containerColor: idle and disabled rows; disabled wins over dragged and selected.
+    pub(crate) fn container(mut self, s: RowState, role: Option<ColorRole>, t: &Tokens) -> Self {
+        if let Some(role) = role
+            && (s.disabled || !(s.dragged || s.selected))
+        {
+            self.container = t.role(role);
+        }
+        self
+    }
+
     pub(crate) fn of(s: RowState, t: &Tokens) -> Self {
         use list as m;
         use reorder_list as r;
@@ -166,8 +176,14 @@ impl RowColors {
     }
 }
 
-pub(crate) fn paint_container(p: &Painter, rect: Rect, s: RowState, shape: CornerRadius, t: &Tokens) {
-    let colors = RowColors::of(s, t);
+pub(crate) fn paint_container(
+    p: &Painter,
+    rect: Rect,
+    s: RowState,
+    shape: CornerRadius,
+    colors: &RowColors,
+    t: &Tokens,
+) {
     if s.dragged {
         common::elevation(p, rect, shape, list::ITEM_DRAGGED_CONTAINER_ELEVATION, t);
     }
