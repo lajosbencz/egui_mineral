@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral_macros-v0.5.0...egui_mineral_macros-v0.6.0) - 2026-11-19
+
+### Added
+
+- *(core)* [**breaking**] persist-fs no longer implies the codecs, defaults ship persist-toml only, so serde_json is opt-in via persist-json.
+
 ## [0.5.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral_macros-v0.4.0...egui_mineral_macros-v0.5.0) - 2026-11-19
 
 ### Other
