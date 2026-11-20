@@ -199,9 +199,9 @@ fn snackbars(ui: &mut MaterialUi<'_>, shared: &mut Shared) {
             shared.toasts.push(Snackbar::new("Message archived"));
         }
         if row.mineral(PushButton::new("snack-action", "With action")).clicked() {
-            shared
-                .toasts
-                .push(Snackbar::new("Conversation deleted").action("undo", TextAction::new("Undo").command(snack::UNDO)));
+            shared.toasts.push(
+                Snackbar::new("Conversation deleted").action("undo", TextAction::new("Undo").command(snack::UNDO)),
+            );
         }
         if row.mineral(PushButton::new("snack-close", "With close")).clicked() {
             shared.toasts.push(Snackbar::new("Connection lost").dismissible(true));

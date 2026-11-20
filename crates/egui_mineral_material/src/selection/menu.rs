@@ -305,7 +305,6 @@ impl MenuItem {
         /// Greys out the item; it cannot be activated.
         disabled
     }
-
 }
 
 struct Row<A> {

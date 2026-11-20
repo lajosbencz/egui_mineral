@@ -1,5 +1,4 @@
 use egui::Key;
-use egui_mineral::action::Clicked;
 use egui_mineral_fluent::actions::PushButton;
 use egui_mineral_fluent::extras::{
     BarMenu, CommandPalette, MenuBar, Pagination, PaletteCommand, SplitPane, StatusBar, StatusItem, StatusProgress,
@@ -45,29 +44,29 @@ fn narrow<R>(ui: &mut FluentUi<'_>, width: f32, add: impl FnOnce(&mut FluentUi<'
 }
 
 // Text advances differ with the fonts installed; one-letter labels and the lead indicators keep the widths close.
-fn status_bar(ui: &mut FluentUi<'_>, width: f32) -> Option<Clicked> {
+fn status_bar(ui: &mut FluentUi<'_>, width: f32) -> Option<Status> {
     narrow(ui, width, |ui| {
         StatusBar::new("status", "Status")
             .item(StatusItem::new("x").progress(StatusProgress::Circular(None)))
-            .trailing(
-                StatusItem::new("x")
-                    .progress(StatusProgress::Linear(None))
-                    .key(Status::Position),
+            .trailing_action(
+                Status::Position,
+                StatusItem::new("x").progress(StatusProgress::Linear(None)),
             )
-            .item(
-                StatusItem::new("x")
-                    .progress(StatusProgress::Linear(Some(0.2.into())))
-                    .clickable(true),
+            .action(
+                Status::Progress,
+                StatusItem::new("x").progress(StatusProgress::Linear(Some(0.2.into()))),
             )
-            .item(StatusItem::new("x").clickable(true))
+            .action(Status::Last, "x")
             .show(ui)
             .clicked
     })
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, egui_mineral::semantic::KeySalt)]
 enum Status {
     Position,
+    Progress,
+    Last,
 }
 
 #[test]
@@ -89,12 +88,7 @@ fn status_bar_reports_clicks_and_drops_what_does_not_fit() {
         "overflow is dropped"
     );
     h.click("status-1-status-item");
-    let clicked = h
-        .state()
-        .value
-        .as_ref()
-        .map(|c| (c.index(), c.key::<Status>().copied()));
-    assert_eq!(clicked, Some((1, Some(Status::Position))));
+    assert_eq!(h.state().value, Some(Status::Position));
 }
 
 #[test]
@@ -142,40 +136,43 @@ fn pagination_moves_a_stale_page_onto_the_last() {
     assert_eq!(h.node("pg-pagination").role, egui_mineral::semantic::Role::Navigation);
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, egui_mineral::semantic::KeySalt)]
 enum Cmd {
+    Save,
+    Print,
     Open,
 }
 
 #[test]
 fn command_palette_reports_the_clicked_entry() {
     let mut h = harness((true, String::new(), None), |ui, (open, query, clicked)| {
-        let commands = [PaletteCommand::new("Save"), PaletteCommand::new("Open").key(Cmd::Open)];
-        let r = CommandPalette::new("pal", commands, query).show_modal(ui.rt(), open);
+        let r = CommandPalette::new("pal", query)
+            .command("Save")
+            .action(Cmd::Open, "Open")
+            .show_modal(ui.rt(), open);
         *clicked = clicked.take().or(r.clicked);
     });
     h.run();
     h.click("pal-1-command");
-    let clicked = h.state().value.2.as_ref().map(|c| (c.index(), c.key::<Cmd>().copied()));
-    assert_eq!((h.state().value.0, clicked), (false, Some((1, Some(Cmd::Open)))));
+    assert_eq!((h.state().value.0, h.state().value.2), (false, Some(Cmd::Open)));
 }
 
 #[test]
 fn command_palette_keys_skip_disabled_entries() {
     let mut h = harness((true, String::new(), None), |ui, (open, query, clicked)| {
-        let commands = [
-            PaletteCommand::new("Save"),
-            PaletteCommand::new("Print").disabled(true),
-            PaletteCommand::new("Open"),
-        ];
-        let r = CommandPalette::new("pal", commands, query).show_modal(ui.rt(), open);
+        let r = CommandPalette::new("pal", query)
+            .actions([
+                (Cmd::Save, PaletteCommand::new("Save")),
+                (Cmd::Print, PaletteCommand::new("Print").disabled(true)),
+                (Cmd::Open, PaletteCommand::new("Open")),
+            ])
+            .show_modal(ui.rt(), open);
         *clicked = clicked.take().or(r.clicked);
     });
     h.run();
     h.press(Key::ArrowDown);
     h.press(Key::Enter);
-    let clicked = h.state().value.2.as_ref().map(|c| (c.index(), c.key::<Cmd>().copied()));
-    assert_eq!((h.state().value.0, clicked), (false, Some((2, None))));
+    assert_eq!((h.state().value.0, h.state().value.2), (false, Some(Cmd::Open)));
 }
 
 fn menu_bar() -> crate::support::Harness<'static, Vec<&'static str>> {
@@ -246,8 +243,9 @@ fn menu_bar_keys_open_move_between_menus_and_escape_returns_focus() {
 #[test]
 fn command_palette_exposes_semantics_and_escape_dismisses() {
     let mut h = harness((true, String::new(), None), |ui, (open, query, dismissed)| {
-        let commands = [PaletteCommand::new("Save").group("File"), PaletteCommand::new("Open")];
-        let r = CommandPalette::new("pal", commands, query).show_modal(ui.rt(), open);
+        let r = CommandPalette::new("pal", query)
+            .commands([PaletteCommand::new("Save").group("File"), PaletteCommand::new("Open")])
+            .show_modal(ui.rt(), open);
         *dismissed = dismissed.or(r.dismissed);
     });
     h.run();

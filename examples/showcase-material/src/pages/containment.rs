@@ -273,7 +273,10 @@ fn dialogs(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
         .resizable(true)
         .supporting("Enter in the name field saves; Enter in the notes field adds a line.")
         .action("cancel", "Cancel")
-        .action("save", DialogAction::new("Save").disabled(s.dialog_name.trim().is_empty()))
+        .action(
+            "save",
+            DialogAction::new("Save").disabled(s.dialog_name.trim().is_empty()),
+        )
         .default_action("save")
         .show_modal(rt, &mut s.dialog_icon, |ui| {
             ui.mineral(TextField::new("dlg-name", "Name", &mut s.dialog_name).preferred_width(260.0));

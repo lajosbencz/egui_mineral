@@ -8,8 +8,9 @@ use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::status::StatusLead;
 use egui_mineral::widget::{Availability, MineralUi};
 use egui_mineral::{
-    action::Clicked,
+    action::{ActionValue, NoAction, Widen},
     i18n::Direction,
+    select::ItemKey,
     semantic::{self, Role, SemanticNode, StableId},
 };
 
@@ -49,22 +50,22 @@ fn lead_width(lead: StatusLead) -> f32 {
 /// Result of [`StatusBar::show`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct StatusBarResponse {
+pub struct StatusBarResponse<A = NoAction> {
     /// Bar response.
     pub response: Response,
-    /// Clickable item clicked this frame: its index in insertion order and its [`StatusItem::key`].
-    pub clicked: Option<Clicked>,
+    /// Value of the action item clicked this frame.
+    pub clicked: Option<A>,
 }
 
 /// Desktop status bar: items at the reading start and end of a full-width strip; non-MD3. Show it
 /// last in a bottom panel. Start items that do not fit are dropped from the end of the start group, unless [`StatusItem::elide`].
 #[derive(Clone, Debug)]
 #[must_use = "call .show(..)"]
-pub struct StatusBar {
+pub struct StatusBar<A = NoAction> {
     salt: KeyedSalt,
     label: String,
-    // Item and whether it sits at the end.
-    items: Vec<(StatusItem, bool)>,
+    // Item, whether it sits at the end, and the value of an action item.
+    items: Vec<(StatusItem, bool, Option<A>)>,
 }
 
 impl StatusBar {
@@ -76,7 +77,9 @@ impl StatusBar {
             items: Vec::new(),
         }
     }
+}
 
+impl<A: ActionValue> StatusBar<A> {
     crate::widget::setters! {
         /// Replaces the `<id_salt>` key prefix.
         agent_key(salt)
@@ -84,18 +87,53 @@ impl StatusBar {
 
     /// Item at the reading start, after the previous ones.
     pub fn item(mut self, item: impl Into<StatusItem>) -> Self {
-        self.items.push((item.into(), false));
+        self.items.push((item.into(), false, None));
         self
     }
 
     /// Item at the reading end, before the previous trailing ones.
     pub fn trailing(mut self, item: impl Into<StatusItem>) -> Self {
-        self.items.push((item.into(), true));
+        self.items.push((item.into(), true, None));
         self
     }
 
+    /// [`item`](Self::item) as a focusable button reporting `value` when clicked.
+    pub fn action<B: ItemKey>(self, value: B, item: impl Into<StatusItem>) -> StatusBar<B>
+    where
+        A: Widen<B>,
+    {
+        let mut next = self.retype();
+        next.items.push((item.into(), false, Some(value)));
+        next
+    }
+
+    /// [`trailing`](Self::trailing) as a focusable button reporting `value` when clicked.
+    pub fn trailing_action<B: ItemKey>(self, value: B, item: impl Into<StatusItem>) -> StatusBar<B>
+    where
+        A: Widen<B>,
+    {
+        let mut next = self.retype();
+        next.items.push((item.into(), true, Some(value)));
+        next
+    }
+
+    fn retype<B>(self) -> StatusBar<B>
+    where
+        A: Widen<B>,
+    {
+        StatusBar {
+            salt: self.salt,
+            label: self.label,
+            items: self
+                .items
+                .into_iter()
+                .map(|(item, at_end, v)| (item, at_end, v.map(Widen::widen)))
+                .collect(),
+        }
+    }
+
     /// Allocates the full available width.
-    pub fn show(self, ui: &mut MineralUi<'_, Material>) -> StatusBarResponse {
+    pub fn show(self, ui: &mut MineralUi<'_, Material>) -> StatusBarResponse<A> {
         let rt = ui.rt();
         let t = rt.tokens();
         let dir = rt.i18n().direction();
@@ -119,7 +157,7 @@ impl StatusBar {
         let mut galleys: Vec<_> = self
             .items
             .iter()
-            .map(|(it, _)| text_galley(ui, it, content_of(it)))
+            .map(|(it, ..)| text_galley(ui, it, content_of(it)))
             .collect();
         let chrome = |i: usize| 2.0 * PAD_X + self.items[i].0.lead().map_or(0.0, |l| lead_width(l) + ICON_GAP);
         let width = |i: usize, galleys: &[std::sync::Arc<egui::Galley>]| chrome(i) + galleys[i].size().x;
@@ -135,7 +173,7 @@ impl StatusBar {
             .into_iter()
             .zip(&self.items)
             .enumerate()
-            .map(|(i, (placed, (item, at_end)))| {
+            .map(|(i, (placed, (item, at_end, _)))| {
                 let p = placed?;
                 if let Some(room) = p.elided_room {
                     let elide = item.elision().unwrap_or_default();
@@ -146,7 +184,7 @@ impl StatusBar {
             .collect();
 
         let mut clicked = None;
-        for (i, ((item, _), galley)) in self.items.iter().zip(galleys).enumerate() {
+        for (i, ((item, _, value), galley)) in self.items.iter().zip(galleys).enumerate() {
             let Some(r) = slots[i] else { continue };
             let content = content_of(item);
             match item.tone_kind() {
@@ -158,12 +196,12 @@ impl StatusBar {
                 }
                 _ => {}
             }
-            let clickable = item.is_clickable();
+            let clickable = value.is_some();
             let sense = if clickable { Sense::click() } else { Sense::hover() };
             let resp = ui.interact(r, id.with(i), sense);
             if clickable {
                 if resp.clicked() {
-                    clicked = Some(Clicked::new(i, item.action_key().cloned()));
+                    clicked.clone_from(value);
                 }
                 let state = Interaction::of(&resp, Availability::Enabled);
                 common::state_focus(ui.painter(), r, 0, content, state, &t);
@@ -187,7 +225,7 @@ impl StatusBar {
             if let Some(tip) = item.tooltip_text() {
                 PlainTooltip::new(tip).show(rt, &resp);
             }
-            let role = if item.is_clickable() { Role::Button } else { Role::Label };
+            let role = if clickable { Role::Button } else { Role::Label };
             semantic::emit(ui.ctx(), Some(resp.id), r, || {
                 SemanticNode::new(StableId::of(&self.salt, (i, "status-item")), role, item.text())
             });
@@ -199,7 +237,7 @@ impl StatusBar {
     }
 }
 
-impl StatusBar {
+impl<A> StatusBar<A> {
     fn progress(&self, ui: &mut MineralUi<'_, Material>, i: usize, text: &str, value: Option<Fraction>, center: Pos2) {
         let salt = self.salt.child((i, "progress"));
         match value {
@@ -212,7 +250,7 @@ impl StatusBar {
     }
 }
 
-impl StatusBar {
+impl<A> StatusBar<A> {
     fn linear(&self, ui: &mut MineralUi<'_, Material>, i: usize, text: &str, value: Option<Fraction>, center: Pos2) {
         let salt = self.salt.child((i, "progress"));
         match value {

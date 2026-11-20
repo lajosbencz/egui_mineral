@@ -48,7 +48,8 @@ struct Shell {
     rail_expanded: bool,
     palette_open: bool,
     palette_query: String,
-    commands: Vec<PaletteCommand>,
+    palette_pages: Vec<(Page, PaletteCommand)>,
+    palette_commands: Vec<PaletteCommand>,
     #[cfg(not(target_arch = "wasm32"))]
     _executor: tokio::runtime::Runtime,
 }
@@ -79,20 +80,22 @@ fn new_app(ctx: &egui::Context) -> Result<App, Box<dyn std::error::Error + Send 
             }
         }
     });
-    // Keyed by the page; a page's topics share its key.
-    let mut commands: Vec<PaletteCommand> = Page::ALL
+    // A page's topics report the page.
+    let palette_pages: Vec<(Page, PaletteCommand)> = Page::ALL
         .iter()
         .flat_map(|&p| {
             std::iter::once(PaletteCommand::new(p.title()).icon(p.icon()).group("Pages"))
                 .chain(p.topics().iter().map(move |t| PaletteCommand::new(*t).group(p.title())))
-                .map(move |c| c.key(p))
+                .map(move |c| (p, c))
         })
         .collect();
     // Same commands and shortcuts as the View menu on the navigation page.
-    for i in [pages::navigation::ZOOM_IN, pages::navigation::ZOOM_OUT] {
-        let (id, key, label) = &pages::navigation::COMMANDS[i];
-        commands.push(PaletteCommand::new(*label).group("View").command(id, *key));
-    }
+    let palette_commands = [pages::navigation::ZOOM_IN, pages::navigation::ZOOM_OUT]
+        .map(|i| {
+            let (id, key, label) = &pages::navigation::COMMANDS[i];
+            PaletteCommand::new(*label).group("View").command(id, *key)
+        })
+        .to_vec();
     let shell = Shell {
         router: Router::new(Page::Foundations),
         inspector: Inspector::default(),
@@ -110,7 +113,8 @@ fn new_app(ctx: &egui::Context) -> Result<App, Box<dyn std::error::Error + Send 
         rail_expanded: true,
         palette_open: false,
         palette_query: String::new(),
-        commands,
+        palette_pages,
+        palette_commands,
         #[cfg(not(target_arch = "wasm32"))]
         _executor: executor,
     };
@@ -167,7 +171,10 @@ impl Shell {
         };
         let bar = bar
             .action(BarAction::Search, IconAction::new(icons::ICON_SEARCH, search))
-            .action(BarAction::Theme, IconAction::new(theme_icon, format!("Theme: {theme_name}")));
+            .action(
+                BarAction::Theme,
+                IconAction::new(theme_icon, format!("Theme: {theme_name}")),
+            );
         let r = bar.show(ui);
         if r.leading_clicked {
             self.drawer_open = true;
@@ -278,12 +285,14 @@ impl Shell {
             self.drawer(rt);
         }
 
-        let picked = CommandPalette::new("palette", self.commands.iter().cloned(), &mut self.palette_query)
+        let picked = CommandPalette::new("palette", &mut self.palette_query)
+            .actions(self.palette_pages.iter().cloned())
+            .commands(self.palette_commands.iter().cloned())
             .placeholder("Jump to a page or component")
             .shortcut(PALETTE)
             .show_modal(rt, &mut self.palette_open)
             .clicked;
-        if let Some(&page) = picked.as_ref().and_then(Clicked::key::<Page>) {
+        if let Some(page) = picked {
             self.navigate(page);
         }
         SnackbarHost::new(&mut self.shared.toasts).show(rt);

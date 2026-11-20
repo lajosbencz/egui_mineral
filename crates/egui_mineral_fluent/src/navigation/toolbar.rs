@@ -276,10 +276,7 @@ macro_rules! entries {
         }
 
         /// Appends `(value, button)` pairs.
-        pub fn actions<B: ItemKey>(
-            self,
-            buttons: impl IntoIterator<Item = (B, impl Into<ToolbarButton>)>,
-        ) -> $ty<'a, B>
+        pub fn actions<B: ItemKey>(self, buttons: impl IntoIterator<Item = (B, impl Into<ToolbarButton>)>) -> $ty<'a, B>
         where
             A: Widen<B>,
         {

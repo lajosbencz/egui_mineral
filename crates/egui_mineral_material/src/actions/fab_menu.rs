@@ -331,7 +331,8 @@ impl<A: ItemKey> FabMenu<A> {
                 ui.with_layout(Layout::top_down(align), |ui| {
                     let mut ids = Vec::with_capacity(self.items.len());
                     for (i, ((value, item), &(width, alpha))) in self.items.iter().zip(reveal).enumerate() {
-                        let own = crate::widget::action_salt(&self.salt, item.salt.as_ref(), item.command.as_ref(), value);
+                        let own =
+                            crate::widget::action_salt(&self.salt, item.salt.as_ref(), item.command.as_ref(), value);
                         let r = rt.ui(ui).mineral(Row {
                             key: StableId::of(&own, "fab-menu-item"),
                             salt: own,

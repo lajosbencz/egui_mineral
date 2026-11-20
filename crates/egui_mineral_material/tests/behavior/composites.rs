@@ -153,7 +153,9 @@ fn breadcrumbs_with_nothing_to_hide_show_every_crumb_once() {
     for items in [vec!["Home"], vec!["Home", "Page"]] {
         let n = items.len();
         let mut h = still(vec2(30.0, 100.0), items, |ui, items| {
-            Breadcrumbs::new("bc").items(items.clone().into_iter().enumerate()).show(ui);
+            Breadcrumbs::new("bc")
+                .items(items.clone().into_iter().enumerate())
+                .show(ui);
         });
         h.run();
         let keys: Vec<_> = h.tree().nodes.iter().map(|n| n.id.key().to_owned()).collect();

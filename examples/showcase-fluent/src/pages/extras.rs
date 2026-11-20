@@ -16,7 +16,7 @@ pub(crate) struct State {
     page: usize,
     palette_open: bool,
     query: String,
-    ran: Option<usize>,
+    ran: Option<&'static str>,
 }
 
 egui_mineral_fluent::egui_mineral::kit::opaque_debug!(State);
@@ -68,8 +68,8 @@ fn status_bar(ui: &mut FluentUi<'_>) {
     StatusBar::new("status", "Status")
         .item(StatusItem::new("Indexing").progress(StatusProgress::Circular(None)))
         .item(StatusItem::new("Upload").progress(StatusProgress::Linear(Some(0.4.into()))))
-        .item(StatusItem::new("2 errors").tone(StatusTone::Error).clickable(true))
-        .trailing(StatusItem::new("Ln 4, Col 2").clickable(true))
+        .action("errors", StatusItem::new("2 errors").tone(StatusTone::Error))
+        .trailing_action("position", "Ln 4, Col 2")
         .show(ui);
 }
 
@@ -84,14 +84,18 @@ fn command_palette(ui: &mut FluentUi<'_>, s: &mut State) {
         s.palette_open = true;
     }
     let commands = [
-        PaletteCommand::new("Save file").group("File").icon(ICON_SAVE),
-        PaletteCommand::new("Download").group("File").icon(ICON_ARROW_DOWNLOAD),
-        PaletteCommand::new("Toggle theme").group("View"),
+        ("save", PaletteCommand::new("Save file").group("File").icon(ICON_SAVE)),
+        (
+            "download",
+            PaletteCommand::new("Download").group("File").icon(ICON_ARROW_DOWNLOAD),
+        ),
+        ("theme", PaletteCommand::new("Toggle theme").group("View")),
     ];
     let toggle = KeyboardShortcut::new(Modifiers::COMMAND, Key::K);
     let rt = ui.rt();
-    let out = CommandPalette::new("palette", commands, &mut s.query)
+    let out = CommandPalette::new("palette", &mut s.query)
+        .actions(commands)
         .shortcut(toggle)
         .show_modal(rt, &mut s.palette_open);
-    s.ran = out.clicked.map(|c| c.index()).or(s.ran);
+    s.ran = out.clicked.or(s.ran);
 }

@@ -170,7 +170,9 @@ fn fields(size: Size) -> Vec<(String, Add)> {
         }),
         group(n("Toolbar"), move |ui| {
             let bar = Toolbar::new("c", "Tools").size(size);
-            bar.action(0, ToolbarButton::new("Add").icon(ICON_ADD)).show(ui).response
+            bar.action(0, ToolbarButton::new("Add").icon(ICON_ADD))
+                .show(ui)
+                .response
         }),
         group(n("Breadcrumb"), move |ui| {
             let items = [BreadcrumbItem::new("Home"), BreadcrumbItem::new("Here")];

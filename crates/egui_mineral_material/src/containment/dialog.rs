@@ -423,7 +423,6 @@ impl Dialog {
 }
 
 impl<A: ActionValue> Dialog<A> {
-
     /// End-edge handle resizes the dialog within [`Self::width`] (arrow keys when focused);
     /// the chosen width persists in egui memory and replaces content sizing until a double click
     /// on the handle. Default `false`.
@@ -726,7 +725,6 @@ impl FullScreenDialog {
 }
 
 impl<A: ActionValue> FullScreenDialog<A> {
-
     crate::widget::setters! {
         /// Replaces the `<id_salt>` key prefix.
         agent_key(salt)

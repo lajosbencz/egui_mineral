@@ -35,10 +35,7 @@ mod mirror {
             Accordion, Avatar, AvatarGroup, Breadcrumbs, DateField, DescriptionItem, DescriptionList, InlineEdit, Kbd,
             Pagination, Rating, Skeleton, SkeletonShape, Statistic, TagsField, Timeline, TimelineItem,
         },
-        extras::{
-            CommandPalette, DataTable, MenuStrip, PaletteCommand, SettingRow, Stepper, TableCell, TransferList,
-            TreeView,
-        },
+        extras::{CommandPalette, DataTable, MenuStrip, SettingRow, Stepper, TableCell, TransferList, TreeView},
         icons::{ICON_ADD, ICON_ARROW_DROP_DOWN, ICON_EDIT, ICON_HOME, ICON_MAIL, ICON_SHARE},
         navigation::{FloatingToolbar, NavDestination, NavigationBar, NavigationDrawer, TopAppBar},
         navigation::{Tab, Tabs},
@@ -148,7 +145,10 @@ mod mirror {
         let menu = Menu::new("more", "More").item(0, MenuItem::new("Draft"));
         SplitButton::new("send", "Send", menu).show(ui);
         TopAppBar::new("bar", "Title")
-            .actions([(0, IconAction::new(ICON_EDIT, "Edit")), (1, IconAction::new(ICON_SHARE, "Share"))])
+            .actions([
+                (0, IconAction::new(ICON_EDIT, "Edit")),
+                (1, IconAction::new(ICON_SHARE, "Share")),
+            ])
             .show(ui);
         DataTable::new("t", "Table", ["Name", "Size"])
             .selection(&mut selection)
@@ -179,7 +179,10 @@ mod mirror {
             .menu(Menu::new("edit", "Edit").item(0, MenuItem::new("Copy")))
             .show(ui);
         FloatingToolbar::new("tb", "Edit")
-            .actions([(0, IconAction::new(ICON_EDIT, "Edit")), (1, IconAction::new(ICON_SHARE, "Share"))])
+            .actions([
+                (0, IconAction::new(ICON_EDIT, "Edit")),
+                (1, IconAction::new(ICON_SHARE, "Share")),
+            ])
             .show(ui);
         ui.mineral(IconButton::new("mail", ICON_MAIL, "Mail").badge(Badge::count(12)));
         let options = [SelectOption::new("Wav"), SelectOption::new("Flac")];
@@ -262,7 +265,8 @@ mod mirror {
                 DatePicker::new("dp", "Date", &mut Some(Date::constant(2025, 6, 10))).show_modal(ui.rt(), &mut true);
             }),
             ("palette", |ui| {
-                CommandPalette::new("pal", [PaletteCommand::new("Save")], &mut String::new())
+                CommandPalette::new("pal", &mut String::new())
+                    .command("Save")
                     .show_modal(ui.rt(), &mut true);
             }),
         ];

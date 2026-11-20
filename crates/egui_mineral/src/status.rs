@@ -2,10 +2,7 @@
 
 use egui::Color32;
 
-use std::any::Any;
-
 use crate::{
-    action::ActionKey,
     icon::Icon,
     layout::{Elide, Fraction},
 };
@@ -48,15 +45,14 @@ pub enum StatusTone {
     },
 }
 
-/// Text, with an optional icon or progress indicator, in a stylekit's status bar.
+/// Text, with an optional icon or progress indicator, in a stylekit's status bar; the bar's `action` pairs it with
+/// the value it reports when clicked.
 #[derive(Clone, Debug, PartialEq)]
 #[must_use]
 pub struct StatusItem {
     text: String,
     lead: Option<StatusLead>,
     tooltip: Option<String>,
-    clickable: bool,
-    key: Option<ActionKey>,
     tone: StatusTone,
     elide: Option<Elide>,
     tabular: bool,
@@ -69,8 +65,6 @@ impl StatusItem {
             text: text.into(),
             lead: None,
             tooltip: None,
-            clickable: false,
-            key: None,
             tone: StatusTone::Default,
             elide: None,
             tabular: false,
@@ -92,20 +86,6 @@ impl StatusItem {
     /// Tooltip on hover; also the item's accessible description.
     pub fn tooltip(mut self, tooltip: impl Into<String>) -> Self {
         self.tooltip = Some(tooltip.into());
-        self
-    }
-
-    /// Focusable button, reported as clicked by the bar; default `false`.
-    pub fn clickable(mut self, clickable: bool) -> Self {
-        self.clickable = clickable;
-        self
-    }
-
-    /// App key of any type, reported as [`Clicked::key`](crate::action::Clicked::key) by the bar when the item
-    /// is clicked; makes the item [`clickable`](Self::clickable). See [`action`](crate::action).
-    pub fn key<K: Any + Clone + PartialEq + Send + Sync>(mut self, key: K) -> Self {
-        self.key = Some(ActionKey::new(key));
-        self.clickable = true;
         self
     }
 
@@ -143,16 +123,6 @@ impl StatusItem {
     /// Value of [`Self::tooltip`].
     pub fn tooltip_text(&self) -> Option<&str> {
         self.tooltip.as_deref()
-    }
-
-    /// Value of [`Self::clickable`].
-    pub fn is_clickable(&self) -> bool {
-        self.clickable
-    }
-
-    /// Value of [`Self::key`].
-    pub fn action_key(&self) -> Option<&ActionKey> {
-        self.key.as_ref()
     }
 
     /// Value of [`Self::tone`].

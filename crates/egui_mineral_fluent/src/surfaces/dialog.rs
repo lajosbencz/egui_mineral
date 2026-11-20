@@ -2,10 +2,10 @@ use crate::msg;
 use egui::{Align2, Frame, Id, Margin, Order, Rect, Response, Ui, Vec2, vec2};
 use egui_mineral::{
     action::{ActionValue, NoAction, Widen},
-    select::ItemKey,
     kit::{self, state::TempState},
     motion::{self, Visibility},
     overlay::{self, Dismiss},
+    select::ItemKey,
     semantic::{self, AgentKey, KeyedSalt, Role, SemanticNode},
     widget::MineralUi,
 };
@@ -288,7 +288,13 @@ impl<A: ActionValue> Dialog<A> {
         }
     }
 
-    fn finish<R>(&self, rt: &Rt, response: Response, shown: Shown<R, A>, dismissed: Option<Dismiss>) -> DialogResponse<R, A> {
+    fn finish<R>(
+        &self,
+        rt: &Rt,
+        response: Response,
+        shown: Shown<R, A>,
+        dismissed: Option<Dismiss>,
+    ) -> DialogResponse<R, A> {
         let role = if self.kind == DialogKind::Alert {
             Role::AlertDialog
         } else {

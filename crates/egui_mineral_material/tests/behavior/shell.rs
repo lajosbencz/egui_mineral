@@ -88,9 +88,7 @@ fn enter_with_focus(focus: Option<&str>) -> Option<usize> {
                         .hint_text("Notes"),
                 );
             });
-        form.action = form
-            .action
-            .or(r.clicked);
+        form.action = form.action.or(r.clicked);
     });
     if let Some(f) = focus {
         let id = if f.ends_with("-button") {

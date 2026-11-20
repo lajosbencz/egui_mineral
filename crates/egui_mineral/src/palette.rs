@@ -1,26 +1,20 @@
 //! Command palette data: entries and the result a stylekit's palette reports.
 
-use std::any::Any;
-
 use egui::KeyboardShortcut;
 
 use crate::{
-    action::{ActionKey, Clicked},
-    icon::Icon,
-    kit::command_palette::Entry,
-    overlay::Dismiss,
-    semantic::KeyedSalt,
+    action::NoAction, icon::Icon, kit::command_palette::Entry, overlay::Dismiss, semantic::KeyedSalt,
     shortcut::ActionId,
 };
 
-/// Entry of a stylekit's command palette.
+/// Entry of a stylekit's command palette; the palette pairs it with the value it reports, or it fires a
+/// [`command`](Self::command).
 #[derive(Clone, Debug)]
 #[must_use]
 pub struct PaletteCommand {
     label: String,
     group: Option<String>,
     id: Option<ActionId>,
-    key: Option<ActionKey>,
     shortcut: Option<KeyboardShortcut>,
     icon: Option<Icon>,
     disabled: bool,
@@ -34,7 +28,6 @@ impl PaletteCommand {
             label: label.into(),
             group: None,
             id: None,
-            key: None,
             shortcut: None,
             icon: None,
             disabled: false,
@@ -55,15 +48,8 @@ impl PaletteCommand {
         self
     }
 
-    /// App key of any type, reported as [`Clicked::key`] in [`CommandPaletteResponse::clicked`] when the entry
-    /// runs; several entries may share one (a page and its topics). See [`action`](crate::action).
-    pub fn key<K: Any + Clone + PartialEq + Send + Sync>(mut self, key: K) -> Self {
-        self.key = Some(ActionKey::new(key));
-        self
-    }
-
     /// Makes the entry a view of the app command `id`: running it fires the command
-    /// ([`shortcut::fire`](crate::shortcut::fire)) instead of reporting the entry as clicked. `shortcut` is bound
+    /// ([`shortcut::fire`](crate::shortcut::fire)) instead of reporting a value. `shortcut` is bound
     /// to `id` while the palette is shown, open or not; other views of `id` may bind the same shortcut.
     pub fn command(mut self, id: impl Into<ActionId>, shortcut: impl Into<Option<KeyboardShortcut>>) -> Self {
         self.id = Some(id.into());
@@ -114,10 +100,6 @@ impl Entry for PaletteCommand {
     fn accelerator(&self) -> Option<KeyboardShortcut> {
         self.shortcut
     }
-
-    fn action_key(&self) -> Option<&ActionKey> {
-        self.key.as_ref()
-    }
 }
 
 impl From<&str> for PaletteCommand {
@@ -133,25 +115,33 @@ impl From<String> for PaletteCommand {
 }
 
 /// Result of showing a stylekit's command palette.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct CommandPaletteResponse {
+pub struct CommandPaletteResponse<A = NoAction> {
     /// Palette surface; `None` while closed.
     pub response: Option<egui::Response>,
-    /// Run entry without a [`PaletteCommand::command`], with its [`PaletteCommand::key`]; command entries fire
-    /// their command instead.
-    pub clicked: Option<Clicked>,
+    /// Value of the entry run this pass; command entries fire their command instead.
+    pub clicked: Option<A>,
     /// Why it closed without running an entry.
     pub dismissed: Option<Dismiss>,
 }
 
-impl CommandPaletteResponse {
-    /// Shown surface `response` with the entry run and the dismissal of this pass.
-    pub fn new(response: egui::Response, clicked: Option<Clicked>, dismissed: Option<Dismiss>) -> Self {
+impl<A> CommandPaletteResponse<A> {
+    /// Shown surface `response` with the value run and the dismissal of this pass.
+    pub fn new(response: egui::Response, clicked: Option<A>, dismissed: Option<Dismiss>) -> Self {
         Self {
             response: Some(response),
             clicked,
             dismissed,
+        }
+    }
+
+    /// Nothing shown this pass.
+    pub fn closed() -> Self {
+        Self {
+            response: None,
+            clicked: None,
+            dismissed: None,
         }
     }
 }

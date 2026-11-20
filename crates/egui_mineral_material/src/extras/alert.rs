@@ -297,14 +297,10 @@ impl<A: ActionValue> Alert<A> {
                     parts::type_label(ui, &self.message, rich_tooltip::SUPPORTING_TEXT_FONT, text, 0);
                     if !self.actions.is_empty() {
                         parts::row(&mut rt.ui(ui), dir, target, |ui| {
-                            let buttons = self
-                                .actions
-                                .iter()
-                                .enumerate()
-                                .map(|(i, (v, a))| {
-                                    let own = crate::widget::action_salt(&self.salt, None, a.command.as_ref(), v);
-                                    (i, PushButton::new(own, &a.label))
-                                });
+                            let buttons = self.actions.iter().enumerate().map(|(i, (v, a))| {
+                                let own = crate::widget::action_salt(&self.salt, None, a.command.as_ref(), v);
+                                (i, PushButton::new(own, &a.label))
+                            });
                             action = crate::actions::text_actions(ui, buttons);
                         });
                     }

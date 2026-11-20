@@ -1,8 +1,4 @@
-use egui_mineral::{
-    action::ActionValue,
-    semantic::KeyedSalt,
-    shortcut::ActionId,
-};
+use egui_mineral::{action::ActionValue, semantic::KeyedSalt, shortcut::ActionId};
 
 use crate::Icon;
 
@@ -241,15 +237,6 @@ macro_rules! setters {
         $(#[$m])*
         pub fn salt(mut self, id_salt: impl Into<egui_mineral::semantic::KeyedSalt>) -> Self {
             self.salt = Some(id_salt.into());
-            self
-        }
-    };
-    ($(#[$m:meta])* action_key) => {
-        /// App key of any type, reported as [`Clicked::key`](egui_mineral::action::Clicked::key) when the item is clicked;
-        /// keys may repeat within a collection.
-        $(#[$m])*
-        pub fn key<K: std::any::Any + Clone + PartialEq + Send + Sync>(mut self, key: K) -> Self {
-            self.action_key = Some(egui_mineral::action::ActionKey::new(key));
             self
         }
     };

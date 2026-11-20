@@ -35,7 +35,7 @@ pub(crate) const TOPICS: &[&str] = &[
     "Status bar",
 ];
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, egui_mineral::semantic::KeySalt)]
 enum StatusAction {
     Branch,
     ResetZoom,
@@ -194,13 +194,13 @@ pub(crate) fn show(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) 
 fn status_bar(ui: &mut MaterialUi<'_>, s: &mut State) {
     super::section(ui, TOPICS[14], Some(StatusBar::META), |ui| {
         let r = StatusBar::new("nav-status", "Editor status")
-            .item(StatusItem::new("main").icon(ICON_CALL_SPLIT).key(StatusAction::Branch))
+            .action(StatusAction::Branch, StatusItem::new("main").icon(ICON_CALL_SPLIT))
             .item(
                 StatusItem::new("Indexing")
                     .progress(StatusProgress::Circular(None))
                     .tooltip("Background task"),
             )
-            .trailing(StatusItem::new(format!("Zoom {}%", s.zoom)).key(StatusAction::ResetZoom))
+            .trailing_action(StatusAction::ResetZoom, format!("Zoom {}%", s.zoom))
             .item(StatusItem::new("Uploading").progress(StatusProgress::Linear(Some(0.4.into()))))
             .item(StatusItem::new("Syncing").progress(StatusProgress::Linear(None)))
             .item(
@@ -210,7 +210,7 @@ fn status_bar(ui: &mut MaterialUi<'_>, s: &mut State) {
             )
             .trailing(StatusItem::new("UTF-8"))
             .show(ui);
-        match r.clicked.as_ref().and_then(Clicked::key::<StatusAction>) {
+        match r.clicked {
             Some(StatusAction::Branch) => "Status: branch".clone_into(&mut s.last_action),
             Some(StatusAction::ResetZoom) => s.zoom = 100,
             None => {}
@@ -435,7 +435,10 @@ fn app_bar_overflow(ui: &mut MaterialUi<'_>, shared: &mut Shared) {
             ("bookmark", IconAction::new(ICON_BOOKMARK, "Bookmark")),
             ("delete", IconAction::new(ICON_DELETE, "Delete")),
             ("settings", IconAction::new(ICON_SETTINGS, "Settings")),
-            ("copy", IconAction::new(ICON_CONTENT_COPY, "Copy").command(&COMMANDS[COPY].0)),
+            (
+                "copy",
+                IconAction::new(ICON_CONTENT_COPY, "Copy").command(&COMMANDS[COPY].0),
+            ),
         ])
         .show(ui);
     if let Some(share) = r.actions.get(&"share") {
@@ -690,11 +693,23 @@ fn command_label(i: usize) -> &'static str {
 fn edit_menu(id: impl Into<KeyedSalt>, s: &State) -> Menu<&'static str> {
     Menu::new(id, "Edit")
         .mnemonic('e')
-        .item(command_label(CUT), command_item(CUT).leading(ICON_CONTENT_CUT).mnemonic('t'))
-        .item(command_label(COPY), command_item(COPY).leading(ICON_CONTENT_COPY).mnemonic('c'))
-        .item(command_label(PASTE), command_item(PASTE).leading(ICON_CONTENT_PASTE).mnemonic('p'))
+        .item(
+            command_label(CUT),
+            command_item(CUT).leading(ICON_CONTENT_CUT).mnemonic('t'),
+        )
+        .item(
+            command_label(COPY),
+            command_item(COPY).leading(ICON_CONTENT_COPY).mnemonic('c'),
+        )
+        .item(
+            command_label(PASTE),
+            command_item(PASTE).leading(ICON_CONTENT_PASTE).mnemonic('p'),
+        )
         .divider()
-        .item("Checked", MenuItem::new("Checked").mnemonic('k').selected(s.menu_checked))
+        .item(
+            "Checked",
+            MenuItem::new("Checked").mnemonic('k').selected(s.menu_checked),
+        )
         .submenu(
             "Share",
             MenuItem::new("Share").trailing(ICON_SHARE).mnemonic('s'),

@@ -4,11 +4,11 @@ use std::time::Duration;
 use egui::{Align2, Frame, Id, Margin, Panel, Rect, Response, ScrollArea, Ui, UiBuilder, Vec2, pos2, vec2};
 use egui_mineral::{
     action::{ActionValue, NoAction, Widen},
-    select::ItemKey,
     i18n::Direction,
     kit::{self, state::TempState},
     motion::{self, Visibility},
     overlay::{self, Dismiss},
+    select::ItemKey,
     semantic::{self, AgentKey, KeyedSalt, Role, SemanticNode},
     widget::MineralUi,
 };

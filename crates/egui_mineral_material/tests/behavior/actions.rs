@@ -422,5 +422,9 @@ fn button_group_reports_the_item_value() {
     h.click("grp-copy-button");
     assert_eq!(h.state().value, Some("copy"));
     h.click("grp-1-button");
-    assert_eq!(h.state().value, Some("paste"), "an own salt keys the button, the value still reports");
+    assert_eq!(
+        h.state().value,
+        Some("paste"),
+        "an own salt keys the button, the value still reports"
+    );
 }

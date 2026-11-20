@@ -164,10 +164,7 @@ impl<'a, A: ActionValue> TopAppBar<'a, A> {
     }
 
     /// Appends `(value, action)` pairs; see [`Self::action`].
-    pub fn actions<B: ItemKey>(
-        self,
-        actions: impl IntoIterator<Item = (B, impl Into<IconAction>)>,
-    ) -> TopAppBar<'a, B>
+    pub fn actions<B: ItemKey>(self, actions: impl IntoIterator<Item = (B, impl Into<IconAction>)>) -> TopAppBar<'a, B>
     where
         A: Widen<B>,
     {
@@ -381,9 +378,12 @@ impl<'a, A: ActionValue> TopAppBar<'a, A> {
                 },
             )
             .inner;
-            let mut menu = Menu::new(self.salt.child("overflow"), label).emit_anchor(false).widen::<A>();
+            let mut menu = Menu::new(self.salt.child("overflow"), label)
+                .emit_anchor(false)
+                .widen::<A>();
             for (v, a) in self.actions.iter().skip(shown) {
-                let own = crate::widget::action_salt(&self.salt, a.salt.as_ref(), a.command.as_ref(), v).child("action");
+                let own =
+                    crate::widget::action_salt(&self.salt, a.salt.as_ref(), a.command.as_ref(), v).child("action");
                 let mut item = MenuItem::new(&a.label)
                     .leading(a.icon)
                     .disabled(a.disabled)

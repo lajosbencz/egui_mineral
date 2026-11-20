@@ -43,39 +43,45 @@ fn modal_bottom_sheet_returns_focus_to_the_trigger() {
 fn command_palette_returns_focus_and_reports_dismissal() {
     let h = still(WIDE, (false, String::new(), None), |ui, (open, query, dismissed)| {
         trigger(ui, open);
-        let r = CommandPalette::new("pal", [PaletteCommand::new("Save")], query).show_modal(ui.rt(), open);
+        let r = CommandPalette::new("pal", query)
+            .command("Save")
+            .show_modal(ui.rt(), open);
         *dismissed = dismissed.or(r.dismissed);
     });
     assert_focus_returns(h, |s| s.0);
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, egui_mineral::semantic::KeySalt)]
 enum Cmd {
+    Save,
+    Print,
     Open,
 }
 
 #[test]
 fn command_palette_reports_the_clicked_entry() {
     let mut h = still(WIDE, (true, String::new(), None), |ui, (open, query, clicked)| {
-        let commands = [PaletteCommand::new("Save"), PaletteCommand::new("Open").key(Cmd::Open)];
-        let r = CommandPalette::new("pal", commands, query).show_modal(ui.rt(), open);
+        let r = CommandPalette::new("pal", query)
+            .command("Save")
+            .action(Cmd::Open, "Open")
+            .show_modal(ui.rt(), open);
         *clicked = clicked.take().or(r.clicked);
     });
     h.run();
     h.click("pal-1-command");
-    let clicked = h.state().value.2.as_ref().map(|c| (c.index(), c.key::<Cmd>().copied()));
-    assert_eq!((h.state().value.0, clicked), (false, Some((1, Some(Cmd::Open)))));
+    assert_eq!((h.state().value.0, h.state().value.2), (false, Some(Cmd::Open)));
 }
 
 #[test]
 fn command_palette_applies_the_keys_of_a_pass_in_order_past_disabled_entries() {
     let mut h = still(WIDE, (true, String::new(), None), |ui, (open, query, clicked)| {
-        let commands = [
-            PaletteCommand::new("Save"),
-            PaletteCommand::new("Print").disabled(true),
-            PaletteCommand::new("Open"),
-        ];
-        let r = CommandPalette::new("pal", commands, query).show_modal(ui.rt(), open);
+        let r = CommandPalette::new("pal", query)
+            .actions([
+                (Cmd::Save, PaletteCommand::new("Save")),
+                (Cmd::Print, PaletteCommand::new("Print").disabled(true)),
+                (Cmd::Open, PaletteCommand::new("Open")),
+            ])
+            .show_modal(ui.rt(), open);
         *clicked = clicked.take().or(r.clicked);
     });
     h.run();
@@ -84,8 +90,7 @@ fn command_palette_applies_the_keys_of_a_pass_in_order_past_disabled_entries() {
     h.input_mut().events.extend(keys.into_iter().flatten());
     h.run();
     h.press(Key::Enter);
-    let clicked = h.state().value.2.as_ref().map(|c| (c.index(), c.key::<Cmd>().copied()));
-    assert_eq!((h.state().value.0, clicked), (false, Some((2, None))));
+    assert_eq!((h.state().value.0, h.state().value.2), (false, Some(Cmd::Open)));
 }
 
 #[test]

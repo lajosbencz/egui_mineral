@@ -71,7 +71,6 @@ impl MenuStrip {
 }
 
 impl<A: ActionValue> MenuStrip<A> {
-
     crate::widget::setters! {
         /// Replaces the `<id_salt>` key prefix.
         agent_key(salt)

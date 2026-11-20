@@ -4,6 +4,7 @@ use egui::{
     pos2, text::LayoutJob, vec2,
 };
 use egui_mineral::{
+    action::{ActionValue, NoAction, Widen},
     i18n::Direction,
     kit::{
         self,
@@ -11,6 +12,7 @@ use egui_mineral::{
         state::TempState,
     },
     overlay,
+    select::ItemKey,
     semantic::{self, KeyedSalt, Role, SemanticNode, StableId},
     shortcut,
     widget::{Availability, MineralUi},
@@ -47,27 +49,82 @@ pub use egui_mineral::palette::{CommandPaletteResponse, PaletteCommand};
 /// Modal fuzzy-filtered command list; not in Fluent UI React v9 (shadcn `Command` pattern).
 #[derive(Debug)]
 #[must_use = "call .show_modal(..)"]
-pub struct CommandPalette<'a> {
+pub struct CommandPalette<'a, A = NoAction> {
     salt: KeyedSalt,
     query: &'a mut String,
     commands: Vec<PaletteCommand>,
+    values: Vec<Option<A>>,
     placeholder: Option<String>,
     shortcut: Option<KeyboardShortcut>,
 }
 
 impl<'a> CommandPalette<'a> {
     /// `query` is the bound search text. Agent key prefix `<id_salt>`.
-    pub fn new(
-        id_salt: impl Into<KeyedSalt>,
-        commands: impl IntoIterator<Item = impl Into<PaletteCommand>>,
-        query: &'a mut String,
-    ) -> Self {
+    pub fn new(id_salt: impl Into<KeyedSalt>, query: &'a mut String) -> Self {
         Self {
             salt: id_salt.into(),
             query,
-            commands: commands.into_iter().map(Into::into).collect(),
+            commands: Vec::new(),
+            values: Vec::new(),
             placeholder: None,
             shortcut: None,
+        }
+    }
+}
+
+impl<'a, A: ActionValue> CommandPalette<'a, A> {
+    /// Appends an entry reporting no value: a [`PaletteCommand::command`] view fires its command.
+    pub fn command(mut self, command: impl Into<PaletteCommand>) -> Self {
+        self.commands.push(command.into());
+        self.values.push(None);
+        self
+    }
+
+    /// Appends entries reporting no value.
+    pub fn commands(mut self, commands: impl IntoIterator<Item = impl Into<PaletteCommand>>) -> Self {
+        for command in commands {
+            self = self.command(command);
+        }
+        self
+    }
+
+    /// Appends the entry reporting `value` when run.
+    pub fn action<B: ItemKey>(self, value: B, command: impl Into<PaletteCommand>) -> CommandPalette<'a, B>
+    where
+        A: Widen<B>,
+    {
+        let mut next = self.retype();
+        next.commands.push(command.into());
+        next.values.push(Some(value));
+        next
+    }
+
+    /// Appends `(value, entry)` pairs.
+    pub fn actions<B: ItemKey>(
+        self,
+        commands: impl IntoIterator<Item = (B, impl Into<PaletteCommand>)>,
+    ) -> CommandPalette<'a, B>
+    where
+        A: Widen<B>,
+    {
+        let mut next = self.retype();
+        for (value, command) in commands {
+            next = next.action(value, command);
+        }
+        next
+    }
+
+    fn retype<B>(self) -> CommandPalette<'a, B>
+    where
+        A: Widen<B>,
+    {
+        CommandPalette {
+            salt: self.salt,
+            query: self.query,
+            commands: self.commands,
+            values: self.values.into_iter().map(|v| v.map(Widen::widen)).collect(),
+            placeholder: self.placeholder,
+            shortcut: self.shortcut,
         }
     }
 
@@ -90,12 +147,12 @@ impl<'a> CommandPalette<'a> {
     }
 
     /// Modal palette while `open`; running an entry or a dismissal clears `open`.
-    pub fn show_modal(self, rt: &Rt, open: &mut bool) -> CommandPaletteResponse {
+    pub fn show_modal(self, rt: &Rt, open: &mut bool) -> CommandPaletteResponse<A> {
         let id = kit::scoped_id(rt.core(), Id::unique(("mineral::command_palette", self.salt.id_salt())));
         ModalFocus::scope(rt.ctx(), id.with("focus"), open, |_, open| self.run(rt, id, open))
     }
 
-    fn run(self, rt: &Rt, id: Id, open: &mut bool) -> CommandPaletteResponse {
+    fn run(self, rt: &Rt, id: Id, open: &mut bool) -> CommandPaletteResponse<A> {
         let ctx = rt.ctx();
         let area_id = id.with("area");
         let area = kit::layer::modal_area(rt.core(), area_id);
@@ -108,7 +165,7 @@ impl<'a> CommandPalette<'a> {
             if st.was_open {
                 State::remove(ctx, id);
             }
-            return CommandPaletteResponse::default();
+            return CommandPaletteResponse::closed();
         }
         let opened = !st.was_open;
         if opened {
@@ -183,7 +240,8 @@ impl<'a> CommandPalette<'a> {
         palette::finish(ctx, &self.commands, &mut run, dismissed, open);
         st.was_open = *open;
         st.store(ctx, id);
-        CommandPaletteResponse::new(modal.response, palette::clicked(&self.commands, run), dismissed)
+        let clicked = run.and_then(|i| self.values.get(i).cloned().flatten());
+        CommandPaletteResponse::new(modal.response, clicked, dismissed)
     }
 
     fn search(

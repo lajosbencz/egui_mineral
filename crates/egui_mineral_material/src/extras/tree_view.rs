@@ -16,7 +16,6 @@ use egui::{Color32, DragAndDrop, Id, Key, Modifiers, Rangef, Rect, Response, Sen
 use egui_mineral::widget::Availability;
 use egui_mineral::{
     action::{ActionValue, ItemResponses, NoAction},
-    select::ItemKey,
     dnd,
     expand::Expansion,
     focus::{self, Typeahead},
@@ -24,6 +23,7 @@ use egui_mineral::{
     kit,
     layout::{Constraints, Measure},
     perf::VirtualList,
+    select::ItemKey,
     select::{Check, Selection},
     semantic::{self, Action, Role, SemanticNode, StableId},
     shortcut,

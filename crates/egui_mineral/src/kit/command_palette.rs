@@ -5,7 +5,6 @@ use std::{collections::HashMap, hash::Hash};
 use egui::{Context, Id, KeyboardShortcut};
 
 use crate::{
-    action::{ActionKey, Clicked},
     combobox::{ComboAction, ComboKind, ComboList, ComboState},
     filter::Query,
     kit::state::{Memo, TempState},
@@ -26,8 +25,6 @@ pub trait Entry {
     fn action(&self) -> Option<&ActionId>;
     /// Shortcut bound to [`action`](Self::action) while the palette is shown.
     fn accelerator(&self) -> Option<KeyboardShortcut>;
-    /// App key reported with the entry when it runs.
-    fn action_key(&self) -> Option<&ActionKey>;
 }
 
 /// Row of the filtered list.
@@ -245,11 +242,6 @@ pub fn finish<E: Entry>(
     }
 }
 
-/// Entry `run` left by [`finish`] as the response reports it: its index and [`Entry::action_key`].
-pub fn clicked<E: Entry>(entries: &[E], run: Option<usize>) -> Option<Clicked> {
-    run.map(|i| Clicked::new(i, entries.get(i).and_then(Entry::action_key).cloned()))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -270,9 +262,6 @@ mod tests {
             None
         }
         fn accelerator(&self) -> Option<KeyboardShortcut> {
-            None
-        }
-        fn action_key(&self) -> Option<&ActionKey> {
             None
         }
     }

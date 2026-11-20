@@ -214,10 +214,7 @@ fn menus(ui: &mut FluentUi<'_>, s: &mut State) {
         ..
     } = s;
     let r = Menu::new("menu", "Edit").show(rt, &trigger, menu_open, |m| {
-        m.item(
-            Edit::Cut,
-            MenuItem::new("Cut").icon(ICON_CUT).secondary_text("Ctrl+X"),
-        );
+        m.item(Edit::Cut, MenuItem::new("Cut").icon(ICON_CUT).secondary_text("Ctrl+X"));
         m.item(Edit::Paste, MenuItem::new("Paste").disabled(true));
         m.divider();
         m.checkbox_item("Word wrap", wrap);

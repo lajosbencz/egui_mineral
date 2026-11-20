@@ -1,5 +1,5 @@
 use egui::{Event, ImeEvent, Key, Shape};
-use egui_mineral::{action::Clicked, anchor::Side, date::Date, overlay::Dismiss};
+use egui_mineral::{anchor::Side, date::Date, overlay::Dismiss};
 use egui_mineral_material::{
     actions::PushButton,
     communication::RichTooltip,
@@ -237,18 +237,19 @@ fn popover_opens_from_code() {
     assert!(!h.state().value, "Escape clears the app's flag");
 }
 
-fn status_bar(ui: &mut crate::support::Mui<'_>) -> Option<Clicked> {
+fn status_bar(ui: &mut crate::support::Mui<'_>) -> Option<Status> {
     StatusBar::new("status", "Status")
         .item(StatusItem::new("Indexing").progress(StatusProgress::Circular(Some(0.4.into()))))
-        .trailing(StatusItem::new("Ln 4, Col 2").key(Status::Position))
-        .item(StatusItem::new("A very long item that does not fit").clickable(true))
+        .trailing_action(Status::Position, "Ln 4, Col 2")
+        .action(Status::Long, "A very long item that does not fit")
         .show(ui)
         .clicked
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, egui_mineral::semantic::KeySalt)]
 enum Status {
     Position,
+    Long,
 }
 
 #[test]
@@ -266,12 +267,7 @@ fn status_bar_reports_clicks_and_drops_what_does_not_fit() {
         "overflow is dropped"
     );
     h.click("status-1-status-item");
-    let clicked = h
-        .state()
-        .value
-        .as_ref()
-        .map(|c| (c.index(), c.key::<Status>().copied()));
-    assert_eq!(clicked, Some((1, Some(Status::Position))));
+    assert_eq!(h.state().value, Some(Status::Position));
 }
 
 #[test]

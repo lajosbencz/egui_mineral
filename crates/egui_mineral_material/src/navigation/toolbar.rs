@@ -12,10 +12,10 @@ use egui::{Id, Layout, Rangef, Rect, Response, Sense, Ui, UiBuilder, pos2, vec2}
 use egui_mineral::widget::Availability;
 use egui_mineral::{
     action::{ActionValue, ItemResponses, NoAction, Widen},
-    select::ItemKey,
     focus::RovingFocus,
     i18n::Direction,
     layout::{Axis, Constraints, Edge, Measure},
+    select::ItemKey,
     semantic::{self, Role, SemanticNode, StableId},
     shortcut,
     widget::{MineralWidget, WidgetFrame, WidgetResponse},
@@ -93,7 +93,14 @@ fn custom_id(toolbar: &KeyedSalt, c: &Custom<'_>) -> Id {
 
 // Main-axis length per item, `None` when hidden. Custom items take the width measured last pass; vertical
 // toolbars and, beyond `room`, trailing custom items are hidden.
-fn plan<A>(ui: &Ui, salt: &KeyedSalt, list: &[Item<'_, A>], item: f32, axis: Axis, room: Option<f32>) -> Vec<Option<f32>> {
+fn plan<A>(
+    ui: &Ui,
+    salt: &KeyedSalt,
+    list: &[Item<'_, A>],
+    item: f32,
+    axis: Axis,
+    room: Option<f32>,
+) -> Vec<Option<f32>> {
     let mut widths: Vec<Option<f32>> = list
         .iter()
         .map(|i| match i {
