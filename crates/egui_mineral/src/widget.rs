@@ -335,7 +335,8 @@ impl<'a, K> MineralUi<'a, K> {
         Rc::clone(self.input.get_or_init(|| Rc::new(self.rt.core().input())))
     }
 
-    /// Outlives this borrow of the `Ui`; wraps child uis inside egui closures via [`Runtime::ui`].
+    /// Outlives this borrow of the `Ui`; wraps the plain `Ui` of egui closures via [`Runtime::ui`] where no
+    /// layout method of `MineralUi` applies.
     pub fn rt(&self) -> &'a Runtime<K> {
         self.rt
     }

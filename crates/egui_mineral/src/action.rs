@@ -45,7 +45,7 @@ impl Clicked {
         self.index
     }
 
-    /// The item's `.key(..)`; `None` when it has none.
+    /// App key set with `.key(..)` on the item; `None` when it has none.
     pub fn key(&self) -> Option<&ActionId> {
         self.key.as_ref()
     }
@@ -55,7 +55,7 @@ impl Clicked {
         self.key.as_ref().and_then(ActionId::as_str)
     }
 
-    /// Whether the item carries `key`.
+    /// `true` when the item carries `key`.
     pub fn is(&self, key: &ActionId) -> bool {
         self.key.as_ref() == Some(key)
     }

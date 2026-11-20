@@ -35,15 +35,17 @@ struct App {
 }
 
 impl App {
-    fn new(ctx: &egui::Context) -> Result<Self, egui_mineral_material::egui_mineral::runtime::InitError> {
+    fn new(ctx: &egui::Context) -> Result<Self, InitError> {
         let rt = Runtime::new(ctx, Material::default())?;
         Ok(Self { rt, clicks: 0 })
     }
 
     /// Call from `eframe::App::ui`.
     fn ui(&mut self, ui: &mut egui::Ui) {
+        // Disjoint field borrows; the `Arc` is not cloned per frame.
+        let rt = &self.rt;
         let clicks = &mut self.clicks;
-        self.rt.pass(ui, |ui| {
+        rt.pass(ui, |ui| {
             if ui.mineral(PushButton::new("counter", format!("Clicked {clicks} times"))).clicked() {
                 *clicks += 1;
             }

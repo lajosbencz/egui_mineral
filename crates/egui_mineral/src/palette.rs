@@ -108,7 +108,7 @@ impl Entry for PaletteCommand {
         self.shortcut
     }
 
-    fn key(&self) -> Option<&ActionId> {
+    fn action_key(&self) -> Option<&ActionId> {
         self.key.as_ref()
     }
 }

@@ -1,5 +1,4 @@
 use egui_mineral::semantic::AgentKey;
-use std::num::NonZeroU8;
 
 use crate::Material;
 use crate::MaterialExt;
@@ -39,7 +38,7 @@ pub struct Rating<'a> {
     key: AgentKey,
     label: String,
     value: &'a mut f64,
-    max: NonZeroU8,
+    max: u8,
     half: bool,
     size: Size,
     icon: Option<Icon>,
@@ -57,7 +56,7 @@ impl<'a> Rating<'a> {
             salt: id_salt,
             label: label.into(),
             value,
-            max: NonZeroU8::MIN.saturating_add(4),
+            max: 5,
             half: false,
             size: Size::Small,
             icon: None,
@@ -67,9 +66,9 @@ impl<'a> Rating<'a> {
         }
     }
 
-    /// Icon count; default 5.
-    pub fn count(mut self, count: NonZeroU8) -> Self {
-        self.max = count;
+    /// Icon count, at least 1; default 5.
+    pub fn count(mut self, count: u8) -> Self {
+        self.max = egui_mineral::kit::sanitize::at_least(count, 1.., "Rating count");
         self
     }
 
@@ -118,7 +117,7 @@ impl<'a> Rating<'a> {
     }
 
     fn model(&self) -> RangeModel {
-        RangeModel::new(0.0, f64::from(self.max.get())).step(if self.half { 0.5 } else { 1.0 })
+        RangeModel::new(0.0, f64::from(self.max)).step(if self.half { 0.5 } else { 1.0 })
     }
 
     fn interactive(&self) -> bool {
@@ -131,7 +130,7 @@ impl<'a> Rating<'a> {
             p,
             dir,
             self.cell().0.x,
-            self.max.get(),
+            self.max,
             egui_mineral::kit::rating::Step::half_if(self.half),
         )
     }
@@ -143,7 +142,7 @@ impl<'a> Rating<'a> {
             "mineral-rating-value",
             &[
                 ("value", f.number_lossy(v, Some(digits)).into()),
-                ("max", f.integer(i64::from(self.max.get())).into()),
+                ("max", f.integer(i64::from(self.max)).into()),
             ],
         )
     }
@@ -166,7 +165,7 @@ impl MineralWidget for Rating<'_> {
 
     fn layout(&self, _ui: &MineralUi<'_, Material>, c: Constraints, (): &Self::State) -> Measure {
         let cell = self.cell().0;
-        c.constrain(vec2(f32::from(self.max.get()) * cell.x, cell.y)).into()
+        c.constrain(vec2(f32::from(self.max) * cell.x, cell.y)).into()
     }
 
     fn update(&mut self, ui: &mut MineralUi<'_, Material>, frame: &WidgetFrame<'_>, (): &mut ()) -> WidgetResponse {
@@ -218,7 +217,7 @@ impl MineralWidget for Rating<'_> {
         // The state layer marks the star a click or arrow key acts from.
         let marked = if hover.is_some() { shown } else { v as f32 };
         #[expect(clippy::cast_possible_truncation, clippy::cast_sign_loss, reason = "0..max")]
-        let at = (marked.ceil() as u8).clamp(1, self.max.get()) - 1;
+        let at = (marked.ceil() as u8).clamp(1, self.max) - 1;
         let layer = if f32::from(at) < shown { full } else { empty };
         let shape = ShapeRole::CornerFull.corner_radius(&t.shape, dir);
         indication::paint(
@@ -232,7 +231,7 @@ impl MineralWidget for Rating<'_> {
         );
         let icon = self.icon.unwrap_or(ui.icons().star);
         let p = ui.painter();
-        for i in 0..self.max.get() {
+        for i in 0..self.max {
             let star = Rect::from_center_size(star(i).center(), Vec2::splat(size));
             let part = (shown - f32::from(i)).clamp(0.0, 1.0);
             if part < 1.0 {

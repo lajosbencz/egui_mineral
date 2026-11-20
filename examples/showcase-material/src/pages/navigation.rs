@@ -337,11 +337,7 @@ fn rail_drawer(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
                 });
             });
             row.add(|ui| {
-                caption(
-                    ui,
-                    TypeScale::LabelMedium,
-                    "Expressive, toggled by the menu button",
-                );
+                caption(ui, TypeScale::LabelMedium, "Expressive, toggled by the menu button");
                 boxed(ui, vec2(340.0, 420.0), |ui| {
                     let expanded = s.rail_expanded;
                     let r = NavigationRail::new("nav-rail-toggle", &mut s.rail_toggle)
@@ -918,7 +914,8 @@ fn stepper(ui: &mut Mui<'_>, s: &mut State) {
             });
         step_buttons(ui, &mut s.steps_h, "nav-step-h-btn");
         let mut err = s.steps_h.status(1) == egui_mineral::steps::StepStatus::Error;
-        if ui.mineral(CheckButton::new("nav-step-error", "Profile step in error", &mut err))
+        if ui
+            .mineral(CheckButton::new("nav-step-error", "Profile step in error", &mut err))
             .changed()
         {
             s.steps_h.set_error(1, err);
@@ -1003,7 +1000,8 @@ fn search(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     });
     super::section(ui, TOPICS[13], Some(<SearchSuggestions<'static>>::META), |ui| {
         caption(ui, TypeScale::LabelMedium, "SearchSuggestions");
-        if let Some(i) = ui.mineral(SearchSuggestions::new(
+        if let Some(i) = ui
+            .mineral(SearchSuggestions::new(
                 "nav-suggest",
                 "Search fruit",
                 &s.suggestions,

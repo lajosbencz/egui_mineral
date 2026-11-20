@@ -287,7 +287,9 @@ impl<'a> SwatchPicker<'a> {
                 });
             }
         };
-        let group = ui.push_id(salt.id_salt(), |ui| ui.vertical(|ui| body(ui)).response).inner;
+        let group = ui
+            .push_id(salt.id_salt(), |ui| ui.vertical(|ui| body(ui)).response)
+            .inner;
         let roving = match layout {
             SwatchLayout::Row => RovingFocus::new(Axis::Horizontal),
             SwatchLayout::Grid { .. } => RovingFocus::grid(columns),

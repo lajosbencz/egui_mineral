@@ -29,15 +29,17 @@
 //! }
 //!
 //! impl App {
-//!     fn new(ctx: &egui::Context) -> Result<Self, egui_mineral_fluent::egui_mineral::runtime::InitError> {
+//!     fn new(ctx: &egui::Context) -> Result<Self, InitError> {
 //!         let rt = Runtime::new(ctx, Fluent::default())?;
 //!         Ok(Self { rt, clicks: 0 })
 //!     }
 //!
 //!     /// Call from `eframe::App::ui`.
 //!     fn ui(&mut self, ui: &mut egui::Ui) {
+//!         // Disjoint field borrows; the `Arc` is not cloned per frame.
+//!         let rt = &self.rt;
 //!         let clicks = &mut self.clicks;
-//!         self.rt.pass(ui, |ui| {
+//!         rt.pass(ui, |ui| {
 //!             let label = format!("Clicked {clicks} times");
 //!             if ui.mineral(PushButton::new("counter", label).appearance(ButtonAppearance::Primary)).clicked() {
 //!                 *clicks += 1;
@@ -49,7 +51,7 @@
 //! # let mut app = App::new(&ctx)?;
 //! # let mut output = ctx.run_ui(egui::RawInput::default(), |ui| app.ui(ui));
 //! # output.textures_delta.clear();
-//! # Ok::<(), egui_mineral_fluent::egui_mineral::runtime::InitError>(())
+//! # Ok::<(), InitError>(())
 //! ```
 //!
 //! Each native window can run its own runtime, with its own theme, brand and locale.

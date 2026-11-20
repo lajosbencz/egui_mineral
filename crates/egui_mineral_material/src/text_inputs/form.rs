@@ -1,5 +1,3 @@
-use std::num::NonZeroUsize;
-
 use crate::Material;
 use crate::MaterialExt;
 use egui_mineral::form::{FieldCtx, FieldKind, Form, FormFooter, FormResponse};
@@ -57,9 +55,9 @@ fn field(ui: &mut MineralUi<'_, Material>, f: &mut FieldCtx<'_>) -> egui::Respon
     let mut tf = TextField::new(f.form_salt.child(spec.name().to_owned()), label, f.state.value_mut())
         .masked(spec.input_kind() == FieldKind::Password)
         .rows(if spec.input_kind() == FieldKind::Multiline {
-            NonZeroUsize::MIN.saturating_add(2)
+            3
         } else {
-            NonZeroUsize::MIN
+            1
         })
         .maybe_error(error);
     if let Some(h) = spec.supporting_text() {

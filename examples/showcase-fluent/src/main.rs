@@ -102,8 +102,13 @@ fn material_icons() -> IconSet {
     set
 }
 
+// The runtime sits beside the state it shows: `let rt = &self.rt;` borrows one field, `self.shell` the other.
 struct App {
     rt: Arc<Rt>,
+    shell: Shell,
+}
+
+struct Shell {
     page: Page,
     inspector: Inspector,
     settings: Settings,
@@ -116,24 +121,32 @@ impl App {
         let rt = Runtime::new(ctx, kit(ctx))?;
         Ok(Self {
             rt,
-            page: Page::Foundations,
-            inspector: Inspector::default(),
-            settings: Settings::default(),
-            applied: None,
-            state: pages::State::default(),
+            shell: Shell {
+                page: Page::Foundations,
+                inspector: Inspector::default(),
+                settings: Settings::default(),
+                applied: None,
+                state: pages::State::default(),
+            },
         })
     }
 
+    fn show(&mut self, ui: &mut Ui) -> ScrollAreaOutput<()> {
+        let rt = &self.rt;
+        self.shell.show(rt, ui)
+    }
+}
+
+impl Shell {
     fn navigate(&mut self, page: Page) {
         self.page = page;
     }
 
-    fn apply_settings(&mut self) {
+    fn apply_settings(&mut self, rt: &Rt) {
         let s = &self.settings;
         if self.applied.as_ref() == Some(s) {
             return;
         }
-        let rt = Arc::clone(&self.rt);
         let ctx = rt.ctx();
         let kit = rt.kit();
         rt.core().set_preference(THEMES[s.theme].0);
@@ -204,12 +217,11 @@ impl App {
         });
     }
 
-    fn shell(&mut self, ui: &mut Ui) -> ScrollAreaOutput<()> {
-        let rt = Arc::clone(&self.rt);
+    fn show(&mut self, rt: &Rt, ui: &mut Ui) -> ScrollAreaOutput<()> {
         self.inspector.toggle_on(rt.ctx(), INSPECTOR);
-        self.apply_settings();
+        self.apply_settings(rt);
         let page = rt.pass(ui, |ui| self.body(ui));
-        self.inspector.show(&rt);
+        self.inspector.show(rt);
         page
     }
 
@@ -244,9 +256,10 @@ impl App {
 
 impl eframe::App for App {
     fn ui(&mut self, ui: &mut Ui, frame: &mut eframe::Frame) {
-        self.inspector
+        self.shell
+            .inspector
             .set_cpu_time(frame.info().cpu_usage.map(std::time::Duration::from_secs_f32));
-        self.shell(ui);
+        self.show(ui);
     }
 }
 
@@ -405,8 +418,8 @@ mod tests {
             ctx.set_zoom_factor(zoom);
             let mut app = App::new(&ctx).expect("showcase app");
             app.rt.set_collect_semantics(true);
-            app.settings.locale = locale;
-            app.settings.high_contrast = high_contrast;
+            app.shell.settings.locale = locale;
+            app.shell.settings.high_contrast = high_contrast;
             (ctx, app)
         };
         let classes: Vec<egui::Vec2> = std::iter::once(COMPACT_MIN)
@@ -446,7 +459,7 @@ mod tests {
     }
 
     fn check(ctx: &egui::Context, app: &mut App, page: Page, size: egui::Vec2, width: bool) -> BTreeSet<String> {
-        app.navigate(page);
+        app.shell.navigate(page);
         let mut problems = BTreeSet::new();
         let mut over = 0.0;
         for _ in 0..if width { SETTLE } else { 2 } {
@@ -455,7 +468,7 @@ mod tests {
                 ..RawInput::default()
             };
             let mut out = ctx.run_ui(raw, |ui| {
-                let page = app.shell(ui);
+                let page = app.show(ui);
                 over = page.content_size.x - page.inner_rect.width();
             });
             out.textures_delta.clear();

@@ -210,11 +210,11 @@ fn button(ui: &mut Mui<'_>, id: &str, label: &str) -> bool {
 
 fn button_if(ui: &mut Mui<'_>, id: &str, label: &str, enabled: bool) -> bool {
     ui.mineral(
-            PushButton::new(id.to_owned(), label)
-                .variant(ButtonVariant::Tonal)
-                .disabled(!enabled),
-        )
-        .clicked()
+        PushButton::new(id.to_owned(), label)
+            .variant(ButtonVariant::Tonal)
+            .disabled(!enabled),
+    )
+    .clicked()
 }
 
 fn error_alert(ui: &mut Mui<'_>, id: &str, msg: &mut Option<String>) {

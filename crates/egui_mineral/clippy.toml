@@ -3,11 +3,16 @@ allow-unwrap-in-tests = true
 allow-indexing-slicing-in-tests = true
 
 disallowed-methods = [
-  # Rule 11: the core spawns no threads or tasks; apps own them through their Spawner.
+  # Rule 11: the core spawns no threads or tasks; apps own them through their Spawner. The `spawn` adapters expect() theirs.
   { path = "std::thread::spawn", reason = "docs/rules.md rule 11: the core spawns nothing, apps spawn via Spawner" },
   { path = "std::thread::Builder::spawn", reason = "docs/rules.md rule 11: the core spawns nothing, apps spawn via Spawner" },
   { path = "wasm_bindgen_futures::spawn_local", reason = "docs/rules.md rule 11: the core spawns nothing, apps spawn via Spawner" },
-  { path = "tokio::spawn", reason = "docs/rules.md rules 9 and 11: the core has no Tokio and spawns nothing" },
+  { path = "tokio::spawn", reason = "docs/rules.md rules 9 and 11: the core spawns nothing outside the spawn adapters" },
+  { path = "tokio::task::spawn_blocking", reason = "docs/rules.md rules 9 and 11: the core spawns nothing outside the spawn adapters" },
+  { path = "tokio::runtime::Handle::spawn", reason = "docs/rules.md rules 9 and 11: the core spawns nothing outside the spawn adapters" },
+  { path = "tokio::runtime::Handle::spawn_blocking", reason = "docs/rules.md rules 9 and 11: the core spawns nothing outside the spawn adapters" },
+  { path = "tokio::task::JoinSet::spawn_on", reason = "docs/rules.md rules 9 and 11: the core spawns nothing outside the spawn adapters" },
+  { path = "tokio::task::JoinSet::spawn_blocking_on", reason = "docs/rules.md rules 9 and 11: the core spawns nothing outside the spawn adapters" },
 
   # Rule 5: the core is headless; stylekits paint from core responses.
   { path = "egui::Ui::painter", reason = "docs/rules.md rule 5: the core does not paint" },

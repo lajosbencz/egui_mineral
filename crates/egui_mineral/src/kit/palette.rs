@@ -27,7 +27,7 @@ pub trait Entry {
     /// Shortcut bound to [`action`](Self::action) while the palette is shown.
     fn accelerator(&self) -> Option<KeyboardShortcut>;
     /// App key reported with the entry when it runs.
-    fn key(&self) -> Option<&ActionId>;
+    fn action_key(&self) -> Option<&ActionId>;
 }
 
 /// Row of the filtered list.
@@ -208,9 +208,9 @@ pub fn finish<E: Entry>(
     }
 }
 
-/// Entry `run` left by [`finish`] as the response reports it: its index and [`Entry::key`].
+/// Entry `run` left by [`finish`] as the response reports it: its index and [`Entry::action_key`].
 pub fn clicked<E: Entry>(entries: &[E], run: Option<usize>) -> Option<Clicked> {
-    run.map(|i| Clicked::new(i, entries.get(i).and_then(Entry::key).cloned()))
+    run.map(|i| Clicked::new(i, entries.get(i).and_then(Entry::action_key).cloned()))
 }
 
 #[cfg(test)]
@@ -235,7 +235,7 @@ mod tests {
         fn accelerator(&self) -> Option<KeyboardShortcut> {
             None
         }
-        fn key(&self) -> Option<&ActionId> {
+        fn action_key(&self) -> Option<&ActionId> {
             None
         }
     }

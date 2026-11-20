@@ -293,7 +293,8 @@ fn alerts(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
         }
     }
     if s.dismissed.iter().any(|d| *d)
-        && ui.mineral(PushButton::new("alert-reset", "Restore alerts").variant(ButtonVariant::Text))
+        && ui
+            .mineral(PushButton::new("alert-reset", "Restore alerts").variant(ButtonVariant::Text))
             .clicked()
     {
         s.dismissed = [false; 4];
@@ -326,7 +327,8 @@ fn skeletons(ui: &mut Mui<'_>) {
 
 fn tour(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     ui.label("Each step highlights one of the widgets below.");
-    if ui.mineral(PushButton::new("tour-start", "Start tour").icon(ICON_ADD))
+    if ui
+        .mineral(PushButton::new("tour-start", "Start tour").icon(ICON_ADD))
         .clicked()
     {
         s.tour_step = Some(0);

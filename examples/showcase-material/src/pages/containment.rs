@@ -12,7 +12,6 @@ use egui_mineral_material::{
     },
     prelude::*,
 };
-use std::num::NonZero;
 
 use super::{Shared, section, sub};
 
@@ -275,7 +274,7 @@ fn dialogs(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
             ui.mineral(TextField::new("dlg-name", "Name", &mut s.dialog_name).preferred_width(260.0));
             ui.mineral(
                 TextField::new("dlg-notes", "Notes", &mut s.dialog_notes)
-                    .rows(NonZero::new(3).expect("non-zero"))
+                    .rows(3)
                     .preferred_width(260.0),
             );
         });
@@ -546,7 +545,8 @@ fn swipe(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
         s.swipe_rows.remove(i);
     }
     if s.swipe_rows.len() < SWIPE_ROWS.len()
-        && ui.mineral(PushButton::new("swipe-reset", "Restore rows").variant(ButtonVariant::Text))
+        && ui
+            .mineral(PushButton::new("swipe-reset", "Restore rows").variant(ButtonVariant::Text))
             .clicked()
     {
         s.swipe_rows = SWIPE_ROWS.to_vec();

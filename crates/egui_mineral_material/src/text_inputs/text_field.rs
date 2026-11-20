@@ -9,7 +9,7 @@ use egui_mineral::kit::state::TempState;
 use egui_mineral::semantic::AgentKey;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::MineralUi;
-use std::{num::NonZeroUsize, sync::Arc};
+use std::sync::Arc;
 
 use egui::{
     Color32, EventFilter, FontId, Frame, Galley, Id, Margin, Painter, Pos2, Rangef, Rect, Response, ScrollArea, Shape,
@@ -816,7 +816,7 @@ pub struct TextField<'a> {
     password: bool,
     reveal_toggle: bool,
     revealed: bool,
-    rows: NonZeroUsize,
+    rows: usize,
     grow_rows: usize,
     disabled: bool,
     commit_on_submit: bool,
@@ -862,7 +862,7 @@ impl<'a> TextField<'a> {
             password: false,
             reveal_toggle: true,
             revealed: false,
-            rows: NonZeroUsize::MIN,
+            rows: 1,
             grow_rows: 0,
             disabled: false,
             commit_on_submit: false,
@@ -906,12 +906,12 @@ impl<'a> TextField<'a> {
     }
 
     fn max_lines(&self) -> usize {
-        self.rows.get().saturating_add(self.grow_rows)
+        self.rows.saturating_add(self.grow_rows)
     }
 
-    /// Visible lines; default 1, above 1 the field is multiline.
-    pub fn rows(mut self, rows: NonZeroUsize) -> Self {
-        self.rows = rows;
+    /// Visible lines, at least 1; default 1, above 1 the field is multiline.
+    pub fn rows(mut self, rows: usize) -> Self {
+        self.rows = egui_mineral::kit::sanitize::at_least(rows, 1.., "TextField rows");
         self
     }
 
@@ -999,7 +999,7 @@ impl<'a> TextField<'a> {
 
     fn lines(&self, ui: &MineralUi<'_, Material>, width: f32, buffer: &EditBuffer<String>) -> usize {
         if self.grow_rows == 0 {
-            return self.rows.get();
+            return self.rows;
         }
         let mut job = LayoutJob::single_section(
             self.shown(Some(buffer)).to_owned(),
@@ -1007,13 +1007,13 @@ impl<'a> TextField<'a> {
         );
         job.wrap.max_width = self.text_width(ui, width).max(1.0);
         let galley = ui.painter().layout_job(job);
-        galley.rows.len().clamp(self.rows.get(), self.max_lines())
+        galley.rows.len().clamp(self.rows, self.max_lines())
     }
 
     // Lines of a `height` tall field, the inverse of `field_height`.
     fn lines_in(&self, density: Density, height: f32) -> usize {
         if self.grow_rows == 0 {
-            return self.rows.get();
+            return self.rows;
         }
         let extra = ((height - field_h(density, self.chrome.variant, self.labeled()))
             / self.input_style().line_height())
@@ -1021,7 +1021,7 @@ impl<'a> TextField<'a> {
         .max(0.0);
         #[expect(clippy::cast_sign_loss, reason = "max(0.0)")]
         let extra = extra as usize;
-        extra.saturating_add(1).clamp(self.rows.get(), self.max_lines())
+        extra.saturating_add(1).clamp(self.rows, self.max_lines())
     }
 
     fn field_height(&self, density: Density, lines: usize) -> f32 {

@@ -1,5 +1,3 @@
-use std::num::NonZeroU8;
-
 use egui::{Color32, CornerRadius, CursorIcon, Painter, Pos2, Rangef, Rect, pos2, vec2};
 use egui_mineral::{
     i18n::{Direction, I18n},
@@ -141,7 +139,7 @@ pub struct Rating<'a> {
     key: AgentKey,
     label: String,
     value: &'a mut f64,
-    max: NonZeroU8,
+    max: u8,
     half: bool,
     size: RatingSize,
     color: RatingColor,
@@ -156,7 +154,7 @@ impl<'a> Rating<'a> {
             key: AgentKey::Kind("rating"),
             label: label.into(),
             value,
-            max: NonZeroU8::MIN.saturating_add(4),
+            max: 5,
             half: false,
             size: RatingSize::Medium,
             color: RatingColor::Neutral,
@@ -164,9 +162,9 @@ impl<'a> Rating<'a> {
         }
     }
 
-    /// `max`: star count, default 5.
-    pub fn count(mut self, count: NonZeroU8) -> Self {
-        self.max = count;
+    /// `max`: star count, at least 1; default 5.
+    pub fn count(mut self, count: u8) -> Self {
+        self.max = egui_mineral::kit::sanitize::at_least(count, 1.., "Rating count");
         self
     }
 
@@ -200,12 +198,12 @@ impl<'a> Rating<'a> {
     }
 
     fn model(&self) -> RangeModel {
-        RangeModel::new(0.0, f64::from(self.max.get())).step(if self.half { 0.5 } else { 1.0 })
+        RangeModel::new(0.0, f64::from(self.max)).step(if self.half { 0.5 } else { 1.0 })
     }
 
     fn stars(&self) -> Stars {
         Stars {
-            max: self.max.get(),
+            max: self.max,
             size: self.size,
             color: self.color,
             appearance: self.appearance,
@@ -218,7 +216,7 @@ impl<'a> Rating<'a> {
             p,
             dir,
             self.size.icon(),
-            self.max.get(),
+            self.max,
             kit::rating::Step::half_if(self.half),
         )
     }
@@ -237,7 +235,7 @@ impl MineralWidget for Rating<'_> {
 
     fn layout(&self, _: &MineralUi<'_, Fluent>, c: Constraints, (): &()) -> Measure {
         let s = self.size.icon();
-        c.constrain(vec2(f32::from(self.max.get()) * s, s)).into()
+        c.constrain(vec2(f32::from(self.max) * s, s)).into()
     }
 
     fn update(&mut self, ui: &mut MineralUi<'_, Fluent>, frame: &WidgetFrame<'_>, (): &mut ()) -> WidgetResponse {
@@ -264,7 +262,7 @@ impl MineralWidget for Rating<'_> {
         let stars = self.stars();
         stars.paint(ui.painter(), &ui.icons(), rect, dir, hover.unwrap_or(v) as f32, &t);
         if Interaction::of(r, Availability::Enabled).focused {
-            let at = (0..self.max.get()).find(|i| f64::from(*i) + 1.0 >= v).unwrap_or(0);
+            let at = (0..self.max).find(|i| f64::from(*i) + 1.0 >= v).unwrap_or(0);
             focus::outline(
                 ui.painter(),
                 stars.star(rect, dir, at),
@@ -282,7 +280,7 @@ impl MineralWidget for Rating<'_> {
             "mineral-rating-value",
             &[
                 ("value", i18n.format().number_lossy(v, Some(digits)).into()),
-                ("max", i18n.format().integer(i64::from(self.max.get())).into()),
+                ("max", i18n.format().integer(i64::from(self.max)).into()),
             ],
         );
         let mut n = SemanticNode::new(self.key.id(&self.salt), Role::Slider, &self.label).value(text);
@@ -306,7 +304,7 @@ pub struct RatingDisplay {
     key: AgentKey,
     label: String,
     value: f64,
-    max: NonZeroU8,
+    max: u8,
     count: Option<u64>,
     size: RatingSize,
     color: RatingColor,
@@ -322,7 +320,7 @@ impl RatingDisplay {
             key: AgentKey::Kind("rating-display"),
             label: label.into(),
             value,
-            max: NonZeroU8::MIN.saturating_add(4),
+            max: 5,
             count: None,
             size: RatingSize::Medium,
             color: RatingColor::Neutral,
@@ -331,9 +329,9 @@ impl RatingDisplay {
         }
     }
 
-    /// `max`: star count, default 5.
-    pub fn max(mut self, max: NonZeroU8) -> Self {
-        self.max = max;
+    /// `max`: star count, at least 1; default 5.
+    pub fn max(mut self, max: u8) -> Self {
+        self.max = egui_mineral::kit::sanitize::at_least(max, 1.., "RatingDisplay max");
         self
     }
 
@@ -431,7 +429,7 @@ impl RatingDisplay {
 
     fn stars(&self) -> Stars {
         Stars {
-            max: if self.compact { 1 } else { self.max.get() },
+            max: if self.compact { 1 } else { self.max },
             size: self.size,
             color: self.color,
             appearance: RatingAppearance::Filled,
@@ -464,7 +462,7 @@ impl MineralWidget for RatingDisplay {
         let shown = if self.compact {
             f32::from(self.value > 0.0)
         } else {
-            self.value.clamp(0.0, f64::from(self.max.get())) as f32
+            self.value.clamp(0.0, f64::from(self.max)) as f32
         };
         let strip_w = f32::from(stars.max) * s;
         let strip = Rect::from_min_size(
@@ -490,7 +488,7 @@ impl MineralWidget for RatingDisplay {
             "mineral-rating-value",
             &[
                 ("value", f.number_lossy(self.value, Some(1)).into()),
-                ("max", f.integer(i64::from(self.max.get())).into()),
+                ("max", f.integer(i64::from(self.max)).into()),
             ],
         );
         Some(SemanticNode::new(self.key.id(&self.salt), Role::Image, &self.label).value(text))

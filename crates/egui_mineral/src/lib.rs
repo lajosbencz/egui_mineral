@@ -51,6 +51,11 @@
 //! # Ok::<(), egui_mineral::runtime::InitError>(())
 //! ```
 //!
+//! # Borrowing the runtime
+//!
+//! [`Runtime::new`](runtime::Runtime::new) returns an `Arc<Runtime<K>>`; a pass borrows it (`let rt = &self.rt;`)
+//! beside disjoint borrows of the app's state fields, without cloning the `Arc` per frame.
+//!
 //! # Cargo features
 //!
 //! | Feature | Default | Adds |
@@ -63,6 +68,8 @@
 //! | `platform-clipboard` | | OS clipboard (`arboard`): [`PlatformClipboard`](platform::PlatformClipboard) |
 //! | `platform-notify` | | OS notifications (`notify-rust`, D-Bus on Linux): [`PlatformNotifier`](platform::PlatformNotifier) |
 //! | `platform-native` | | `platform-pickers`, `platform-clipboard` and `platform-notify` |
+//! | `spawn-tokio` | | Native only: [`spawn`] `TokioSpawner`, a [`Spawner`](bus::Spawner) and `bus::BlockingSpawner` over the app's Tokio runtime handle |
+//! | `spawn-wasm` | | wasm32 only: [`spawn`] `WasmSpawner`, a [`Spawner`](bus::Spawner) over `wasm_bindgen_futures::spawn_local` |
 //! | `web-save-stream` | | Chromium streams [`FileWriter`](platform::FileWriter) to disk; other browsers buffer |
 //! | `unstable-hotpatch` | | Native only: Dioxus `subsecond` hot-patching of [`Runtime::pass`](runtime::Runtime::pass); the `dx` CLI must match `subsecond` 0.7.10; enable it from the command line only (`dx serve --hotpatch --features egui_mineral/unstable-hotpatch`), never in a manifest, since feature unification would ship it; touch the app's `main.rs` before each `dx serve` (see `docs/blockers.md`) |
 //!
@@ -244,6 +251,7 @@ pub mod select;
 pub mod semantic;
 mod setting;
 pub mod shortcut;
+pub mod spawn;
 pub mod splitter;
 pub mod status;
 /// Step flow model.
@@ -276,6 +284,7 @@ pub mod prelude {
         edit::EditEvent,
         expand::Expansion,
         form::{Form, FormState},
+        i18n::I18nError,
         icon::Icon,
         layout::{Axis, Edge},
         mask::Charset,
@@ -283,7 +292,8 @@ pub mod prelude {
         number::NumberSource,
         overlay::Dismiss,
         palette::{CommandPaletteResponse, PaletteCommand},
-        platform::{FileFilter, FileType},
+        persist::PersistError,
+        platform::{FileFilter, FileType, PlatformError},
         range::{RangeModel, Scale},
         runtime::{InitError, Runtime},
         select::{Selection, SelectionResponse},

@@ -9,7 +9,6 @@ use egui_mineral_material::{
     },
     prelude::*,
 };
-use std::num::NonZero;
 
 use super::{Shared, caption};
 
@@ -221,7 +220,8 @@ fn checkbox(ui: &mut Mui<'_>, s: &mut State) {
         let all = s.children.iter().all(|c| *c);
         let any = s.children.iter().any(|c| *c);
         let mut parent = all;
-        if ui.mineral(CheckButton::new("sel-check-parent", "Select all", &mut parent).indeterminate(any && !all))
+        if ui
+            .mineral(CheckButton::new("sel-check-parent", "Select all", &mut parent).indeterminate(any && !all))
             .changed()
         {
             s.children = [parent; 3];
@@ -311,9 +311,7 @@ fn slider(ui: &mut Mui<'_>, s: &mut State) {
                 .preferred_width(360.0),
         );
         caption(ui, TypeScale::LabelMedium, "Range");
-        ui.mineral(
-            ValueSlider::range("sel-slider-range", "Range", r100(), &mut s.slider_range).preferred_width(360.0),
-        );
+        ui.mineral(ValueSlider::range("sel-slider-range", "Range", r100(), &mut s.slider_range).preferred_width(360.0));
         caption(ui, TypeScale::LabelMedium, "Range, stepped with ticks");
         ui.mineral(
             ValueSlider::range(
@@ -480,7 +478,7 @@ fn rating(ui: &mut Mui<'_>, s: &mut State) {
         ui.mineral(
             Rating::new("sel-rate-half", "Half rating", &mut s.rating_half)
                 .half(true)
-                .count(NonZero::new(10).expect("non-zero")),
+                .count(10),
         );
         caption(ui, TypeScale::LabelMedium, "Custom icon, medium icon button size");
         ui.mineral(
@@ -553,7 +551,8 @@ fn selects(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
             s.select_single.map_or("none", |i| FRUITS[i]),
             picked.join(", ")
         ));
-        if ui.mineral(PushButton::new("sel-toast-selection", "Toast selection").variant(ButtonVariant::Tonal))
+        if ui
+            .mineral(PushButton::new("sel-toast-selection", "Toast selection").variant(ButtonVariant::Tonal))
             .clicked()
         {
             shared.toast(format!("{} selected", picked.len()));
@@ -685,11 +684,7 @@ fn color(ui: &mut Mui<'_>, s: &mut State) {
         ];
         super::top_row(ui, |row| {
             row.add(|ui| {
-                caption(
-                    ui,
-                    TypeScale::LabelMedium,
-                    "HSV with swatches and RGB fields",
-                );
+                caption(ui, TypeScale::LabelMedium, "HSV with swatches and RGB fields");
                 ui.mineral(
                     ColorPicker::new("sel-color", "Color", &mut s.color)
                         .space(ColorSpace::Hsv)
@@ -786,11 +781,7 @@ fn dates(ui: &mut Mui<'_>, s: &mut State) {
                 ui.label(fmt_date(s.date_inline));
             });
             row.add(|ui| {
-                caption(
-                    ui,
-                    TypeScale::LabelMedium,
-                    "Inline range (scrolling months)",
-                );
+                caption(ui, TypeScale::LabelMedium, "Inline range (scrolling months)");
                 DateRangePicker::new("sel-date-inline-r", "Dates", &mut s.date_inline_range).show(ui);
                 ui.label(format!(
                     "{} .. {}",
@@ -835,7 +826,8 @@ fn times(ui: &mut Mui<'_>, s: &mut State) {
             });
         });
         caption(ui, TypeScale::LabelMedium, "Modal");
-        if ui.mineral(PushButton::new("sel-time-modal-btn", "Time dialog"))
+        if ui
+            .mineral(PushButton::new("sel-time-modal-btn", "Time dialog"))
             .clicked()
         {
             s.time_modal_open = true;

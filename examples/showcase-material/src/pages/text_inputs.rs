@@ -11,7 +11,6 @@ use egui_mineral_material::{
     icons::{ICON_ATTACH_MONEY, ICON_EMAIL, ICON_LOCK, ICON_PERSON, ICON_SEARCH, ICON_VISIBILITY},
     prelude::*,
 };
-use std::num::NonZero;
 
 use super::{Shared, caption};
 
@@ -203,14 +202,14 @@ fn filled_fields(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
         );
         row.mineral(
             TextField::new("ti-desc", "Description", &mut s.description)
-                .rows(NonZero::new(3).expect("non-zero"))
+                .rows(3)
                 .text_style(TypeScale::BodyMedium)
                 .supporting("BodyMedium text style")
                 .preferred_width(260.0),
         );
         row.mineral(
             TextField::new("ti-multi", "Message", &mut s.multiline)
-                .rows(NonZero::new(4).expect("non-zero"))
+                .rows(4)
                 .max_chars(200)
                 .supporting("Fixed 4 rows")
                 .preferred_width(320.0),
@@ -259,7 +258,7 @@ fn outlined_fields(ui: &mut Mui<'_>, s: &mut State) {
         );
         row.mineral(
             outlined(TextField::new("ti-grow", "Notes", &mut s.grow))
-                .rows(NonZero::new(2).expect("non-zero"))
+                .rows(2)
                 .grow_rows(4)
                 .supporting("Grows 2 to 6 rows")
                 .preferred_width(320.0),

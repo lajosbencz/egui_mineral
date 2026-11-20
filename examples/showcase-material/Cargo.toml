@@ -7,7 +7,7 @@ license.workspace = true
 publish = false
 
 [dependencies]
-egui_mineral = { workspace = true, features = ["platform-native", "web-save-stream"] }
+egui_mineral = { workspace = true, features = ["platform-native", "spawn-tokio", "spawn-wasm", "web-save-stream"] }
 egui_mineral_material = { workspace = true, features = ["extras", "icu", "persist-fs", "persist-json", "persist-toml", "unstable-catalog", "unstable-spec"] }
 mineral_inspector.workspace = true
 # glow: a smaller web bundle than eframe's default wgpu.
@@ -20,7 +20,7 @@ serde.workspace = true
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 egui_mineral_material = { workspace = true, features = ["theme-file"] }
 tracing-subscriber.workspace = true
-futures-executor.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread", "time"] }
 # Restores eframe's default `winit/default`: Wayland client-side decorations and dlopen.
 winit.workspace = true
 
@@ -30,6 +30,9 @@ tracing-web.workspace = true
 wasm-bindgen-futures.workspace = true
 gloo-timers = { workspace = true, features = ["futures"] }
 web-sys = { workspace = true, features = ["Window", "Document", "Element", "HtmlCanvasElement"] }
+
+[dev-dependencies]
+futures-executor.workspace = true
 
 [build-dependencies]
 allsorts.workspace = true
