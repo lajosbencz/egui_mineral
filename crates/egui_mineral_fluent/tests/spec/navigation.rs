@@ -17,9 +17,9 @@ use egui_mineral_fluent::{
     typography::TypeRamp,
 };
 
-use crate::support::{Fui, Pass, render};
+use crate::support::{FluentUi, Pass, render};
 
-fn list(size: Size, appearance: TabAppearance, vertical: bool) -> impl FnMut(&mut Fui<'_>) {
+fn list(size: Size, appearance: TabAppearance, vertical: bool) -> impl FnMut(&mut FluentUi<'_>) {
     let mut selected = 0;
     move |ui| {
         TabList::new("t", "Tabs", &mut selected)
@@ -176,7 +176,7 @@ fn toolbar_divider_adds_its_padding_on_both_sides() {
     assert!((extra - 2.0 * toolbar::DIVIDER_PADDING - line).abs() < 0.5, "{extra}");
 }
 
-fn trail(size: Size) -> impl FnMut(&mut Fui<'_>) {
+fn trail(size: Size) -> impl FnMut(&mut FluentUi<'_>) {
     move |ui| {
         Breadcrumb::new("bc", "Path")
             .size(size)
@@ -230,7 +230,7 @@ fn breadcrumb_current_item_is_strong_and_ignores_hover_colors() {
     assert!((strong - 20.0).abs() < 1.5, "{strong}");
 }
 
-fn nav(density: NavDensity, open: bool) -> impl FnMut(&mut Fui<'_>) {
+fn nav(density: NavDensity, open: bool) -> impl FnMut(&mut FluentUi<'_>) {
     let mut selected = Some(11);
     move |ui| {
         let mut n = Nav::new("n", "Main", &mut selected).density(density);

@@ -1,9 +1,11 @@
 use egui::{Align2, Frame, Id, Margin, Order, Rect, Response, Ui, Vec2, vec2};
 use egui_mineral::{
+    action::Clicked,
     kit::{self, state::TempState},
     motion::{self, Visibility},
     overlay::{self, Dismiss},
     semantic::{self, AgentKey, KeyedSalt, Role, SemanticNode},
+    shortcut::ActionId,
     widget::MineralUi,
 };
 
@@ -57,6 +59,7 @@ pub struct DialogAction {
     pub(super) appearance: ButtonAppearance,
     pub(super) disabled: bool,
     pub(super) salt: Option<KeyedSalt>,
+    action_key: Option<ActionId>,
 }
 
 impl DialogAction {
@@ -67,11 +70,20 @@ impl DialogAction {
             appearance: ButtonAppearance::Secondary,
             disabled: false,
             salt: None,
+            action_key: None,
         }
     }
 
     crate::widget::setters! {
         item_salt
+    }
+
+    crate::widget::setters! {
+        action_key
+    }
+
+    pub(super) fn clicked(&self, index: usize) -> Clicked {
+        Clicked::new(index, self.action_key.clone())
     }
 
     /// Default [`ButtonAppearance::Secondary`]; `Primary` marks the main action.
@@ -106,8 +118,8 @@ pub struct DialogResponse<R> {
     pub response: Option<Response>,
     /// Content closure result while shown.
     pub inner: Option<R>,
-    /// Index of the action clicked this frame.
-    pub clicked: Option<usize>,
+    /// Action clicked this frame.
+    pub clicked: Option<Clicked>,
     /// Why it closed without an action.
     pub dismissed: Option<Dismiss>,
 }
@@ -145,7 +157,7 @@ pub struct Dialog {
 
 struct Shown<R> {
     inner: R,
-    clicked: Option<usize>,
+    clicked: Option<Clicked>,
     close: bool,
     rect: Rect,
 }
@@ -367,7 +379,7 @@ impl Dialog {
         action.salt.clone().unwrap_or_else(|| self.salt.child(("action", i)))
     }
 
-    fn actions_row(&self, rt: &Rt, ui: &mut Ui, focus: &mut ModalFocus, width: f32) -> Option<usize> {
+    fn actions_row(&self, rt: &Rt, ui: &mut Ui, focus: &mut ModalFocus, width: f32) -> Option<Clicked> {
         let dir = rt.i18n().direction();
         let narrow = rt.ctx().content_rect().width() <= d::BREAKPOINT;
         let count = self.actions.len();
@@ -415,7 +427,7 @@ impl Dialog {
                         b.min_width = Some(share);
                     }
                     if rt.ui(ui).mineral(b).response().clicked() {
-                        clicked = Some(i);
+                        clicked = Some(a.clicked(i));
                     }
                 }
                 ui.min_rect().width() - lead

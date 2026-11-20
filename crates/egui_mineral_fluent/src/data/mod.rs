@@ -12,7 +12,7 @@ mod text;
 pub use avatar::{
     Avatar, AvatarActive, AvatarActiveAppearance, AvatarColor, AvatarNamedColor, AvatarShape, AvatarSize,
 };
-pub use avatar_group::{AvatarGroup, AvatarGroupLayout};
+pub use avatar_group::{AvatarGroup, AvatarGroupLayout, AvatarGroupResponse};
 pub use image::{Image, ImageFit, ImageShape};
 pub use list::{List, ListItem, ListNavigation, ListResponse, ListUi};
 pub use persona::{Persona, PersonaSize, PersonaTextAlignment, PersonaTextPosition};

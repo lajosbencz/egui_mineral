@@ -24,21 +24,21 @@ use egui_mineral_fluent::{
     surfaces::Divider,
 };
 
-use crate::support::{Fui, harness};
+use crate::support::{FluentUi, harness};
 
 // Visual-box drift a row or column may show: half a point, below one physical pixel at 1x.
 const TOLERANCE: f32 = 0.5;
 
 const ITEM_WIDTH: f32 = 240.0;
 
-type Add = Box<dyn Fn(&mut Fui<'_>) -> Rect>;
+type Add = Box<dyn Fn(&mut FluentUi<'_>) -> Rect>;
 
-fn leaf(name: impl Into<String>, add: impl Fn(&mut Fui<'_>) -> Zones + 'static) -> (String, Add) {
+fn leaf(name: impl Into<String>, add: impl Fn(&mut FluentUi<'_>) -> Zones + 'static) -> (String, Add) {
     (name.into(), Box::new(move |ui| add(ui).visual))
 }
 
 // Groups report their visual box as the group response.
-fn group(name: impl Into<String>, add: impl Fn(&mut Fui<'_>) -> egui::Response + 'static) -> (String, Add) {
+fn group(name: impl Into<String>, add: impl Fn(&mut FluentUi<'_>) -> egui::Response + 'static) -> (String, Add) {
     (name.into(), Box::new(move |ui| add(ui).rect))
 }
 
@@ -203,6 +203,7 @@ fn singles() -> Vec<(String, Add)> {
                 .item(Avatar::new("a", "Ada Lovelace"))
                 .item(Avatar::new("b", "Alan Turing"))
                 .show(ui)
+                .response
         }),
         group("InteractionTag", |ui| {
             InteractionTag::new("c", "Tag").dismissible(true).show(ui).response
@@ -288,7 +289,7 @@ fn controls() -> impl Iterator<Item = (String, Add)> {
     sized().into_iter().chain(families())
 }
 
-fn reference(ui: &mut Fui<'_>) -> Rect {
+fn reference(ui: &mut FluentUi<'_>) -> Rect {
     ui.mineral(PushButton::new("reference", "Reference")).zones().visual
 }
 

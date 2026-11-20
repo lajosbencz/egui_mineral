@@ -3,6 +3,7 @@ use egui_mineral_fluent::{
     actions::PushButton,
     data::{Avatar, AvatarColor},
     egui_mineral::{
+        action::Clicked,
         expand::Expansion,
         focus::Cell,
         layout::Axis,
@@ -21,7 +22,7 @@ use egui_mineral_fluent::{
 };
 
 use super::heading;
-use crate::Fui;
+use crate::FluentUi;
 
 #[derive(Debug, Default)]
 pub(crate) struct State {
@@ -35,8 +36,8 @@ pub(crate) struct State {
     last: &'static str,
     bold: [bool; 4],
     align: usize,
-    crumb: Option<usize>,
-    overflow_last: Option<usize>,
+    crumb: Option<Clicked>,
+    overflow_last: Option<Clicked>,
     nav: Option<usize>,
     nav_small: Option<usize>,
     tree_open: [Expansion<String>; 3],
@@ -46,7 +47,7 @@ pub(crate) struct State {
     carousel: [usize; 2],
 }
 
-pub(crate) fn show(ui: &mut Fui<'_>, s: &mut State) {
+pub(crate) fn show(ui: &mut FluentUi<'_>, s: &mut State) {
     tabs(ui, s);
     toolbars(ui, s);
     breadcrumbs(ui, s);
@@ -66,7 +67,7 @@ fn items() -> [Tab; 3] {
     ]
 }
 
-fn tabs(ui: &mut Fui<'_>, s: &mut State) {
+fn tabs(ui: &mut FluentUi<'_>, s: &mut State) {
     heading(ui, "h-tabs", "Tab list");
     for ((i, appearance), selected) in TabAppearance::ALL.iter().copied().enumerate().zip(&mut s.appearances) {
         TabList::new(("tabs-appearance", i), format!("{appearance:?}"), selected)
@@ -88,7 +89,7 @@ fn tabs(ui: &mut Fui<'_>, s: &mut State) {
         .show(ui);
 }
 
-fn toolbars(ui: &mut Fui<'_>, s: &mut State) {
+fn toolbars(ui: &mut FluentUi<'_>, s: &mut State) {
     heading(ui, "h-toolbar", "Toolbar");
     for (i, size) in Size::ALL.iter().copied().enumerate() {
         Toolbar::new(("toolbar", i), format!("{size:?}"))
@@ -124,16 +125,16 @@ fn toolbars(ui: &mut Fui<'_>, s: &mut State) {
         .show(ui);
 }
 
-fn breadcrumbs(ui: &mut Fui<'_>, s: &mut State) {
+fn breadcrumbs(ui: &mut FluentUi<'_>, s: &mut State) {
     heading(ui, "h-breadcrumb", "Breadcrumb");
     for (i, size) in Size::ALL.iter().copied().enumerate() {
         let r = Breadcrumb::new(("breadcrumb", i), format!("{size:?}"))
             .size(size)
-            .item(BreadcrumbButton::new("Home").icon(ICON_HOME))
-            .item("Docs")
+            .item(BreadcrumbButton::new("Home").icon(ICON_HOME).key("home"))
+            .item(BreadcrumbButton::new("Docs").key("docs"))
             .item(BreadcrumbButton::new("Page").current(true))
             .show(ui);
-        s.crumb = r.clicked.or(s.crumb);
+        s.crumb = r.clicked.or(s.crumb.take());
     }
     Breadcrumb::new("breadcrumb-arrow", "Arrow keys")
         .focus(BreadcrumbFocus::Arrow)
@@ -141,29 +142,32 @@ fn breadcrumbs(ui: &mut Fui<'_>, s: &mut State) {
         .item(BreadcrumbButton::new("Docs").disabled(true))
         .item(BreadcrumbButton::new("Page").current(true))
         .show(ui);
-    ui.label(format!("Clicked: {:?}", s.crumb));
+    ui.label(format!("Clicked: {:?}", s.crumb.as_ref().and_then(Clicked::key_str)));
 }
 
-fn overflow(ui: &mut Fui<'_>, s: &mut State) {
+fn overflow(ui: &mut FluentUi<'_>, s: &mut State) {
     heading(ui, "h-overflow", "Overflow");
     ui.scope(|ui| {
         ui.set_max_width(280.0);
         let mut bar = Toolbar::new("toolbar-overflow", "Edit").overflow(Overflow::new("More items"));
         for label in ["Cut", "Copy", "Paste", "Undo", "Redo"] {
-            bar = bar.action(label);
+            bar = bar.action(ToolbarButton::new(label).key(label));
         }
         let r = bar.show(ui);
-        s.overflow_last = r.activated.or(s.overflow_last);
+        s.overflow_last = r.clicked.or(s.overflow_last.take());
         let r = Breadcrumb::new("breadcrumb-overflow", "Path")
             .overflow(Overflow::new("More items").direction(OverflowDirection::Start))
-            .items(["Home", "Docs", "Guide", "Topic", "Page"])
+            .items(["Home", "Docs", "Guide", "Topic", "Page"].map(|label| BreadcrumbButton::new(label).key(label)))
             .show(ui);
-        s.crumb = r.clicked.or(s.crumb);
+        s.crumb = r.clicked.or(s.crumb.take());
     });
-    ui.label(format!("Activated: {:?}", s.overflow_last));
+    ui.label(format!(
+        "Clicked: {:?}",
+        s.overflow_last.as_ref().and_then(Clicked::key_str)
+    ));
 }
 
-fn navs(ui: &mut Fui<'_>, s: &mut State) {
+fn navs(ui: &mut FluentUi<'_>, s: &mut State) {
     heading(ui, "h-nav", "Nav");
     let rt = ui.rt();
     let t = rt.tokens();
@@ -195,7 +199,7 @@ fn navs(ui: &mut Fui<'_>, s: &mut State) {
     }
 }
 
-fn menus(ui: &mut Fui<'_>, s: &mut State) {
+fn menus(ui: &mut FluentUi<'_>, s: &mut State) {
     heading(ui, "h-menu", "Menu");
     let rt = ui.rt();
     let trigger = ui.mineral(PushButton::new("menu-trigger", "Edit")).response().clone();
@@ -206,12 +210,8 @@ fn menus(ui: &mut Fui<'_>, s: &mut State) {
         last,
         ..
     } = s;
-    Menu::new("menu", "Edit").show(rt, &trigger, menu_open, |m| {
-        if m.item(MenuItem::new("Cut").icon(ICON_CUT).secondary_text("Ctrl+X"))
-            .clicked
-        {
-            *last = "Cut";
-        }
+    let r = Menu::new("menu", "Edit").show(rt, &trigger, menu_open, |m| {
+        m.item(MenuItem::new("Cut").icon(ICON_CUT).secondary_text("Ctrl+X").key("cut"));
         m.item(MenuItem::new("Paste").disabled(true));
         m.divider();
         m.checkbox_item("Word wrap", wrap);
@@ -219,21 +219,20 @@ fn menus(ui: &mut Fui<'_>, s: &mut State) {
             m.radio_item("Small", size, 0);
             m.radio_item("Large", size, 1);
         });
-        if m.split_item("Paste", |m| {
-            if m.item("Paste as plain text").clicked {
-                *last = "Paste as plain text";
-            }
-        })
-        .clicked
-        {
-            *last = "Paste";
-        }
+        m.split_item(MenuItem::new("Paste").key("paste"), |m| {
+            m.item(MenuItem::new("Paste as plain text").key("paste-plain"));
+        });
         m.submenu("More", |m| {
-            if m.item("Select all").clicked {
-                *last = "Select all";
-            }
+            m.item(MenuItem::new("Select all").key("select-all"));
         });
     });
+    match r.clicked.as_ref().and_then(Clicked::key_str) {
+        Some("cut") => *last = "Cut",
+        Some("paste") => *last = "Paste",
+        Some("paste-plain") => *last = "Paste as plain text",
+        Some("select-all") => *last = "Select all",
+        _ => {}
+    }
     ui.label(format!("Last: {}", s.last));
 }
 
@@ -265,7 +264,7 @@ fn tree_items(persona: bool) -> Vec<TreeItem> {
     ]
 }
 
-fn trees(ui: &mut Fui<'_>, s: &mut State) {
+fn trees(ui: &mut FluentUi<'_>, s: &mut State) {
     heading(ui, "h-tree", "Tree");
     let cases = [
         ("none", None, TreeAppearance::Subtle, false),
@@ -312,7 +311,7 @@ fn trees(ui: &mut Fui<'_>, s: &mut State) {
     ui.label(format!("Activated: {tree_activated:?}"));
 }
 
-fn menu_grids(ui: &mut Fui<'_>, s: &mut State) {
+fn menu_grids(ui: &mut FluentUi<'_>, s: &mut State) {
     heading(ui, "h-menu-grid", "MenuGrid");
     let trigger = ui
         .mineral(PushButton::new("menu-grid-trigger", "Open grid"))
@@ -335,7 +334,7 @@ fn menu_grids(ui: &mut Fui<'_>, s: &mut State) {
     ui.label(format!("Activated: {:?}", s.grid_last.map(|c| (c.row, c.column))));
 }
 
-fn carousels(ui: &mut Fui<'_>, s: &mut State) {
+fn carousels(ui: &mut FluentUi<'_>, s: &mut State) {
     heading(ui, "h-carousel", "Carousel");
     let cases = [
         ("default", CarouselAppearance::Default, false),

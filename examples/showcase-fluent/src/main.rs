@@ -16,12 +16,10 @@ use egui_mineral_fluent::{
 use mineral_inspector::Inspector;
 use pages::{LOCALES, Page};
 
-pub(crate) use egui_mineral_fluent::Rt;
+pub(crate) use egui_mineral_fluent::{FluentUi, Rt};
 
 const CONTENT_MAX_W: f32 = 1040.0;
 const INSPECTOR: KeyboardShortcut = KeyboardShortcut::new(Modifiers::NONE, Key::F12);
-
-pub(crate) type Fui<'a> = MineralUi<'a, Fluent>;
 
 // Ramps from the Fluent theme designer's 16 steps: the web brand, a teal and a berry one.
 fn brands() -> [(&'static str, BrandRamp); 3] {
@@ -170,7 +168,7 @@ impl Shell {
         self.applied = Some(s.clone());
     }
 
-    fn top_bar(&mut self, ui: &mut Fui<'_>) {
+    fn top_bar(&mut self, ui: &mut FluentUi<'_>) {
         let rt = ui.rt();
         pages::row(ui, |ui| {
             for page in Page::all() {
@@ -225,7 +223,7 @@ impl Shell {
         page
     }
 
-    fn body(&mut self, ui: &mut Fui<'_>) -> ScrollAreaOutput<()> {
+    fn body(&mut self, ui: &mut FluentUi<'_>) -> ScrollAreaOutput<()> {
         let rt = ui.rt();
         Panel::top("top-bar").show(ui, |ui| self.top_bar(&mut rt.ui(ui)));
         let page = self.page;

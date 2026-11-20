@@ -3,10 +3,12 @@ use egui::{
     Align, Align2, Color32, CornerRadius, Id, Layout, Margin, Order, Sense, Stroke, StrokeKind, UiBuilder, vec2,
 };
 use egui_mineral::{
+    action::Clicked,
     i18n::Direction,
     kit::state::TempState,
     motion::{self, Visibility},
     semantic::{self, Live, Role, SemanticNode, StableId},
+    shortcut::ActionId,
     toast::{ToastId, ToastQueue},
 };
 
@@ -109,20 +111,54 @@ impl ToastIntent {
     pub const ALL: &'static [Self] = &[Self::Info, Self::Success, Self::Warning, Self::Error];
 }
 
+/// Link of a [`Toast`]: an action in its title row or footer.
+#[derive(Clone, Debug)]
+#[must_use]
+pub struct ToastLink {
+    label: String,
+    action_key: Option<ActionId>,
+}
+
+impl ToastLink {
+    /// `label` is the link text and accessible name.
+    pub fn new(label: impl Into<String>) -> Self {
+        Self {
+            label: label.into(),
+            action_key: None,
+        }
+    }
+
+    crate::widget::setters! {
+        action_key
+    }
+}
+
+impl From<&str> for ToastLink {
+    fn from(label: &str) -> Self {
+        Self::new(label)
+    }
+}
+
+impl From<String> for ToastLink {
+    fn from(label: String) -> Self {
+        Self::new(label)
+    }
+}
+
 #[derive(Clone, Debug)]
 struct ActionLink {
-    label: String,
+    link: ToastLink,
     footer: bool,
 }
 
 /// Action of a toast pressed this frame ([`ToasterResponse::action_clicked`]).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub struct ToastAction {
     /// Toast the action belongs to.
     pub toast: ToastId,
-    /// Index of the action, in the order added.
-    pub action: usize,
+    /// Index among the toast's title and footer actions, in the order added, and the link's key.
+    pub clicked: Clicked,
 }
 
 /// Payload of a queued toast: intent icon, title, body, subtitle, actions and dismiss link.
@@ -185,18 +221,18 @@ impl Toast {
     }
 
     /// Link at the end of the title row; reported by [`ToasterResponse::action_clicked`].
-    pub fn action(mut self, label: impl Into<String>) -> Self {
+    pub fn action(mut self, link: impl Into<ToastLink>) -> Self {
         self.actions.push(ActionLink {
-            label: label.into(),
+            link: link.into(),
             footer: false,
         });
         self
     }
 
     /// Link in the `ToastFooter`; reported by [`ToasterResponse::action_clicked`].
-    pub fn footer_action(mut self, label: impl Into<String>) -> Self {
+    pub fn footer_action(mut self, link: impl Into<ToastLink>) -> Self {
         self.actions.push(ActionLink {
-            label: label.into(),
+            link: link.into(),
             footer: true,
         });
         self
@@ -330,7 +366,11 @@ impl<'a> Toaster<'a> {
                     }
                 }
                 if let Some(i) = painted.clicked {
-                    out.action_clicked = Some(ToastAction { toast: s.id, action: i });
+                    let key = s.toast.actions.get(i).and_then(|a| a.link.action_key.clone());
+                    out.action_clicked = Some(ToastAction {
+                        toast: s.id,
+                        clicked: Clicked::new(i, key),
+                    });
                 }
                 if painted.dismissed {
                     queue.dismiss(s.id);
@@ -436,7 +476,7 @@ fn content(ui: &mut egui::Ui, rt: &Rt, toast: &Toast, palette: &Palette, slot: u
             ui.scope_builder(UiBuilder::new().layout(dir.row()), |ui| {
                 ui.spacing_mut().item_spacing.x = d::FOOTER_GAP;
                 for (i, a) in footer {
-                    if link(ui, rt, ("toast", slot, "footer", i), &a.label) {
+                    if link(ui, rt, ("toast", slot, "footer", i), &a.link.label) {
                         pressed.action = Some(i);
                     }
                 }
@@ -454,7 +494,7 @@ fn title_row(ui: &mut egui::Ui, rt: &Rt, toast: &Toast, palette: &Palette, slot:
     let title_action = toast.actions.iter().enumerate().find(|(_, a)| !a.footer);
     ui.allocate_ui_with_layout(vec2(ui.available_width(), 0.0), end, |ui| {
         if let Some((i, a)) = title_action {
-            if link(ui, rt, ("toast", slot, "action", i), &a.label) {
+            if link(ui, rt, ("toast", slot, "action", i), &a.link.label) {
                 pressed.action = Some(i);
             }
             ui.add_space(d::ACTION_PADDING_START);

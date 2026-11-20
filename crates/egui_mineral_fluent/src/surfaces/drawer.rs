@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use egui::{Align2, Frame, Id, Margin, Panel, Rect, Response, ScrollArea, Ui, UiBuilder, Vec2, pos2, vec2};
 use egui_mineral::{
+    action::Clicked,
     i18n::Direction,
     kit::{self, state::TempState},
     motion::{self, Visibility},
@@ -95,8 +96,8 @@ pub struct DrawerResponse<R> {
     pub response: Option<Response>,
     /// Body closure result while shown.
     pub inner: Option<R>,
-    /// Index of the footer action clicked this frame.
-    pub clicked: Option<usize>,
+    /// Footer action clicked this frame.
+    pub clicked: Option<Clicked>,
     /// Why it closed this frame.
     pub dismissed: Option<Dismiss>,
 }
@@ -122,7 +123,7 @@ impl TempState for Heights {}
 
 struct Body<R> {
     inner: R,
-    clicked: Option<usize>,
+    clicked: Option<Clicked>,
     close: bool,
 }
 
@@ -439,7 +440,7 @@ impl Drawer {
                         .appearance(a.appearance)
                         .disabled(a.disabled);
                     if rt.ui(ui).mineral(b).response().clicked() {
-                        clicked = Some(i);
+                        clicked = Some(a.clicked(i));
                     }
                 }
             });

@@ -7,12 +7,12 @@ use egui_mineral_fluent::{
 };
 
 use super::heading;
-use crate::Fui;
+use crate::FluentUi;
 
 const SWATCH: egui::Vec2 = vec2(150.0, 36.0);
 const TILE: egui::Vec2 = vec2(96.0, 64.0);
 
-pub(crate) fn show(ui: &mut Fui<'_>) {
+pub(crate) fn show(ui: &mut FluentUi<'_>) {
     let t = ui.tokens();
     heading(ui, "h-ramp", "Type ramp");
     for (i, ramp) in TypeRamp::ALL.iter().copied().enumerate() {
@@ -88,7 +88,7 @@ pub(crate) fn show(ui: &mut Fui<'_>) {
     });
 }
 
-fn label(ui: &Fui<'_>, rect: egui::Rect, text: &str, color: egui::Color32) {
+fn label(ui: &FluentUi<'_>, rect: egui::Rect, text: &str, color: egui::Color32) {
     ui.painter().with_clip_rect(rect).text(
         rect.center(),
         Align2::CENTER_CENTER,

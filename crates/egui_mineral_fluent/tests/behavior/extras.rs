@@ -4,9 +4,9 @@ use egui_mineral_fluent::extras::{
     BarMenu, CommandPalette, MenuBar, Pagination, PaletteCommand, SplitPane, StatusBar, StatusItem, StatusProgress,
 };
 
-use crate::support::{FluentHarness, Fui, harness};
+use crate::support::{FluentHarness, FluentUi, harness};
 
-fn pane(disabled: bool) -> impl FnMut(&mut Fui<'_>, &mut f32) {
+fn pane(disabled: bool) -> impl FnMut(&mut FluentUi<'_>, &mut f32) {
     move |ui, fraction| {
         *fraction = SplitPane::new("sp", "Panes")
             .disabled(disabled)
@@ -37,13 +37,13 @@ fn disabled_split_pane_ignores_keys() {
     assert_eq!(h.state().value, before);
 }
 
-fn narrow<R>(ui: &mut Fui<'_>, width: f32, add: impl FnOnce(&mut Fui<'_>) -> R) -> R {
+fn narrow<R>(ui: &mut FluentUi<'_>, width: f32, add: impl FnOnce(&mut FluentUi<'_>) -> R) -> R {
     let rt = ui.rt();
     ui.allocate_ui(egui::vec2(width, 100.0), |ui| add(&mut rt.ui(ui))).inner
 }
 
 // Text advances differ with the fonts installed; one-letter labels and the lead indicators keep the widths close.
-fn status_bar(ui: &mut Fui<'_>, width: f32) -> Option<usize> {
+fn status_bar(ui: &mut FluentUi<'_>, width: f32) -> Option<usize> {
     narrow(ui, width, |ui| {
         StatusBar::new("status", "Status")
             .item(StatusItem::new("x").progress(StatusProgress::Circular(None)))

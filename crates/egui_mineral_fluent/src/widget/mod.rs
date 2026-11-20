@@ -1,3 +1,4 @@
+pub(crate) mod choice;
 pub(crate) mod focus;
 pub(crate) mod paint;
 pub(crate) mod state;
@@ -19,6 +20,15 @@ macro_rules! setters {
         $(#[$m])*
         pub fn salt(mut self, id_salt: impl Into<egui_mineral::semantic::KeyedSalt>) -> Self {
             self.salt = Some(id_salt.into());
+            self
+        }
+    };
+    ($(#[$m:meta])* action_key) => {
+        /// App key reported as [`Clicked::key`](egui_mineral::action::Clicked::key) when the item runs;
+        /// several items may share one.
+        $(#[$m])*
+        pub fn key(mut self, key: impl Into<egui_mineral::shortcut::ActionId>) -> Self {
+            self.action_key = Some(key.into());
             self
         }
     };

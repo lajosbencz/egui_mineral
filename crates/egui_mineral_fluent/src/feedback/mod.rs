@@ -18,4 +18,4 @@ pub use presence_badge::{PresenceBadge, PresenceStatus};
 pub use progress_bar::{ProgressBar, ProgressShape, ProgressThickness};
 pub use skeleton::{Skeleton, SkeletonAnimation, SkeletonAppearance, SkeletonContext, SkeletonItem, SkeletonShape};
 pub use spinner::{Spinner, SpinnerAppearance, SpinnerLabelPosition, SpinnerSize};
-pub use toast::{Toast, ToastAction, ToastIntent, ToastPosition, Toaster, ToasterResponse, toast_queue};
+pub use toast::{Toast, ToastAction, ToastIntent, ToastLink, ToastPosition, Toaster, ToasterResponse, toast_queue};

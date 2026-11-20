@@ -8,10 +8,13 @@ use egui_mineral::{
 
 use super::dropdown::{Dropdown, Kind};
 use super::field::Validation;
-use super::listbox::{self, ListEntry};
+use super::listbox::{self, ListEntry, ListOption};
 use super::textbox::InputAppearance;
 use super::value::{ListState, Value};
-use crate::{Fluent, Size};
+use crate::{
+    Fluent, Size,
+    widget::choice::{self, Choice},
+};
 
 /// Fluent `Select`: the field of a native `<select>` bound to the picked option value; the list is the Fluent
 /// listbox.
@@ -33,6 +36,33 @@ impl<'a> Select<'a> {
             label.into(),
             listbox::entries(entries),
             Value::One(value),
+        ))
+    }
+
+    /// Binds the value of the picked option instead of its string: each of `options` comes with its value
+    /// (the option's own string value is not read), a pick writes it into `value`, and nothing is selected
+    /// while `value` matches none.
+    pub fn bound<T: PartialEq + Clone + 'a>(
+        id_salt: impl Into<KeyedSalt>,
+        label: impl Into<String>,
+        options: impl IntoIterator<Item = (T, impl Into<ListOption>)>,
+        value: &'a mut T,
+    ) -> Self {
+        let (values, options): (Vec<T>, Vec<ListOption>) = choice::split(options);
+        let entries = options
+            .into_iter()
+            .enumerate()
+            .map(|(i, mut o)| {
+                o.value = i.to_string();
+                ListEntry::from(o)
+            })
+            .collect();
+        Self(Dropdown::with(
+            Kind::Select,
+            id_salt.into(),
+            label.into(),
+            entries,
+            Value::Bound(Choice::by_value(value, values)),
         ))
     }
 

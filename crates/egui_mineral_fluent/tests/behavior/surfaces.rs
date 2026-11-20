@@ -157,7 +157,7 @@ fn dialog_harness(kind: DialogKind) -> Harness<'static, DialogState> {
             .show_modal(rt, open, |ui| {
                 ui.label("Sure?");
             });
-        *clicked = clicked.or(r.clicked);
+        *clicked = clicked.or(r.clicked.map(|c| c.index()));
         *dismissed = dismissed.or(r.dismissed);
     })
 }

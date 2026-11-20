@@ -9,13 +9,12 @@ use egui_mineral::{
     i18n::{I18n, IcuFormat},
     runtime::Runtime,
     semantic::{SemanticNode, SemanticTree},
-    widget::MineralUi,
 };
 use egui_mineral_fluent::{Fluent, Rt};
 
 pub(crate) const SCREEN: Vec2 = vec2(600.0, 600.0);
 
-pub(crate) type Fui<'a> = MineralUi<'a, Fluent>;
+pub(crate) use egui_mineral_fluent::FluentUi;
 
 pub(crate) fn runtime(ctx: &egui::Context, theme: egui::Theme) -> Arc<Rt> {
     runtime_with(ctx, theme, Fluent::default())
@@ -47,7 +46,7 @@ fn builder<S>(size: Vec2) -> HarnessBuilder<App<S>> {
         .allow_missing_glyphs()
 }
 
-pub(crate) fn harness<'a, S>(value: S, mut app: impl FnMut(&mut Fui<'_>, &mut S) + 'a) -> Harness<'a, S> {
+pub(crate) fn harness<'a, S>(value: S, mut app: impl FnMut(&mut FluentUi<'_>, &mut S) + 'a) -> Harness<'a, S> {
     builder(SCREEN).build_ui_state(
         move |ui, a: &mut App<S>| {
             // The harness owns the context, so the runtime starts in the first pass.
@@ -211,15 +210,15 @@ impl Pass {
     }
 }
 
-pub(crate) fn render(add: impl FnMut(&mut Fui<'_>)) -> Pass {
+pub(crate) fn render(add: impl FnMut(&mut FluentUi<'_>)) -> Pass {
     render_in(egui::Theme::Light, add)
 }
 
-pub(crate) fn render_in(theme: egui::Theme, add: impl FnMut(&mut Fui<'_>)) -> Pass {
+pub(crate) fn render_in(theme: egui::Theme, add: impl FnMut(&mut FluentUi<'_>)) -> Pass {
     render_with(theme, Fluent::default(), add)
 }
 
-pub(crate) fn render_with(theme: egui::Theme, kit: Fluent, mut add: impl FnMut(&mut Fui<'_>)) -> Pass {
+pub(crate) fn render_with(theme: egui::Theme, kit: Fluent, mut add: impl FnMut(&mut FluentUi<'_>)) -> Pass {
     let ctx = egui::Context::default();
     let rt = runtime_with(&ctx, theme, kit);
     let raw = || RawInput {

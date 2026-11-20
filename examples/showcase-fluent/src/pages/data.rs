@@ -15,7 +15,7 @@ use egui_mineral_fluent::{
 };
 
 use super::{heading, row, row_spaced};
-use crate::Fui;
+use crate::FluentUi;
 
 #[derive(Default)]
 pub(crate) struct State {
@@ -44,7 +44,7 @@ fn gradient() -> ColorImage {
     ColorImage::new([w, h], pixels)
 }
 
-pub(crate) fn show(ui: &mut Fui<'_>, s: &mut State) {
+pub(crate) fn show(ui: &mut FluentUi<'_>, s: &mut State) {
     avatars(ui);
     personas(ui);
     tags(ui, s);
@@ -63,7 +63,7 @@ const PEOPLE: [&str; 7] = [
     "Tim Deboer",
 ];
 
-fn avatars(ui: &mut Fui<'_>) {
+fn avatars(ui: &mut FluentUi<'_>) {
     heading(ui, "h-avatar", "Avatars");
     row(ui, |ui| {
         for (i, size) in AvatarSize::ALL.iter().copied().enumerate() {
@@ -125,7 +125,7 @@ fn avatars(ui: &mut Fui<'_>) {
     }
 }
 
-fn personas(ui: &mut Fui<'_>) {
+fn personas(ui: &mut FluentUi<'_>) {
     heading(ui, "h-persona", "Personas");
     row_spaced(ui, 24.0, |ui| {
         for (i, size) in PersonaSize::ALL.iter().copied().enumerate() {
@@ -160,7 +160,7 @@ fn personas(ui: &mut Fui<'_>) {
     });
 }
 
-fn tags(ui: &mut Fui<'_>, s: &mut State) {
+fn tags(ui: &mut FluentUi<'_>, s: &mut State) {
     heading(ui, "h-tag", "Tags");
     for (i, appearance) in TagAppearance::ALL.iter().copied().enumerate() {
         row(ui, |ui| {
@@ -223,7 +223,7 @@ const ROWS: [(&str, &str, u32); 4] = [
     ("Cameron Evans", "Manager", 3),
 ];
 
-fn tables(ui: &mut Fui<'_>, s: &mut State) {
+fn tables(ui: &mut FluentUi<'_>, s: &mut State) {
     heading(ui, "h-table", "Tables");
     let columns = || {
         [
@@ -233,7 +233,7 @@ fn tables(ui: &mut Fui<'_>, s: &mut State) {
         ]
     };
     let cell = |size: TableSize| {
-        move |ui: &mut Fui<'_>, row: usize, col: usize| {
+        move |ui: &mut FluentUi<'_>, row: usize, col: usize| {
             let (name, role, rank) = ROWS[row];
             match col {
                 0 => {
@@ -283,7 +283,7 @@ fn tables(ui: &mut Fui<'_>, s: &mut State) {
         .show(ui, ROWS.len(), cell(TableSize::ExtraSmall));
 }
 
-fn images(ui: &mut Fui<'_>, s: &mut State) {
+fn images(ui: &mut FluentUi<'_>, s: &mut State) {
     heading(ui, "h-image", "Images");
     let texture = s
         .texture
@@ -315,7 +315,7 @@ fn images(ui: &mut Fui<'_>, s: &mut State) {
     });
 }
 
-fn lists(ui: &mut Fui<'_>, s: &mut State) {
+fn lists(ui: &mut FluentUi<'_>, s: &mut State) {
     heading(ui, "h-list", "Lists");
     List::new("list-single")
         .navigation(Some(ListNavigation::Items))

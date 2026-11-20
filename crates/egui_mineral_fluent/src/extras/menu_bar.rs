@@ -1,5 +1,6 @@
 use egui::{Context, Id, Key, Modifiers, Response, Vec2};
 use egui_mineral::{
+    action::Clicked,
     focus::{self, RovingFocus, TabStop},
     kit::{
         self,
@@ -68,10 +69,13 @@ pub struct MenuBarResponse {
     pub popup: Option<Response>,
     /// Index of the open menu.
     pub open: Option<usize>,
+    /// Row activated this pass ([`MenuResponse::clicked`](crate::navigation::MenuResponse::clicked) of the open
+    /// menu).
+    pub clicked: Option<Clicked>,
 }
 
 /// Horizontal menu bar over [`BarMenu`]s with APG menubar keyboard behavior; not in Fluent UI React v9.
-/// Row clicks are read from the [`MenuUi`] responses inside the rows.
+/// A [`MenuItem::key`](crate::navigation::MenuItem::key) names the row in [`MenuBarResponse::clicked`].
 #[must_use = "call .show(..)"]
 pub struct MenuBar<'a> {
     salt: KeyedSalt,
@@ -173,6 +177,7 @@ impl<'a> MenuBar<'a> {
             RovingFocus::new(Axis::Horizontal).update_group(rt.core(), id, &ids, enabled);
         }
         let mut popup = None;
+        let mut clicked = None;
         let count = self.menus.len();
         if let Some(o) = bar.open {
             let trigger = triggers[o].clone();
@@ -182,6 +187,7 @@ impl<'a> MenuBar<'a> {
                 let out =
                     Menu::new(self.salt.child(("popup", o)), &menu.title).show(rt, &trigger, &mut open, menu.rows);
                 popup = out.response;
+                clicked = out.clicked;
                 if out.dismissed == Some(Dismiss::Escape) {
                     menubar::refocus_title(&ctx, id, o, trigger.id);
                 }
@@ -206,6 +212,7 @@ impl<'a> MenuBar<'a> {
             response: row.response,
             popup,
             open,
+            clicked,
         }
     }
 }
