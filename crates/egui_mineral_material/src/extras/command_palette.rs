@@ -227,17 +227,10 @@ impl<'a> CommandPalette<'a> {
 
     fn run(self, rt: &Rt, id: Id, open: &mut bool) -> CommandPaletteResponse {
         let ctx = rt.ctx();
-        let area = kit::overlay::modal_area(rt.core(), id.with("area"));
+        let area_id = id.with("area");
+        let area = kit::overlay::modal_area(rt.core(), area_id);
         let scope = shortcut::scope_of(ctx, area.layer());
-        palette::bind_shortcuts(
-            ctx,
-            &self.salt,
-            self.shortcut,
-            &self.commands,
-            scope,
-            id.with("area"),
-            open,
-        );
+        palette::bind_shortcuts(ctx, &self.salt, self.shortcut, &self.commands, scope, area_id, open);
         let mut st = State::load(ctx, id);
         if !*open {
             if st.was_open {

@@ -132,7 +132,13 @@ fn alert_reports_actions_and_dismissal() {
 #[test]
 fn breadcrumbs_report_the_clicked_ancestor() {
     let mut h = still(WIDE, Vec::new(), |ui, seen: &mut Vec<usize>| {
-        seen.extend(Breadcrumbs::new("bc").items(["Home", "Docs", "Page"]).show(ui).clicked);
+        seen.extend(
+            Breadcrumbs::new("bc")
+                .items(["Home", "Docs", "Page"])
+                .show(ui)
+                .clicked
+                .map(|c| c.index()),
+        );
     });
     h.click("bc-1-link");
     h.click("bc-2-link");

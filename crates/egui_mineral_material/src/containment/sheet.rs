@@ -137,7 +137,7 @@ impl BottomSheet {
         add: impl FnOnce(&mut MineralUi<'_, Material>) -> R,
     ) -> OverlayResponse<R> {
         self.modal = true;
-        let fid = kit::scoped_id(rt.core(), self.id).with("focus");
+        let fid = focus_id(kit::scoped_id(rt.core(), self.id));
         ModalFocus::scope(rt.ctx(), fid, open, None, |_, open| self.run(rt, open, add))
     }
 
@@ -479,7 +479,7 @@ impl SideSheet {
         open: &mut bool,
         add: impl FnOnce(&mut MineralUi<'_, Material>) -> R,
     ) -> OverlayResponse<R> {
-        let fid = kit::scoped_id(rt.core(), self.id).with("focus");
+        let fid = focus_id(kit::scoped_id(rt.core(), self.id));
         ModalFocus::scope(rt.ctx(), fid, open, None, |_, open| {
             self.run(rt, open, |s, e, name| s.modal_surface(rt, e, name, add))
         })
@@ -512,7 +512,7 @@ impl SideSheet {
         let t = rt.tokens();
         let screen = ctx.content_rect();
         let dir = rt.i18n().direction();
-        let width_id = self.id.with("width");
+        let width_id = width_id(self.id);
         let width = self.widths.clamp(self.persisted_width(ctx, width_id));
         let w = width.min(screen.width());
         let hidden = (1.0 - e) * w;
@@ -556,7 +556,7 @@ impl SideSheet {
         let rt = ui.rt();
         let t = rt.tokens();
         let dir = rt.i18n().direction();
-        let width_id = self.id.with("width");
+        let width_id = width_id(self.id);
         let width = self.widths.clamp(self.persisted_width(ui.ctx(), width_id));
         let w = width.min(ui.available_rect_before_wrap().width());
         let panel = match (dir, self.edge) {
@@ -733,4 +733,12 @@ impl SideSheet {
             })
             .inner
     }
+}
+
+fn focus_id(base: egui::Id) -> egui::Id {
+    base.with("focus")
+}
+
+fn width_id(base: egui::Id) -> egui::Id {
+    base.with("width")
 }

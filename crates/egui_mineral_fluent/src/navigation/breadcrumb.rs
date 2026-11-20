@@ -346,7 +346,7 @@ impl Breadcrumb {
             })
             .inner;
         if let (Some(trigger), Some(o)) = (trigger, overflow.as_ref()) {
-            let open_id = id.with("mineral::overflow-open");
+            let open_id = id;
             let mut open = overflow::is_open(ui.ctx(), open_id);
             Menu::new(salt.child("overflow-menu"), o.label()).show(rt, &trigger, &mut open, |m| {
                 clicked = overflow_rows(m, &items, &shown).or(clicked);

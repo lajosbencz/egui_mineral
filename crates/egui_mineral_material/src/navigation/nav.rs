@@ -312,7 +312,7 @@ impl TempState for TriggerId {}
 
 impl DrawerMotion {
     fn load_for(ctx: &egui::Context, id: Id, open: bool, width: f32) -> Self {
-        Self::load_or(ctx, id.with("drawer-motion"), || Self {
+        Self::load_or(ctx, drawer_motion_id(id), || Self {
             open,
             offset: if open { 0.0 } else { -width },
             grab: None,
@@ -321,13 +321,13 @@ impl DrawerMotion {
     }
 
     fn store_for(self, ctx: &egui::Context, id: Id) {
-        TempState::store(self, ctx, id.with("drawer-motion"));
+        TempState::store(self, ctx, drawer_motion_id(id));
     }
 
     fn step(rt: &crate::Rt, id: Id, open: bool, width: f32) -> f32 {
         let ctx = rt.ctx();
         let mut m = Self::load_for(ctx, id, open, width);
-        let anim = id.with("drawer-offset");
+        let anim = drawer_offset_id(id);
         let target = if open { 0.0 } else { -width };
         if m.open != open {
             m.settle = None;
@@ -363,7 +363,7 @@ impl DrawerMotion {
         m.offset = (m.offset + dx).clamp(-width, 0.0);
         m.settle = None;
         m.grab = release.is_none().then_some(grab);
-        egui_mineral::motion::snap(ctx, id.with("drawer-offset"), m.offset);
+        egui_mineral::motion::snap(ctx, drawer_offset_id(id), m.offset);
         if let Some(v) = release {
             let opened = if v.abs() > mx::DRAWER_VELOCITY_THRESHOLD {
                 v > 0.0
@@ -919,7 +919,7 @@ impl<'a> NavigationRail<'a> {
         let t = rt.tokens();
         let id = ui.make_persistent_id(self.group.salt.id_salt());
         let expanded = self.expanded_state();
-        let modal_id = id.with("modal");
+        let modal_id = modal_id(id);
         let modal = match &self.mode {
             RailMode::Modal(open) => Some(ModalRail {
                 open: *open,
@@ -943,7 +943,7 @@ impl<'a> NavigationRail<'a> {
         let height = ui.available_height();
         let (rect, response) = ui.allocate_exact_size(vec2(width, height), Sense::hover());
         ui.painter().rect_filled(rect, 0, t.role(rail::CONTAINER_COLOR));
-        let trigger_id = id.with("trigger");
+        let trigger_id = trigger_id(id);
         let mut body = RailBody::default();
         if modal.is_none_or(|m| m.progress.is_none()) {
             body = self.body(ui, id, rect, width);
@@ -984,8 +984,8 @@ impl<'a> NavigationRail<'a> {
         let ModalRail { open, progress } = modal;
         let ctx = rt.ctx();
         let t = rt.tokens();
-        let modal_id = id.with("modal");
-        let trigger_id = id.with("trigger");
+        let modal_id = modal_id(id);
+        let trigger_id = trigger_id(id);
         // `ModalWideNavigationRail`: `modalExpanded` springs the width and fades the scrim.
         let expanded = progress.is_some_and(|p| p >= mx::RAIL_EXPAND_PROGRESS);
         let width_id = modal_id.with("width");
@@ -1528,4 +1528,20 @@ pub(crate) fn clamp_selected(selected: &mut usize, len: usize, what: &str) {
     if let Some(i) = egui_mineral::kit::sanitize::index(*selected, len, what) {
         *selected = i;
     }
+}
+
+fn drawer_motion_id(base: egui::Id) -> egui::Id {
+    base.with("drawer-motion")
+}
+
+fn drawer_offset_id(base: egui::Id) -> egui::Id {
+    base.with("drawer-offset")
+}
+
+fn modal_id(base: egui::Id) -> egui::Id {
+    base.with("modal")
+}
+
+fn trigger_id(base: egui::Id) -> egui::Id {
+    base.with("trigger")
 }

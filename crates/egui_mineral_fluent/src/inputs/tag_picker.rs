@@ -16,7 +16,7 @@ use super::combobox::{Click, toggle};
 use super::field::Validation;
 use super::listbox::{self, Flat, ListEntry, ListOption, View};
 use super::textbox::{Chrome, Edit, InputAppearance, Live, paint_frame};
-use super::value::{self, ListState, Value};
+use super::value::{self, ListState, Pick};
 use crate::ColorToken::{
     ColorCompoundBrandForeground1Hover, ColorCompoundBrandForeground1Pressed, ColorNeutralBackground3,
     ColorNeutralBackgroundDisabled, ColorNeutralForeground2, ColorNeutralForegroundDisabled,
@@ -174,12 +174,12 @@ impl TagSize {
 /// options listed in a popup. [`Self::control`] swaps the input for a `TagPickerButton`.
 #[derive(Debug)]
 #[must_use = "show with ui.mineral(..)"]
-pub struct TagPicker<'a> {
+pub struct TagPicker<'a, K: Ord = String> {
     salt: KeyedSalt,
     key: AgentKey,
     label: String,
-    entries: Arc<[ListEntry]>,
-    selection: &'a mut Selection<String>,
+    entries: Arc<[ListEntry<K>]>,
+    selection: &'a mut Selection<K>,
     text: &'a mut String,
     appearance: InputAppearance,
     size: TagPickerSize,
@@ -189,13 +189,13 @@ pub struct TagPicker<'a> {
     disabled: bool,
 }
 
-impl<'a> TagPicker<'a> {
+impl<'a, K: Ord + Clone> TagPicker<'a, K> {
     /// `label` is the accessible name; `text` is the typed filter. Agent key `<id_salt>-tag-picker`.
     pub fn new(
         id_salt: impl Into<KeyedSalt>,
         label: impl Into<String>,
-        entries: impl IntoIterator<Item = impl Into<ListEntry>>,
-        selection: &'a mut Selection<String>,
+        entries: impl IntoIterator<Item = impl Into<ListEntry<K>>>,
+        selection: &'a mut Selection<K>,
         text: &'a mut String,
     ) -> Self {
         Self {
@@ -265,8 +265,8 @@ impl<'a> TagPicker<'a> {
     }
 
     // Selected options as (value, text), in list order.
-    fn tags(&self) -> Vec<(String, String)> {
-        let all = Flat::new(&self.entries, &|_| true);
+    fn tags(&self) -> Vec<(K, String)> {
+        let all = Flat::new(&self.entries, &|_, _| true);
         all.options
             .iter()
             .filter(|o| self.selection.is_selected(&o.value))
@@ -275,8 +275,8 @@ impl<'a> TagPicker<'a> {
     }
 
     // Unselected options matching the typed text, as the `combobox` model ranks them.
-    fn visible(&self, filtering: bool) -> HashSet<String> {
-        let all = Flat::new(&self.entries, &|o| !self.selection.is_selected(&o.value));
+    fn visible(&self, filtering: bool) -> HashSet<usize> {
+        let all = Flat::new(&self.entries, &|_, o| !self.selection.is_selected(&o.value));
         let labels: Vec<&str> = all.options.iter().map(|o| o.text.as_str()).collect();
         let query = if filtering && !self.button {
             self.text.as_str()
@@ -286,7 +286,7 @@ impl<'a> TagPicker<'a> {
         combo_items(query, labels)
             .into_iter()
             .filter_map(|item| match item {
-                ComboItem::Option { index, .. } => all.options.get(index).map(|o| o.value.clone()),
+                ComboItem::Option { index, .. } => all.positions.get(index).copied(),
                 _ => None,
             })
             .collect()
@@ -305,7 +305,7 @@ impl<'a> TagPicker<'a> {
         )
     }
 
-    fn widths(&self, ui: &MineralUi<'_, Fluent>, tags: &[(String, String)]) -> Vec<f32> {
+    fn widths(&self, ui: &MineralUi<'_, Fluent>, tags: &[(K, String)]) -> Vec<f32> {
         let format = self.tag_format(ui, egui::Color32::WHITE);
         tags.iter()
             .map(|(_, text)| {
@@ -374,7 +374,7 @@ struct Geometry {
 }
 
 impl Geometry {
-    fn new(p: &TagPicker<'_>, visual: Rect, flow: Flow, tags: usize) -> Self {
+    fn new<K: Ord>(p: &TagPicker<'_, K>, visual: Rect, flow: Flow, tags: usize) -> Self {
         let inner = visual.shrink(g::STROKE_WIDTH_THIN);
         let tag = p.size.tag().height();
         let (row_top, row_height) = if tags == 0 {
@@ -399,7 +399,7 @@ impl Geometry {
     }
 }
 
-impl TagPicker<'_> {
+impl<K: Ord + Clone> TagPicker<'_, K> {
     fn paint_tag(
         &self,
         ui: &mut MineralUi<'_, Fluent>,
@@ -519,7 +519,7 @@ impl TagPicker<'_> {
     }
 }
 
-impl MineralWidget for TagPicker<'_> {
+impl<K: Ord + Clone> MineralWidget for TagPicker<'_, K> {
     type Kit = Fluent;
     type State = ListState;
     type Output = ();
@@ -560,17 +560,13 @@ impl MineralWidget for TagPicker<'_> {
         let rt = ui.rt();
         let ctx = rt.ctx();
         let base = ui.make_persistent_id(self.salt.id_salt());
-        let focus_id = if self.button {
-            frame.response.id
-        } else {
-            base.with("edit")
-        };
+        let focus_id = if self.button { frame.response.id } else { edit_id(base) };
         let focused = ctx.memory(|m| m.has_focus(focus_id));
         let tags = self.tags();
         let mut changed = self.backspace(ctx, focused, &tags);
 
         let keep = self.visible(st.filtering);
-        let visible = |o: &ListOption| keep.contains(&o.value);
+        let visible = |pos: usize, _: &ListOption<K>| keep.contains(&pos);
         let entries = Arc::clone(&self.entries);
         let flat = Flat::new(&entries, &visible);
         let enabled = |i: usize| flat.enabled(i);
@@ -620,7 +616,7 @@ impl MineralWidget for TagPicker<'_> {
         if let Some(i) = chosen
             && let Some(o) = flat.value(i)
         {
-            changed |= Value::Many(self.selection).pick(&o.value);
+            changed |= self.selection.pick(&o.value);
             st.filtering = false;
             self.text.clear();
             st.combo.close();
@@ -651,9 +647,9 @@ impl MineralWidget for TagPicker<'_> {
     }
 }
 
-impl TagPicker<'_> {
+impl<K: Ord + Clone> TagPicker<'_, K> {
     // Backspace in the empty input (or the button) drops the last tag.
-    fn backspace(&mut self, ctx: &egui::Context, focused: bool, tags: &[(String, String)]) -> bool {
+    fn backspace(&mut self, ctx: &egui::Context, focused: bool, tags: &[(K, String)]) -> bool {
         let typed = ctx.input(|i| {
             i.events
                 .iter()
@@ -677,7 +673,7 @@ impl TagPicker<'_> {
         ui: &mut MineralUi<'_, Fluent>,
         frame: &WidgetFrame<'_>,
         (base, focused): (egui::Id, bool),
-        tags: &[(String, String)],
+        tags: &[(K, String)],
     ) -> (Option<egui::Response>, egui::Response, bool) {
         let ctx = ui.ctx().clone();
         let t = ui.tokens();
@@ -729,7 +725,7 @@ impl TagPicker<'_> {
         let chevron = self.chevron(ui, base, visual);
         let shown = (!self.button).then(|| {
             Edit {
-                id: base.with("edit"),
+                id: edit_id(base),
                 rect: slot,
                 format: chrome.text_format(&ctx, &t),
                 t: &t,
@@ -746,11 +742,11 @@ impl TagPicker<'_> {
         &self,
         ui: &mut MineralUi<'_, Fluent>,
         frame: &WidgetFrame<'_>,
-        flat: &Flat<'_>,
+        flat: &Flat<'_, K>,
         st: &mut ListState,
         moved: bool,
     ) -> Option<usize> {
-        let selected = |_: &ListOption| false;
+        let selected = |_: &ListOption<K>| false;
         let popup = listbox::show(
             ui,
             self.salt.child("popup"),
@@ -783,6 +779,10 @@ impl TagPicker<'_> {
             (ty::FONT_SIZE_BASE_300, ty::LINE_HEIGHT_BASE_300)
         }
     }
+}
+
+fn edit_id(base: egui::Id) -> egui::Id {
+    base.with("edit")
 }
 
 #[cfg(test)]

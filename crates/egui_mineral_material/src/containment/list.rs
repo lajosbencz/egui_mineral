@@ -351,7 +351,7 @@ impl ListItem {
             0.0
         };
         for side in [Edge::Start, Edge::End] {
-            let aid = r.id.with(("mineral::swipe_action", side));
+            let aid = swipe_action_id(r.id, side);
             if self.swipe(side).is_some() && kit::input::accesskit_requested(ctx, aid, Action::Click) {
                 *swiped = Some(side);
             }
@@ -444,7 +444,7 @@ impl ListItem {
     fn swipe_semantics(&self, ui: &Ui, r: &egui::Response, rect: Rect) {
         for side in [Edge::Start, Edge::End] {
             let Some(a) = self.swipe(side) else { continue };
-            let aid = r.id.with(("mineral::swipe_action", side));
+            let aid = swipe_action_id(r.id, side);
             let tag = match side {
                 Edge::Start => "start",
                 Edge::End => "end",
@@ -647,4 +647,8 @@ impl MineralWidget for ListItem {
         }
         Some(n)
     }
+}
+
+fn swipe_action_id(row: egui::Id, side: Edge) -> egui::Id {
+    row.with(("mineral::swipe_action", side))
 }

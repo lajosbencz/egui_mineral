@@ -30,18 +30,18 @@ use crate::{
 /// [`Select`](super::Select).
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[must_use]
-pub struct ListOption {
-    pub(crate) value: String,
+pub struct ListOption<K = String> {
+    pub(crate) value: K,
     pub(crate) text: String,
     pub(crate) disabled: bool,
     pub(crate) salt: Option<KeyedSalt>,
 }
 
-impl ListOption {
+impl<K> ListOption<K> {
     /// `value` identifies the option in the selection; `text` is shown.
-    pub fn new(value: impl Into<String>, text: impl Into<String>) -> Self {
+    pub fn new(value: K, text: impl Into<String>) -> Self {
         Self {
-            value: value.into(),
+            value,
             text: text.into(),
             disabled: false,
             salt: None,
@@ -61,7 +61,7 @@ impl ListOption {
 
 impl From<&str> for ListOption {
     fn from(text: &str) -> Self {
-        Self::new(text, text)
+        Self::new(text.to_owned(), text)
     }
 }
 
@@ -74,14 +74,14 @@ impl From<String> for ListOption {
 /// Fluent `OptionGroup`: options under a heading and a divider.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[must_use]
-pub struct OptionGroup {
+pub struct OptionGroup<K = String> {
     pub(crate) label: String,
-    pub(crate) options: Vec<ListOption>,
+    pub(crate) options: Vec<ListOption<K>>,
 }
 
-impl OptionGroup {
+impl<K> OptionGroup<K> {
     /// `label` is the group heading.
-    pub fn new(label: impl Into<String>, options: impl IntoIterator<Item = impl Into<ListOption>>) -> Self {
+    pub fn new(label: impl Into<String>, options: impl IntoIterator<Item = impl Into<ListOption<K>>>) -> Self {
         Self {
             label: label.into(),
             options: options.into_iter().map(Into::into).collect(),
@@ -92,21 +92,21 @@ impl OptionGroup {
 /// Child of a list: one [`ListOption`] or an [`OptionGroup`].
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
-pub enum ListEntry {
+pub enum ListEntry<K = String> {
     /// Ungrouped option.
-    Option(ListOption),
+    Option(ListOption<K>),
     /// Group of options.
-    Group(OptionGroup),
+    Group(OptionGroup<K>),
 }
 
-impl From<ListOption> for ListEntry {
-    fn from(o: ListOption) -> Self {
+impl<K> From<ListOption<K>> for ListEntry<K> {
+    fn from(o: ListOption<K>) -> Self {
         Self::Option(o)
     }
 }
 
-impl From<OptionGroup> for ListEntry {
-    fn from(g: OptionGroup) -> Self {
+impl<K> From<OptionGroup<K>> for ListEntry<K> {
+    fn from(g: OptionGroup<K>) -> Self {
         Self::Group(g)
     }
 }
@@ -123,7 +123,7 @@ impl From<String> for ListEntry {
     }
 }
 
-pub(crate) fn entries(items: impl IntoIterator<Item = impl Into<ListEntry>>) -> Vec<ListEntry> {
+pub(crate) fn entries<K>(items: impl IntoIterator<Item = impl Into<ListEntry<K>>>) -> Vec<ListEntry<K>> {
     items.into_iter().map(Into::into).collect()
 }
 
@@ -134,37 +134,48 @@ pub(crate) enum Row {
 }
 
 // Options in navigation order and the rows to draw; groups without a visible option are dropped.
-pub(crate) struct Flat<'a> {
-    pub options: Vec<&'a ListOption>,
+// `visible` gets each option's position among all options of the entries.
+pub(crate) struct Flat<'a, K> {
+    pub options: Vec<&'a ListOption<K>>,
+    // Position of each of `options` among all options of the entries.
+    pub positions: Vec<usize>,
     pub rows: Vec<Row>,
     pub groups: Vec<&'a str>,
 }
 
-impl<'a> Flat<'a> {
-    pub(crate) fn new(entries: &'a [ListEntry], visible: &dyn Fn(&ListOption) -> bool) -> Self {
+impl<'a, K> Flat<'a, K> {
+    pub(crate) fn new(entries: &'a [ListEntry<K>], visible: &dyn Fn(usize, &ListOption<K>) -> bool) -> Self {
         let mut flat = Self {
             options: Vec::new(),
+            positions: Vec::new(),
             rows: Vec::new(),
             groups: Vec::new(),
         };
+        let mut pos = 0usize;
         for entry in entries {
             match entry {
-                ListEntry::Option(o) if visible(o) => {
-                    flat.rows.push(Row::Option(flat.options.len()));
-                    flat.options.push(o);
-                }
-                ListEntry::Option(_) => {}
-                ListEntry::Group(group) => {
-                    let first = flat.options.len();
-                    let shown: Vec<&ListOption> = group.options.iter().filter(|o| visible(o)).collect();
-                    if shown.is_empty() {
-                        continue;
-                    }
-                    flat.rows.push(Row::Group(flat.groups.len()));
-                    flat.groups.push(&group.label);
-                    for (i, o) in shown.into_iter().enumerate() {
-                        flat.rows.push(Row::Option(first + i));
+                ListEntry::Option(o) => {
+                    if visible(pos, o) {
+                        flat.rows.push(Row::Option(flat.options.len()));
                         flat.options.push(o);
+                        flat.positions.push(pos);
+                    }
+                    pos = pos.saturating_add(1);
+                }
+                ListEntry::Group(group) => {
+                    let mut heading = false;
+                    for o in &group.options {
+                        if visible(pos, o) {
+                            if !heading {
+                                heading = true;
+                                flat.rows.push(Row::Group(flat.groups.len()));
+                                flat.groups.push(&group.label);
+                            }
+                            flat.rows.push(Row::Option(flat.options.len()));
+                            flat.options.push(o);
+                            flat.positions.push(pos);
+                        }
+                        pos = pos.saturating_add(1);
                     }
                 }
             }
@@ -180,15 +191,15 @@ impl<'a> Flat<'a> {
         self.options.get(i).is_some_and(|o| !o.disabled)
     }
 
-    pub(crate) fn value(&self, i: usize) -> Option<&'a ListOption> {
+    pub(crate) fn value(&self, i: usize) -> Option<&'a ListOption<K>> {
         self.options.get(i).copied()
     }
 }
 
-pub(crate) struct View<'a> {
-    pub flat: &'a Flat<'a>,
+pub(crate) struct View<'a, K> {
+    pub flat: &'a Flat<'a, K>,
     pub multiselect: bool,
-    pub selected: &'a dyn Fn(&ListOption) -> bool,
+    pub selected: &'a dyn Fn(&ListOption<K>) -> bool,
     pub active: Option<usize>,
     pub scroll_to_active: bool,
     pub max_height: f32,
@@ -214,7 +225,7 @@ const GROUP_H: f32 = GROUP_LINE + 2.0 * GROUP_PAD_V;
 // useOptionGroupStyles `::after`: `paddingBottom`, 1px border, `marginBottom` of `spacingVerticalXS`.
 const DIVIDER_H: f32 = g::SPACING_HORIZONTAL_XS + g::STROKE_WIDTH_THIN + g::SPACING_HORIZONTAL_XS;
 
-impl View<'_> {
+impl<K> View<'_, K> {
     fn content_height(&self) -> f32 {
         let f = self.flat;
         let mut h = 0.0;
@@ -234,14 +245,14 @@ impl View<'_> {
 }
 
 // react-combobox Listbox / OptionGroup / Option, shown as a popup under `anchor`.
-pub(crate) fn show(
+pub(crate) fn show<K>(
     ui: &MineralUi<'_, Fluent>,
     popup: KeyedSalt,
     trigger: &Response,
     anchor: Rect,
     key: &StableId,
     label: &str,
-    view: &View<'_>,
+    view: &View<'_, K>,
 ) -> Shown {
     let rt = ui.rt();
     let ctx = rt.ctx();
@@ -304,8 +315,8 @@ pub(crate) fn show(
     }
 }
 
-struct Rows<'a, 'b> {
-    view: &'a View<'a>,
+struct Rows<'a, 'b, K> {
+    view: &'a View<'a, K>,
     base: Id,
     dir: egui_mineral::i18n::Direction,
     key: &'a StableId,
@@ -313,7 +324,7 @@ struct Rows<'a, 'b> {
     icons: &'b crate::IconSet,
 }
 
-impl Rows<'_, '_> {
+impl<K> Rows<'_, '_, K> {
     fn draw(&self, ui: &mut egui::Ui) -> (Option<usize>, Option<Id>) {
         let (view, t, dir, icons) = (self.view, self.t, self.dir, self.icons);
         let ctx = ui.ctx().clone();
@@ -370,7 +381,7 @@ impl Rows<'_, '_> {
     }
 }
 
-fn option_key(key: &StableId, i: usize, opt: &ListOption) -> StableId {
+fn option_key<K>(key: &StableId, i: usize, opt: &ListOption<K>) -> StableId {
     match &opt.salt {
         Some(salt) => key.sub((salt, "option")),
         None => key.sub((i, "option")),
@@ -424,10 +435,10 @@ struct OptionLook {
 }
 
 // react-combobox useOptionStyles.styles.ts
-fn option_row(
+fn option_row<K>(
     ui: &mut egui::Ui,
     id: Id,
-    opt: &ListOption,
+    opt: &ListOption<K>,
     look: OptionLook,
     width: f32,
     dir: egui_mineral::i18n::Direction,

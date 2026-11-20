@@ -201,7 +201,7 @@ fn select_binds_a_value() {
 #[test]
 fn swatch_picker_binds_a_value() {
     let mut h = harness(View::List, |ui, view| {
-        let swatch = |(v, label): (View, &str)| (v, Swatch::color(label, label, egui::Color32::RED));
+        let swatch = |(v, label): (View, &str)| (v, Swatch::color(label, egui::Color32::RED));
         SwatchPicker::bound("s", "Color", VIEWS.map(swatch), view).show(ui);
     });
     h.run();

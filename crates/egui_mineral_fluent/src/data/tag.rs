@@ -1,7 +1,7 @@
 use crate::msg;
 use std::sync::Arc;
 
-use egui::{CornerRadius, Galley, Key, Rect, Sense, Stroke, StrokeKind, pos2, text::LayoutJob, vec2};
+use egui::{CornerRadius, Galley, IdSalt, Key, Rect, Sense, Stroke, StrokeKind, pos2, text::LayoutJob, vec2};
 use egui_mineral::{
     focus::{self, RovingFocus, TabStop},
     i18n::I18n,
@@ -564,7 +564,6 @@ macro_rules! look_setters {
 #[must_use = "show with ui.mineral(..) or add to a TagGroup"]
 pub struct Tag<'a> {
     salt: KeyedSalt,
-    value: String,
     label: String,
     appearance: Option<TagAppearance>,
     shape: TagShape,
@@ -579,13 +578,11 @@ pub struct Tag<'a> {
 }
 
 impl<'a> Tag<'a> {
-    /// `value` salts its id and is unique within a [`TagGroup`]; `label` is the text and accessible name.
-    /// Agent key `<value>-tag`.
-    pub fn new(value: impl Into<String>, label: impl Into<String>) -> Self {
-        let value = value.into();
+    /// `id_salt` is unique within a [`TagGroup`]; `label` is the text and accessible name. Agent key
+    /// `<id_salt>-tag`.
+    pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>) -> Self {
         Self {
-            salt: KeyedSalt::from(value.clone()),
-            value,
+            salt: id_salt.into(),
             label: label.into(),
             appearance: None,
             shape: TagShape::Rounded,
@@ -615,7 +612,7 @@ impl<'a> Tag<'a> {
     }
 
     crate::widget::setters! {
-        /// Replaces the `<value>-tag` agent key.
+        /// Replaces the `<id_salt>-tag` agent key.
         agent_key(key)
     }
 
@@ -676,7 +673,6 @@ impl MineralWidget for Tag<'_> {
 #[must_use = "call .show(..) or add to a TagGroup"]
 pub struct InteractionTag<'a> {
     salt: KeyedSalt,
-    value: String,
     label: String,
     appearance: Option<TagAppearance>,
     shape: TagShape,
@@ -704,13 +700,11 @@ pub struct InteractionTagResponse {
 }
 
 impl<'a> InteractionTag<'a> {
-    /// `value` salts its id and is unique within a [`TagGroup`]; `label` is the text and accessible name.
-    /// Agent key `<value>-interaction-tag`, and `<value>-dismiss` for the secondary button.
-    pub fn new(value: impl Into<String>, label: impl Into<String>) -> Self {
-        let value = value.into();
+    /// `id_salt` is unique within a [`TagGroup`]; `label` is the text and accessible name. Agent key
+    /// `<id_salt>-interaction-tag`, and `<id_salt>-dismiss` for the secondary button.
+    pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>) -> Self {
         Self {
-            salt: KeyedSalt::from(value.clone()),
-            value,
+            salt: id_salt.into(),
             label: label.into(),
             appearance: None,
             shape: TagShape::Rounded,
@@ -733,7 +727,7 @@ impl<'a> InteractionTag<'a> {
     }
 
     crate::widget::setters! {
-        /// Replaces the `<value>-interaction-tag` agent key.
+        /// Replaces the `<id_salt>-interaction-tag` agent key.
         agent_key(key)
     }
 
@@ -773,7 +767,7 @@ impl<'a> InteractionTag<'a> {
         };
         let secondary = dismissible.then(|| Part {
             salt: self.salt.child("dismiss"),
-            key: AgentKey::Custom(format!("{}-dismiss", self.value).into()),
+            key: AgentKey::Custom(egui_mineral::semantic::StableId::of(&self.salt, "dismiss")),
             name: dismiss_label,
             look,
             kind: Kind::Secondary,
@@ -852,41 +846,41 @@ enum Entry<'a> {
     Interaction(InteractionTag<'a>),
 }
 
-// Entry to refocus after `value` leaves the data and whether its last stop: the next entry with a stop, else the
-// previous one.
-type Refocus = (String, bool);
+// Entry to refocus, by its salt, after the entry `gone` leaves the data, and whether its last stop: the next
+// entry with a stop, else the previous one.
+type Refocus = (IdSalt, bool);
 
-fn neighbor(entries: &[Entry<'_>], d: Defaults, value: &str) -> Option<Refocus> {
-    let at = entries.iter().position(|e| e.value() == value)?;
+fn neighbor(entries: &[Entry<'_>], d: Defaults, gone: IdSalt) -> Option<Refocus> {
+    let at = entries.iter().position(|e| e.id() == gone)?;
     let has_stop = |e: &&Entry<'_>| !e.stops(d).is_empty();
     entries
         .get(at + 1..)
         .and_then(|after| after.iter().find(has_stop))
-        .map(|e| (e.value().to_owned(), false))
+        .map(|e| (e.id(), false))
         .or_else(|| {
             entries
                 .get(..at)
                 .and_then(|before| before.iter().rev().find(has_stop))
-                .map(|e| (e.value().to_owned(), true))
+                .map(|e| (e.id(), true))
         })
 }
 
-// Index among all stops of the first (or last) stop of the entry `value`.
-fn stop_of(entries: &[Entry<'_>], d: Defaults, value: &str, last: bool) -> Option<usize> {
+// Index among all stops of the first (or last) stop of the entry `id`.
+fn stop_of(entries: &[Entry<'_>], d: Defaults, id: IdSalt, last: bool) -> Option<usize> {
     let before: usize = entries
         .iter()
-        .take_while(|e| e.value() != value)
+        .take_while(|e| e.id() != id)
         .map(|e| e.stops(d).len())
         .sum();
-    let own = entries.iter().find(|e| e.value() == value)?.stops(d).len();
+    let own = entries.iter().find(|e| e.id() == id)?.stops(d).len();
     (own > 0).then(|| if last { before + own - 1 } else { before })
 }
 
 impl Entry<'_> {
-    fn value(&self) -> &str {
+    fn id(&self) -> IdSalt {
         match self {
-            Self::Tag(t) => &t.value,
-            Self::Interaction(t) => &t.value,
+            Self::Tag(t) => t.salt.id_salt(),
+            Self::Interaction(t) => t.salt.id_salt(),
         }
     }
 
@@ -1022,15 +1016,15 @@ impl<'a, K: Ord + Clone> TagGroup<'a, K> {
         let disabled: Vec<bool> = entries.iter().flat_map(|e| e.stops(defaults)).collect();
         let enabled = |i: usize| disabled.get(i).is_some_and(|d| !d);
         let refocus_id = id.with("mineral::refocus");
-        let pending: Option<Refocus> = ui.ctx().data(|d| d.get_temp(refocus_id));
-        if pending.is_some() {
-            ui.ctx().data_mut(|d| d.remove_temp::<Refocus>(refocus_id));
-        }
-        let target = pending.and_then(|(value, last)| stop_of(&entries, defaults, &value, last));
+        let pending = ui
+            .ctx()
+            .data_mut(|d| d.remove_temp::<Option<Refocus>>(refocus_id))
+            .flatten();
+        let target = pending.and_then(|(at, last)| stop_of(&entries, defaults, at, last));
         let stop = focus::tab_stop(ui.ctx(), id, target, disabled.len(), enabled);
         let gap = defaults.size.metrics().group_gap;
         let mut ids: Vec<egui::Id> = Vec::with_capacity(disabled.len());
-        let mut dismissed: Option<(&K, &str)> = None;
+        let mut dismissed: Option<(&K, IdSalt)> = None;
         let mut toggled = false;
         let group = ui
             .push_id(salt.id_salt(), |ui| {
@@ -1047,7 +1041,7 @@ impl<'a, K: Ord + Clone> TagGroup<'a, K> {
                                     ids.push(r.id);
                                 }
                                 if *r.output() && dismissible {
-                                    dismissed = Some((key, &t.value));
+                                    dismissed = Some((key, entry.id()));
                                 }
                             }
                             Entry::Interaction(t) => {
@@ -1059,7 +1053,7 @@ impl<'a, K: Ord + Clone> TagGroup<'a, K> {
                                     toggled |= s.toggle(key.clone());
                                 }
                                 if r.dismiss_clicked {
-                                    dismissed = Some((key, &t.value));
+                                    dismissed = Some((key, entry.id()));
                                 }
                             }
                         }
@@ -1068,10 +1062,10 @@ impl<'a, K: Ord + Clone> TagGroup<'a, K> {
                 .response
             })
             .inner;
-        if let Some((_, value)) = dismissed {
+        if let Some((_, gone)) = dismissed {
             let in_group = ids.iter().any(|i| ui.ctx().memory(|m| m.has_focus(*i)));
-            if let (true, Some(next)) = (in_group, neighbor(&entries, defaults, value)) {
-                ui.ctx().data_mut(|d| d.insert_temp(refocus_id, next));
+            if let (true, Some(next)) = (in_group, neighbor(&entries, defaults, gone)) {
+                ui.ctx().data_mut(|d| d.insert_temp(refocus_id, Some(next)));
             }
         }
         if let Some(at) = target

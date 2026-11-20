@@ -5,7 +5,6 @@ use egui_mineral::{
 };
 
 use super::listbox::{Flat, ListEntry};
-use crate::widget::choice::Choice;
 
 #[derive(Clone, Debug, Default)]
 pub struct ListState {
@@ -15,49 +14,107 @@ pub struct ListState {
     pub filtering: bool,
 }
 
-pub(crate) enum Value<'a> {
-    Many(&'a mut Selection<String>),
-    One(&'a mut Option<String>),
-    // Option values are their indices.
-    Bound(Choice<'a>),
+// Binding of a list's picked option values.
+pub(crate) trait Pick<K> {
+    fn multiselect(&self) -> bool {
+        false
+    }
+
+    fn is_selected(&self, value: &K) -> bool;
+
+    // Whether the binding changed.
+    fn pick(&mut self, value: &K) -> bool;
 }
 
-impl std::fmt::Debug for Value<'_> {
+impl<K: Ord + Clone> Pick<K> for Selection<K> {
+    fn multiselect(&self) -> bool {
+        self.mode() == SelectionMode::Multiple
+    }
+
+    fn is_selected(&self, value: &K) -> bool {
+        Selection::is_selected(self, value)
+    }
+
+    fn pick(&mut self, value: &K) -> bool {
+        if self.mode() == SelectionMode::Multiple {
+            self.toggle(value.clone())
+        } else {
+            self.select(value.clone())
+        }
+    }
+}
+
+impl<K: PartialEq + Clone> Pick<K> for Option<K> {
+    fn is_selected(&self, value: &K) -> bool {
+        self.as_ref() == Some(value)
+    }
+
+    fn pick(&mut self, value: &K) -> bool {
+        let changed = self.as_ref() != Some(value);
+        *self = Some(value.clone());
+        changed
+    }
+}
+
+// Always holds one of the option values; nothing is selected while it matches none.
+pub(crate) struct Exact<'a, K>(pub &'a mut K);
+
+impl<K: PartialEq + Clone> Pick<K> for Exact<'_, K> {
+    fn is_selected(&self, value: &K) -> bool {
+        self.0 == value
+    }
+
+    fn pick(&mut self, value: &K) -> bool {
+        let changed = self.0 != value;
+        *self.0 = value.clone();
+        changed
+    }
+}
+
+impl<K, P: Pick<K> + ?Sized> Pick<K> for &mut P {
+    fn multiselect(&self) -> bool {
+        (**self).multiselect()
+    }
+
+    fn is_selected(&self, value: &K) -> bool {
+        (**self).is_selected(value)
+    }
+
+    fn pick(&mut self, value: &K) -> bool {
+        (**self).pick(value)
+    }
+}
+
+pub(crate) struct Value<'a, K>(Box<dyn Pick<K> + 'a>);
+
+impl<'a, K> Value<'a, K> {
+    pub(crate) fn new(pick: impl Pick<K> + 'a) -> Self {
+        Self(Box::new(pick))
+    }
+}
+
+impl<K> std::fmt::Debug for Value<'_, K> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Value").finish_non_exhaustive()
     }
 }
 
-impl Value<'_> {
-    pub(crate) fn multiselect(&self) -> bool {
-        matches!(self, Self::Many(s) if s.mode() == SelectionMode::Multiple)
-    }
+impl<'a, K> std::ops::Deref for Value<'a, K> {
+    type Target = dyn Pick<K> + 'a;
 
-    pub(crate) fn is_selected(&self, value: &str) -> bool {
-        match self {
-            Self::Many(s) => s.is_selected(&value.to_owned()),
-            Self::One(v) => v.as_deref() == Some(value),
-            Self::Bound(c) => c.selected().is_some_and(|i| value.parse() == Ok(i)),
-        }
-    }
-
-    pub(crate) fn pick(&mut self, value: &str) -> bool {
-        match self {
-            Self::Many(s) if s.mode() == SelectionMode::Multiple => s.toggle(value.to_owned()),
-            Self::Many(s) => s.select(value.to_owned()),
-            Self::One(v) => {
-                let changed = v.as_deref() != Some(value);
-                **v = Some(value.to_owned());
-                changed
-            }
-            Self::Bound(c) => value.parse().is_ok_and(|i| c.select(i)),
-        }
+    fn deref(&self) -> &Self::Target {
+        &*self.0
     }
 }
 
-// Text of the selected options, in list order.
-pub(crate) fn selected_text(entries: &[ListEntry], value: &Value<'_>) -> String {
-    let flat = Flat::new(entries, &|_| true);
+impl<K> std::ops::DerefMut for Value<'_, K> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut *self.0
+    }
+}
+
+pub(crate) fn selected_text<K>(entries: &[ListEntry<K>], value: &dyn Pick<K>) -> String {
+    let flat = Flat::new(entries, &|_, _| true);
     flat.options
         .iter()
         .filter(|o| value.is_selected(&o.value))
@@ -67,7 +124,7 @@ pub(crate) fn selected_text(entries: &[ListEntry], value: &Value<'_>) -> String 
 }
 
 // First enabled option after `from` whose text starts with `typed`, wrapping.
-pub(crate) fn typeahead(flat: &Flat<'_>, from: Option<usize>, typed: &str) -> Option<usize> {
+pub(crate) fn typeahead<K>(flat: &Flat<'_, K>, from: Option<usize>, typed: &str) -> Option<usize> {
     let lower = typed.to_lowercase();
     let n = flat.len();
     let start = from.map_or(0, |i| i.saturating_add(1));

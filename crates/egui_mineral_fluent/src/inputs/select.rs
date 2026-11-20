@@ -10,62 +10,55 @@ use super::dropdown::{Dropdown, Kind};
 use super::field::Validation;
 use super::listbox::{self, ListEntry, ListOption};
 use super::textbox::InputAppearance;
-use super::value::{ListState, Value};
-use crate::{
-    Fluent, Size,
-    widget::choice::{self, Choice},
-};
+use super::value::{Exact, ListState, Value};
+use crate::{Fluent, Size};
 
 /// Fluent `Select`: the field of a native `<select>` bound to the picked option value; the list is the Fluent
 /// listbox.
 #[derive(Debug)]
 #[must_use = "show with ui.mineral(..)"]
-pub struct Select<'a>(Dropdown<'a>);
+pub struct Select<'a, K = String>(Dropdown<'a, K>);
 
-impl<'a> Select<'a> {
+impl<'a, K: PartialEq + Clone + 'a> Select<'a, K> {
     /// `label` is the accessible name; `entries` are options and groups. Agent key `<id_salt>-select`.
     pub fn new(
         id_salt: impl Into<KeyedSalt>,
         label: impl Into<String>,
-        entries: impl IntoIterator<Item = impl Into<ListEntry>>,
-        value: &'a mut Option<String>,
+        entries: impl IntoIterator<Item = impl Into<ListEntry<K>>>,
+        value: &'a mut Option<K>,
     ) -> Self {
         Self(Dropdown::with(
             Kind::Select,
             id_salt.into(),
             label.into(),
             listbox::entries(entries),
-            Value::One(value),
+            Value::new(value),
         ))
     }
 
-    /// Binds the value of the picked option instead of its string: each of `options` comes with its value
-    /// (the option's own string value is not read), a pick writes it into `value`, and nothing is selected
-    /// while `value` matches none.
-    pub fn bound<T: PartialEq + Clone + 'a>(
+    /// Binds a value that is always one of the options: each of `options` comes with its value, a pick writes
+    /// it into `value`, and nothing is selected while `value` matches none.
+    pub fn bound(
         id_salt: impl Into<KeyedSalt>,
         label: impl Into<String>,
-        options: impl IntoIterator<Item = (T, impl Into<ListOption>)>,
-        value: &'a mut T,
+        options: impl IntoIterator<Item = (K, impl Into<String>)>,
+        value: &'a mut K,
     ) -> Self {
-        let (values, options): (Vec<T>, Vec<ListOption>) = choice::split(options);
         let entries = options
             .into_iter()
-            .enumerate()
-            .map(|(i, mut o)| {
-                o.value = i.to_string();
-                ListEntry::from(o)
-            })
+            .map(|(v, text)| ListEntry::from(ListOption::new(v, text)))
             .collect();
         Self(Dropdown::with(
             Kind::Select,
             id_salt.into(),
             label.into(),
             entries,
-            Value::Bound(Choice::by_value(value, values)),
+            Value::new(Exact(value)),
         ))
     }
+}
 
+impl<K> Select<'_, K> {
     /// Default [`InputAppearance::Outline`].
     pub fn appearance(mut self, appearance: InputAppearance) -> Self {
         self.0 = self.0.appearance(appearance);
@@ -110,7 +103,7 @@ impl<'a> Select<'a> {
     }
 }
 
-impl MineralWidget for Select<'_> {
+impl<K> MineralWidget for Select<'_, K> {
     type Kit = Fluent;
     type State = ListState;
     type Output = ();

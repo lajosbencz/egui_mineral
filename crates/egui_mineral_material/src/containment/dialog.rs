@@ -341,7 +341,7 @@ impl<W: Clone + Send + Sync + 'static> PickerModal<'_, W> {
             d.remove::<W>(work_id);
             forget(d);
         };
-        ModalFocus::scope(ctx, id.with("focus"), open, None, |_, open| {
+        ModalFocus::scope(ctx, focus_id(id), open, None, |_, open| {
             if !*open {
                 ctx.data_mut(close);
                 return PickerModalResponse::closed();
@@ -392,7 +392,7 @@ fn run_modal<R>(
     open: &mut bool,
     run: impl FnOnce(&mut ModalFocus) -> DialogResponse<R>,
 ) -> DialogResponse<R> {
-    ModalFocus::scope(ctx, id.with("focus"), open, None, |focus, open| {
+    ModalFocus::scope(ctx, focus_id(id), open, None, |focus, open| {
         if !*open {
             return DialogResponse::closed();
         }
@@ -409,7 +409,7 @@ impl Dialog {
     pub fn new(id_salt: impl Into<KeyedSalt>, headline: impl Into<String>) -> Self {
         let salt: KeyedSalt = id_salt.into();
         Self {
-            id: Id::unique(("mineral::dialog", salt.id_salt())),
+            id: dialog_id(salt.id_salt()),
             salt,
             headline: headline.into(),
             icon: None,
@@ -699,7 +699,7 @@ impl FullScreenDialog {
     fn new(id_salt: impl Into<KeyedSalt>, headline: impl Into<String>) -> Self {
         let salt: KeyedSalt = id_salt.into();
         Self {
-            id: Id::unique(("mineral::dialog", salt.id_salt())),
+            id: dialog_id(salt.id_salt()),
             salt,
             headline: headline.into(),
             supporting: None,
@@ -872,4 +872,12 @@ impl FullScreenDialog {
 struct Header {
     closed: bool,
     action: Option<usize>,
+}
+
+fn focus_id(base: egui::Id) -> egui::Id {
+    base.with("focus")
+}
+
+fn dialog_id(salt: egui::IdSalt) -> Id {
+    Id::unique(("mineral::dialog", salt))
 }

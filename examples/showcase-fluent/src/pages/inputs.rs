@@ -6,9 +6,9 @@ use egui_mineral_fluent::{
     icons::{ICON_MAIL, ICON_PERSON},
     inputs::{
         Calendar, Checkbox, CheckboxLabelPosition, CheckboxShape, ColorPicker, Combobox, DatePicker, Dropdown, Field,
-        InfoLabel, Input, InputAppearance, ListOption, OptionGroup, RadioGroup, RadioLayout, RadioOption, RangeSlider,
-        RangeValue, Rating, RatingAppearance, RatingColor, RatingDisplay, RatingSize, SearchBox, Select, Slider,
-        SpinButton, Swatch, SwatchLayout, SwatchPicker, SwatchShape, SwatchSize, Switch, SwitchLabelPosition,
+        InfoLabel, Input, InputAppearance, ListEntry, ListOption, OptionGroup, RadioGroup, RadioLayout, RadioOption,
+        RangeSlider, RangeValue, Rating, RatingAppearance, RatingColor, RatingDisplay, RatingSize, SearchBox, Select,
+        Slider, SpinButton, Swatch, SwatchLayout, SwatchPicker, SwatchShape, SwatchSize, Switch, SwitchLabelPosition,
         TagPicker, TagPickerControl, TagPickerSize, Textarea, TimePicker, Validation,
     },
 };
@@ -32,19 +32,19 @@ pub(crate) struct State {
     search: String,
     area: String,
     password: String,
-    pick: Selection<String>,
-    multi: Selection<String>,
-    combo: Selection<String>,
+    pick: Selection<Animal>,
+    multi: Selection<Animal>,
+    combo: Selection<Animal>,
     combo_text: String,
-    native: Option<String>,
+    native: Option<Animal>,
     time: Option<egui_mineral_fluent::egui_mineral::date::Time>,
-    tags: Selection<String>,
+    tags: Selection<Animal>,
     tags_text: String,
-    tag_button: Selection<String>,
+    tag_button: Selection<Animal>,
     tag_button_text: String,
     date: Option<egui_mineral_fluent::egui_mineral::date::Date>,
     day: Option<egui_mineral_fluent::egui_mineral::date::Date>,
-    swatch: Option<String>,
+    swatch: Option<Paint>,
     color: egui::ecolor::Hsva,
 }
 
@@ -65,19 +65,19 @@ impl Default for State {
             search: String::from("fluent"),
             area: String::from("Line one\nLine two"),
             password: String::from("secret"),
-            pick: Selection::single().with([String::from("cat")]),
-            multi: Selection::multiple().with([String::from("dog")]),
+            pick: Selection::single().with([Animal::Cat]),
+            multi: Selection::multiple().with([Animal::Dog]),
             combo: Selection::single(),
             combo_text: String::new(),
             native: None,
             time: None,
-            tags: Selection::multiple().with([String::from("dog")]),
+            tags: Selection::multiple().with([Animal::Dog]),
             tags_text: String::new(),
             tag_button: Selection::multiple(),
             tag_button_text: String::new(),
             date: None,
             day: None,
-            swatch: Some(String::from("blue")),
+            swatch: Some(Paint::Blue),
             color: egui::ecolor::Hsva::new(0.58, 0.8, 0.9, 1.0),
         }
     }
@@ -242,18 +242,31 @@ fn composed(ui: &mut FluentUi<'_>, s: &mut State) {
     ));
 }
 
-fn animals() -> Vec<egui_mineral_fluent::inputs::ListEntry> {
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) enum Animal {
+    Cat,
+    Dog,
+    Fish,
+    Eel,
+    Bird,
+}
+
+fn animals() -> Vec<ListEntry<Animal>> {
     vec![
-        OptionGroup::new("Land", [ListOption::new("cat", "Cat"), ListOption::new("dog", "Dog")]).into(),
+        OptionGroup::new(
+            "Land",
+            [ListOption::new(Animal::Cat, "Cat"), ListOption::new(Animal::Dog, "Dog")],
+        )
+        .into(),
         OptionGroup::new(
             "Water",
             [
-                ListOption::new("fish", "Fish"),
-                ListOption::new("eel", "Eel").disabled(true),
+                ListOption::new(Animal::Fish, "Fish"),
+                ListOption::new(Animal::Eel, "Eel").disabled(true),
             ],
         )
         .into(),
-        ListOption::new("bird", "Bird").into(),
+        ListOption::new(Animal::Bird, "Bird").into(),
     ]
 }
 
@@ -299,20 +312,30 @@ fn tags_and_dates(ui: &mut FluentUi<'_>, s: &mut State) {
     ui.mineral(DatePicker::new("date-1", "Date", &mut s.date).placeholder("Select a date"));
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Paint {
+    Red,
+    Green,
+    Blue,
+    Gold,
+    Plum,
+    Gray,
+}
+
 fn swatches(ui: &mut FluentUi<'_>, s: &mut State) {
     heading(ui, "h-swatch", "SwatchPicker");
     let colors = [
-        ("red", "Red", Color32::from_rgb(0xd1, 0x34, 0x38)),
-        ("green", "Green", Color32::from_rgb(0x10, 0x7c, 0x10)),
-        ("blue", "Blue", Color32::from_rgb(0x00, 0x78, 0xd4)),
-        ("gold", "Gold", Color32::from_rgb(0xff, 0xb9, 0x00)),
-        ("plum", "Plum", Color32::from_rgb(0x88, 0x17, 0x98)),
-        ("gray", "Gray", Color32::from_rgb(0x7a, 0x7a, 0x7a)),
+        (Paint::Red, "Red", Color32::from_rgb(0xd1, 0x34, 0x38)),
+        (Paint::Green, "Green", Color32::from_rgb(0x10, 0x7c, 0x10)),
+        (Paint::Blue, "Blue", Color32::from_rgb(0x00, 0x78, 0xd4)),
+        (Paint::Gold, "Gold", Color32::from_rgb(0xff, 0xb9, 0x00)),
+        (Paint::Plum, "Plum", Color32::from_rgb(0x88, 0x17, 0x98)),
+        (Paint::Gray, "Gray", Color32::from_rgb(0x7a, 0x7a, 0x7a)),
     ];
     let all = || {
         colors
             .iter()
-            .map(|(v, l, c)| Swatch::color(*v, *l, *c).disabled(*v == "gray"))
+            .map(|&(v, l, c)| (v, Swatch::color(l, c).disabled(v == Paint::Gray)))
     };
     SwatchPicker::new("sw-1", "Color", &mut s.swatch)
         .swatches(all())

@@ -128,12 +128,17 @@ pub(crate) fn trigger(salt: KeyedSalt, label: &str, icons: &crate::IconSet) -> P
         .label_visible(false)
 }
 
-pub(crate) fn is_open(ctx: &Context, id: Id) -> bool {
-    ctx.data(|d| d.get_temp::<bool>(id)).unwrap_or(false)
+// Open state of the overflow menu owned by the widget `owner`.
+fn open_id(owner: Id) -> Id {
+    owner.with("mineral::overflow-open")
 }
 
-pub(crate) fn set_open(ctx: &Context, id: Id, open: bool) {
-    ctx.data_mut(|d| d.insert_temp(id, open));
+pub(crate) fn is_open(ctx: &Context, owner: Id) -> bool {
+    ctx.data(|d| d.get_temp::<bool>(open_id(owner))).unwrap_or(false)
+}
+
+pub(crate) fn set_open(ctx: &Context, owner: Id, open: bool) {
+    ctx.data_mut(|d| d.insert_temp(open_id(owner), open));
 }
 
 #[cfg(test)]

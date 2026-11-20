@@ -416,7 +416,7 @@ fn show_overflow(
     items: Vec<Avatar<'_>>,
 ) -> egui::Response {
     let OverflowSpec { salt, size, pie } = *spec;
-    let open_id = ui.make_persistent_id(salt.id_salt()).with("mineral::overflow-open");
+    let open_id = ui.make_persistent_id(salt.id_salt());
     let mut open = overflow::is_open(ui.ctx(), open_id);
     let count = i64::try_from(items.len()).unwrap_or(i64::MAX);
     let format = rt.i18n().format();

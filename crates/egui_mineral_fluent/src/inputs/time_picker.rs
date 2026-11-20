@@ -136,25 +136,16 @@ impl<'a> TimePicker<'a> {
         agent_key(key)
     }
 
-    fn entries(&self, fmt: &dyn egui_mineral::i18n::LocaleFormat, cycle: HourCycle) -> Vec<ListEntry> {
+    fn entries(&self, fmt: &dyn egui_mineral::i18n::LocaleFormat, cycle: HourCycle) -> Vec<ListEntry<Time>> {
         let (from, to) = (self.start_hour.saturating_mul(60), self.end_hour.saturating_mul(60));
         (from..to)
             .step_by(self.increment as usize)
             .filter_map(|m| {
                 let t = Time::new(i8::try_from(m / 60).ok()?, i8::try_from(m % 60).ok()?, 0, 0).ok()?;
-                Some(ListOption::new(time_key(t), fmt.time(t, cycle)).into())
+                Some(ListOption::new(t, fmt.time(t, cycle)).into())
             })
             .collect()
     }
-}
-
-fn time_key(t: Time) -> String {
-    format!("{:02}:{:02}", t.hour(), t.minute())
-}
-
-fn from_key(key: &str) -> Option<Time> {
-    let (h, m) = key.split_once(':')?;
-    Time::new(h.parse().ok()?, m.parse().ok()?, 0, 0).ok()
 }
 
 // `h`, `h:mm` or `hh:mm` with an optional ASCII `am` / `pm`.
@@ -196,9 +187,9 @@ impl Composite for TimePicker<'_> {
         }
         let mut selection = Selection::single();
         if let Some(t) = *self.value {
-            selection = selection.with([time_key(t)]);
+            selection = selection.with([t]);
         }
-        let before = selection.first().cloned();
+        let before = selection.first().copied();
         let entries = self.entries(fmt.as_ref(), cycle);
         let mut combo = Combobox::new(
             self.salt.child("combobox"),
@@ -223,8 +214,8 @@ impl Composite for TimePicker<'_> {
         let out = ui.mineral(combo.constrain(constraints));
         let output = *out.output();
         let mut changed = false;
-        if selection.first().cloned() != before {
-            *self.value = selection.first().and_then(|k| from_key(k));
+        if selection.first().copied() != before {
+            *self.value = selection.first().copied();
             changed = true;
         } else if self.freeform && (output.blurred || output.submitted) {
             let typed = if st.text.trim().is_empty() {

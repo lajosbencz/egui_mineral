@@ -244,7 +244,7 @@ impl Popup {
         anchor_rect: Rect,
         add: impl FnOnce(&mut MineralUi<'_, K>, &Placement) -> R,
     ) -> PopupArea<R> {
-        let id = crate::kit::scoped_id(rt.core(), Id::unique(("mineral::popup", self.salt)));
+        let id = crate::kit::scoped_id(rt.core(), popup_id(self.salt));
         let parent = top_modal(rt.ctx());
         self.place(rt, id, anchor_rect, parent, add)
     }
@@ -297,7 +297,7 @@ impl Popup {
         open: &mut bool,
         add: impl FnOnce(&mut MineralUi<'_, K>, &Placement) -> R,
     ) -> OverlayResponse<R> {
-        let id = crate::kit::scoped_id(rt.core(), Id::unique(("mineral::popup", self.salt)));
+        let id = crate::kit::scoped_id(rt.core(), popup_id(self.salt));
         let parent = top_modal(rt.ctx());
         self.show_open(rt, id, anchor_rect, parent, self.return_focus, open, add)
     }
@@ -465,6 +465,10 @@ fn has_popup(role: Role) -> Option<HasPopup> {
         Role::Dialog => Some(HasPopup::Dialog),
         _ => None,
     }
+}
+
+fn popup_id(salt: IdSalt) -> Id {
+    Id::unique(("mineral::popup", salt))
 }
 
 #[cfg(test)]

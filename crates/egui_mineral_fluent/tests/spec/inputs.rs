@@ -151,7 +151,7 @@ fn dropdown_and_combobox_share_the_input_heights() {
         (Size::Large, input::HEIGHT_LARGE),
     ] {
         let h = harness(
-            egui_mineral_fluent::egui_mineral::select::Selection::<String>::single(),
+            egui_mineral_fluent::egui_mineral::select::Selection::<&str>::single(),
             move |ui, sel| {
                 ui.mineral(Dropdown::new("d", "Pet", [ListOption::new("a", "A")], sel).size(size));
             },
@@ -159,7 +159,7 @@ fn dropdown_and_combobox_share_the_input_heights() {
         assert_eq!(h.rect("d-dropdown").height(), height, "{size:?}");
         let c = harness(
             (
-                egui_mineral_fluent::egui_mineral::select::Selection::<String>::single(),
+                egui_mineral_fluent::egui_mineral::select::Selection::<&str>::single(),
                 String::new(),
             ),
             move |ui, (sel, text)| {
@@ -173,7 +173,7 @@ fn dropdown_and_combobox_share_the_input_heights() {
 #[test]
 fn listbox_options_are_a_text_line_with_snudge_padding() {
     let mut h = harness(
-        egui_mineral_fluent::egui_mineral::select::Selection::<String>::single(),
+        egui_mineral_fluent::egui_mineral::select::Selection::<&str>::single(),
         |ui, sel| {
             ui.mineral(Dropdown::new("d", "Pet", [ListOption::new("a", "A")], sel));
         },
@@ -196,11 +196,11 @@ fn swatches_are_squares_of_their_size_with_the_gap_between() {
         (SwatchSize::Medium, swatch_picker::SIZE_MEDIUM),
         (SwatchSize::Large, swatch_picker::SIZE_LARGE),
     ] {
-        let h = harness(None::<String>, move |ui, v| {
+        let h = harness(None::<&str>, move |ui, v| {
             SwatchPicker::new("s", "Color", v)
                 .swatches([
-                    Swatch::color("a", "A", egui::Color32::RED),
-                    Swatch::color("b", "B", egui::Color32::BLUE),
+                    ("a", Swatch::color("A", egui::Color32::RED)),
+                    ("b", Swatch::color("B", egui::Color32::BLUE)),
                 ])
                 .size(size)
                 .show(ui);
@@ -225,12 +225,12 @@ fn color_picker_parts_are_the_area_and_slider_sizes_stacked_with_xs_gaps() {
     assert_eq!(alpha.top() - hue.bottom(), geometry::SPACING_VERTICAL_XS);
 }
 
-fn animals() -> Vec<ListOption> {
+fn animals() -> Vec<ListOption<&'static str>> {
     vec![ListOption::new("a", "Ant"), ListOption::new("b", "Bee")]
 }
 
-fn picker(size: TagPickerSize, selected: &[&str]) -> f32 {
-    let sel: Selection<String> = Selection::multiple().with(selected.iter().map(|s| (*s).to_owned()));
+fn picker(size: TagPickerSize, selected: &[&'static str]) -> f32 {
+    let sel: Selection<&str> = Selection::multiple().with(selected.iter().copied());
     let h = harness((sel, String::new()), move |ui, (sel, text)| {
         ui.mineral(TagPicker::new("t", "Pets", animals(), sel, text).size(size));
     });
@@ -256,7 +256,7 @@ fn tag_picker_height_follows_the_min_height_until_tags_add_group_padding() {
 #[test]
 fn tag_dismiss_hit_target_is_the_tag_height() {
     let h = harness(
-        (Selection::<String>::multiple().with(["a".to_owned()]), String::new()),
+        (Selection::<&str>::multiple().with(["a"]), String::new()),
         |ui, (sel, text)| {
             ui.mineral(TagPicker::new("t", "Pets", animals(), sel, text));
         },

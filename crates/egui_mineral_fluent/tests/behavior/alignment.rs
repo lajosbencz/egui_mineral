@@ -42,7 +42,7 @@ fn group(name: impl Into<String>, add: impl Fn(&mut FluentUi<'_>) -> egui::Respo
     (name.into(), Box::new(move |ui| add(ui).rect))
 }
 
-fn options() -> Vec<ListOption> {
+fn options() -> Vec<ListOption<&'static str>> {
     vec![ListOption::new("cat", "Cat"), ListOption::new("dog", "Dog")]
 }
 
@@ -277,8 +277,8 @@ fn families() -> Vec<(String, Add)> {
     for &size in SwatchSize::ALL {
         out.push(group(format!("SwatchPicker {size:?}"), move |ui| {
             let swatches = [
-                Swatch::color("red", "Red", egui::Color32::RED),
-                Swatch::color("blue", "Blue", egui::Color32::BLUE),
+                ("red", Swatch::color("Red", egui::Color32::RED)),
+                ("blue", Swatch::color("Blue", egui::Color32::BLUE)),
             ];
             let mut value = None;
             let picker = SwatchPicker::new("c", "Color", &mut value).swatches(swatches);

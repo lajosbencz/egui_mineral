@@ -1236,10 +1236,10 @@ impl TextField<'_> {
             } else {
                 ui.icons().visibility
             };
-            let r = trailing_button(ui, field, base.with("trailing"), icon, colors.trailing, self.disabled);
+            let r = trailing_button(ui, field, trailing_id(base), icon, colors.trailing, self.disabled);
             let revealed = if r.clicked() {
                 let flipped = !revealed;
-                flipped.store(ctx, base.with("reveal"));
+                flipped.store(ctx, reveal_id(base));
                 self.revealed = flipped;
                 if ctx.current_pass_index() == 0 {
                     ctx.request_discard("password reveal toggled after the editor laid out");
@@ -1264,7 +1264,7 @@ impl TextField<'_> {
                 n
             });
         } else if let Some((icon, label)) = &self.trailing {
-            let r = trailing_button(ui, field, base.with("trailing"), *icon, colors.trailing, self.disabled);
+            let r = trailing_button(ui, field, trailing_id(base), *icon, colors.trailing, self.disabled);
             out.trailing_clicked = r.clicked();
             emit_part(ctx, &r, 1, || {
                 SemanticNode::new(self.key.id(&self.salt).sub("trailing"), Role::Button, label)
@@ -1445,7 +1445,7 @@ impl MineralWidget for TextField<'_> {
         }
         .paint(ui, field, &t);
         let colors = decor.colors;
-        self.revealed = bool::load(&ctx, base.with("reveal"));
+        self.revealed = bool::load(&ctx, reveal_id(base));
 
         let text_rect = paint_affixes(
             ui,
@@ -1572,6 +1572,14 @@ pub(crate) fn outline_with_gap(p: &Painter, rect: Rect, r: f32, gap: Option<(f32
     pts.extend(arc(pos2(rect.left() + r, rect.top() + r), std::f32::consts::PI));
     pts.push(pos2(g0.max(rect.left() + r), rect.top()));
     p.add(Shape::line(pts, stroke));
+}
+
+fn reveal_id(base: egui::Id) -> egui::Id {
+    base.with("reveal")
+}
+
+fn trailing_id(base: egui::Id) -> egui::Id {
+    base.with("trailing")
 }
 
 #[cfg(test)]

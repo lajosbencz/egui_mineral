@@ -864,7 +864,7 @@ fn paging(ui: &mut MaterialUi<'_>, s: &mut State) {
         for p in path {
             b = b.item(p);
         }
-        if let Some(i) = b.show(ui).clicked {
+        if let Some(i) = b.show(ui).clicked.map(|c| c.index()) {
             s.crumbs = i;
         }
         caption(ui, TypeScale::LabelMedium, "Collapsed with max_items = 4");
@@ -872,7 +872,7 @@ fn paging(ui: &mut MaterialUi<'_>, s: &mut State) {
         for p in path {
             b = b.item(p);
         }
-        if let Some(i) = b.show(ui).clicked {
+        if let Some(i) = b.show(ui).clicked.map(|c| c.index()) {
             s.crumbs = i;
         }
         ui.label(format!("Last crumb: {}", path.get(s.crumbs).unwrap_or(&"?")));

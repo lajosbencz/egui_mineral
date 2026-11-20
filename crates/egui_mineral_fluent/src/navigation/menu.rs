@@ -825,7 +825,8 @@ fn level<R>(
         radius: g::BORDER_RADIUS_MEDIUM,
         elevation: Elevation::E16,
     };
-    let state = Level::load(&ctx, id.with("mineral::menu-level"));
+    let level_id = id.with("mineral::menu-level");
+    let state = Level::load(&ctx, level_id);
     let inner = framed(ui, &t, &look, Margin::same(d::POPOVER_PADDING as i8), |ui| {
         ui.set_width(memo.width);
         ui.spacing_mut().item_spacing.y = d::LIST_GAP;
@@ -860,7 +861,7 @@ fn level<R>(
         (out, ids, enabled, initials, splits, seen, state)
     });
     let (out, ids, enabled, initials, splits, seen, state) = inner.inner;
-    state.store(&ctx, id.with("mineral::menu-level"));
+    state.store(&ctx, level_id);
     let next = Memo {
         width: seen.width.clamp(Memo::MIN_WIDTH, Memo::MAX_WIDTH),
         ..seen

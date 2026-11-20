@@ -32,13 +32,13 @@ pub(crate) enum Kind {
 /// Fluent `Dropdown`: a button-like field opening a listbox; [`Selection::multiple`] makes it a multiselect.
 #[derive(Debug)]
 #[must_use = "show with ui.mineral(..)"]
-pub struct Dropdown<'a> {
+pub struct Dropdown<'a, K = String> {
     kind: Kind,
     salt: KeyedSalt,
     key: AgentKey,
     label: String,
-    entries: Vec<ListEntry>,
-    value: Value<'a>,
+    entries: Vec<ListEntry<K>>,
+    value: Value<'a, K>,
     appearance: InputAppearance,
     size: Size,
     placeholder: Option<String>,
@@ -47,24 +47,32 @@ pub struct Dropdown<'a> {
     disabled: bool,
 }
 
-impl<'a> Dropdown<'a> {
+impl<'a, K: Ord + Clone + 'a> Dropdown<'a, K> {
     /// `label` is the accessible name; `entries` are options and groups. Agent key `<id_salt>-dropdown`.
     pub fn new(
         id_salt: impl Into<KeyedSalt>,
         label: impl Into<String>,
-        entries: impl IntoIterator<Item = impl Into<ListEntry>>,
-        selection: &'a mut Selection<String>,
+        entries: impl IntoIterator<Item = impl Into<ListEntry<K>>>,
+        selection: &'a mut Selection<K>,
     ) -> Self {
         Self::with(
             Kind::Dropdown,
             id_salt.into(),
             label.into(),
             listbox::entries(entries),
-            Value::Many(selection),
+            Value::new(selection),
         )
     }
+}
 
-    pub(crate) fn with(kind: Kind, salt: KeyedSalt, label: String, entries: Vec<ListEntry>, value: Value<'a>) -> Self {
+impl<'a, K> Dropdown<'a, K> {
+    pub(crate) fn with(
+        kind: Kind,
+        salt: KeyedSalt,
+        label: String,
+        entries: Vec<ListEntry<K>>,
+        value: Value<'a, K>,
+    ) -> Self {
         Self {
             kind,
             salt,
@@ -135,7 +143,7 @@ impl<'a> Dropdown<'a> {
     }
 }
 
-impl Dropdown<'_> {
+impl<K> Dropdown<'_, K> {
     fn paint(
         &self,
         ui: &mut MineralUi<'_, Fluent>,
@@ -173,7 +181,7 @@ impl Dropdown<'_> {
             m.icon,
             icon_color,
         );
-        let text = value::selected_text(&self.entries, &self.value);
+        let text = value::selected_text(&self.entries, &*self.value);
         let format = chrome.text_format(&ctx, &t);
         let (shown_text, color) = match (text.is_empty(), self.placeholder.as_deref()) {
             (true, Some(p)) => (p.to_owned(), chrome.placeholder_color(&t)),
@@ -201,7 +209,7 @@ impl Dropdown<'_> {
     }
 }
 
-impl MineralWidget for Dropdown<'_> {
+impl<K> MineralWidget for Dropdown<'_, K> {
     type Kit = Fluent;
     type State = ListState;
     type Output = ();
@@ -233,7 +241,7 @@ impl MineralWidget for Dropdown<'_> {
         let base = ui.make_persistent_id(self.salt.id_salt());
         let visual = frame.zones.visual;
         let focused = r.has_focus();
-        let flat = Flat::new(&self.entries, &|_| true);
+        let flat = Flat::new(&self.entries, &|_, _| true);
         let selected_index = flat.options.iter().position(|o| self.value.is_selected(&o.value));
         let enabled = |i: usize| flat.enabled(i);
         let list = ComboList {
@@ -273,7 +281,7 @@ impl MineralWidget for Dropdown<'_> {
 
         if st.combo.is_open() && !self.disabled {
             let key = self.key.id(&self.salt);
-            let selected = |o: &listbox::ListOption| self.value.is_selected(&o.value);
+            let selected = |o: &listbox::ListOption<K>| self.value.is_selected(&o.value);
             let shown = listbox::show(
                 ui,
                 self.salt.child("popup"),
@@ -321,7 +329,7 @@ impl MineralWidget for Dropdown<'_> {
 
     fn semantics(&self, _: &I18n, _: &WidgetResponse<()>, st: &ListState) -> Option<SemanticNode> {
         let mut n = SemanticNode::new(self.key.id(&self.salt), Role::ComboBox, &self.label)
-            .value(value::selected_text(&self.entries, &self.value))
+            .value(value::selected_text(&self.entries, &*self.value))
             .clickable(Availability::disabled_if(self.disabled));
         n.state.expanded = Some(st.combo.is_open());
         n.state.invalid = self.invalid;

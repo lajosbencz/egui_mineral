@@ -228,7 +228,7 @@ impl MineralWidget for SearchBar<'_> {
         let t = ui.tokens();
         let ctx = ui.ctx().clone();
         let base = ui.make_persistent_id(self.salt.id_salt());
-        let edit_id = base.with("edit");
+        let edit_id = edit_id(base);
         let rect = frame.zones.visual;
         state.rect = Some(rect);
         let c = |role: ColorRole| {
@@ -443,7 +443,7 @@ impl Composite for SearchSuggestions<'_> {
         bar.disabled = self.disabled;
         bar.trailing.clone_from(&self.trailing);
         let base = ui.make_persistent_id(bar.id_salt());
-        let edit_id = base.with("edit");
+        let edit_id = edit_id(base);
         let state_id = base.with("suggest");
         let mut st = SuggestState::load(ctx, state_id);
 
@@ -543,7 +543,7 @@ impl SearchSuggestions<'_> {
         matches: &[(usize, Vec<usize>)],
         st: &mut SuggestState,
     ) -> Option<usize> {
-        let edit_id = base.with("edit");
+        let edit_id = edit_id(base);
         let t = rt.tokens();
         let dir = rt.i18n().direction();
         let mut chosen = None;
@@ -1140,4 +1140,8 @@ fn slot_icon(
 
 fn enabled_button(salt: &KeyedSalt, kind: &'static str, label: &str) -> SemanticNode {
     SemanticNode::button(StableId::of(salt, kind), label, Availability::Enabled)
+}
+
+fn edit_id(base: egui::Id) -> egui::Id {
+    base.with("edit")
 }

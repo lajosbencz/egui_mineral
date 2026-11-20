@@ -428,7 +428,7 @@ impl Config {
         let ctx = rt.ctx();
         let t = rt.tokens();
         let base = ui.make_persistent_id(self.salt.id_salt());
-        let (open_id, text_id, grid_id) = (base.with("open"), base.with("text"), base.with("grid"));
+        let (open_id, text_id, grid_id) = (base.with("open"), base.with("text"), grid_id(base));
         let field_salt = self.salt.child("field");
         let field_id = crate::text_inputs::text_field::field_id(ui, &field_salt);
         let edit_id = field_id.with("edit");
@@ -534,7 +534,7 @@ impl Config {
     ) -> PickerModalResponse {
         let ctx = rt.ctx();
         let id = egui_mineral::kit::scoped_id(rt.core(), Id::unique(("mineral::date_modal", self.salt.id_salt())));
-        let grid_id = id.with("grid");
+        let grid_id = grid_id(id);
         let mc = ModalCx {
             ctx,
             id,
@@ -1110,7 +1110,7 @@ impl Config {
         let r = common::radius(cell, r.nw);
         let k = egui_mineral::motion::spring(
             ui.core(),
-            resp.id.with("selected"),
+            selected_id(resp.id),
             f32::from(selected),
             motion::DEFAULT_EFFECTS,
         )
@@ -1585,7 +1585,7 @@ fn paint_day(ui: &MineralUi<'_, Material>, t: &Tokens, p: &DayPaint, resp: &egui
     let k = if p.animate {
         egui_mineral::motion::spring(
             rt.core(),
-            resp.id.with("selected"),
+            selected_id(resp.id),
             f32::from(p.endpoint),
             motion::DEFAULT_EFFECTS,
         )
@@ -1677,4 +1677,12 @@ fn headline_range(rt: &Rt, loc: &dyn LocaleFormat, r: &DateRange) -> Vec<String>
 
 fn day_index(d: Date) -> usize {
     usize::try_from(d.day() - 1).unwrap_or_default()
+}
+
+fn grid_id(base: egui::Id) -> egui::Id {
+    base.with("grid")
+}
+
+fn selected_id(base: egui::Id) -> egui::Id {
+    base.with("selected")
 }

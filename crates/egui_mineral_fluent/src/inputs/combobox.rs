@@ -26,12 +26,12 @@ use crate::{
 /// [`Selection::multiple`] makes it a multiselect.
 #[derive(Debug)]
 #[must_use = "show with ui.mineral(..)"]
-pub struct Combobox<'a> {
+pub struct Combobox<'a, K = String> {
     salt: KeyedSalt,
     key: AgentKey,
     label: String,
-    entries: Vec<ListEntry>,
-    value: Value<'a>,
+    entries: Vec<ListEntry<K>>,
+    value: Value<'a, K>,
     text: &'a mut String,
     appearance: InputAppearance,
     size: Size,
@@ -44,13 +44,13 @@ pub struct Combobox<'a> {
     disabled: bool,
 }
 
-impl<'a> Combobox<'a> {
+impl<'a, K: Ord + Clone + 'a> Combobox<'a, K> {
     /// `label` is the accessible name; `text` is the typed value. Agent key `<id_salt>-combobox`.
     pub fn new(
         id_salt: impl Into<KeyedSalt>,
         label: impl Into<String>,
-        entries: impl IntoIterator<Item = impl Into<ListEntry>>,
-        selection: &'a mut Selection<String>,
+        entries: impl IntoIterator<Item = impl Into<ListEntry<K>>>,
+        selection: &'a mut Selection<K>,
         text: &'a mut String,
     ) -> Self {
         Self {
@@ -58,7 +58,7 @@ impl<'a> Combobox<'a> {
             key: AgentKey::Kind("combobox"),
             label: label.into(),
             entries: listbox::entries(entries),
-            value: Value::Many(selection),
+            value: Value::new(selection),
             text,
             appearance: InputAppearance::Outline,
             size: Size::Medium,
@@ -71,7 +71,9 @@ impl<'a> Combobox<'a> {
             disabled: false,
         }
     }
+}
 
+impl<K> Combobox<'_, K> {
     /// Default [`InputAppearance::Outline`].
     pub fn appearance(mut self, appearance: InputAppearance) -> Self {
         self.appearance = appearance;
@@ -140,21 +142,21 @@ impl<'a> Combobox<'a> {
     }
 
     // Options matching the typed text, as the `combobox` model ranks them.
-    fn visible(&self, filtering: bool) -> HashSet<String> {
-        let all = Flat::new(&self.entries, &|_| true);
+    fn visible(&self, filtering: bool) -> HashSet<usize> {
+        let all = Flat::new(&self.entries, &|_, _| true);
         let labels: Vec<&str> = all.options.iter().map(|o| o.text.as_str()).collect();
         let query = if filtering { self.text.as_str() } else { "" };
         combo_items(query, labels)
             .into_iter()
             .filter_map(|item| match item {
-                ComboItem::Option { index, .. } => all.options.get(index).map(|o| o.value.clone()),
+                ComboItem::Option { index, .. } => all.positions.get(index).copied(),
                 _ => None,
             })
             .collect()
     }
 }
 
-impl Combobox<'_> {
+impl<K> Combobox<'_, K> {
     fn chevron(&self, ui: &mut MineralUi<'_, Fluent>, base: egui::Id, visual: Rect) -> egui::Response {
         let t = ui.tokens();
         let dir = ui.i18n().direction();
@@ -195,12 +197,12 @@ impl Combobox<'_> {
         ui: &mut MineralUi<'_, Fluent>,
         trigger: &egui::Response,
         visual: Rect,
-        flat: &Flat<'_>,
+        flat: &Flat<'_, K>,
         st: &mut ListState,
         moved: bool,
     ) -> (Option<usize>, bool) {
         let key = self.key.id(&self.salt);
-        let selected = |o: &ListOption| self.value.is_selected(&o.value);
+        let selected = |o: &ListOption<K>| self.value.is_selected(&o.value);
         let shown = listbox::show(
             ui,
             self.salt.child("popup"),
@@ -264,12 +266,12 @@ struct Commit {
     edited: bool,
 }
 
-fn commit(
-    value: &mut Value<'_>,
+fn commit<K>(
+    value: &mut Value<'_, K>,
     text: &mut String,
-    entries: &[ListEntry],
+    entries: &[ListEntry<K>],
     st: &mut ListState,
-    flat: &Flat<'_>,
+    flat: &Flat<'_, K>,
     c: &Commit,
 ) -> bool {
     let multiselect = value.multiselect();
@@ -290,7 +292,7 @@ fn commit(
         let restored = if multiselect {
             String::new()
         } else {
-            selected_text(entries, value)
+            selected_text(entries, &**value)
         };
         if *text != restored {
             *text = restored;
@@ -301,7 +303,7 @@ fn commit(
     changed
 }
 
-impl MineralWidget for Combobox<'_> {
+impl<K> MineralWidget for Combobox<'_, K> {
     type Kit = Fluent;
     type State = ListState;
     type Output = FieldOutput;
@@ -338,7 +340,7 @@ impl MineralWidget for Combobox<'_> {
             None
         };
         let keep_ref = keep.as_ref();
-        let visible = |o: &ListOption| keep_ref.is_none_or(|k| k.contains(&o.value));
+        let visible = |pos: usize, _: &ListOption<K>| keep_ref.is_none_or(|k| k.contains(&pos));
         let flat = Flat::new(&self.entries, &visible);
         let selected_index = flat.options.iter().position(|o| self.value.is_selected(&o.value));
         let enabled = |i: usize| flat.enabled(i);

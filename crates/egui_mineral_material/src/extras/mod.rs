@@ -63,7 +63,7 @@ pub use inline_edit::{InlineEdit, InlineEditOutput};
 pub use menu_strip::{MenuPath, MenuStrip, MenuStripResponse};
 pub use number_field::{NumberField, NumberFieldOutput};
 pub use otp::{OtpField, OtpFieldOutput};
-pub use pagination::{Breadcrumbs, BreadcrumbsResponse, Pagination};
+pub use pagination::{BreadcrumbItem, Breadcrumbs, BreadcrumbsResponse, Pagination};
 pub use popover::{HoverCard, Popover};
 pub use rating::Rating;
 pub use reorderable_list::{ReorderableList, ReorderableListResponse};

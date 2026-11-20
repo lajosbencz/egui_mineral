@@ -288,7 +288,7 @@ impl FabMenu {
                 RovingFocus::new(Axis::Vertical).update(rt.core(), &ids, |i| !self.items[i].disabled);
             }
             if open {
-                let layer = egui::LayerId::new(Order::Foreground, base.with("items"));
+                let layer = egui::LayerId::new(Order::Foreground, items_id(base));
                 dismissed = overlay::dismissal(rt.core(), layer, &[menu_rect, fab.rect], Some(fab.response().id));
             }
             if open && (hit.is_some() || dismissed.is_some()) {
@@ -327,7 +327,7 @@ impl FabMenu {
             Align2([dir.end_align(), Align::Max]),
             dir.end_align(),
         );
-        let area = egui_mineral::kit::overlay::area(rt.core(), base.with("items"))
+        let area = egui_mineral::kit::overlay::area(rt.core(), items_id(base))
             .order(Order::Foreground)
             .fixed_pos(anchor)
             .pivot(pivot)
@@ -362,7 +362,7 @@ impl FabMenu {
 
     fn announce(&self, ctx: &egui::Context, base: Id, rect: Rect, open: bool) {
         if open {
-            semantic::emit(ctx, Some(base.with("items")), rect, || {
+            semantic::emit(ctx, Some(items_id(base)), rect, || {
                 SemanticNode::new(StableId::of(&self.salt, "fab-menu"), Role::Menu, &self.label)
             });
         }
@@ -547,4 +547,8 @@ impl MineralWidget for Row<'_> {
                 .clickable(Availability::enabled_if(self.active && !self.item.disabled)),
         )
     }
+}
+
+fn items_id(base: egui::Id) -> egui::Id {
+    base.with("items")
 }

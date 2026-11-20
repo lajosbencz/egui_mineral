@@ -391,12 +391,12 @@ impl Run {
         &mut self,
         rt: &Rt,
         ui: &MineralUi<'_, Fluent>,
-        (menu, open_id): (Menu, egui::Id),
+        (menu, owner): (Menu, egui::Id),
         trigger: &egui::Response,
         hidden: Vec<Slot<'a>>,
         groups: &mut [Choice<'a>],
     ) {
-        let mut open = overflow::is_open(ui.ctx(), open_id);
+        let mut open = overflow::is_open(ui.ctx(), owner);
         menu.show(rt, trigger, &mut open, |m| {
             for slot in hidden {
                 match slot {
@@ -405,7 +405,7 @@ impl Run {
                 }
             }
         });
-        overflow::set_open(ui.ctx(), open_id, open);
+        overflow::set_open(ui.ctx(), owner, open);
     }
 
     fn pick(&mut self, groups: &mut [Choice<'_>], group: usize, value: usize) {
@@ -582,14 +582,7 @@ impl<'a> Toolbar<'a> {
             .inner;
         if let (Some(trigger), Some(o)) = (trigger, overflow.as_ref()) {
             let menu = Menu::new(salt.child("overflow-menu"), o.label());
-            run.overflow_menu(
-                rt,
-                ui,
-                (menu, id.with("mineral::overflow-open")),
-                &trigger,
-                hidden,
-                &mut groups,
-            );
+            run.overflow_menu(rt, ui, (menu, id), &trigger, hidden, &mut groups);
         }
         let axis = if vertical { Axis::Vertical } else { Axis::Horizontal };
         RovingFocus::new(axis)

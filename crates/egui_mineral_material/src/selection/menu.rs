@@ -663,12 +663,12 @@ impl Menu {
 
     /// Dropdown opened by [`Self::show`] on `anchor` is open.
     pub fn is_open(ctx: &egui::Context, anchor: &Response) -> bool {
-        MenuState::try_load(ctx, anchor.id.with("mineral::menu")).is_some_and(|st| st.open)
+        MenuState::try_load(ctx, dropdown_id(anchor)).is_some_and(|st| st.open)
     }
 
     /// Context menu opened by [`Self::show_context`] on `target` is open.
     pub fn is_context_open(ctx: &egui::Context, target: &Response) -> bool {
-        MenuState::try_load(ctx, target.id.with("mineral::context_menu")).is_some_and(|st| st.open)
+        MenuState::try_load(ctx, context_id(target)).is_some_and(|st| st.open)
     }
 
     /// [`Self::show_context`] on `target` is needed this pass: open, or opening (secondary click,
@@ -720,7 +720,7 @@ impl Menu {
     pub fn show(self, rt: &Rt, anchor: &Response) -> MenuResponse {
         let this = self.resolved();
         let ctx = anchor.ctx.clone();
-        let id = anchor.id.with("mineral::menu");
+        let id = dropdown_id(anchor);
         let mut st = MenuState::load(&ctx, id);
         if this.bind_shortcuts(&ctx, shortcut::scope_of(&ctx, anchor.layer_id)) || this.disabled {
             st.open = false;
@@ -764,7 +764,7 @@ impl Menu {
     pub fn show_context(self, rt: &Rt, target: &Response) -> MenuResponse {
         let this = self.resolved();
         let ctx = target.ctx.clone();
-        let id = target.id.with("mineral::context_menu");
+        let id = context_id(target);
         let mut st = MenuState::load(&ctx, id);
         if this.bind_shortcuts(&ctx, Scope::Focus(target.id)) || this.disabled {
             st.open = false;
@@ -1474,4 +1474,12 @@ impl MineralWidget for MenuRow<'_> {
         n.state.expanded = self.expanded;
         Some(n)
     }
+}
+
+fn dropdown_id(anchor: &Response) -> egui::Id {
+    anchor.id.with("mineral::menu")
+}
+
+fn context_id(target: &Response) -> egui::Id {
+    target.id.with("mineral::context_menu")
 }

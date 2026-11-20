@@ -198,7 +198,7 @@ fn info_label_button_toggles_expanded() {
     assert_eq!(h.node("il-info-button").state.expanded, Some(true));
 }
 
-fn animals() -> Vec<egui_mineral_fluent::inputs::ListEntry> {
+fn animals() -> Vec<egui_mineral_fluent::inputs::ListEntry<&'static str>> {
     vec![
         OptionGroup::new("Land", [ListOption::new("cat", "Cat"), ListOption::new("dog", "Dog")]).into(),
         ListOption::new("bird", "Bird").into(),
@@ -207,7 +207,7 @@ fn animals() -> Vec<egui_mineral_fluent::inputs::ListEntry> {
 
 #[test]
 fn dropdown_opens_picks_and_closes() {
-    let mut h = harness(Selection::<String>::single(), |ui, sel| {
+    let mut h = harness(Selection::<&str>::single(), |ui, sel| {
         ui.mineral(Dropdown::new("d", "Pet", animals(), sel));
     });
     h.run();
@@ -217,14 +217,14 @@ fn dropdown_opens_picks_and_closes() {
     assert_eq!(h.node("d-dropdown").state.expanded, Some(true));
     h.click("d-dropdown-1-option");
     h.run();
-    assert!(h.state().value.is_selected(&"dog".to_owned()));
+    assert!(h.state().value.is_selected(&"dog"));
     assert_eq!(h.node("d-dropdown").state.expanded, Some(false));
     assert_eq!(h.node("d-dropdown").value.as_deref(), Some("Dog"));
 }
 
 #[test]
 fn dropdown_keyboard_opens_and_commits() {
-    let mut h = harness(Selection::<String>::single(), |ui, sel| {
+    let mut h = harness(Selection::<&str>::single(), |ui, sel| {
         ui.mineral(Dropdown::new("d", "Pet", animals(), sel));
     });
     h.run();
@@ -237,7 +237,7 @@ fn dropdown_keyboard_opens_and_commits() {
 
 #[test]
 fn multiselect_dropdown_keeps_the_list_open_and_joins_texts() {
-    let mut h = harness(Selection::<String>::multiple(), |ui, sel| {
+    let mut h = harness(Selection::<&str>::multiple(), |ui, sel| {
         ui.mineral(Dropdown::new("d", "Pet", animals(), sel));
     });
     h.run();
@@ -250,7 +250,7 @@ fn multiselect_dropdown_keeps_the_list_open_and_joins_texts() {
 
 #[test]
 fn disabled_dropdown_does_not_open() {
-    let mut h = harness(Selection::<String>::single(), |ui, sel| {
+    let mut h = harness(Selection::<&str>::single(), |ui, sel| {
         ui.mineral(Dropdown::new("d", "Pet", animals(), sel).disabled(true));
     });
     h.run();
@@ -261,18 +261,18 @@ fn disabled_dropdown_does_not_open() {
 
 #[test]
 fn select_binds_an_option_value() {
-    let mut h = harness(None::<String>, |ui, v| {
+    let mut h = harness(None::<&str>, |ui, v| {
         ui.mineral(Select::new("s", "Pet", animals(), v));
     });
     h.run();
     h.click("s-select");
     h.click("s-select-2-option");
-    assert_eq!(h.state().value.as_deref(), Some("bird"));
+    assert_eq!(h.state().value, Some("bird"));
 }
 
 #[test]
 fn combobox_hides_options_that_miss_the_typed_text() {
-    let mut h = harness((Selection::<String>::single(), String::new()), |ui, (sel, text)| {
+    let mut h = harness((Selection::<&str>::single(), String::new()), |ui, (sel, text)| {
         ui.mineral(Combobox::new("c", "Pet", animals(), sel, text));
     });
     h.run();
@@ -291,7 +291,7 @@ fn combobox_hides_options_that_miss_the_typed_text() {
 
 #[test]
 fn combobox_filters_by_typed_text_and_picks() {
-    let mut h = harness((Selection::<String>::single(), String::new()), |ui, (sel, text)| {
+    let mut h = harness((Selection::<&str>::single(), String::new()), |ui, (sel, text)| {
         ui.mineral(Combobox::new("c", "Pet", animals(), sel, text));
     });
     h.run();
@@ -300,7 +300,7 @@ fn combobox_filters_by_typed_text_and_picks() {
     assert_eq!(h.node("c-combobox").state.expanded, Some(true));
     h.click("c-combobox-2-option");
     assert_eq!(h.state().value.1, "Bird");
-    assert!(h.state().value.0.is_selected(&"bird".to_owned()));
+    assert!(h.state().value.0.is_selected(&"bird"));
 }
 
 #[test]
@@ -323,37 +323,37 @@ fn time_picker_lists_the_increment_and_picks_a_time() {
     assert_eq!((picked.hour(), picked.minute()), (9, 30));
 }
 
-fn swatches() -> Vec<Swatch> {
+fn swatches() -> Vec<(&'static str, Swatch)> {
     vec![
-        Swatch::color("a", "A", egui::Color32::RED),
-        Swatch::color("b", "B", egui::Color32::GREEN),
-        Swatch::color("c", "C", egui::Color32::BLUE).disabled(true),
+        ("a", Swatch::color("A", egui::Color32::RED)),
+        ("b", Swatch::color("B", egui::Color32::GREEN)),
+        ("c", Swatch::color("C", egui::Color32::BLUE).disabled(true)),
     ]
 }
 
 #[test]
 fn swatch_picker_picks_by_click_and_skips_disabled() {
-    let mut h = harness(None::<String>, |ui, v| {
+    let mut h = harness(None::<&str>, |ui, v| {
         SwatchPicker::new("s", "Color", v).swatches(swatches()).show(ui);
     });
     h.run();
     h.click("s-1-swatch");
-    assert_eq!(h.state().value.as_deref(), Some("b"));
+    assert_eq!(h.state().value, Some("b"));
     assert_eq!(h.node("s-1-swatch").state.checked, Some(Check::Checked));
     h.click("s-2-swatch");
-    assert_eq!(h.state().value.as_deref(), Some("b"));
+    assert_eq!(h.state().value, Some("b"));
     assert!(h.node("s-2-swatch").state.disabled);
 }
 
 #[test]
 fn swatch_picker_arrow_key_moves_the_selection() {
-    let mut h = harness(Some(String::from("a")), |ui, v| {
+    let mut h = harness(Some("a"), |ui, v| {
         SwatchPicker::new("s", "Color", v).swatches(swatches()).show(ui);
     });
     h.run();
     h.click("s-0-swatch");
     h.press(Key::ArrowRight);
-    assert_eq!(h.state().value.as_deref(), Some("b"));
+    assert_eq!(h.state().value, Some("b"));
 }
 
 #[test]
@@ -444,25 +444,25 @@ fn calendar_navigation_buttons_step_months_and_go_to_today_returns() {
 fn tag_picker_picks_removes_and_backspace_drops_the_last_tag() {
     let animals = || vec![ListOption::new("a", "Ant"), ListOption::new("b", "Bee")];
     let mut h = harness(
-        (Selection::<String>::multiple(), String::new()),
+        (Selection::<&str>::multiple(), String::new()),
         move |ui, (sel, text)| {
             ui.mineral(TagPicker::new("t", "Pets", animals(), sel, text));
         },
     );
     h.run();
     h.click("t-tag-picker");
-    let options = |h: &crate::support::Harness<'_, (Selection<String>, String)>| {
+    let options = |h: &crate::support::Harness<'_, (Selection<&str>, String)>| {
         h.tree().nodes.iter().filter(|n| n.role == Role::ListBoxOption).count()
     };
     assert_eq!(options(&h), 2);
     h.click("t-tag-picker-0-option");
-    assert!(h.state().value.0.is_selected(&"a".to_owned()));
+    assert!(h.state().value.0.is_selected(&"a"));
     h.click("t-tag-picker");
     assert_eq!(options(&h), 1, "selected options leave the list");
     h.click("t-tag-picker-0-option");
     assert_eq!(h.state().value.0.len(), 2);
     h.click("t-tag-picker-0-dismiss");
-    assert!(!h.state().value.0.is_selected(&"a".to_owned()));
+    assert!(!h.state().value.0.is_selected(&"a"));
     assert_eq!(h.state().value.0.len(), 1);
     h.click("t-tag-picker");
     h.press(Key::Backspace);
@@ -499,7 +499,7 @@ fn date_picker_picks_from_the_calendar_and_parses_typed_text() {
 fn tag_picker_button_variant_opens_the_list_without_an_input() {
     let animals = || vec![ListOption::new("a", "Ant"), ListOption::new("b", "Bee")];
     let mut h = harness(
-        (Selection::<String>::multiple(), String::new()),
+        (Selection::<&str>::multiple(), String::new()),
         move |ui, (sel, text)| {
             ui.mineral(TagPicker::new("t", "Pets", animals(), sel, text).control(TagPickerControl::Button));
         },
@@ -508,16 +508,16 @@ fn tag_picker_button_variant_opens_the_list_without_an_input() {
     assert_eq!(h.node("t-tag-picker").role, Role::ComboBox);
     h.click("t-tag-picker");
     h.click("t-tag-picker-1-option");
-    assert!(h.state().value.0.is_selected(&"b".to_owned()));
+    assert!(h.state().value.0.is_selected(&"b"));
     assert_eq!(h.state().value.1, "");
 }
 
 #[test]
 fn salted_dropdown_option_keeps_its_key_and_picks_when_an_option_is_inserted_before() {
-    let mut h = harness((Selection::<String>::single(), false), |ui, (sel, before)| {
+    let mut h = harness((Selection::<&str>::single(), false), |ui, (sel, before)| {
         let mut options = Vec::new();
         if *before {
-            options.push(ListOption::from("Extra"));
+            options.push(ListOption::new("Extra", "Extra"));
         }
         options.push(ListOption::new("dog", "Dog").salt("dog"));
         ui.mineral(Dropdown::new("d", "Pet", options, sel));
@@ -529,5 +529,5 @@ fn salted_dropdown_option_keeps_its_key_and_picks_when_an_option_is_inserted_bef
     h.run();
     h.click("d-dropdown-dog-option");
     h.run();
-    assert!(h.state().value.0.is_selected(&"dog".to_owned()));
+    assert!(h.state().value.0.is_selected(&"dog"));
 }
