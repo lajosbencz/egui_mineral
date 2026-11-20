@@ -112,9 +112,14 @@ fn range_slider_exposes_a_node_per_thumb_and_keeps_them_ordered() {
     assert_eq!(h.node("r-slider-start").name, "Price start");
     assert_eq!(h.node("r-slider-end").name, "Price end");
     h.press(Key::Tab);
+    h.press(Key::ArrowRight);
+    assert_eq!(h.state().value, [30.0, 30.0], "Tab reaches the start thumb");
     h.press(Key::End);
     let v = h.state().value;
-    assert!(v[0] <= v[1], "{v:?}");
+    assert_eq!(v, [30.0, 30.0], "the start thumb stops at the end thumb");
+    h.press(Key::Tab);
+    h.press(Key::End);
+    assert_eq!(h.state().value, [30.0, 100.0], "the end thumb is its own Tab stop");
 }
 
 #[test]

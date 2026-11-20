@@ -233,7 +233,7 @@ impl Bar {
                 let sense = if self.disabled {
                     Sense::hover()
                 } else {
-                    focus::roving_sense(Sense::click_and_drag(), TabStop::at(single, true))
+                    focus::roving_sense(Sense::click_and_drag(), TabStop::at(single, false))
                 };
                 frame
                     .pan
