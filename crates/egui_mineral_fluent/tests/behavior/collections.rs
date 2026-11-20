@@ -336,7 +336,7 @@ mod table {
     use egui_mineral::{
         select::Selection,
         semantic::Role,
-        table::{SortOrder, SortState, sort_order},
+        table::{SortOrder, SortState},
     };
     use egui_mineral_fluent::{
         actions::PushButton,
@@ -367,7 +367,6 @@ mod table {
 
     fn table(grid: bool) -> Harness<'static, State> {
         harness(state(), move |ui, s| {
-            let order = sort_order(NAMES.len(), s.sort, |c| NAMES[c.row]);
             let State {
                 sort,
                 selection,
@@ -386,13 +385,13 @@ mod table {
                 DataGrid::new("t", "People", columns())
                     .sort(sort)
                     .selection(selection)
-                    .row_order(order)
+                    .sort_by_key(|c| NAMES[c.row])
                     .show(ui, NAMES.len(), cell)
             } else {
                 Table::new("t", "People", columns())
                     .sort(sort)
                     .selection(selection)
-                    .row_order(order)
+                    .sort_by_key(|c| NAMES[c.row])
                     .show(ui, NAMES.len(), cell)
             };
             if out.activated.is_some() {

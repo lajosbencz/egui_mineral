@@ -4,13 +4,13 @@ use std::{borrow::Cow, ops::Range, sync::Arc};
 
 use egui::{CursorIcon, Galley, Id, Rangef, Rect, Sense, Stroke, StrokeKind, UiBuilder, pos2, text::LayoutJob, vec2};
 use egui_mineral::{
-    focus::{self, RovingFocus, TabStop},
+    focus::{self, Cell, RovingFocus, TabStop},
     i18n::{Direction, I18n},
     kit::{self, state::TempState},
     layout::{Constraints, Measure},
     select::{ItemKey, Selection, SelectionMode},
     semantic::{self, AgentKey, KeyedSalt, Role, SemanticNode, StableId},
-    table::{ColumnWidths, Rows, SortOrder, SortState},
+    table::{ColumnWidths, Rows, SortOrder, SortState, sort_order},
     widget::{Availability, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
 };
 
@@ -285,6 +285,14 @@ pub struct TableResponse<K> {
     pub activated: Option<K>,
 }
 
+struct SortKey<'a>(Box<dyn Fn(usize, SortState) -> Vec<usize> + 'a>);
+
+impl std::fmt::Debug for SortKey<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("SortKey")
+    }
+}
+
 /// Fluent `Table` of `TableHeader`, `TableRow`, `TableCell` and `TableSelectionCell`: a header row and body rows
 /// of cells whose content the app draws, with sortable columns, selectable rows and resizable widths.
 #[derive(Debug)]
@@ -299,7 +307,7 @@ pub struct Table<'a, K> {
     sort: Option<&'a mut SortState>,
     selection: Option<&'a mut Selection<K>>,
     widths: Option<&'a mut ColumnWidths>,
-    order: Option<Vec<usize>>,
+    sort_key: Option<SortKey<'a>>,
     grid: bool,
 }
 
@@ -320,7 +328,7 @@ impl<'a, K: ItemKey> Table<'a, K> {
             sort: None,
             selection: None,
             widths: None,
-            order: None,
+            sort_key: None,
             grid: false,
         }
     }
@@ -337,7 +345,7 @@ impl<'a, K: ItemKey> Table<'a, K> {
         self
     }
 
-    /// `sortState`: headers of sortable columns cycle it; the app orders the rows ([`Self::row_order`]).
+    /// `sortState`: headers of sortable columns cycle it; [`Self::sort_by_key`] orders the rows.
     pub fn sort(mut self, sort: &'a mut SortState) -> Self {
         self.sort = Some(sort);
         self
@@ -355,9 +363,10 @@ impl<'a, K: ItemKey> Table<'a, K> {
         self
     }
 
-    /// Data indices in display order, such as `egui_mineral::table::sort_order`; default data order.
-    pub fn row_order(mut self, order: Vec<usize>) -> Self {
-        self.order = Some(order);
+    /// Sort key of a data cell; rows follow [`Self::sort`]'s column and direction, ties keep data order. Without
+    /// it, sortable headers only cycle the state.
+    pub fn sort_by_key<S: Ord>(mut self, key: impl Fn(Cell) -> S + 'a) -> Self {
+        self.sort_key = Some(SortKey(Box::new(move |rows, sort| sort_order(rows, sort, &key))));
         self
     }
 
@@ -436,9 +445,9 @@ impl<'a, K: ItemKey> DataGrid<'a, K> {
         self
     }
 
-    /// See [`Table::row_order`].
-    pub fn row_order(mut self, order: Vec<usize>) -> Self {
-        self.0 = self.0.row_order(order);
+    /// See [`Table::sort_by_key`].
+    pub fn sort_by_key<S: Ord>(mut self, key: impl Fn(Cell) -> S + 'a) -> Self {
+        self.0 = self.0.sort_by_key(key);
         self
     }
 
@@ -640,7 +649,12 @@ fn run<K: ItemKey>(
     let selection = if selectable { d::SELECTION_WIDTH } else { 0.0 };
     let widths = tb.column_widths(ui.available_width(), selection);
     let order = Order {
-        explicit: tb.order.take(),
+        explicit: tb
+            .sort
+            .as_deref()
+            .copied()
+            .zip(tb.sort_key.as_ref())
+            .map(|(sort, key)| (key.0)(keys.len(), sort)),
         rows: keys.len(),
     };
     let shown = order.len();

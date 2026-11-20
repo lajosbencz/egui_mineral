@@ -7,8 +7,9 @@ use egui_mineral_fluent::{
         TableRowAppearance, TableSize, Tag, TagAppearance, TagGroup, TagShape, TagSize, Text,
     },
     egui_mineral::{
+        focus::Cell,
         select::Selection,
-        table::{ColumnSize, ColumnWidths, SortState, sort_order},
+        table::{ColumnSize, ColumnWidths, SortState},
     },
     feedback::PresenceStatus,
     icons::ICON_PERSON,
@@ -253,33 +254,29 @@ fn tables(ui: &mut FluentUi<'_>, s: &mut State) {
             }
         }
     };
-    let order = |sort: SortState| {
-        sort_order(ROWS.len(), sort, |c| match c.column {
-            0 => ROWS[c.row].0,
-            _ => ROWS[c.row].1,
-        })
+    let key = |c: Cell| match c.column {
+        0 => ROWS[c.row].0,
+        _ => ROWS[c.row].1,
     };
-    let table_order = order(s.table_sort);
     let selection = s.table_selection.get_or_insert_with(Selection::multiple);
     Table::new("table", "People", columns())
         .size(TableSize::Small)
         .row_appearance(TableRowAppearance::Brand)
         .sort(&mut s.table_sort)
         .selection(selection)
-        .row_order(table_order)
+        .sort_by_key(key)
         .show(ui, ROWS.len(), cell(TableSize::Small));
     ui.add_space(12.0);
     let widths = s
         .grid_widths
         .get_or_insert_with(|| ColumnWidths::new((0..3).map(|_| ColumnSize { width: 70.0, min: 48.0 })));
-    let grid_order = order(s.grid_sort);
     let grid_selection = s.grid_selection.get_or_insert_with(Selection::single);
     DataGrid::new("grid", "People grid", columns())
         .size(TableSize::ExtraSmall)
         .sort(&mut s.grid_sort)
         .selection(grid_selection)
         .resizable(widths)
-        .row_order(grid_order)
+        .sort_by_key(key)
         .show(ui, ROWS.len(), cell(TableSize::ExtraSmall));
 }
 
