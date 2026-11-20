@@ -1,8 +1,10 @@
 use egui::{Frame, Margin, UiBuilder, vec2};
 use egui_mineral::{
+    action::Clicked,
     focus::{self as roving, RovingFocus},
     layout::Axis,
     semantic::{self, AgentKey, KeyedSalt, Role, SemanticNode},
+    shortcut::ActionId,
     widget::MineralUi,
 };
 
@@ -15,6 +17,7 @@ use crate::{
     },
     spec::{defaults::toolbar as d, tokens::geometry as g},
     surfaces::Divider,
+    widget::choice::{self, Choice},
 };
 
 use super::{
@@ -30,6 +33,7 @@ struct Base {
     appearance: ButtonAppearance,
     disabled: bool,
     salt: Option<KeyedSalt>,
+    action_key: Option<ActionId>,
 }
 
 impl Base {
@@ -41,6 +45,7 @@ impl Base {
             appearance: ButtonAppearance::Subtle,
             disabled: false,
             salt: None,
+            action_key: None,
         }
     }
 }
@@ -70,6 +75,13 @@ macro_rules! item_setters {
             /// before it; default its index.
             pub fn salt(mut self, id_salt: impl Into<KeyedSalt>) -> Self {
                 self.0.salt = Some(id_salt.into());
+                self
+            }
+
+            /// App key reported as [`Clicked::key`] in [`ToolbarResponse::clicked`]; several items may
+            /// share one.
+            pub fn key(mut self, key: impl Into<ActionId>) -> Self {
+                self.0.action_key = Some(key.into());
                 self
             }
 
@@ -144,6 +156,12 @@ impl<'a> ToolbarToggleButton<'a> {
         self
     }
 
+    /// App key reported as [`Clicked::key`] in [`ToolbarResponse::clicked`]; several items may share one.
+    pub fn key(mut self, key: impl Into<ActionId>) -> Self {
+        self.base.action_key = Some(key.into());
+        self
+    }
+
     /// Greys out the button and ignores input.
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.base.disabled = disabled;
@@ -171,11 +189,11 @@ impl From<&str> for ToolbarRadioButton {
     }
 }
 
-/// Radio buttons sharing one bound index (Fluent `checkedValues` name).
+/// Radio buttons sharing one bound index or value (Fluent `checkedValues` name).
 #[derive(Debug)]
 #[must_use]
 pub struct ToolbarRadioGroup<'a> {
-    selected: &'a mut usize,
+    selected: Choice<'a>,
     buttons: Vec<ToolbarRadioButton>,
 }
 
@@ -183,8 +201,22 @@ impl<'a> ToolbarRadioGroup<'a> {
     /// `selected` is the checked button's index in the group.
     pub fn new(selected: &'a mut usize) -> Self {
         Self {
-            selected,
+            selected: Choice::by_index(selected),
             buttons: Vec::new(),
+        }
+    }
+
+    /// Binds the value of the checked button instead of its index: each of `options` comes with its value,
+    /// a pick writes it into `value`, and no button is checked while `value` matches none. Buttons added
+    /// with [`Self::option`] have no value and cannot be picked.
+    pub fn bound<T: PartialEq + Clone + 'a>(
+        options: impl IntoIterator<Item = (T, impl Into<ToolbarRadioButton>)>,
+        value: &'a mut T,
+    ) -> Self {
+        let (values, buttons) = choice::split(options);
+        Self {
+            selected: Choice::by_value(value, values),
+            buttons,
         }
     }
 
@@ -263,7 +295,7 @@ enum Slot<'a> {
     Item(Box<Base>, Kind<'a>, usize),
 }
 
-fn flatten<'a>(entries: Vec<Entry<'a>>, slots: &mut Vec<Slot<'a>>, groups: &mut Vec<&'a mut usize>) {
+fn flatten<'a>(entries: Vec<Entry<'a>>, slots: &mut Vec<Slot<'a>>, groups: &mut Vec<Choice<'a>>) {
     for entry in entries {
         match entry {
             Entry::Button(b) => slots.push(Slot::Item(Box::new(b.0), Kind::Plain, 0)),
@@ -309,7 +341,7 @@ const DIVIDER_WIDTH: f32 = 2.0 * d::DIVIDER_PADDING + g::STROKE_WIDTH_THIN;
 
 struct Run {
     ids: Vec<egui::Id>,
-    activated: Option<usize>,
+    clicked: Option<Clicked>,
     changed: bool,
     stop: usize,
 }
@@ -321,11 +353,12 @@ impl Run {
         ui: &mut egui::Ui,
         salt: &KeyedSalt,
         (base, kind, index): (Base, Kind<'a>, usize),
-        groups: &mut [&'a mut usize],
+        groups: &mut [Choice<'a>],
     ) {
         let pos = self.ids.len();
         let off = base.disabled;
         let item_salt = base.salt.clone().unwrap_or_else(|| salt.child(index));
+        let ran = Clicked::new(index, base.action_key.clone());
         let mut b = button(base, item_salt);
         b.tab_stop = Some(roving::TabStop::at(pos, self.stop));
         let radio = match kind {
@@ -336,7 +369,7 @@ impl Run {
             }
             Kind::Radio { group, value } => {
                 b.radio = true;
-                if groups.get(group).is_some_and(|g| **g == value) {
+                if groups.get(group).is_some_and(|g| g.selected() == Some(value)) {
                     b.mode = Mode::Checked;
                 }
                 Some((group, value))
@@ -345,7 +378,7 @@ impl Run {
         let r = rt.ui(ui).mineral(b);
         let clicked = r.response().clicked() && !off;
         if clicked {
-            self.activated = Some(index);
+            self.clicked = Some(ran);
         }
         match radio {
             Some((group, value)) if clicked => self.pick(groups, group, value),
@@ -362,7 +395,7 @@ impl Run {
         (menu, open_id): (Menu, egui::Id),
         trigger: &egui::Response,
         hidden: Vec<Slot<'a>>,
-        groups: &mut [&'a mut usize],
+        groups: &mut [Choice<'a>],
     ) {
         let mut open = overflow::is_open(ui.ctx(), open_id);
         menu.show(rt, trigger, &mut open, |m| {
@@ -376,12 +409,9 @@ impl Run {
         overflow::set_open(ui.ctx(), open_id, open);
     }
 
-    fn pick(&mut self, groups: &mut [&mut usize], group: usize, value: usize) {
-        if let Some(g) = groups.get_mut(group)
-            && **g != value
-        {
-            **g = value;
-            self.changed = true;
+    fn pick(&mut self, groups: &mut [Choice<'_>], group: usize, value: usize) {
+        if let Some(g) = groups.get_mut(group) {
+            self.changed |= g.select(value);
         }
     }
 
@@ -389,8 +419,9 @@ impl Run {
         &mut self,
         m: &mut MenuUi<'_, '_>,
         (base, kind, index): (Base, Kind<'a>, usize),
-        groups: &mut [&'a mut usize],
+        groups: &mut [Choice<'a>],
     ) {
+        let ran = Clicked::new(index, base.action_key);
         let mut item = MenuItem::new(base.label).disabled(base.disabled);
         if let Some(icon) = base.icon {
             item = item.icon(icon);
@@ -398,21 +429,21 @@ impl Run {
         match kind {
             Kind::Plain => {
                 if m.item(item).clicked {
-                    self.activated = Some(index);
+                    self.clicked = Some(ran);
                 }
             }
             Kind::Toggle(checked) => {
                 if m.checkbox_item(item, checked).clicked {
-                    self.activated = Some(index);
+                    self.clicked = Some(ran);
                     self.changed = true;
                 }
             }
             Kind::Radio { group, value } => {
                 let Some(selected) = groups.get_mut(group) else { return };
-                let before = **selected;
-                if m.radio_item(item, &mut **selected, value).clicked {
-                    self.activated = Some(index);
-                    self.changed |= **selected != before;
+                let mut current = selected.selected();
+                if m.radio_item(item, &mut current, Some(value)).clicked {
+                    self.clicked = Some(ran);
+                    self.changed |= selected.select(value);
                 }
             }
         }
@@ -427,9 +458,9 @@ pub struct ToolbarResponse {
     pub response: egui::Response,
     /// Agrees with `response.changed()`; a toggle or radio value changed.
     pub changed: bool,
-    /// Index of the button, toggle or radio button clicked this frame (dividers do not count), also
-    /// when it sits in the overflow menu.
-    pub activated: Option<usize>,
+    /// Button, toggle or radio button clicked this frame, also when it sits in the overflow menu; its
+    /// index counts the items in order (dividers do not count).
+    pub clicked: Option<Clicked>,
 }
 
 /// Fluent `Toolbar`: a row or column of buttons, toggles, radio buttons and dividers. One Tab stop;
@@ -514,7 +545,7 @@ impl<'a> Toolbar<'a> {
         let row_height = m.pad_top + m.pad_bottom + m.line_height + 2.0 * g::STROKE_WIDTH_THIN;
         let mut run = Run {
             ids: Vec::with_capacity(disabled.len()),
-            activated: None,
+            clicked: None,
             changed: false,
             stop,
         };
@@ -575,7 +606,7 @@ impl<'a> Toolbar<'a> {
         ToolbarResponse {
             response,
             changed: run.changed,
-            activated: run.activated,
+            clicked: run.clicked,
         }
     }
 }

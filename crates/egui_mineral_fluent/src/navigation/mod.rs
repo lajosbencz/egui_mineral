@@ -14,7 +14,7 @@ pub use breadcrumb::{
     Breadcrumb, BreadcrumbButton, BreadcrumbDivider, BreadcrumbFocus, BreadcrumbItem, BreadcrumbResponse,
 };
 pub use carousel::{Carousel, CarouselAppearance, CarouselCard, CarouselResponse, CarouselUi};
-pub use menu::{Menu, MenuItem, MenuItemResponse, MenuUi};
+pub use menu::{Menu, MenuItem, MenuItemResponse, MenuResponse, MenuUi};
 pub use menu_grid::{
     MenuGrid, MenuGridAction, MenuGridCell, MenuGridItem, MenuGridResponse, MenuGridRow, MenuGridRowResponse,
     MenuGridUi,

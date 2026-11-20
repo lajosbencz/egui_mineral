@@ -133,7 +133,7 @@ mod widget;
 pub use egui_mineral;
 pub use egui_mineral::egui;
 pub use egui_mineral::icon::Icon;
-pub use fluent::{Fluent, FluentExt, Rt};
+pub use fluent::{Fluent, FluentExt, FluentUi, Rt};
 pub use icon::FluentIcon;
 pub use icon_set::IconSet;
 pub use spec::{BrandRamp, BrandStep, ColorToken, Shadow, ShadowLayer};

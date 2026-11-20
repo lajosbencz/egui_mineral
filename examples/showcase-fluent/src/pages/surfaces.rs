@@ -1,7 +1,7 @@
 use egui_mineral_fluent::{
     actions::{ButtonAppearance, PushButton},
     data::Text,
-    egui_mineral::{anchor::Side, expand::Expansion, layout::Axis},
+    egui_mineral::{action::Clicked, anchor::Side, expand::Expansion, layout::Axis},
     icons::ICON_PERSON,
     surfaces::{
         Accordion, AccordionItem, AccordionSize, Card, CardAppearance, CardHeader, Dialog, DialogAction,
@@ -11,7 +11,7 @@ use egui_mineral_fluent::{
 };
 
 use super::{heading, row};
-use crate::Fui;
+use crate::FluentUi;
 use egui_mineral_fluent::egui_mineral::layout::FlowItems;
 
 #[derive(Debug, Default)]
@@ -27,7 +27,7 @@ pub(crate) struct State {
     last: String,
 }
 
-pub(crate) fn show(ui: &mut Fui<'_>, s: &mut State) {
+pub(crate) fn show(ui: &mut FluentUi<'_>, s: &mut State) {
     tooltips(ui);
     popovers(ui, s);
     dialogs(ui, s);
@@ -45,7 +45,7 @@ fn trigger(
     ui.mineral(PushButton::new(salt, label)).response().clone()
 }
 
-fn tooltips(ui: &mut Fui<'_>) {
+fn tooltips(ui: &mut FluentUi<'_>) {
     heading(ui, "h-tooltip", "Tooltips");
     let rt = ui.rt();
     row(ui, |ui| {
@@ -64,7 +64,7 @@ fn tooltips(ui: &mut Fui<'_>) {
     });
 }
 
-fn popovers(ui: &mut Fui<'_>, s: &mut State) {
+fn popovers(ui: &mut FluentUi<'_>, s: &mut State) {
     heading(ui, "h-popover", "Popovers");
     let rt = ui.rt();
     row(ui, |ui| {
@@ -101,7 +101,7 @@ fn popovers(ui: &mut Fui<'_>, s: &mut State) {
     });
 }
 
-fn dialogs(ui: &mut Fui<'_>, s: &mut State) {
+fn dialogs(ui: &mut FluentUi<'_>, s: &mut State) {
     heading(ui, "h-dialog", "Dialogs");
     let rt = ui.rt();
     row(ui, |ui| {
@@ -122,19 +122,23 @@ fn dialogs(ui: &mut Fui<'_>, s: &mut State) {
                 .close_button(kind != DialogKind::Alert)
                 .fluid_actions(fluid)
                 .actions_position(DialogActionsPosition::End)
-                .action(DialogAction::new("Cancel"))
-                .action(DialogAction::new("Confirm").appearance(ButtonAppearance::Primary))
+                .action(DialogAction::new("Cancel").key("cancel"))
+                .action(
+                    DialogAction::new("Confirm")
+                        .appearance(ButtonAppearance::Primary)
+                        .key("confirm"),
+                )
                 .show_modal(rt, &mut s.dialogs[i], |ui| {
                     ui.mineral(Text::new(("dialog-text", i), "Dialog content."));
                 });
-            if let Some(c) = r.clicked {
-                s.last = format!("{label} action {c}");
+            if let Some(key) = r.clicked.as_ref().and_then(Clicked::key_str) {
+                s.last = format!("{label} action {key}");
             }
         }
     });
 }
 
-fn drawers(ui: &mut Fui<'_>, s: &mut State) {
+fn drawers(ui: &mut FluentUi<'_>, s: &mut State) {
     heading(ui, "h-drawer", "Drawers");
     let rt = ui.rt();
     row(ui, |ui| {
@@ -173,7 +177,7 @@ fn drawers(ui: &mut Fui<'_>, s: &mut State) {
     }
 }
 
-fn cards(ui: &mut Fui<'_>, s: &mut State) {
+fn cards(ui: &mut FluentUi<'_>, s: &mut State) {
     heading(ui, "h-card", "Cards");
     for (i, appearance) in CardAppearance::ALL.iter().copied().enumerate() {
         let mut card = Card::new(("card", i)).appearance(appearance).interactive(true);
@@ -206,7 +210,7 @@ fn cards(ui: &mut Fui<'_>, s: &mut State) {
     });
 }
 
-fn accordions(ui: &mut Fui<'_>, s: &mut State) {
+fn accordions(ui: &mut FluentUi<'_>, s: &mut State) {
     heading(ui, "h-accordion", "Accordion");
     Accordion::new("accordion", &mut s.accordion)
         .collapsible(true)

@@ -21,7 +21,7 @@ use egui_mineral_fluent::{
     typography::TypeRamp,
 };
 
-use crate::Fui;
+use crate::FluentUi;
 
 // The pages workflow bakes ICU4X data for these only.
 pub(crate) const LOCALES: [&str; 5] = ["en-US", "de-DE", "hu-HU", "ja-JP", "ar-EG"];
@@ -61,22 +61,22 @@ impl Page {
 // Wrapping row with its items centered on each line: `Ui::horizontal_wrapped` centers an item in the line
 // height so far, so mixed sizes end up on different centers.
 #[track_caller]
-pub(crate) fn row<R>(ui: &mut Fui<'_>, add: impl FnOnce(&mut FlowItems<'_, Fluent>) -> R) -> R {
+pub(crate) fn row<R>(ui: &mut FluentUi<'_>, add: impl FnOnce(&mut FlowItems<'_, Fluent>) -> R) -> R {
     let gap = ui.spacing().item_spacing.x;
     row_spaced(ui, gap, add)
 }
 
 #[track_caller]
-pub(crate) fn row_spaced<R>(ui: &mut Fui<'_>, gap: f32, add: impl FnOnce(&mut FlowItems<'_, Fluent>) -> R) -> R {
+pub(crate) fn row_spaced<R>(ui: &mut FluentUi<'_>, gap: f32, add: impl FnOnce(&mut FlowItems<'_, Fluent>) -> R) -> R {
     let line_gap = ui.spacing().item_spacing.y;
     Flow::new(vec2(gap, line_gap), Align::Center).show(ui, add)
 }
 
-pub(crate) fn heading(ui: &mut Fui<'_>, salt: &'static str, text: &str) {
+pub(crate) fn heading(ui: &mut FluentUi<'_>, salt: &'static str, text: &str) {
     ui.mineral(Text::new(salt, text).ramp(TypeRamp::Subtitle1));
 }
 
-pub(crate) fn show(page: Page, ui: &mut Fui<'_>, state: &mut components::State) {
+pub(crate) fn show(page: Page, ui: &mut FluentUi<'_>, state: &mut components::State) {
     let title = page.title(ui.i18n());
     ui.mineral(Text::new("page-title", title).ramp(TypeRamp::Title2));
     match page {

@@ -1,9 +1,11 @@
 use egui::{Frame, Sense, vec2};
 use egui_mineral::{
+    action::Clicked,
     focus::{self as roving, RovingFocus},
     i18n::Direction,
     layout::Axis,
     semantic::{self, AgentKey, KeyedSalt, Role, SemanticNode},
+    shortcut::ActionId,
     widget::MineralUi,
 };
 
@@ -28,6 +30,7 @@ pub struct BreadcrumbButton {
     icon: Option<Icon>,
     current: bool,
     disabled: bool,
+    action_key: Option<ActionId>,
 }
 
 impl BreadcrumbButton {
@@ -38,6 +41,7 @@ impl BreadcrumbButton {
             icon: None,
             current: false,
             disabled: false,
+            action_key: None,
         }
     }
 
@@ -52,6 +56,10 @@ impl BreadcrumbButton {
     pub fn current(mut self, current: bool) -> Self {
         self.current = current;
         self
+    }
+
+    crate::widget::setters! {
+        action_key
     }
 
     crate::widget::setters! {
@@ -192,8 +200,8 @@ fn metrics(size: Size, current: bool) -> Metrics {
 pub struct BreadcrumbResponse {
     /// Spans the trail.
     pub response: egui::Response,
-    /// Index of the item clicked this frame; the current and disabled items never report.
-    pub clicked: Option<usize>,
+    /// Item clicked this frame, also from the overflow menu; the current and disabled items never report.
+    pub clicked: Option<Clicked>,
 }
 
 /// Fluent `Breadcrumb`: a trail of [`BreadcrumbItem`]s separated by a [`BreadcrumbDivider`].
@@ -353,6 +361,10 @@ impl Breadcrumb {
         }
         semantic::emit(ui.ctx(), Some(group.id), group.rect, || {
             SemanticNode::new(key.id(&salt), Role::Navigation, &label)
+        });
+        let clicked = clicked.map(|i| {
+            let key = items.get(i).and_then(|it| it.button.action_key.clone());
+            Clicked::new(i, key)
         });
         BreadcrumbResponse {
             response: group,

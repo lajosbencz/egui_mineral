@@ -12,6 +12,7 @@ mod feedback;
 mod i18n;
 mod icons;
 mod inputs;
+mod keys;
 mod menu;
 mod navigation;
 mod pan;

@@ -14,7 +14,7 @@ use egui_mineral_fluent::{
 };
 
 use super::heading;
-use crate::Fui;
+use crate::FluentUi;
 
 #[derive(Debug)]
 pub(crate) struct State {
@@ -83,7 +83,7 @@ impl Default for State {
     }
 }
 
-pub(crate) fn show(ui: &mut Fui<'_>, s: &mut State) {
+pub(crate) fn show(ui: &mut FluentUi<'_>, s: &mut State) {
     choices(ui, s);
     sliders(ui, s);
     fields(ui, s);
@@ -94,7 +94,7 @@ pub(crate) fn show(ui: &mut Fui<'_>, s: &mut State) {
     composed(ui, s);
 }
 
-fn choices(ui: &mut Fui<'_>, s: &mut State) {
+fn choices(ui: &mut FluentUi<'_>, s: &mut State) {
     heading(ui, "h-checkbox", "Checkbox");
     let [a, b, c, d] = &mut s.checks;
     ui.mineral(Checkbox::new("cb-1", "Checked", a));
@@ -133,7 +133,7 @@ fn choices(ui: &mut Fui<'_>, s: &mut State) {
     ui.mineral(Switch::new("sw-4", "Disabled", &mut off).disabled(true));
 }
 
-fn sliders(ui: &mut Fui<'_>, s: &mut State) {
+fn sliders(ui: &mut FluentUi<'_>, s: &mut State) {
     heading(ui, "h-slider", "Slider and RangeSlider");
     let range = RangeModel::new(0.0, 100.0).step(10.0);
     ui.mineral(Slider::new("sl-1", "Volume", range, &mut s.slider));
@@ -184,7 +184,7 @@ fn sliders(ui: &mut Fui<'_>, s: &mut State) {
     ui.mineral(RatingDisplay::new("rd-2", "Compact", 4.2).compact(true).max(5));
 }
 
-fn fields(ui: &mut Fui<'_>, s: &mut State) {
+fn fields(ui: &mut FluentUi<'_>, s: &mut State) {
     heading(ui, "h-input", "Input, Textarea and SearchBox");
     for (i, a) in InputAppearance::ALL.iter().copied().enumerate() {
         ui.mineral(
@@ -213,7 +213,7 @@ fn fields(ui: &mut Fui<'_>, s: &mut State) {
     ui.mineral(SearchBox::new("sb-1", "Search", &mut s.search).placeholder("Search"));
 }
 
-fn composed(ui: &mut Fui<'_>, s: &mut State) {
+fn composed(ui: &mut FluentUi<'_>, s: &mut State) {
     heading(ui, "h-field", "Field and InfoLabel");
     Field::new("fd-1")
         .label("Name")
@@ -257,7 +257,7 @@ fn animals() -> Vec<egui_mineral_fluent::inputs::ListEntry> {
     ]
 }
 
-fn pickers(ui: &mut Fui<'_>, s: &mut State) {
+fn pickers(ui: &mut FluentUi<'_>, s: &mut State) {
     heading(ui, "h-pick", "Select, Dropdown, Combobox and TimePicker");
     ui.mineral(Select::new("sel-1", "Pet", animals(), &mut s.native).placeholder("Select an animal"));
     ui.mineral(Dropdown::new("dd-1", "Dropdown", animals(), &mut s.pick).placeholder("Pick one"));
@@ -280,7 +280,7 @@ fn pickers(ui: &mut Fui<'_>, s: &mut State) {
     ui.mineral(Dropdown::new("dd-3", "Disabled", animals(), &mut none).disabled(true));
 }
 
-fn tags_and_dates(ui: &mut Fui<'_>, s: &mut State) {
+fn tags_and_dates(ui: &mut FluentUi<'_>, s: &mut State) {
     heading(ui, "h-tags", "TagPicker, Calendar and DatePicker");
     ui.mineral(TagPicker::new("tag-1", "Pets", animals(), &mut s.tags, &mut s.tags_text).placeholder("Pick pets"));
     ui.mineral(
@@ -299,7 +299,7 @@ fn tags_and_dates(ui: &mut Fui<'_>, s: &mut State) {
     ui.mineral(DatePicker::new("date-1", "Date", &mut s.date).placeholder("Select a date"));
 }
 
-fn swatches(ui: &mut Fui<'_>, s: &mut State) {
+fn swatches(ui: &mut FluentUi<'_>, s: &mut State) {
     heading(ui, "h-swatch", "SwatchPicker");
     let colors = [
         ("red", "Red", Color32::from_rgb(0xd1, 0x34, 0x38)),

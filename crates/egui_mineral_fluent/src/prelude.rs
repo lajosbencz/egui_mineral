@@ -1,29 +1,30 @@
 //! What app code names: the core [`egui_mineral::prelude`], and every component with its option enums,
-//! [`Fluent`], [`FluentExt`], [`TypeRamp`], [`FluentIcon`] and [`icons`]. Responses and `theme` stay in
-//! their modules.
+//! responses and outputs, [`Fluent`], [`FluentUi`], [`FluentExt`], [`TypeRamp`], [`FluentIcon`] and [`icons`].
+//! `theme` stays in its module.
 
 pub use crate::actions::{
-    ButtonAppearance, ButtonShape, CompoundButton, LinkAppearance, MenuButton, PushButton, SplitButton, TextLink,
-    ToggleButton,
+    ButtonAppearance, ButtonShape, CompoundButton, LinkAppearance, MenuButton, PushButton, SplitButton,
+    SplitButtonResponse, TextLink, ToggleButton,
 };
 pub use crate::data::{
-    Avatar, AvatarActive, AvatarActiveAppearance, AvatarColor, AvatarGroup, AvatarGroupLayout, AvatarNamedColor,
-    AvatarShape, AvatarSize, DataGrid, Image, ImageFit, ImageShape, InteractionTag, InteractionTagResponse, List,
-    ListItem, ListNavigation, ListResponse, ListUi, Persona, PersonaSize, PersonaTextAlignment, PersonaTextPosition,
-    Table, TableCellLayout, TableColumn, TableResponse, TableRowAppearance, TableSize, Tag, TagAppearance, TagGroup,
-    TagGroupResponse, TagShape, TagSize, Text, TextAlign, TextFont, TextSize, TextWeight,
+    Avatar, AvatarActive, AvatarActiveAppearance, AvatarColor, AvatarGroup, AvatarGroupLayout, AvatarGroupResponse,
+    AvatarNamedColor, AvatarShape, AvatarSize, DataGrid, Image, ImageFit, ImageShape, InteractionTag,
+    InteractionTagResponse, List, ListItem, ListNavigation, ListResponse, ListUi, Persona, PersonaSize,
+    PersonaTextAlignment, PersonaTextPosition, Table, TableCellLayout, TableColumn, TableResponse, TableRowAppearance,
+    TableSize, Tag, TagAppearance, TagGroup, TagGroupResponse, TagShape, TagSize, Text, TextAlign, TextFont, TextSize,
+    TextWeight,
 };
 #[cfg(feature = "extras")]
 pub use crate::extras::{
-    BarMenu, CommandPalette, CommandPaletteResponse, MenuBar, Pagination, PaletteCommand, SplitPane, StatusBar,
-    StatusItem, StatusProgress, StatusTone,
+    BarMenu, CommandPalette, CommandPaletteResponse, MenuBar, MenuBarResponse, Pagination, PaletteCommand, SplitPane,
+    StatusBar, StatusBarResponse, StatusItem, StatusProgress, StatusTone,
 };
 pub use crate::feedback::{
     Badge, BadgeAppearance, BadgeColor, BadgeShape, BadgeSize, CounterBadge, CounterBadgeAppearance, CounterBadgeColor,
     MessageBar, MessageBarGroup, MessageBarIntent, MessageBarLayout, MessageBarResponse, MessageBarShape,
     PresenceBadge, PresenceStatus, ProgressBar, ProgressShape, ProgressThickness, Skeleton, SkeletonAnimation,
     SkeletonAppearance, SkeletonContext, SkeletonItem, SkeletonShape, Spinner, SpinnerAppearance, SpinnerLabelPosition,
-    SpinnerSize, Toast, ToastAction, ToastIntent, ToastPosition, Toaster, ToasterResponse, toast_queue,
+    SpinnerSize, Toast, ToastAction, ToastIntent, ToastLink, ToastPosition, Toaster, ToasterResponse, toast_queue,
 };
 pub use crate::inputs::{
     Calendar, Checkbox, CheckboxLabelPosition, CheckboxShape, ColorPicker, ColorShape, Combobox, DatePicker, Dropdown,
@@ -37,11 +38,11 @@ pub use crate::navigation::{
     Breadcrumb, BreadcrumbButton, BreadcrumbDivider, BreadcrumbFocus, BreadcrumbItem, BreadcrumbResponse, Carousel,
     CarouselAppearance, CarouselCard, CarouselResponse, CarouselUi, ItemLayout, Menu, MenuGrid, MenuGridAction,
     MenuGridCell, MenuGridItem, MenuGridResponse, MenuGridRow, MenuGridRowResponse, MenuGridUi, MenuItem,
-    MenuItemResponse, MenuUi, Nav, NavCategory, NavDensity, NavDivider, NavDrawer, NavItem, NavItemResponse,
-    NavResponse, NavSectionHeader, NavSubItem, NavUi, Overflow, OverflowDirection, OverflowItem, OverflowSpace, Tab,
-    TabAppearance, TabList, Toolbar, ToolbarButton, ToolbarGroup, ToolbarRadioButton, ToolbarRadioGroup,
-    ToolbarResponse, ToolbarToggleButton, Tree, TreeAppearance, TreeItem, TreeItemLayout, TreeItemPersonaLayout,
-    TreeResponse,
+    MenuItemResponse, MenuResponse, MenuUi, Nav, NavCategory, NavDensity, NavDivider, NavDrawer, NavItem,
+    NavItemResponse, NavResponse, NavSectionHeader, NavSubItem, NavUi, Overflow, OverflowDirection, OverflowItem,
+    OverflowSpace, Tab, TabAppearance, TabList, Toolbar, ToolbarButton, ToolbarGroup, ToolbarRadioButton,
+    ToolbarRadioGroup, ToolbarResponse, ToolbarToggleButton, Tree, TreeAppearance, TreeItem, TreeItemLayout,
+    TreeItemPersonaLayout, TreeResponse,
 };
 pub use crate::surfaces::{
     Accordion, AccordionItem, AccordionItemResponse, AccordionNavigation, AccordionResponse, AccordionSize,
@@ -51,6 +52,10 @@ pub use crate::surfaces::{
     TeachingStep, Tooltip, TooltipAppearance, TooltipRelationship, TooltipResponse,
 };
 pub use crate::{
-    BrandRamp, ColorToken, Fluent, FluentExt, FluentIcon, IconPosition, IconSet, Rt, Size, icons, typography::TypeRamp,
+    BrandRamp, ColorToken, Fluent, FluentExt, FluentIcon, FluentUi, IconPosition, IconSet, Rt, Size, icons,
+    typography::TypeRamp,
 };
+pub use egui_mineral::overlay::OverlayResponse;
 pub use egui_mineral::prelude::*;
+#[cfg(feature = "extras")]
+pub use egui_mineral::splitter::SplitterResponse;

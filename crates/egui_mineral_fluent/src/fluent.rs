@@ -155,6 +155,9 @@ impl Stylekit for Fluent {
 /// Runtime of a Fluent app.
 pub type Rt = Runtime<Fluent>;
 
+/// [`MineralUi`] of a Fluent app: the `ui` every component is shown on.
+pub type FluentUi<'a> = MineralUi<'a, Fluent>;
+
 /// Fluent state on a [`Rt`] or Fluent [`MineralUi`]; sealed.
 pub trait FluentExt: sealed::Sealed {
     /// Tokens of the current scheme, frozen for the egui pass: [`Fluent`] setters apply from the next pass.

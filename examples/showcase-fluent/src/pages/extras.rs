@@ -9,7 +9,7 @@ use egui_mineral_fluent::{
 };
 
 use super::heading;
-use crate::Fui;
+use crate::FluentUi;
 
 #[derive(Default)]
 pub(crate) struct State {
@@ -21,7 +21,7 @@ pub(crate) struct State {
 
 egui_mineral_fluent::egui_mineral::kit::opaque_debug!(State);
 
-pub(crate) fn show(ui: &mut Fui<'_>, s: &mut State) {
+pub(crate) fn show(ui: &mut FluentUi<'_>, s: &mut State) {
     split_pane(ui);
     menu_bar(ui);
     status_bar(ui);
@@ -29,7 +29,7 @@ pub(crate) fn show(ui: &mut Fui<'_>, s: &mut State) {
     command_palette(ui, s);
 }
 
-fn split_pane(ui: &mut Fui<'_>) {
+fn split_pane(ui: &mut FluentUi<'_>) {
     heading(ui, "h-split-pane", "SplitPane");
     let width = ui.available_width();
     ui.allocate_ui(vec2(width, 120.0), |ui| {
@@ -41,7 +41,7 @@ fn split_pane(ui: &mut Fui<'_>) {
     });
 }
 
-fn menu_bar(ui: &mut Fui<'_>) {
+fn menu_bar(ui: &mut FluentUi<'_>) {
     heading(ui, "h-menu-bar", "MenuBar");
     MenuBar::new("bar")
         .menu(
@@ -63,7 +63,7 @@ fn menu_bar(ui: &mut Fui<'_>) {
         .show(ui);
 }
 
-fn status_bar(ui: &mut Fui<'_>) {
+fn status_bar(ui: &mut FluentUi<'_>) {
     heading(ui, "h-status-bar", "StatusBar");
     StatusBar::new("status", "Status")
         .item(StatusItem::new("Indexing").progress(StatusProgress::Circular(None)))
@@ -73,12 +73,12 @@ fn status_bar(ui: &mut Fui<'_>) {
         .show(ui);
 }
 
-fn pagination(ui: &mut Fui<'_>, s: &mut State) {
+fn pagination(ui: &mut FluentUi<'_>, s: &mut State) {
     heading(ui, "h-pagination", "Pagination");
     ui.mineral(Pagination::new("pages", 20, &mut s.page));
 }
 
-fn command_palette(ui: &mut Fui<'_>, s: &mut State) {
+fn command_palette(ui: &mut FluentUi<'_>, s: &mut State) {
     heading(ui, "h-command-palette", "CommandPalette");
     if ui.mineral(PushButton::new("palette-open", "Open palette")).clicked() {
         s.palette_open = true;

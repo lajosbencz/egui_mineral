@@ -313,7 +313,7 @@ impl<'a> AvatarGroup<'a> {
     }
 
     /// Shows the group and its overflow popover.
-    pub fn show(self, ui: &mut MineralUi<'_, Fluent>) -> egui::Response {
+    pub fn show(self, ui: &mut MineralUi<'_, Fluent>) -> AvatarGroupResponse {
         let rt = ui.rt();
         let Self {
             salt,
@@ -376,18 +376,28 @@ impl<'a> AvatarGroup<'a> {
                 });
             }
         }
-        if has_overflow {
+        let overflow = has_overflow.then(|| {
             let at = if pie { 0.0 } else { step * (slots - 1) as f32 };
             let x = dir.start_x(rect, Rangef::new(at, at + side));
             let boxed = Rect::from_min_size(pos2(x, rect.min.y), vec2(side, side));
             let spec = OverflowSpec { salt: &salt, size, pie };
-            show_overflow(ui, rt, &spec, boxed, overflow_items);
-        }
+            show_overflow(ui, rt, &spec, boxed, overflow_items)
+        });
         semantic::emit(ui.ctx(), Some(response.id), rect, || {
             SemanticNode::new(key.id(&salt), Role::Group, &label)
         });
-        response
+        AvatarGroupResponse { response, overflow }
     }
+}
+
+/// Result of [`AvatarGroup::show`].
+#[derive(Clone, Debug)]
+#[non_exhaustive]
+pub struct AvatarGroupResponse {
+    /// Spans the inline avatars and the overflow button, sensing hover only.
+    pub response: egui::Response,
+    /// Overflow button, while some avatars do not fit inline.
+    pub overflow: Option<egui::Response>,
 }
 
 struct OverflowSpec<'s> {
@@ -403,7 +413,7 @@ fn show_overflow(
     spec: &OverflowSpec<'_>,
     boxed: Rect,
     items: Vec<Avatar<'_>>,
-) {
+) -> egui::Response {
     let OverflowSpec { salt, size, pie } = *spec;
     let open_id = ui.make_persistent_id(salt.id_salt()).with("mineral::overflow-open");
     let mut open = overflow::is_open(ui.ctx(), open_id);
@@ -453,6 +463,7 @@ fn show_overflow(
                 });
         });
     overflow::set_open(ui.ctx(), open_id, open);
+    trigger.into_response()
 }
 
 fn place<R>(ui: &mut egui::Ui, rect: Rect, add: impl FnOnce(&mut egui::Ui) -> R) -> R {

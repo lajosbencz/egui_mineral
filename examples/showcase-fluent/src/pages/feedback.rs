@@ -7,14 +7,14 @@ use egui_mineral_fluent::{
         CounterBadgeColor, MessageBar, MessageBarGroup, MessageBarIntent, MessageBarLayout, MessageBarShape,
         PresenceBadge, PresenceStatus, ProgressBar, ProgressShape, ProgressThickness, Skeleton, SkeletonAnimation,
         SkeletonAppearance, SkeletonItem, SkeletonShape, Spinner, SpinnerAppearance, SpinnerLabelPosition, SpinnerSize,
-        Toast, ToastIntent, ToastPosition, Toaster, toast_queue,
+        Toast, ToastIntent, ToastLink, ToastPosition, Toaster, toast_queue,
     },
     icons::ICON_CHECKMARK_CIRCLE,
     inputs::Validation,
 };
 
 use super::{heading, row};
-use crate::Fui;
+use crate::FluentUi;
 
 #[derive(Debug)]
 pub(crate) struct State {
@@ -33,7 +33,7 @@ impl Default for State {
     }
 }
 
-pub(crate) fn show(ui: &mut Fui<'_>, s: &mut State) {
+pub(crate) fn show(ui: &mut FluentUi<'_>, s: &mut State) {
     progress(ui);
     spinners(ui);
     skeletons(ui);
@@ -42,7 +42,7 @@ pub(crate) fn show(ui: &mut Fui<'_>, s: &mut State) {
     toasts(ui, s);
 }
 
-fn progress(ui: &mut Fui<'_>) {
+fn progress(ui: &mut FluentUi<'_>) {
     heading(ui, "h-progress", "Progress bars");
     ui.mineral(ProgressBar::determinate("progress-value", 0.4));
     ui.mineral(ProgressBar::indeterminate("progress-indeterminate"));
@@ -56,7 +56,7 @@ fn progress(ui: &mut Fui<'_>) {
     }
 }
 
-fn spinners(ui: &mut Fui<'_>) {
+fn spinners(ui: &mut FluentUi<'_>) {
     heading(ui, "h-spinner", "Spinners");
     let rt = ui.rt();
     row(ui, |ui| {
@@ -85,7 +85,7 @@ fn spinners(ui: &mut Fui<'_>) {
         });
 }
 
-fn skeletons(ui: &mut Fui<'_>) {
+fn skeletons(ui: &mut FluentUi<'_>) {
     heading(ui, "h-skeleton", "Skeletons");
     for (i, (animation, appearance)) in [
         (SkeletonAnimation::Wave, SkeletonAppearance::Opaque),
@@ -110,7 +110,7 @@ fn skeletons(ui: &mut Fui<'_>) {
     ui.mineral(SkeletonItem::new("standalone").size(20));
 }
 
-fn message_bars(ui: &mut Fui<'_>, s: &mut State) {
+fn message_bars(ui: &mut FluentUi<'_>, s: &mut State) {
     heading(ui, "h-message-bar", "Message bars");
     for (i, intent) in MessageBarIntent::ALL.iter().copied().enumerate() {
         let bar = MessageBar::new(("bar", i), "Something happened.")
@@ -152,7 +152,7 @@ fn message_bars(ui: &mut Fui<'_>, s: &mut State) {
     });
 }
 
-fn badges(ui: &mut Fui<'_>) {
+fn badges(ui: &mut FluentUi<'_>) {
     heading(ui, "h-badge", "Badges");
     row(ui, |ui| {
         for (i, size) in BadgeSize::ALL.iter().copied().enumerate() {
@@ -207,7 +207,7 @@ fn badges(ui: &mut Fui<'_>) {
     });
 }
 
-fn toasts(ui: &mut Fui<'_>, s: &mut State) {
+fn toasts(ui: &mut FluentUi<'_>, s: &mut State) {
     heading(ui, "h-toast", "Toasts");
     let rt = ui.rt();
     row(ui, |ui| {
@@ -224,7 +224,7 @@ fn toasts(ui: &mut Fui<'_>, s: &mut State) {
                         .body("Something happened.")
                         .intent(intent)
                         .position(position)
-                        .footer_action("Undo")
+                        .footer_action(ToastLink::new("Undo").key("undo"))
                         .dismissible(true),
                 );
             }

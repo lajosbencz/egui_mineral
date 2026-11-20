@@ -12,7 +12,7 @@ use egui_mineral_fluent::{
 };
 
 use super::{heading, row};
-use crate::Fui;
+use crate::FluentUi;
 
 #[derive(Debug, Default)]
 pub(crate) struct State {
@@ -28,7 +28,7 @@ pub(crate) struct State {
     extras: super::extras::State,
 }
 
-pub(crate) fn actions(ui: &mut Fui<'_>, s: &mut State) {
+pub(crate) fn actions(ui: &mut FluentUi<'_>, s: &mut State) {
     heading(ui, "h-appearance", "Button appearances");
     row(ui, |ui| {
         for (i, a) in ButtonAppearance::ALL.iter().copied().enumerate() {
@@ -98,7 +98,7 @@ pub(crate) fn actions(ui: &mut Fui<'_>, s: &mut State) {
     ui.mineral(Text::new("clicks", format!("Clicked {} times", s.clicks)));
 }
 
-pub(crate) fn inputs(ui: &mut Fui<'_>, s: &mut State) {
+pub(crate) fn inputs(ui: &mut FluentUi<'_>, s: &mut State) {
     heading(ui, "h-label", "Labels");
     for (i, size) in Size::ALL.iter().copied().enumerate() {
         ui.mineral(FieldLabel::new(("label", i), format!("{size:?} label")).size(size));
@@ -108,11 +108,11 @@ pub(crate) fn inputs(ui: &mut Fui<'_>, s: &mut State) {
     super::inputs::show(ui, &mut s.inputs);
 }
 
-pub(crate) fn feedback(ui: &mut Fui<'_>, s: &mut State) {
+pub(crate) fn feedback(ui: &mut FluentUi<'_>, s: &mut State) {
     super::feedback::show(ui, &mut s.feedback);
 }
 
-pub(crate) fn surfaces(ui: &mut Fui<'_>, s: &mut State) {
+pub(crate) fn surfaces(ui: &mut FluentUi<'_>, s: &mut State) {
     heading(ui, "h-divider", "Dividers");
     ui.mineral(Divider::new("plain"));
     for (i, align) in [DividerAlign::Start, DividerAlign::Center, DividerAlign::End]
@@ -148,7 +148,7 @@ pub(crate) fn surfaces(ui: &mut Fui<'_>, s: &mut State) {
     super::surfaces::show(ui, &mut s.surfaces);
 }
 
-pub(crate) fn data(ui: &mut Fui<'_>, s: &mut State) {
+pub(crate) fn data(ui: &mut FluentUi<'_>, s: &mut State) {
     super::data::show(ui, &mut s.data);
     heading(ui, "h-text", "Text");
     for (i, size) in TextSize::ALL.iter().copied().take(6).enumerate() {
@@ -167,10 +167,10 @@ pub(crate) fn data(ui: &mut Fui<'_>, s: &mut State) {
     );
 }
 
-pub(crate) fn extras(ui: &mut Fui<'_>, s: &mut State) {
+pub(crate) fn extras(ui: &mut FluentUi<'_>, s: &mut State) {
     super::extras::show(ui, &mut s.extras);
 }
 
-pub(crate) fn navigation(ui: &mut Fui<'_>, s: &mut State) {
+pub(crate) fn navigation(ui: &mut FluentUi<'_>, s: &mut State) {
     super::navigation::show(ui, &mut s.navigation);
 }

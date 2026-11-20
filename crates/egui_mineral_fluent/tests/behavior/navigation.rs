@@ -168,8 +168,8 @@ fn breadcrumb(focus: BreadcrumbFocus) -> Harness<'static, Trail> {
             .item("Guide")
             .item(BreadcrumbButton::new("Page").current(true))
             .show(ui);
-        if r.clicked.is_some() {
-            s.clicked = r.clicked;
+        if let Some(c) = r.clicked {
+            s.clicked = Some(c.index());
         }
     })
 }
@@ -247,8 +247,8 @@ fn narrow_toolbar(width: Option<f32>) -> Harness<'static, Bar> {
             bar = bar.action(label);
         }
         let r = bar.show(ui);
-        if r.activated.is_some() {
-            s.activated = r.activated;
+        if let Some(c) = r.clicked {
+            s.activated = Some(c.index());
         }
     })
 }
@@ -318,7 +318,7 @@ fn narrow_trail(width: Option<f32>, direction: OverflowDirection) -> Harness<'st
             .overflow(Overflow::new("More").direction(direction))
             .items(["Home", "Docs", "Wiki", "Page", "Info"])
             .show(ui);
-        s.clicked = r.clicked.or(s.clicked);
+        s.clicked = r.clicked.map(|c| c.index()).or(s.clicked);
     })
 }
 

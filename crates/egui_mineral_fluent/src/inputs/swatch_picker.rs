@@ -22,7 +22,10 @@ use crate::{
             STROKE_WIDTH_THICKEST, STROKE_WIDTH_THIN,
         },
     },
-    widget::paint,
+    widget::{
+        choice::{self, Choice},
+        paint,
+    },
 };
 
 /// `size` of a swatch.
@@ -168,13 +171,40 @@ impl Swatch {
     }
 }
 
+#[derive(Debug)]
+enum Picked<'a> {
+    Text(&'a mut Option<String>),
+    Choice(Choice<'a>),
+}
+
+impl Picked<'_> {
+    fn selected(&self, swatches: &[Swatch]) -> Option<usize> {
+        match self {
+            Self::Text(v) => swatches.iter().position(|s| v.as_deref() == Some(s.value.as_str())),
+            Self::Choice(c) => c.selected(),
+        }
+    }
+
+    fn select(&mut self, swatches: &[Swatch], index: usize) -> bool {
+        match self {
+            Self::Text(v) => {
+                let Some(s) = swatches.get(index) else { return false };
+                let changed = v.as_deref() != Some(s.value.as_str());
+                **v = Some(s.value.clone());
+                changed
+            }
+            Self::Choice(c) => c.select(index),
+        }
+    }
+}
+
 /// Fluent `SwatchPicker`: single selection among swatches, one Tab stop, arrow-key navigation.
 #[derive(Debug)]
 #[must_use = "show with SwatchPicker::show"]
 pub struct SwatchPicker<'a> {
     salt: KeyedSalt,
     label: String,
-    value: &'a mut Option<String>,
+    value: Picked<'a>,
     swatches: Vec<Swatch>,
     layout: SwatchLayout,
     size: SwatchSize,
@@ -187,11 +217,29 @@ impl<'a> SwatchPicker<'a> {
     /// `label` names the group for assistive technology; node key `<id_salt>-swatch-picker`, swatches
     /// `<id_salt>-<index>-swatch`.
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, value: &'a mut Option<String>) -> Self {
+        Self::with(id_salt.into(), label.into(), Picked::Text(value), Vec::new())
+    }
+
+    /// Binds the value of the picked swatch instead of its string: each of `swatches` comes with its value
+    /// (the swatch's own string value is not read), a pick writes it into `value`, and no swatch is selected
+    /// while `value` matches none. Swatches added with [`Self::swatches`] have no value and cannot be picked.
+    pub fn bound<T: PartialEq + Clone + 'a>(
+        id_salt: impl Into<KeyedSalt>,
+        label: impl Into<String>,
+        swatches: impl IntoIterator<Item = (T, Swatch)>,
+        value: &'a mut T,
+    ) -> Self {
+        let (values, swatches) = choice::split(swatches);
+        let picked = Picked::Choice(Choice::by_value(value, values));
+        Self::with(id_salt.into(), label.into(), picked, swatches)
+    }
+
+    fn with(salt: KeyedSalt, label: String, value: Picked<'a>, swatches: Vec<Swatch>) -> Self {
         Self {
-            salt: id_salt.into(),
-            label: label.into(),
+            salt,
+            label,
             value,
-            swatches: Vec::new(),
+            swatches,
             layout: SwatchLayout::Row,
             size: SwatchSize::Medium,
             shape: SwatchShape::Square,
@@ -241,7 +289,7 @@ impl<'a> SwatchPicker<'a> {
         let Self {
             salt,
             label,
-            value,
+            mut value,
             swatches,
             layout,
             size,
@@ -261,7 +309,7 @@ impl<'a> SwatchPicker<'a> {
         let mut picked = None;
         let group_id = ui.make_persistent_id(salt.id_salt());
         let enabled = |i: usize| !disabled && swatches.get(i).is_some_and(|s| !s.disabled);
-        let selected = swatches.iter().position(|s| value.as_deref() == Some(s.value.as_str()));
+        let selected = value.selected(&swatches);
         let tab_stop = focus::tab_stop(ui.ctx(), group_id, selected, swatches.len(), enabled);
         let mut body = |ui: &mut Ui| {
             ui.spacing_mut().item_spacing = vec2(gap, gap);
@@ -297,11 +345,7 @@ impl<'a> SwatchPicker<'a> {
         if let Some(i) = roving.update_group(ui.core(), group_id, &ids, enabled) {
             picked = Some(i);
         }
-        let mut changed = false;
-        if let Some(s) = picked.and_then(|i| swatches.get(i)) {
-            changed = value.as_deref() != Some(s.value.as_str());
-            *value = Some(s.value.clone());
-        }
+        let changed = picked.is_some_and(|i| value.select(&swatches, i));
         semantic::emit(ui.ctx(), Some(group.id), group.rect, || {
             let mut n = SemanticNode::new(StableId::of(&salt, "swatch-picker"), Role::RadioGroup, &label);
             n.state.disabled = disabled;

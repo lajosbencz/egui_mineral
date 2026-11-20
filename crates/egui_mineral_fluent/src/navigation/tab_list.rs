@@ -32,6 +32,7 @@ use crate::{
     theme::{Elevation, Radius},
     typography::TypeRamp,
     widget::{
+        choice::{self, Choice},
         paint,
         state::{Ramp, State},
         tween,
@@ -595,7 +596,7 @@ pub struct TabList<'a> {
     salt: KeyedSalt,
     key: AgentKey,
     label: String,
-    selected: &'a mut usize,
+    selected: Choice<'a>,
     tabs: Vec<Tab>,
     appearance: TabAppearance,
     size: Size,
@@ -607,12 +608,29 @@ pub struct TabList<'a> {
 impl<'a> TabList<'a> {
     /// `label` names the list for assistive technology; agent key `<id_salt>-tablist`.
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selected: &'a mut usize) -> Self {
+        Self::with(id_salt.into(), label.into(), Choice::by_index(selected), Vec::new())
+    }
+
+    /// Binds the value of the selected tab instead of its index (`selectedValue`): each of `tabs` comes with
+    /// its value, a pick writes it into `value`, and no tab is selected while `value` matches none. Tabs
+    /// added with [`Self::tab`] or [`Self::tabs`] have no value and cannot be picked.
+    pub fn bound<T: PartialEq + Clone + 'a>(
+        id_salt: impl Into<KeyedSalt>,
+        label: impl Into<String>,
+        tabs: impl IntoIterator<Item = (T, impl Into<Tab>)>,
+        value: &'a mut T,
+    ) -> Self {
+        let (values, tabs) = choice::split(tabs);
+        Self::with(id_salt.into(), label.into(), Choice::by_value(value, values), tabs)
+    }
+
+    fn with(salt: KeyedSalt, label: String, selected: Choice<'a>, tabs: Vec<Tab>) -> Self {
         Self {
-            salt: id_salt.into(),
+            salt,
             key: AgentKey::Kind("tablist"),
-            label: label.into(),
+            label,
             selected,
-            tabs: Vec::new(),
+            tabs,
             appearance: TabAppearance::default(),
             size: Size::Medium,
             vertical: false,
@@ -667,15 +685,15 @@ impl<'a> TabList<'a> {
         agent_key(key)
     }
 
-    /// Shows the list; a pick writes `selected` and reports `changed`. A `selected` past the last tab is
-    /// moved onto it.
+    /// Shows the list; a pick writes the bound index or value and reports `changed`. A bound index past the
+    /// last tab is moved onto it.
     pub fn show(self, ui: &mut MineralUi<'_, Fluent>) -> SelectionResponse {
         let rt = ui.rt();
         let Self {
             salt,
             key,
             label,
-            selected,
+            mut selected,
             tabs,
             appearance,
             size,
@@ -683,17 +701,15 @@ impl<'a> TabList<'a> {
             select_on_focus,
             disabled,
         } = self;
-        if let Some(i) = kit::sanitize::index(*selected, tabs.len(), "TabList selected") {
-            *selected = i;
-        }
+        selected.clamp(tabs.len(), "TabList selected");
         let id = ui.make_persistent_id(salt.id_salt());
         let enabled = |i: usize| !disabled && tabs.get(i).is_some_and(|t| !t.disabled);
-        let tab_stop = roving::tab_stop(ui.ctx(), id, Some(*selected), tabs.len(), enabled);
+        let tab_stop = roving::tab_stop(ui.ctx(), id, selected.selected(), tabs.len(), enabled);
         let measured: Vec<Measured> = tabs.iter().map(|t| Measured::of(ui, t, size, vertical)).collect();
         let stretch = measured.iter().fold(0.0_f32, |m, l| m.max(l.cross(vertical)));
         let dir = rt.i18n().direction();
         let gap = gap(appearance, size);
-        let current = *selected;
+        let current = selected.selected();
         let mut picked = None;
         let mut ids = Vec::with_capacity(tabs.len());
         let mut rects = Vec::with_capacity(tabs.len());
@@ -703,7 +719,7 @@ impl<'a> TabList<'a> {
                 let r = rt.ui(ui).mineral(TabItem {
                     salt: tab.salt.clone().unwrap_or_else(|| salt.child(i)),
                     tab,
-                    selected: i == current,
+                    selected: Some(i) == current,
                     appearance,
                     size,
                     vertical,
@@ -736,18 +752,15 @@ impl<'a> TabList<'a> {
         {
             picked = Some(i);
         }
-        let changed = picked.is_some_and(|i| i != current);
-        if let Some(i) = picked.filter(|_| changed) {
-            *selected = i;
-        }
+        let changed = picked.is_some_and(|i| Some(i) != current && selected.select(i));
         if !appearance.circular()
-            && let Some(sel) = rects.get(*selected)
+            && let Some((at, sel)) = selected.selected().and_then(|i| Some((i, rects.get(i)?)))
         {
             let on = Indicator {
                 id,
                 size,
                 vertical,
-                enabled: enabled(*selected),
+                enabled: enabled(at),
             };
             on.paint(ui, sel, &rects);
         }

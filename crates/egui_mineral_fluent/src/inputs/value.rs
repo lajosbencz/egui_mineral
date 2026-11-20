@@ -5,6 +5,7 @@ use egui_mineral::{
 };
 
 use super::listbox::{Flat, ListEntry};
+use crate::widget::choice::Choice;
 
 #[derive(Clone, Debug, Default)]
 pub struct ListState {
@@ -17,6 +18,8 @@ pub struct ListState {
 pub(crate) enum Value<'a> {
     Many(&'a mut Selection<String>),
     One(&'a mut Option<String>),
+    // Option values are their indices.
+    Bound(Choice<'a>),
 }
 
 impl std::fmt::Debug for Value<'_> {
@@ -34,6 +37,7 @@ impl Value<'_> {
         match self {
             Self::Many(s) => s.is_selected(&value.to_owned()),
             Self::One(v) => v.as_deref() == Some(value),
+            Self::Bound(c) => c.selected().is_some_and(|i| value.parse() == Ok(i)),
         }
     }
 
@@ -46,6 +50,7 @@ impl Value<'_> {
                 **v = Some(value.to_owned());
                 changed
             }
+            Self::Bound(c) => value.parse().is_ok_and(|i| c.select(i)),
         }
     }
 }

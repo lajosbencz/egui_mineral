@@ -1,5 +1,6 @@
 use egui::{Id, Margin, Rangef, Rect, Response, Sense, Stroke, StrokeKind, UiBuilder, pos2, text::LayoutJob, vec2};
 use egui_mineral::{
+    action::Clicked,
     anchor::{Align, Anchor, Side},
     focus::{self, Cell, Grid, GridSize, on_grid_key},
     i18n::I18n,
@@ -7,6 +8,7 @@ use egui_mineral::{
     layout::{Constraints, Measure, MinTarget},
     overlay::{self, Dismiss, Popup},
     semantic::{self, AgentKey, KeyedSalt, Role, SemanticNode},
+    shortcut::ActionId,
     widget::{Availability, Interaction, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
 };
 
@@ -41,6 +43,7 @@ pub struct MenuGridItem {
     icon: Option<Icon>,
     sub_text: Option<String>,
     disabled: bool,
+    action_key: Option<ActionId>,
 }
 
 impl MenuGridItem {
@@ -51,6 +54,7 @@ impl MenuGridItem {
             icon: None,
             sub_text: None,
             disabled: false,
+            action_key: None,
         }
     }
 
@@ -64,6 +68,10 @@ impl MenuGridItem {
     pub fn secondary_text(mut self, text: impl Into<String>) -> Self {
         self.sub_text = Some(text.into());
         self
+    }
+
+    crate::widget::setters! {
+        action_key
     }
 
     crate::widget::setters! {
@@ -85,6 +93,7 @@ pub struct MenuGridAction {
     label: String,
     icon: Icon,
     disabled: bool,
+    action_key: Option<ActionId>,
 }
 
 impl MenuGridAction {
@@ -94,7 +103,12 @@ impl MenuGridAction {
             label: label.into(),
             icon: icon.into(),
             disabled: false,
+            action_key: None,
         }
+    }
+
+    crate::widget::setters! {
+        action_key
     }
 
     crate::widget::setters! {
@@ -143,6 +157,13 @@ impl MenuGridCell {
         match self {
             Self::Item(i) => &i.label,
             Self::Action(a) => &a.label,
+        }
+    }
+
+    fn action_key(&self) -> Option<&ActionId> {
+        match self {
+            Self::Item(i) => i.action_key.as_ref(),
+            Self::Action(a) => a.action_key.as_ref(),
         }
     }
 
@@ -334,8 +355,8 @@ pub struct MenuGridRowResponse {
     pub response: Response,
     /// Responses of the cells, in order.
     pub cells: Vec<Response>,
-    /// Index of the cell activated this pass.
-    pub activated: Option<usize>,
+    /// Cell activated this pass; its index is the column.
+    pub clicked: Option<Clicked>,
 }
 
 // Widest row of the previous pass: rows stretch to it, as the menu popover sizes to its content.
@@ -396,6 +417,7 @@ pub struct MenuGridUi<'u, 's> {
     row: usize,
     slots: Vec<Slot>,
     activated: Option<Cell>,
+    clicked: Option<Clicked>,
     memo: Memo,
     seen: f32,
 }
@@ -448,7 +470,7 @@ impl MenuGridUi<'_, '_> {
         let item_width = ((inner.width() - actions - gaps) / items.max(1) as f32).max(0.0);
         let rt = self.ui.rt();
         let mut cells = Vec::with_capacity(cells_in.len());
-        let mut activated = None;
+        let mut clicked = None;
         let salt = row_salt.clone().unwrap_or_else(|| self.salt.child(index));
         let stop = self.stop;
         let first = self.slots.len();
@@ -470,7 +492,7 @@ impl MenuGridUi<'_, '_> {
                 };
                 let out = rt.ui(ui).mineral(widget);
                 if out.changed() {
-                    activated = Some(column);
+                    clicked = Some(Clicked::new(column, cell.action_key().cloned()));
                 }
                 let r = out.into_response();
                 self.slots.push(Slot {
@@ -482,8 +504,12 @@ impl MenuGridUi<'_, '_> {
                 cells.push(r);
             }
         }
-        if let Some(column) = activated {
-            self.activated = Some(Cell { row: index, column });
+        if let Some(c) = &clicked {
+            self.activated = Some(Cell {
+                row: index,
+                column: c.index(),
+            });
+            self.clicked.clone_from(&clicked);
         }
         let name = cells_in.first().map_or("", MenuGridCell::label).to_owned();
         let key = AgentKey::Kind("gridrow").id(&salt);
@@ -491,7 +517,7 @@ impl MenuGridUi<'_, '_> {
         MenuGridRowResponse {
             response,
             cells,
-            activated,
+            clicked,
         }
     }
 }
@@ -504,10 +530,24 @@ pub struct MenuGridResponse<R = ()> {
     pub response: Option<Response>,
     /// Why it closed this pass.
     pub dismissed: Option<Dismiss>,
-    /// Cell activated this pass.
+    /// Position of the cell activated this pass.
     pub activated: Option<Cell>,
+    /// Cell activated this pass; its index is the column, [`Self::activated`] has the row.
+    pub clicked: Option<Clicked>,
     /// What `add` returned, on passes it showed.
     pub inner: Option<R>,
+}
+
+impl<R> MenuGridResponse<R> {
+    fn closed(dismissed: Option<Dismiss>) -> Self {
+        Self {
+            response: None,
+            dismissed,
+            activated: None,
+            clicked: None,
+            inner: None,
+        }
+    }
 }
 
 /// Fluent `MenuGrid` in its `MenuPopover`: a popup of rows of cells with grid keyboard navigation, anchored below
@@ -556,12 +596,7 @@ impl MenuGrid {
             }
         }
         if !*open {
-            return MenuGridResponse {
-                response: None,
-                dismissed,
-                activated: None,
-                inner: None,
-            };
+            return MenuGridResponse::closed(dismissed);
         }
         let id = trigger.id.with(("mineral::fluent-menu-grid", salt.id_salt()));
         let seen_id = id.with("mineral::menu-grid-cells");
@@ -579,6 +614,7 @@ impl MenuGrid {
         let memo = Memo::sized(ctx, memo_id);
         let mut slots = Vec::new();
         let mut activated = None;
+        let mut clicked = None;
         let mut seen = 0.0;
         let area = Popup::new(salt.child("area"), Anchor::new(Side::Bottom, Align::Start))
             .role(Role::Grid)
@@ -595,12 +631,14 @@ impl MenuGrid {
                             row: 0,
                             slots: Vec::new(),
                             activated: None,
+                            clicked: None,
                             memo,
                             seen: 0.0,
                         };
                         let inner = add(&mut grid);
                         slots = grid.slots;
                         activated = grid.activated;
+                        clicked = grid.clicked;
                         seen = grid.seen;
                         inner
                     })
@@ -644,6 +682,7 @@ impl MenuGrid {
             response: Some(area.response),
             dismissed: dismissal,
             activated,
+            clicked,
             inner: Some(area.inner),
         }
     }

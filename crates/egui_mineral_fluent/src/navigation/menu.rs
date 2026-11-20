@@ -1,12 +1,14 @@
 use egui::{Id, Key, Margin, Modifiers, Rangef, Rect, Response, Sense, Stroke, Ui, pos2, text::LayoutJob, vec2};
 use egui_mineral::{
+    action::Clicked,
     anchor::{Align, Anchor, Side},
     focus::RovingFocus,
     i18n::I18n,
     kit::{self, state::TempState},
     layout::{Axis, Constraints, Measure, MinTarget},
-    overlay::{self, Dismiss, OverlayResponse, Popup},
+    overlay::{self, Dismiss, Popup},
     semantic::{self, AgentKey, KeyedSalt, Role, SemanticNode},
+    shortcut::ActionId,
     widget::{Availability, Interaction, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
 };
 
@@ -40,6 +42,7 @@ pub struct MenuItem {
     secondary: Option<String>,
     disabled: bool,
     salt: Option<KeyedSalt>,
+    action_key: Option<ActionId>,
 }
 
 impl MenuItem {
@@ -51,6 +54,7 @@ impl MenuItem {
             secondary: None,
             disabled: false,
             salt: None,
+            action_key: None,
         }
     }
 
@@ -68,6 +72,11 @@ impl MenuItem {
 
     crate::widget::setters! {
         item_salt
+    }
+
+    crate::widget::setters! {
+        /// Reported by [`MenuResponse::clicked`] for [`MenuUi::item`] and the main part of [`MenuUi::split_item`].
+        action_key
     }
 
     crate::widget::setters! {
@@ -445,7 +454,7 @@ impl MineralWidget for SplitTrigger<'_> {
 pub struct MenuItemResponse<R = ()> {
     /// Focusable row.
     pub response: Response,
-    /// Focusable row.was activated this pass.
+    /// Click, Enter or Space on the enabled row this pass.
     pub clicked: bool,
     /// Submenu content while it is open; `()` for other rows.
     pub inner: R,
@@ -454,6 +463,7 @@ pub struct MenuItemResponse<R = ()> {
 #[derive(Default)]
 struct Shared {
     close: bool,
+    clicked: Option<Clicked>,
     inside: Vec<Rect>,
 }
 
@@ -518,20 +528,24 @@ impl MenuUi<'_, '_> {
         (response, clicked, held)
     }
 
-    fn activate(&mut self, clicked: bool, persist: bool) {
-        if clicked && !persist {
+    fn activate(&mut self, item: &MenuItem, index: usize, clicked: bool) {
+        if clicked {
             self.shared.close = true;
+            if !item.disabled {
+                self.shared.clicked = Some(Clicked::new(index, item.action_key.clone()));
+            }
         }
     }
 
-    /// `MenuItem`: activating it closes the whole menu.
+    /// `MenuItem`: activating it closes the whole menu and reports it as [`MenuResponse::clicked`].
     pub fn item(&mut self, item: impl Into<MenuItem>) -> MenuItemResponse {
         let item = item.into();
+        let i = self.index;
         let (response, clicked, held) = self.row(&item, Kind::Item);
         if held && self.state.open_sub.is_some() {
             self.state.open_sub = None;
         }
-        self.activate(clicked, false);
+        self.activate(&item, i, clicked);
         MenuItemResponse {
             response,
             clicked: clicked && !item.disabled,
@@ -631,7 +645,7 @@ impl MenuUi<'_, '_> {
         } else if held && self.state.open_sub == Some(i) {
             self.state.open_sub = None;
         }
-        self.activate(clicked, false);
+        self.activate(&item, i, clicked);
         if self.state.open_sub != Some(i) {
             return MenuItemResponse {
                 response,
@@ -956,6 +970,21 @@ fn overlay_escape(ctx: &egui::Context) -> bool {
     kit::overlay::consume_escape(ctx)
 }
 
+/// Result of [`Menu::show`].
+#[derive(Clone, Debug)]
+#[non_exhaustive]
+pub struct MenuResponse<R = ()> {
+    /// Surface, on passes it showed.
+    pub response: Option<Response>,
+    /// What `add` returned, on passes it showed.
+    pub inner: Option<R>,
+    /// Why it closed this pass.
+    pub dismissed: Option<Dismiss>,
+    /// Item activated this pass ([`MenuUi::item`] or the main part of [`MenuUi::split_item`], also in a
+    /// submenu); its index counts the rows of its own menu level.
+    pub clicked: Option<Clicked>,
+}
+
 /// Fluent `Menu`: a popup list of rows anchored below its trigger. The trigger's clicks toggle it, Escape,
 /// Tab and outside presses close it, and so does a row that is not a checkbox, radio or submenu.
 /// Arrow keys move between rows (wrapping), the start-to-end arrow opens a submenu and its opposite closes one.
@@ -1006,7 +1035,7 @@ impl Menu {
         trigger: &Response,
         open: &mut bool,
         add: impl FnOnce(&mut MenuUi<'_, '_>) -> R,
-    ) -> OverlayResponse<R> {
+    ) -> MenuResponse<R> {
         let ctx = rt.ctx();
         let mut dismissed = None;
         if trigger.clicked() {
@@ -1015,10 +1044,13 @@ impl Menu {
                 dismissed = Some(Dismiss::Close);
             }
         }
-        let mut out = OverlayResponse::closed();
-        out.dismissed = dismissed;
         if !*open {
-            return out;
+            return MenuResponse {
+                response: None,
+                inner: None,
+                dismissed,
+                clicked: None,
+            };
         }
         let opened_id = trigger.id.with(("mineral::fluent-menu", self.salt.id_salt()));
         let pass = ctx.cumulative_pass_nr();
@@ -1050,6 +1082,11 @@ impl Menu {
         semantic::emit(ctx, Some(area.response.id), area.response.rect, || {
             SemanticNode::new(key, Role::Menu, label)
         });
-        OverlayResponse::shown(area.response, Some(inner), dismissal)
+        MenuResponse {
+            response: Some(area.response),
+            inner: Some(inner),
+            dismissed: dismissal,
+            clicked: shared.clicked,
+        }
     }
 }
