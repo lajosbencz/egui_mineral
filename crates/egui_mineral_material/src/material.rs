@@ -6,10 +6,11 @@ use std::sync::{
 use egui::{Context, Style, Theme};
 use egui_mineral::{
     i18n::Catalog,
+    icon::Icon,
     icon::IconFont,
     kit::state::PassCache,
     policy::Policies,
-    runtime::{Runtime, Stylekit},
+    runtime::{ChromeIcon, Runtime, Stylekit},
     widget::MineralUi,
 };
 use parking_lot::Mutex;
@@ -181,6 +182,13 @@ impl Stylekit for Material {
 
     fn min_target(&self, ui: &MineralUi<'_, Self>, target: f32) -> f32 {
         ui.density().target(target)
+    }
+
+    fn chrome_icon(&self, part: ChromeIcon) -> Option<Icon> {
+        match part {
+            ChromeIcon::Close => Some(self.icons.close),
+            _ => None,
+        }
     }
 }
 

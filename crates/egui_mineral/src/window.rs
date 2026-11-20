@@ -3,9 +3,11 @@ use egui::{
 };
 
 use crate::{
+    icon::Icon,
     input::Gesture,
+    kit::paint::GlyphShape,
     layout::{Measure, MinTarget, Zones},
-    runtime::{Runtime, Stylekit},
+    runtime::{ChromeIcon, Runtime, Stylekit},
     select::ItemKey,
     semantic::{KeyedSalt, Role, SemanticNode, StableId},
     widget::{Availability, MineralUi},
@@ -148,14 +150,38 @@ fn submit(ui: &Ui, shapes: Vec<egui::Shape>) {
     ui.painter().extend(shapes);
 }
 
+// Hover/press disc, the kit's glyph or a vector cross, focus ring; colors from `ui.style()`.
+fn close_shapes(ui: &Ui, visual: Rect, response: &egui::Response, glyph: Option<Icon>) -> Vec<egui::Shape> {
+    let visuals = ui.style().interact(response);
+    let c = visual.center();
+    let r = visual.width() / 2.0;
+    let mut shapes = Vec::with_capacity(4);
+    if response.hovered() || response.is_pointer_button_down_on() {
+        shapes.push(egui::Shape::circle_filled(c, r, visuals.weak_bg_fill));
+    }
+    if let Some(icon) = glyph {
+        let glyph = GlyphShape::new(icon.regular(), visual.width(), visuals.fg_stroke.color);
+        shapes.push(glyph.shape(ui.ctx(), c).into());
+    } else {
+        let arm = visual.width() / 4.0;
+        for d in [vec2(arm, arm), vec2(arm, -arm)] {
+            shapes.push(egui::Shape::line_segment([c - d, c + d], visuals.fg_stroke));
+        }
+    }
+    if response.has_focus() {
+        shapes.push(egui::Shape::circle_stroke(c, r + 2.0, ui.visuals().selection.stroke));
+    }
+    shapes
+}
+
 // True when activated. Taps are tested against this pass's `hit`, not the previous pass's rect like egui's click:
 // the first touch reaches this pass with the touch modality (and target) its own events set, the previous held the mouse size.
 fn close_control<K: Stylekit>(rt: &Runtime<K>, ui: &mut Ui, salt: &KeyedSalt, visual: Rect, hit: Rect) -> bool {
     let id = ui.scope_id();
     let mut response = ui.interact(hit, id, Sense::click());
     crate::kit::interact::follow_press(&response);
-    let chrome = rt.kit().window_close(ui, visual, &response);
-    submit(ui, chrome);
+    let glyph = rt.kit().chrome_icon(ChromeIcon::Close);
+    submit(ui, close_shapes(ui, visual, &response, glyph));
     let layer = response.layer_id;
     // No MineralUi in a window root.
     let tapped = rt.core().input().gestures().any(|g| {
@@ -313,9 +339,10 @@ mod tests {
         fn style(&self, ctx: &Context, theme: egui::Theme) -> Arc<egui::Style> {
             ctx.style_of(theme)
         }
-        fn window_close(&self, _: &Ui, visual: Rect, _: &egui::Response) -> Vec<egui::Shape> {
-            self.0.store(visual.width().to_bits(), Ordering::Relaxed);
-            Vec::new()
+        fn chrome_icon(&self, part: ChromeIcon) -> Option<Icon> {
+            assert_eq!(part, ChromeIcon::Close);
+            self.0.fetch_add(1, Ordering::Relaxed);
+            None
         }
     }
 
@@ -364,8 +391,8 @@ mod tests {
             tree.find_key("w-close").expect("close node").rect
         }
 
-        fn glyph(&self) -> f32 {
-            f32::from_bits(self.glyph.load(Ordering::Relaxed))
+        fn glyph_lookups(&self) -> u32 {
+            self.glyph.load(Ordering::Relaxed)
         }
 
         fn window(&self) -> Rect {
@@ -396,7 +423,7 @@ mod tests {
         let target = f.rt.core().policies().target.touch;
         let hit = f.close_rect();
         assert!(hit.width() >= target && hit.height() >= target, "touch target {hit:?}");
-        assert_eq!(f.glyph(), icon);
+        assert!(f.glyph_lookups() > 0, "the close glyph comes from the kit");
         assert!(hit.contains_rect(Rect::from_center_size(mouse.center(), Vec2::splat(icon))));
     }
 

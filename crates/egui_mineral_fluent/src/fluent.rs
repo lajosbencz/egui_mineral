@@ -10,10 +10,11 @@ mod sealed {
 use egui::{Context, Style, Theme};
 use egui_mineral::{
     i18n::Catalog,
+    icon::Icon,
     icon::IconFont,
     kit::state::PassCache,
     policy::Policies,
-    runtime::{Runtime, Stylekit},
+    runtime::{ChromeIcon, Runtime, Stylekit},
     widget::MineralUi,
 };
 use parking_lot::Mutex;
@@ -166,6 +167,13 @@ impl Stylekit for Fluent {
 
     fn style(&self, ctx: &Context, theme: Theme) -> Arc<Style> {
         self.pass_state(ctx.cumulative_pass_nr(), theme).style
+    }
+
+    fn chrome_icon(&self, part: ChromeIcon) -> Option<Icon> {
+        match part {
+            ChromeIcon::Close => Some(self.icons.dismiss),
+            _ => None,
+        }
     }
 }
 

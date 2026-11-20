@@ -18,15 +18,14 @@ use std::{
 };
 
 use egui::util::{IdTypeMap, id_type_map::RawKey};
-use egui::{
-    Context, Id, Pos2, RawInput, Rect, Response, Style, Theme, ThemePreference, Ui, Vec2, ViewportId, ViewportIdMap,
-};
+use egui::{Context, Id, Pos2, RawInput, Style, Theme, ThemePreference, Ui, Vec2, ViewportId, ViewportIdMap};
 use parking_lot::{Mutex, MutexGuard};
 
 use crate::{
     agent::{AgentHandle, AgentHost},
     focus,
     i18n::{Catalog, I18n, I18nError},
+    icon::Icon,
     input::claim::Relay,
     input::{InputAdapter, InputContext, UnifiedInputEvent},
     motion::Motion,
@@ -53,11 +52,10 @@ pub trait Stylekit: Send + Sync + 'static {
     /// Style of the runtime's root `Ui`s (window roots, areas) at `theme` ([`Core::theme`]); called per root,
     /// so keep it cheap.
     fn style(&self, ctx: &Context, theme: Theme) -> Arc<Style>;
-    /// Shapes of the close glyph of an embedded [`crate::window::WindowSpec`] title bar in `visual`, the
-    /// icon-sized box centered in the larger hit target of `response` (hover, press and focus state).
-    /// Defaults to [`kit::paint::window_close`](crate::kit::paint::window_close) in the colors of `ui.style()`.
-    fn window_close(&self, ui: &Ui, visual: Rect, response: &Response) -> Vec<egui::Shape> {
-        crate::kit::paint::window_close(ui, visual, response)
+    /// Glyph of a part the core draws in the colors of the kit's [`Self::style`]; `None` (the default) draws the
+    /// core's vector form.
+    fn chrome_icon(&self, _part: ChromeIcon) -> Option<Icon> {
+        None
     }
     /// Minimum hit target edge in points of a part in the given `Ui`, from the `target` its
     /// [`MinTarget`](crate::layout::MinTarget) resolved to; every widget shown with [`MineralUi::mineral`] and
@@ -69,6 +67,14 @@ pub trait Stylekit: Send + Sync + 'static {
     {
         target
     }
+}
+
+/// Part the core draws itself, for [`Stylekit::chrome_icon`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum ChromeIcon {
+    /// Close control of an embedded [`crate::window::WindowSpec`] title bar.
+    Close,
 }
 
 /// Failure building a [`Runtime`].
