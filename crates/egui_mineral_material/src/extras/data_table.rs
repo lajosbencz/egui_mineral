@@ -529,7 +529,7 @@ impl<'a> DataTable<'a> {
                     menu = menu.item(MenuItem::new(fmt.count(*s)).selected(*s == paging.size()));
                 }
                 if let Some(k) = menu.show(rt, anchor.response()).clicked {
-                    paging.set_size(sizes[k]);
+                    paging.set_size(sizes[k.index()]);
                 }
                 parts::type_label(
                     ui,

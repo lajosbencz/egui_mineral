@@ -10,6 +10,7 @@ use std::f32::consts::PI;
 use egui::{KeyboardShortcut, Response, vec2};
 use egui_mineral::widget::Availability;
 use egui_mineral::{
+    action::Clicked,
     layout::{Constraints, Measure, MinTarget},
     semantic::{Role, SemanticNode, StableId},
     widget::{MineralWidget, WidgetFrame, WidgetResponse},
@@ -85,8 +86,8 @@ pub struct SplitButtonResponse {
     pub response: Response,
     /// Main button clicked this frame.
     pub leading_clicked: bool,
-    /// Index of the clicked menu item.
-    pub clicked: Option<usize>,
+    /// Clicked menu item, as [`MenuResponse::clicked`](crate::selection::MenuResponse::clicked).
+    pub clicked: Option<Clicked>,
     /// Menu state after this frame.
     pub open: bool,
 }

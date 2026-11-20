@@ -29,8 +29,6 @@ const ICON_FONTS: IconFonts = IconFonts::new(
     include_bytes!(concat!(env!("OUT_DIR"), "/MaterialSymbolsRounded-Regular.ttf")),
 );
 
-pub(crate) type Mui<'a> = MineralUi<'a, Material>;
-
 // The runtime sits beside the state it shows: `let rt = &self.rt;` borrows one field, `self.shell` the other.
 struct App {
     rt: Arc<Rt>,
@@ -161,7 +159,7 @@ impl Shell {
         }
     }
 
-    fn top_bar(&mut self, ui: &mut Mui<'_>, compact: bool) {
+    fn top_bar(&mut self, ui: &mut MaterialUi<'_>, compact: bool) {
         let page = *self.router.current();
         let mut bar = TopAppBar::new("top-bar", page.title());
         if compact {
@@ -175,20 +173,20 @@ impl Shell {
             egui::ThemePreference::Dark => icons::ICON_DARK_MODE,
         };
         let bar = bar
-            .action(IconAction::new(icons::ICON_SEARCH, search))
-            .action(IconAction::new(theme_icon, format!("Theme: {theme_name}")));
+            .action(IconAction::new(icons::ICON_SEARCH, search).key("search"))
+            .action(IconAction::new(theme_icon, format!("Theme: {theme_name}")).key("theme"));
         let r = bar.show(ui);
         if r.leading_clicked {
             self.drawer_open = true;
         }
-        match r.clicked {
-            Some(0) => self.palette_open = true,
-            Some(1) => self.shared.settings.theme = (self.shared.settings.theme + 1) % THEMES.len(),
+        match r.clicked.as_ref().and_then(Clicked::key_str) {
+            Some("search") => self.palette_open = true,
+            Some("theme") => self.shared.settings.theme = (self.shared.settings.theme + 1) % THEMES.len(),
             _ => {}
         }
     }
 
-    fn rail(&mut self, ui: &mut Mui<'_>, class: WindowClass) {
+    fn rail(&mut self, ui: &mut MaterialUi<'_>, class: WindowClass) {
         let mut selected = self.router.current().index();
         let rail = Page::ALL
             .iter()
@@ -246,7 +244,7 @@ impl Shell {
         page
     }
 
-    fn body(&mut self, ui: &mut Mui<'_>) -> ScrollAreaOutput<()> {
+    fn body(&mut self, ui: &mut MaterialUi<'_>) -> ScrollAreaOutput<()> {
         let rt = ui.rt();
         pages::navigation::run_commands(rt, &mut self.pages.navigation, &mut self.shared);
         let class = WindowClass::of(rt.core());

@@ -10,6 +10,7 @@ use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::Availability;
 use egui_mineral::widget::MineralUi;
 use egui_mineral::{
+    action::Clicked,
     anchor::{Align, Side},
     focus::{self, RovingFocus},
     kit,
@@ -32,12 +33,12 @@ const BAR_H: f32 = 40.0;
 const BAR_INSET: f32 = 4.0;
 
 /// Item of a [`MenuStrip`]: menu index on the bar, item index within that [`Menu`].
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct MenuPath {
     /// Menu index on the bar.
     pub menu: usize,
-    /// Item index in the menu's [`MenuResponse::clicked`](crate::selection::MenuResponse::clicked) numbering.
-    pub item: usize,
+    /// Item as the menu's [`MenuResponse::clicked`](crate::selection::MenuResponse::clicked) reports it.
+    pub item: Clicked,
 }
 
 /// Result of [`MenuStrip::show`].
@@ -149,7 +150,7 @@ impl MenuStrip {
             let mut st = MenuState::load(&ctx, menu_id);
             let place = common::popup_anchor(Side::Bottom, Align::Start);
             let out = self.menus[i].run(rt, menu_id, &mut st, place, Some(rect), bar_resp.layer_id);
-            if let Some(item) = out.activated {
+            if let Some(item) = self.menus[i].clicked(out.activated) {
                 result = Some(MenuPath { menu: i, item });
             }
             menu = out.panel;

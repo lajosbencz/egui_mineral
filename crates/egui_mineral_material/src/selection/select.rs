@@ -4,6 +4,7 @@ use crate::MaterialUiExt as _;
 use crate::Rt;
 use crate::adaptive::Density;
 use crate::text_inputs::text_field::FieldChrome;
+use crate::widget::ValueBinding;
 use egui::{
     Color32, Frame, Id, Key, LayerId, Rangef, Rect, Response, UiBuilder, Vec2, pos2,
     text::{LayoutJob, TextWrapping},
@@ -264,6 +265,7 @@ pub(crate) fn highlighted(
 
 enum Value<'a> {
     Single(&'a mut Option<usize>),
+    Bound(ValueBinding<'a>),
     Multi(&'a mut Selection<usize>),
 }
 
@@ -392,6 +394,24 @@ impl<'a> Select<'a> {
         Self::with(id_salt.into(), label, options, Value::Single(selected))
     }
 
+    /// Single select over options that carry values, like [`RadioGroup`](crate::selection::RadioGroup): shows
+    /// the option whose value equals `value` (none when no option matches) and a pick writes that option's
+    /// value. Bind an `Option<T>` with `Some(..)` option values to start empty.
+    pub fn value<T: PartialEq + Clone + 'a>(
+        id_salt: impl Into<KeyedSalt>,
+        label: impl Into<String>,
+        options: impl IntoIterator<Item = (T, impl Into<SelectOption>)>,
+        value: &'a mut T,
+    ) -> Self {
+        let (values, options): (Vec<T>, Vec<SelectOption>) = options.into_iter().map(|(v, o)| (v, o.into())).unzip();
+        Self::with(
+            id_salt.into(),
+            label,
+            options,
+            Value::Bound(ValueBinding::new(values, value)),
+        )
+    }
+
     /// Multi-select; `selection` holds the chosen option indices.
     pub fn multi(
         id_salt: impl Into<KeyedSalt>,
@@ -451,6 +471,7 @@ impl<'a> Select<'a> {
     fn is_selected(&self, i: usize) -> bool {
         match &self.value {
             Value::Single(s) => **s == Some(i),
+            Value::Bound(b) => b.index() == Some(i),
             Value::Multi(s) => s.is_selected(&i),
         }
     }
@@ -458,13 +479,14 @@ impl<'a> Select<'a> {
     fn first_selected(&self) -> Option<usize> {
         match &self.value {
             Value::Single(s) => **s,
+            Value::Bound(b) => b.index(),
             Value::Multi(s) => s.first().copied(),
         }
     }
 
     fn chips(&self) -> Vec<usize> {
         match &self.value {
-            Value::Single(_) => Vec::new(),
+            Value::Single(_) | Value::Bound(_) => Vec::new(),
             Value::Multi(s) => s.selected().copied().filter(|i| *i < self.options.len()).collect(),
         }
     }
@@ -506,13 +528,17 @@ impl<'a> Select<'a> {
                 **s = Some(i);
                 changed
             }
+            Value::Bound(b) => b.pick(i),
             Value::Multi(s) => s.toggle(i),
         }
     }
 
     fn summary(&self) -> String {
         match &self.value {
-            Value::Single(s) => s.and_then(|i| self.options.get(i)).map_or_default(|o| o.label.clone()),
+            Value::Single(_) | Value::Bound(_) => self
+                .first_selected()
+                .and_then(|i| self.options.get(i))
+                .map_or_default(|o| o.label.clone()),
             Value::Multi(s) => s
                 .selected()
                 .filter_map(|i| self.options.get(*i).map(|o| o.label.as_str()))

@@ -30,7 +30,7 @@ fn split_button_reports_the_leading_click_and_menu_pick() {
             .item(MenuItem::new("Copy"));
         let r = SplitButton::new("send", "Send", menu).show(ui);
         *leading += usize::from(r.leading_clicked);
-        *picked = picked.or(r.clicked);
+        *picked = picked.or(r.clicked.as_ref().map(egui_mineral::action::Clicked::index));
         *open = r.open;
     });
     h.click("send-button");
@@ -120,7 +120,7 @@ fn alert_reports_actions_and_dismissal() {
             .action("Clean up")
             .dismissible(true)
             .show(ui);
-        *clicked = clicked.or(r.clicked);
+        *clicked = clicked.or(r.clicked.as_ref().map(egui_mineral::action::Clicked::index));
         *dismissed = dismissed.or(r.dismissed);
     });
     h.click("a-0-button");

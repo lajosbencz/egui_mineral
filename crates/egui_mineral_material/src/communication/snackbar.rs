@@ -2,6 +2,7 @@ use crate::Material;
 use crate::MaterialExt;
 use crate::Rt;
 use crate::TextAction;
+use egui_mineral::action::Clicked;
 use egui_mineral::kit::state::TempState;
 use egui_mineral::widget::MineralUi;
 use std::sync::Arc;
@@ -74,6 +75,8 @@ pub struct SnackbarHostResponse {
     pub response: Option<egui::Response>,
     /// Snackbar whose action was pressed this frame; it is dismissed.
     pub action_clicked: Option<ToastId>,
+    /// Action of [`Self::action_clicked`], with its [`TextAction::key`]; the index is 0.
+    pub clicked: Option<Clicked>,
     /// Snackbar closed from its close button this frame.
     pub dismissed: Option<ToastId>,
 }
@@ -143,7 +146,7 @@ fn run(rt: &Rt, queue: &mut ToastQueue<Snackbar>, agent_key: &StableId) -> Snack
             shown.push(c.clone());
         }
     }
-    let (mut action_clicked, mut dismissed) = (None, None);
+    let (mut action_clicked, mut clicked, mut dismissed) = (None, None, None);
     let mut front = None;
     let mut stack = 0.0;
     shown.retain(|s| {
@@ -188,6 +191,7 @@ fn run(rt: &Rt, queue: &mut ToastQueue<Snackbar>, agent_key: &StableId) -> Snack
                 queue.dismiss(s.id);
                 if let Some(action) = &s.snackbar.action {
                     action.fire(ctx);
+                    clicked = Some(Clicked::new(0, action.action_key.clone()));
                 }
                 action_clicked = Some(s.id);
             } else if out.close {
@@ -201,6 +205,7 @@ fn run(rt: &Rt, queue: &mut ToastQueue<Snackbar>, agent_key: &StableId) -> Snack
     SnackbarHostResponse {
         response: front,
         action_clicked,
+        clicked,
         dismissed,
     }
 }

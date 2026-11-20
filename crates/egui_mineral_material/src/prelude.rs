@@ -1,5 +1,5 @@
 //! What app code names: the core [`egui_mineral::prelude`], and every component with its option enums, item
-//! structs, responses and outputs, [`Material`], [`MaterialExt`], [`TypeScale`], [`MaterialIcon`] and [`icons`].
+//! structs, responses and outputs, [`Material`], [`MaterialUi`], [`MaterialExt`], [`TypeScale`], [`MaterialIcon`] and [`icons`].
 //! `theme` stays in its module; `anchor::Align` stays qualified (clashes with `egui::Align`).
 
 pub use crate::actions::{
@@ -46,7 +46,7 @@ pub use crate::selection::{
 };
 pub use crate::text_inputs::{Elide, FormExt, TextField, TextFieldOutput, TextFieldVariant};
 pub use crate::{
-    IconAction, IconSet, Leading, LeadingPaint, Material, MaterialExt, MaterialIcon, MaterialUiExt, Rt,
+    IconAction, IconSet, Leading, LeadingPaint, Material, MaterialExt, MaterialIcon, MaterialUi, MaterialUiExt, Rt,
     SelectionResponse, Size, TextAction, adaptive::Density, color::Contrast, icons, spec::TypeScale,
 };
 pub use egui_mineral::prelude::*;

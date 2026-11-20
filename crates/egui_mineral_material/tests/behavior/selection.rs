@@ -190,7 +190,7 @@ fn menu_keys_move_focus_and_enter_activates() {
             .item(MenuItem::new("Cherry"))
             .item(MenuItem::new("Date"))
             .show(ui.rt(), &anchor);
-        *clicked = clicked.or(r.clicked);
+        *clicked = clicked.or(r.clicked.as_ref().map(egui_mineral::action::Clicked::index));
     });
     let item = |i: usize| format!("menu-{i}-menu-item");
     h.click("anchor-button");
@@ -314,8 +314,8 @@ fn menu_shown_at_a_rect_follows_the_app_open_state() {
             let r = Menu::new("at", "More")
                 .item(MenuItem::new("Copy"))
                 .item(MenuItem::new("Paste"))
-                .show_at(ui, more.rect, open);
-            *clicked = clicked.or(r.clicked);
+                .show_at(ui.rt(), more.rect, open);
+            *clicked = clicked.or(r.clicked.as_ref().map(egui_mineral::action::Clicked::index));
         },
     );
     h.click("more-button");
@@ -442,4 +442,22 @@ fn control_rows_fit_list_rows_at_every_density() {
         }
     }
     assert_eq!(egui_mineral_material::adaptive::min_interactive(Density::new(-1)), 44.0);
+}
+
+#[test]
+fn menu_reports_item_keys_through_submenus() {
+    let mut h = still(WIDE, Vec::new(), |ui, seen: &mut Vec<(usize, Option<String>)>| {
+        let anchor = ui.mineral(PushButton::new("anchor", "Open")).into_response();
+        let r = Menu::new("menu", "Menu")
+            .item(MenuItem::new("Plain"))
+            .item(MenuItem::new("More").submenu(|m| m.item(MenuItem::new("Nested").key("nested"))))
+            .item(MenuItem::new("Last").key("last"))
+            .show(ui.rt(), &anchor);
+        seen.extend(r.clicked.map(|c| (c.index(), c.key_str().map(String::from))));
+    });
+    h.click("anchor-button");
+    h.click("menu-0-menu-item");
+    h.click("anchor-button");
+    h.click("menu-3-menu-item");
+    assert_eq!(h.state().value, [(0, None), (3, Some("last".to_owned()))]);
 }

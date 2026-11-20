@@ -117,7 +117,7 @@ fn docked_toolbar_reports_the_clicked_action() {
             .action(IconAction::new(ICON_SAVE, "Save"))
             .action(IconAction::new(ICON_EDIT, "Edit"))
             .show(ui);
-        seen.extend(r.clicked);
+        seen.extend(r.clicked.as_ref().map(egui_mineral::action::Clicked::index));
     });
     h.click("dock-1-button");
     h.click("dock-0-button");
@@ -132,7 +132,7 @@ fn floating_toolbar_reports_its_paired_fab() {
             .fab(ICON_ADD, "Add", Edge::End)
             .show(ui);
         *fab += u32::from(r.fab_clicked);
-        seen.extend(r.clicked);
+        seen.extend(r.clicked.as_ref().map(egui_mineral::action::Clicked::index));
     });
     h.click("float-fab");
     h.click("float-0-button");

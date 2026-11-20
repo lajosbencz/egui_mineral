@@ -1,4 +1,5 @@
 use crate::MaterialUiExt as _;
+use crate::widget::ValueBinding;
 use std::sync::Arc;
 
 use egui::{Color32, Galley, Rangef, Rect, Sense, Stroke, StrokeKind, Vec2, pos2, vec2};
@@ -64,6 +65,7 @@ impl Segment {
 enum Bound<'a> {
     Single(&'a mut usize),
     Optional(&'a mut Option<usize>),
+    Value(ValueBinding<'a>),
     Multi(&'a mut Selection<usize>),
 }
 
@@ -72,6 +74,7 @@ impl Bound<'_> {
         match self {
             Self::Single(s) => **s == i,
             Self::Optional(s) => **s == Some(i),
+            Self::Value(b) => b.index() == Some(i),
             Self::Multi(s) => s.is_selected(&i),
         }
     }
@@ -80,7 +83,7 @@ impl Bound<'_> {
         let selected = match self {
             Self::Single(s) => &mut **s,
             Self::Optional(Some(s)) => s,
-            Self::Optional(None) | Self::Multi(_) => return,
+            Self::Optional(None) | Self::Value(_) | Self::Multi(_) => return,
         };
         crate::navigation::nav::clamp_selected(selected, len, "SegmentedButton selected");
     }
@@ -97,6 +100,7 @@ impl Bound<'_> {
                 changed
             }
             Self::Optional(s) => s.replace(i) != Some(i),
+            Self::Value(b) => b.pick(i),
             Self::Multi(s) => s.toggle(i),
         }
     }
@@ -141,6 +145,21 @@ impl<'a> SegmentedButton<'a> {
         selected: &'a mut Option<usize>,
     ) -> Self {
         Self::new(id_salt, label, Bound::Optional(selected))
+    }
+
+    /// Radio group over segments that carry values, like [`RadioGroup`](crate::selection::RadioGroup): the
+    /// segment whose value equals `value` is selected (none when no segment matches) and a pick writes that
+    /// segment's value. Segments added later with [`Self::item`] carry no value and cannot be picked.
+    pub fn value<T: PartialEq + Clone + 'a>(
+        id_salt: impl Into<KeyedSalt>,
+        label: impl Into<String>,
+        segments: impl IntoIterator<Item = (T, impl Into<Segment>)>,
+        value: &'a mut T,
+    ) -> Self {
+        let (values, items): (Vec<T>, Vec<Segment>) = segments.into_iter().map(|(v, s)| (v, s.into())).unzip();
+        let mut this = Self::new(id_salt, label, Bound::Value(ValueBinding::new(values, value)));
+        this.items = items;
+        this
     }
 
     /// Checkbox group; a click toggles the segment's index in `selection`.

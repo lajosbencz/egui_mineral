@@ -1,4 +1,3 @@
-use crate::Mui;
 use egui::{Align, Color32, Layout, vec2};
 use egui_mineral::i18n::HourCycle;
 use egui_mineral_material::{
@@ -179,7 +178,7 @@ fn fmt_date(d: Option<Date>) -> String {
     d.map_or_else(|| "none".to_owned(), |d| d.to_string())
 }
 
-pub(crate) fn show(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+pub(crate) fn show(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     checkbox(ui, s);
     radio(ui, s);
     switch(ui, s);
@@ -193,7 +192,7 @@ pub(crate) fn show(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     times(ui, s);
 }
 
-fn checkbox(ui: &mut Mui<'_>, s: &mut State) {
+fn checkbox(ui: &mut MaterialUi<'_>, s: &mut State) {
     super::section(ui, TOPICS[0], Some(<CheckButton<'static>>::META), |ui| {
         // Top-aligned: the error line makes one item taller.
         ui.with_layout(Layout::left_to_right(Align::Min).with_main_wrap(true), |ui| {
@@ -234,7 +233,7 @@ fn checkbox(ui: &mut Mui<'_>, s: &mut State) {
     });
 }
 
-fn radio(ui: &mut Mui<'_>, s: &mut State) {
+fn radio(ui: &mut MaterialUi<'_>, s: &mut State) {
     super::section(ui, TOPICS[1], Some(Radio::META), |ui| {
         caption(ui, TypeScale::LabelMedium, "RadioGroup, vertical");
         let opts = [
@@ -274,7 +273,7 @@ fn radio(ui: &mut Mui<'_>, s: &mut State) {
     });
 }
 
-fn switch(ui: &mut Mui<'_>, s: &mut State) {
+fn switch(ui: &mut MaterialUi<'_>, s: &mut State) {
     super::section(ui, TOPICS[2], Some(<Switch<'static>>::META), |ui| {
         super::row(ui, |row| {
             row.mineral(Switch::new("sel-sw", "Default", &mut s.sw));
@@ -293,7 +292,7 @@ fn switch(ui: &mut Mui<'_>, s: &mut State) {
     });
 }
 
-fn slider(ui: &mut Mui<'_>, s: &mut State) {
+fn slider(ui: &mut MaterialUi<'_>, s: &mut State) {
     super::section(ui, TOPICS[3], Some(<ValueSlider<'static>>::META), |ui| {
         let r100 = || RangeModel::new(0.0, 100.0);
         caption(ui, TypeScale::LabelMedium, "Continuous");
@@ -384,7 +383,7 @@ fn slider(ui: &mut Mui<'_>, s: &mut State) {
     });
 }
 
-fn chips(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+fn chips(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     super::section(ui, TOPICS[4], Some(Chip::META), |ui| {
         caption(ui, TypeScale::LabelMedium, "Assist (click counter), with icon");
         super::row(ui, |row| {
@@ -452,7 +451,7 @@ fn chips(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     });
 }
 
-fn suggestion_chips(ui: &mut Mui<'_>, shared: &mut Shared) {
+fn suggestion_chips(ui: &mut MaterialUi<'_>, shared: &mut Shared) {
     caption(ui, TypeScale::LabelMedium, "Suggestion");
     super::row(ui, |row| {
         for (i, name) in ["Dinner nearby", "Open now", "Top rated"].into_iter().enumerate() {
@@ -470,7 +469,7 @@ fn suggestion_chips(ui: &mut Mui<'_>, shared: &mut Shared) {
     });
 }
 
-fn rating(ui: &mut Mui<'_>, s: &mut State) {
+fn rating(ui: &mut MaterialUi<'_>, s: &mut State) {
     super::section(ui, TOPICS[5], Some(<Rating<'static>>::META), |ui| {
         caption(ui, TypeScale::LabelMedium, "Whole stars");
         ui.mineral(Rating::new("sel-rate", "Rating", &mut s.rating));
@@ -507,7 +506,7 @@ fn rating(ui: &mut Mui<'_>, s: &mut State) {
     });
 }
 
-fn selects(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+fn selects(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     super::section(ui, TOPICS[6], Some(<Select<'static>>::META), |ui| {
         // Rows by box top: outlined fields with a label reserve its overhang above the box.
         super::top_row(ui, |row| {
@@ -561,7 +560,7 @@ fn selects(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     comboboxes(ui, s);
 }
 
-fn comboboxes(ui: &mut Mui<'_>, s: &mut State) {
+fn comboboxes(ui: &mut MaterialUi<'_>, s: &mut State) {
     super::section(ui, TOPICS[7], Some(<Combobox<'static>>::META), |ui| {
         super::top_row(ui, |row| {
             let r = row.add(|ui| {
@@ -619,7 +618,7 @@ fn comboboxes(ui: &mut Mui<'_>, s: &mut State) {
     });
 }
 
-fn color_select(ui: &mut Mui<'_>, s: &mut State) {
+fn color_select(ui: &mut MaterialUi<'_>, s: &mut State) {
     let colors = [
         ("Crimson", [0xdc, 0x14, 0x3c]),
         ("Teal", [0x00, 0x80, 0x80]),
@@ -637,7 +636,7 @@ fn color_select(ui: &mut Mui<'_>, s: &mut State) {
     );
 }
 
-fn codec_select(ui: &mut Mui<'_>, s: &mut State) {
+fn codec_select(ui: &mut MaterialUi<'_>, s: &mut State) {
     let codecs = [
         SelectOption::new("FLAC"),
         SelectOption::new("MP3 (no encoder)").disabled(true),
@@ -652,7 +651,7 @@ fn codec_select(ui: &mut Mui<'_>, s: &mut State) {
     );
 }
 
-fn transfer(ui: &mut Mui<'_>, s: &mut State) {
+fn transfer(ui: &mut MaterialUi<'_>, s: &mut State) {
     super::section(ui, TOPICS[8], Some(<TransferList<'static>>::META), |ui| {
         ui.mineral(
             TransferList::new("sel-transfer", FRUITS, &mut s.transfer)
@@ -673,7 +672,7 @@ fn transfer(ui: &mut Mui<'_>, s: &mut State) {
     });
 }
 
-fn color(ui: &mut Mui<'_>, s: &mut State) {
+fn color(ui: &mut MaterialUi<'_>, s: &mut State) {
     super::section(ui, TOPICS[9], Some(<ColorPicker<'static>>::META), |ui| {
         let swatches = [
             Color32::from_rgb(244, 67, 54),
@@ -716,7 +715,7 @@ fn color(ui: &mut Mui<'_>, s: &mut State) {
     });
 }
 
-fn dates(ui: &mut Mui<'_>, s: &mut State) {
+fn dates(ui: &mut MaterialUi<'_>, s: &mut State) {
     let rt = ui.rt();
     super::section(ui, TOPICS[10], Some(<DatePicker<'static>>::META), |ui| {
         caption(ui, TypeScale::LabelMedium, "Docked (typed or picked)");
@@ -793,7 +792,7 @@ fn dates(ui: &mut Mui<'_>, s: &mut State) {
     });
 }
 
-fn times(ui: &mut Mui<'_>, s: &mut State) {
+fn times(ui: &mut MaterialUi<'_>, s: &mut State) {
     let rt = ui.rt();
     super::section(ui, TOPICS[11], Some(<TimePicker<'static>>::META), |ui| {
         super::top_row(ui, |row| {

@@ -2,6 +2,7 @@ use crate::MaterialExt;
 use crate::Rt;
 use crate::TextAction;
 use egui::{Frame, Label, Response, Sense, Tooltip, vec2};
+use egui_mineral::action::Clicked;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::semantic::StableId;
 
@@ -36,8 +37,8 @@ pub struct PlainTooltipResponse {
 pub struct RichTooltipResponse {
     /// Tooltip surface while visible.
     pub response: Option<Response>,
-    /// Index of the [`RichTooltip::action`] clicked this frame.
-    pub clicked: Option<usize>,
+    /// [`RichTooltip::action`] clicked this frame, with its [`TextAction::key`].
+    pub clicked: Option<Clicked>,
 }
 
 /// MD3 plain tooltip (Compose `PlainTooltip`).
@@ -118,7 +119,7 @@ impl RichTooltip {
         self
     }
 
-    /// Appends a text button below the supporting text; reported by index in [`RichTooltipResponse::clicked`].
+    /// Appends a text button below the supporting text; reported in [`RichTooltipResponse::clicked`].
     pub fn action(mut self, action: impl Into<TextAction>) -> Self {
         self.actions.push(action.into());
         self
@@ -194,7 +195,7 @@ impl RichTooltip {
         }
         RichTooltipResponse {
             response: shown.map(|s| s.response),
-            clicked: action,
+            clicked: crate::widget::clicked(&self.actions, action, |a| a.action_key.as_ref()),
         }
     }
 }

@@ -1,4 +1,3 @@
-use crate::Mui;
 use crate::Rt;
 use egui::{Key, KeyboardShortcut, Modifiers, Sense, UiBuilder, vec2};
 use egui_mineral::shortcut;
@@ -36,6 +35,7 @@ pub(crate) const TOPICS: &[&str] = &[
     "Status bar",
 ];
 
+const SHARE: ActionId = ActionId::from_static("share");
 const WORDS: [&str; 12] = [
     "Alpine lake",
     "Alpaca farm",
@@ -142,14 +142,14 @@ impl Default for State {
 }
 
 // Pagination rows of touch targets are wider than compact windows.
-fn scroll_x(ui: &mut Mui<'_>, id_salt: &str, add: impl FnOnce(&mut Mui<'_>)) {
+fn scroll_x(ui: &mut MaterialUi<'_>, id_salt: &str, add: impl FnOnce(&mut MaterialUi<'_>)) {
     let rt = ui.rt();
     egui::ScrollArea::horizontal()
         .id_salt(id_salt)
         .show(ui, |ui| add(&mut rt.ui(ui)));
 }
 
-fn boxed(ui: &mut Mui<'_>, size: egui::Vec2, add: impl FnOnce(&mut Mui<'_>)) {
+fn boxed(ui: &mut MaterialUi<'_>, size: egui::Vec2, add: impl FnOnce(&mut MaterialUi<'_>)) {
     let rt = ui.rt();
     let t = rt.tokens();
     let (rect, _) = ui.allocate_exact_size(size, Sense::hover());
@@ -165,7 +165,7 @@ fn boxed(ui: &mut Mui<'_>, size: egui::Vec2, add: impl FnOnce(&mut Mui<'_>)) {
     );
 }
 
-pub(crate) fn show(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+pub(crate) fn show(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     tabs(ui, s);
     bars(ui, s);
     rail_drawer(ui, s, shared);
@@ -178,7 +178,7 @@ pub(crate) fn show(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     status_bar(ui, s);
 }
 
-fn status_bar(ui: &mut Mui<'_>, s: &mut State) {
+fn status_bar(ui: &mut MaterialUi<'_>, s: &mut State) {
     super::section(ui, TOPICS[14], Some(StatusBar::META), |ui| {
         let r = StatusBar::new("nav-status", "Editor status")
             .item(StatusItem::new("main").icon(ICON_CALL_SPLIT).clickable(true))
@@ -205,7 +205,7 @@ fn status_bar(ui: &mut Mui<'_>, s: &mut State) {
     });
 }
 
-fn tabs(ui: &mut Mui<'_>, s: &mut State) {
+fn tabs(ui: &mut MaterialUi<'_>, s: &mut State) {
     super::section(ui, TOPICS[0], Some(<Tabs<'static>>::META), |ui| {
         caption(ui, TypeScale::LabelMedium, "Primary, text only");
         Tabs::new("nav-tabs-primary", "Primary tabs", &mut s.tab_primary)
@@ -261,7 +261,7 @@ fn tabs(ui: &mut Mui<'_>, s: &mut State) {
     });
 }
 
-fn bars(ui: &mut Mui<'_>, s: &mut State) {
+fn bars(ui: &mut MaterialUi<'_>, s: &mut State) {
     super::section(ui, TOPICS[1], Some(<NavigationBar<'static>>::META), |ui| {
         caption(ui, TypeScale::LabelMedium, "Baseline");
         NavigationBar::new("nav-bar", &mut s.bar)
@@ -302,7 +302,7 @@ fn bars(ui: &mut Mui<'_>, s: &mut State) {
     });
 }
 
-fn rail_drawer(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+fn rail_drawer(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     super::section(ui, TOPICS[2], Some(<NavigationRail<'static>>::META), |ui| {
         super::top_row(ui, |row| {
             row.add(|ui| {
@@ -394,12 +394,12 @@ fn report_bar(r: &TopAppBarResponse, shared: &mut Shared) {
     if r.leading_clicked {
         shared.toast("Navigation icon");
     }
-    if let Some(a) = r.clicked {
-        shared.toast(format!("Action {a}"));
+    if let Some(a) = &r.clicked {
+        shared.toast(format!("Action {}", a.index()));
     }
 }
 
-fn app_bar_overflow(ui: &mut Mui<'_>, shared: &mut Shared) {
+fn app_bar_overflow(ui: &mut MaterialUi<'_>, shared: &mut Shared) {
     let rt = ui.rt();
     caption(
         ui,
@@ -411,7 +411,7 @@ fn app_bar_overflow(ui: &mut Mui<'_>, shared: &mut Shared) {
         .navigation(ICON_ARROW_BACK, "Back")
         .actions([
             IconAction::new(ICON_SEARCH, "Search"),
-            IconAction::new(ICON_SHARE, "Share"),
+            IconAction::new(ICON_SHARE, "Share").key(SHARE),
             IconAction::new(ICON_EDIT, "Edit").disabled(true),
             IconAction::new(ICON_BOOKMARK, "Bookmark"),
             IconAction::new(ICON_DELETE, "Delete"),
@@ -419,20 +419,20 @@ fn app_bar_overflow(ui: &mut Mui<'_>, shared: &mut Shared) {
             IconAction::new(ICON_CONTENT_COPY, "Copy").command(&COMMANDS[COPY].0),
         ])
         .show(ui);
-    if let Some(share) = r.actions.get(&1) {
+    if let Some(share) = r.action_by_key(&SHARE) {
         let menu = Menu::new("nav-appbar-share-menu", "Share")
             .item(MenuItem::new("Mail").leading(ICON_MAIL))
             .item(MenuItem::new("Copy link").leading(ICON_CONTENT_COPY));
         if let Some(i) = menu.show(rt, share).clicked {
-            shared.toast(format!("Share via item {i}"));
+            shared.toast(format!("Share via item {}", i.index()));
         }
     }
-    if r.clicked != Some(1) {
+    if !r.clicked.as_ref().is_some_and(|c| c.is(&SHARE)) {
         report_bar(&r, shared);
     }
 }
 
-fn app_bars(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+fn app_bars(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     super::section(ui, TOPICS[4], Some(<TopAppBar<'static>>::META), |ui| {
         super::row(ui, |row| {
             row.mineral(
@@ -500,23 +500,31 @@ fn app_bars(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
 }
 
 fn report_action(r: &ToolbarResponse, shared: &mut Shared) {
-    if let Some(i) = r.clicked {
-        shared.toast(format!("Toolbar action {i}"));
+    if let Some(i) = &r.clicked {
+        shared.toast(format!("Toolbar action {}", i.index()));
     }
 }
 
-fn toolbars(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+fn toolbars(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     super::section(ui, TOPICS[5], Some(Toolbar::META), |ui| {
         caption(ui, TypeScale::LabelMedium, "Docked, toggle actions");
         let r = Toolbar::docked("nav-toolbar-docked", "Formatting")
-            .action(IconAction::new(ICON_FORMAT_BOLD, "Bold").selected(s.toolbar_bold))
-            .action(IconAction::new(ICON_FORMAT_ITALIC, "Italic").selected(s.toolbar_italic))
+            .action(
+                IconAction::new(ICON_FORMAT_BOLD, "Bold")
+                    .key("bold")
+                    .selected(s.toolbar_bold),
+            )
+            .action(
+                IconAction::new(ICON_FORMAT_ITALIC, "Italic")
+                    .key("italic")
+                    .selected(s.toolbar_italic),
+            )
             .action(IconAction::new(ICON_FORMAT_UNDERLINED, "Underline").disabled(true))
             .action(IconAction::new(ICON_CONTENT_CUT, "Cut"))
             .show(ui);
-        match r.clicked {
-            Some(0) => s.toolbar_bold = !s.toolbar_bold,
-            Some(1) => s.toolbar_italic = !s.toolbar_italic,
+        match r.clicked.as_ref().and_then(Clicked::key_str) {
+            Some("bold") => s.toolbar_bold = !s.toolbar_bold,
+            Some("italic") => s.toolbar_italic = !s.toolbar_italic,
             _ => report_action(&r, shared),
         }
         ui.add_space(8.0);
@@ -737,7 +745,7 @@ fn menubar_picked(s: &mut State, shared: &mut Shared, menu: usize, item: usize) 
     shared.toast(s.last_action.clone());
 }
 
-fn menus(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+fn menus(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     let rt = ui.rt();
     super::section(ui, TOPICS[6], Some(Menu::META), |ui| {
         super::row(ui, |row| {
@@ -753,7 +761,7 @@ fn menus(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
                     .mineral(PushButton::new(("nav-menu-anchor", i), label).variant(ButtonVariant::Tonal))
                     .into_response();
                 if let Some(item) = edit_menu(("nav-menu", i), s).colors(style).show(rt, &anchor).clicked {
-                    edit_picked(s, label, item);
+                    edit_picked(s, label, item.index());
                 }
             }
             let anchor = row
@@ -778,7 +786,7 @@ fn menus(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
                 });
                 grouped = grouped.item(MenuItem::new(name).leading(swatch));
             }
-            if let Some(item) = grouped.show(rt, &anchor).clicked {
+            if let Some(item) = grouped.show(rt, &anchor).clicked.as_ref().map(Clicked::index) {
                 if item < 2 {
                     s.menu_selected = item;
                 }
@@ -798,7 +806,7 @@ fn menus(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
             t.color.on_surface,
         );
         if let Some(item) = edit_menu("nav-menu-context", s).show_context(rt, &target).clicked {
-            edit_picked(s, "Context", item);
+            edit_picked(s, "Context", item.index());
         }
         ui.label(format!("Last activated: {}", s.last_action));
     });
@@ -826,13 +834,13 @@ fn menus(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
                     .item(MenuItem::new("Full screen").disabled(true)),
             );
         if let Some(MenuPath { menu, item }) = bar.show(ui).clicked {
-            menubar_picked(s, shared, menu, item);
+            menubar_picked(s, shared, menu, item.index());
         }
         ui.label(format!("Zoom: {}%", s.zoom));
     });
 }
 
-fn paging(ui: &mut Mui<'_>, s: &mut State) {
+fn paging(ui: &mut MaterialUi<'_>, s: &mut State) {
     super::section(ui, TOPICS[8], Some(Breadcrumbs::META), |ui| {
         let path = ["Home", "Library", "Data", "2026", "Reports", "Q3", "Summary"];
         caption(ui, TypeScale::LabelMedium, "Full path");
@@ -871,7 +879,7 @@ fn paging(ui: &mut Mui<'_>, s: &mut State) {
     });
 }
 
-fn step_buttons(ui: &mut Mui<'_>, steps: &mut Steps, id: &'static str) {
+fn step_buttons(ui: &mut MaterialUi<'_>, steps: &mut Steps, id: &'static str) {
     super::row(ui, |row| {
         if row
             .mineral(PushButton::new((id, "back"), "Back").variant(ButtonVariant::Text))
@@ -901,7 +909,7 @@ fn step_buttons(ui: &mut Mui<'_>, steps: &mut Steps, id: &'static str) {
     });
 }
 
-fn stepper(ui: &mut Mui<'_>, s: &mut State) {
+fn stepper(ui: &mut MaterialUi<'_>, s: &mut State) {
     super::section(ui, TOPICS[10], Some(<Stepper<'static>>::META), |ui| {
         caption(ui, TypeScale::LabelMedium, "Horizontal, linear, step 3 optional");
         Stepper::new("nav-step-h", &mut s.steps_h)
@@ -944,7 +952,7 @@ fn stepper(ui: &mut Mui<'_>, s: &mut State) {
     });
 }
 
-fn search(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+fn search(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     super::section(ui, TOPICS[11], Some(<SearchBar<'static>>::META), |ui| {
         caption(ui, TypeScale::LabelMedium, "Default with trailing action");
         let bar = SearchBar::new("nav-sbar", "Search", &mut s.bar_query)

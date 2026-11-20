@@ -1,4 +1,3 @@
-use crate::Mui;
 use egui_mineral_material::MaterialExt;
 use std::any::Any;
 
@@ -204,11 +203,11 @@ impl Default for State {
     }
 }
 
-fn button(ui: &mut Mui<'_>, id: &str, label: &str) -> bool {
+fn button(ui: &mut MaterialUi<'_>, id: &str, label: &str) -> bool {
     button_if(ui, id, label, true)
 }
 
-fn button_if(ui: &mut Mui<'_>, id: &str, label: &str, enabled: bool) -> bool {
+fn button_if(ui: &mut MaterialUi<'_>, id: &str, label: &str, enabled: bool) -> bool {
     ui.mineral(
         PushButton::new(id.to_owned(), label)
             .variant(ButtonVariant::Tonal)
@@ -217,7 +216,7 @@ fn button_if(ui: &mut Mui<'_>, id: &str, label: &str, enabled: bool) -> bool {
     .clicked()
 }
 
-fn error_alert(ui: &mut Mui<'_>, id: &str, msg: &mut Option<String>) {
+fn error_alert(ui: &mut MaterialUi<'_>, id: &str, msg: &mut Option<String>) {
     if let Some(m) = msg.as_deref() {
         let r = Alert::new(id.to_owned(), m)
             .severity(Severity::Error)
@@ -229,7 +228,7 @@ fn error_alert(ui: &mut Mui<'_>, id: &str, msg: &mut Option<String>) {
     }
 }
 
-pub(crate) fn show(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+pub(crate) fn show(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     section(ui, TOPICS[0], None, |ui| bus(ui, s, shared));
     section(ui, TOPICS[1], None, |ui| undo(ui, s));
     section(ui, TOPICS[2], None, |ui| drag_drop(ui, s));
@@ -241,7 +240,7 @@ pub(crate) fn show(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     section(ui, TOPICS[8], None, |ui| caches(ui, s));
 }
 
-fn bus(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+fn bus(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     super::row(ui, |row| {
         for (label, count, millis) in [("Queue 1 job (1.5 s)", 1, 1500), ("Queue 5 jobs (0.8 s each)", 5, 800)] {
             if row.add(|ui| button(ui, label, label)) {
@@ -273,7 +272,7 @@ fn bus(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     );
 }
 
-fn undo(ui: &mut Mui<'_>, s: &mut State) {
+fn undo(ui: &mut MaterialUi<'_>, s: &mut State) {
     let ctx = ui.ctx().clone();
     let undo_keys = [KeyboardShortcut::new(Modifiers::COMMAND, Key::Z)];
     let redo_keys = [
@@ -343,7 +342,7 @@ struct Carry {
     index: usize,
 }
 
-fn drag_drop(ui: &mut Mui<'_>, s: &mut State) {
+fn drag_drop(ui: &mut MaterialUi<'_>, s: &mut State) {
     let rt = ui.rt();
     let t = rt.tokens();
     let mut moved: Option<(bool, usize)> = None;
@@ -417,7 +416,7 @@ fn drag_drop(ui: &mut Mui<'_>, s: &mut State) {
     }
 }
 
-fn deep_links(ui: &mut Mui<'_>, s: &mut State) {
+fn deep_links(ui: &mut MaterialUi<'_>, s: &mut State) {
     super::row(ui, |row| {
         row.mineral(TextField::new("link-url", "URL", &mut s.link).preferred_width(240.0));
         if row.add(|ui| button(ui, "link-go", "Deep link")) {
@@ -506,7 +505,7 @@ fn run_persist(s: &mut State, op: &PersistOp) -> Result<String, PersistError> {
     }
 }
 
-fn persistence(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+fn persistence(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     super::row(ui, |row| {
         row.mineral(TextField::new("p-name", "Name", &mut s.profile.name).preferred_width(160.0));
         row.add(|ui| super::count(ui, "p-visits", "Visits", &mut s.profile.visits, 9_999));
@@ -577,7 +576,7 @@ fn run<T: 'static>(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn path_buttons(ui: &mut Mui<'_>, fake: Option<&MemoryPlatform>, p: &dyn PlatformService, shared: &Shared) {
+fn path_buttons(ui: &mut MaterialUi<'_>, fake: Option<&MemoryPlatform>, p: &dyn PlatformService, shared: &Shared) {
     if button(ui, "plat-folder", "Pick folder") {
         if let Some(fake) = fake {
             fake.queue_path(std::path::PathBuf::from("/fake/folder"));
@@ -606,7 +605,7 @@ fn text_save(name: &str) -> SaveRequest {
     SaveRequest::new(name).filter(FileFilter::new(FileType::new("Text", ["txt"])))
 }
 
-fn save_buttons(ui: &mut Mui<'_>, p: &dyn PlatformService, shared: &Shared, text: &str) {
+fn save_buttons(ui: &mut MaterialUi<'_>, p: &dyn PlatformService, shared: &Shared, text: &str) {
     if button(ui, "plat-save", "Save file") {
         let bytes = text.as_bytes().to_vec();
         run(shared, p.save_file(text_save("export.txt"), bytes), |outcome| {
@@ -652,7 +651,7 @@ fn native_platform(_: &Shared) -> Result<NativePlatform, String> {
     Ok(NativePlatform::new())
 }
 
-fn platform(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+fn platform(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     for r in shared.platform.drain(..) {
         match r {
             Ok(line) => s.platform_log.push(line),
@@ -762,7 +761,7 @@ fn describe(e: &UnifiedInputEvent, area: Rect) -> Option<String> {
     }
 }
 
-fn input(ui: &mut Mui<'_>, s: &mut State) {
+fn input(ui: &mut MaterialUi<'_>, s: &mut State) {
     let rt = ui.rt();
     let t = rt.tokens();
     let width = ui.available_width().min(480.0);
@@ -810,7 +809,7 @@ fn input(ui: &mut Mui<'_>, s: &mut State) {
 const MODAL_A: &str = "showcase-modal-a";
 const MODAL_B: &str = "showcase-modal-b";
 
-fn windows(ui: &mut Mui<'_>, s: &mut State) {
+fn windows(ui: &mut MaterialUi<'_>, s: &mut State) {
     let rt = ui.rt();
     let (modal_a, modal_b) = (ui.make_persistent_id(MODAL_A), ui.make_persistent_id(MODAL_B));
     super::row(ui, |row| {
@@ -853,7 +852,7 @@ fn windows(ui: &mut Mui<'_>, s: &mut State) {
     );
 }
 
-fn caches(ui: &mut Mui<'_>, s: &mut State) {
+fn caches(ui: &mut MaterialUi<'_>, s: &mut State) {
     let rt = ui.rt();
     let ctx = ui.ctx().clone();
     let t = rt.tokens();

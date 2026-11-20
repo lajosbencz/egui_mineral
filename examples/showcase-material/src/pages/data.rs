@@ -1,4 +1,3 @@
-use crate::Mui;
 use egui_mineral_material::MaterialExt;
 use std::collections::BTreeSet;
 
@@ -167,7 +166,7 @@ impl Default for State {
     }
 }
 
-fn boxed<R>(ui: &mut Mui<'_>, height: f32, add: impl FnOnce(&mut Mui<'_>) -> R) -> R {
+fn boxed<R>(ui: &mut MaterialUi<'_>, height: f32, add: impl FnOnce(&mut MaterialUi<'_>) -> R) -> R {
     let rt = ui.rt();
     let width = ui.available_width();
     let (rect, _) = ui.allocate_exact_size(vec2(width, height), Sense::hover());
@@ -179,7 +178,7 @@ fn boxed<R>(ui: &mut Mui<'_>, height: f32, add: impl FnOnce(&mut Mui<'_>) -> R) 
     )))
 }
 
-pub(crate) fn show(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+pub(crate) fn show(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     section(ui, TOPICS[0], Some(<DataTable<'static>>::META), |ui| table(ui, s));
     section(ui, TOPICS[1], Some(<TreeView<'static, Node>>::META), |ui| {
         tree(ui, s, shared);
@@ -200,7 +199,7 @@ pub(crate) fn show(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     section(ui, TOPICS[10], None, |ui| virtual_list(ui, s));
 }
 
-fn table(ui: &mut Mui<'_>, s: &mut State) {
+fn table(ui: &mut MaterialUi<'_>, s: &mut State) {
     let cols = vec![
         TableColumn::new("Name").width(180.0),
         TableColumn::new("Team").width(140.0),
@@ -244,7 +243,7 @@ fn table(ui: &mut Mui<'_>, s: &mut State) {
 }
 
 // A desktop outline: the densest step for this subtree only, 40dp rows, 24dp indent, LabelLarge.
-fn outline(ui: &mut Mui<'_>, s: &mut State) {
+fn outline(ui: &mut MaterialUi<'_>, s: &mut State) {
     caption(
         ui,
         TypeScale::LabelMedium,
@@ -262,7 +261,7 @@ fn outline(ui: &mut Mui<'_>, s: &mut State) {
     });
 }
 
-fn tree(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+fn tree(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     let rt = ui.rt();
     let checked = &s.tree_checked;
     let r = boxed(ui, 400.0, |ui| {
@@ -279,14 +278,14 @@ fn tree(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
             .reorderable(true)
             .show(ui)
     });
-    for (key, row) in &r.rows {
+    for (key, row) in r.rows() {
         if Menu::context_requested(rt, row) {
             let menu = Menu::new(("tree-menu", *key), "Node actions")
-                .item(MenuItem::new("Details"))
-                .item(MenuItem::new("Delete"));
-            match menu.show_context(rt, row).clicked {
-                Some(0) => shared.toast(format!("Node {key}")),
-                Some(1) => remove_node(&mut s.tree, *key),
+                .item(MenuItem::new("Details").key("details"))
+                .item(MenuItem::new("Delete").key("delete"));
+            match menu.show_context(rt, row).clicked.as_ref().and_then(Clicked::key_str) {
+                Some("details") => shared.toast(format!("Node {key}")),
+                Some("delete") => remove_node(&mut s.tree, *key),
                 _ => {}
             }
         }
@@ -329,7 +328,7 @@ fn tree(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     );
 }
 
-fn avatars(ui: &mut Mui<'_>) {
+fn avatars(ui: &mut MaterialUi<'_>) {
     super::row(ui, |row| {
         row.add(|ui| ui.label("Initials"));
         for (i, name) in ["Ada Lovelace", "Grace Hopper", "Linus"].into_iter().enumerate() {
@@ -368,7 +367,7 @@ fn avatars(ui: &mut Mui<'_>) {
     });
 }
 
-fn timeline(ui: &mut Mui<'_>) {
+fn timeline(ui: &mut MaterialUi<'_>) {
     let rt = ui.rt();
     let f = rt.i18n().format();
     let day = |d: i8| {
@@ -397,7 +396,7 @@ fn timeline(ui: &mut Mui<'_>) {
     );
 }
 
-fn description(ui: &mut Mui<'_>, s: &mut State) {
+fn description(ui: &mut MaterialUi<'_>, s: &mut State) {
     super::row(ui, |row| {
         row.add(|ui| s.dl_layout = super::choice(ui, "dl-layout", "Layout", &["Horizontal", "Vertical"], s.dl_layout));
         row.add(|ui| {
@@ -429,7 +428,7 @@ fn description(ui: &mut Mui<'_>, s: &mut State) {
     );
 }
 
-fn empty(ui: &mut Mui<'_>, s: &mut State) {
+fn empty(ui: &mut MaterialUi<'_>, s: &mut State) {
     if EmptyPlaceholder::new("demo-empty", "No messages")
         .icon(icons::ICON_INBOX)
         .supporting("New messages appear here once someone writes to you.")
@@ -448,7 +447,7 @@ fn empty(ui: &mut Mui<'_>, s: &mut State) {
     }
 }
 
-fn statistics(ui: &mut Mui<'_>) {
+fn statistics(ui: &mut MaterialUi<'_>) {
     super::top_row(ui, |row| {
         row.add(|ui| {
             ui.vertical(|ui| {
@@ -491,7 +490,7 @@ fn statistics(ui: &mut Mui<'_>) {
     });
 }
 
-fn kbd(ui: &mut Mui<'_>) {
+fn kbd(ui: &mut MaterialUi<'_>) {
     super::row(ui, |row| {
         row.add(|ui| ui.label("Command palette"));
         row.add(|ui| ui.mineral(Kbd::new("kbd-palette", ["Ctrl", "K"])));
@@ -504,7 +503,7 @@ fn kbd(ui: &mut Mui<'_>) {
     });
 }
 
-fn link(ui: &mut Mui<'_>) {
+fn link(ui: &mut MaterialUi<'_>) {
     super::row(ui, |row| {
         row.add(|ui| ui.label("See the"));
         row.mineral(
@@ -522,7 +521,7 @@ fn link(ui: &mut Mui<'_>) {
     });
 }
 
-fn pull(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
+fn pull(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     if let Some(id) = s.refreshing
         && shared.done.contains(&id)
     {
@@ -554,7 +553,7 @@ fn pull(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     }
 }
 
-fn virtual_list(ui: &mut Mui<'_>, s: &mut State) {
+fn virtual_list(ui: &mut MaterialUi<'_>, s: &mut State) {
     let rt = ui.rt();
     super::row(ui, |row| {
         row.add(|ui| {
