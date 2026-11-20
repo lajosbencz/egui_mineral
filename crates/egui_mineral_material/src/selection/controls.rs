@@ -6,6 +6,7 @@ use egui_mineral::i18n::I18n;
 use egui_mineral::i18n::Sides;
 use egui_mineral::kit::state::TempState;
 use egui_mineral::select::ItemKey;
+use egui_mineral::select::SelectionResponse;
 use egui_mineral::semantic::AgentKey;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::MineralUi;
@@ -28,6 +29,10 @@ use egui_mineral::{
     widget::{MineralWidget, WidgetFrame, WidgetResponse},
 };
 
+use crate::widget::{
+    common::{self, Interaction, with_alpha},
+    indication, parts,
+};
 use crate::{
     Icon,
     color::ColorScheme,
@@ -38,13 +43,6 @@ use crate::{
         tokens::{checkbox as cb, radio_button as rb, switch as sw},
     },
     tokens::Tokens,
-};
-use crate::{
-    SelectionResponse,
-    widget::{
-        common::{self, Interaction, with_alpha},
-        indication, parts,
-    },
 };
 
 // Compose LocalContentColor

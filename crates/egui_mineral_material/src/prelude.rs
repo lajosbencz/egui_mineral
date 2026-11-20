@@ -46,6 +46,6 @@ pub use crate::selection::{
 pub use crate::text_inputs::{Elide, FormExt, TextField, TextFieldOutput, TextFieldVariant};
 pub use crate::{
     IconAction, IconSet, Leading, LeadingPaint, Material, MaterialExt, MaterialIcon, MaterialUi, MaterialUiExt, Rt,
-    SelectionResponse, Size, TextAction, adaptive::Density, color::Contrast, icons, spec::TypeScale,
+    Size, TextAction, adaptive::Density, color::Contrast, icons, spec::TypeScale,
 };
 pub use egui_mineral::prelude::*;

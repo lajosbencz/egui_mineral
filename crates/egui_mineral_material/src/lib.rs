@@ -166,7 +166,7 @@ pub use material::{Material, MaterialExt, MaterialUi, MaterialUiExt, Rt};
 pub use material_icon::MaterialIcon;
 pub use widget::{
     leading::{Leading, LeadingPaint},
-    vocab::{IconAction, SelectionResponse, Size, TextAction},
+    vocab::{IconAction, Size, TextAction},
 };
 
 pub(crate) use egui_mineral::kit::{tr, tr_or};

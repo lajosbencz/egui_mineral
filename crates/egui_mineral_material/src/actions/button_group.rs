@@ -15,7 +15,6 @@ use egui_mineral::{
     widget::MineralWidget,
 };
 
-use crate::SelectionResponse;
 use crate::{
     Icon, motion,
     spec::{
@@ -27,6 +26,7 @@ use crate::{
     Size,
     actions::button::{ButtonShape, ContainerVariant, Joined, PushButton},
 };
+use egui_mineral::select::SelectionResponse;
 
 /// Entry of a [`ButtonGroup`].
 #[derive(Clone, Debug)]

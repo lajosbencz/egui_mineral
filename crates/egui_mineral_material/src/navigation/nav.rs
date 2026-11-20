@@ -45,7 +45,9 @@ use crate::{
         },
     },
 };
-use crate::{SelectionResponse, communication::Badge};
+use egui_mineral::select::SelectionResponse;
+
+use crate::communication::Badge;
 use crate::{actions::IconButton, spec::ElevationLevel};
 
 type FabFn<'a> = Box<dyn FnOnce(&mut MineralUi<'_, Material>) + 'a>;

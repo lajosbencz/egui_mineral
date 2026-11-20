@@ -137,8 +137,6 @@ pub(crate) fn item_salt(
     }
 }
 
-pub use egui_mineral::select::SelectionResponse;
-
 /// Result of an inline picker: [`DatePicker::show`](crate::selection::DatePicker::show),
 /// [`DateRangePicker::show`](crate::selection::DateRangePicker::show),
 /// [`TimePicker::show`](crate::selection::TimePicker::show).

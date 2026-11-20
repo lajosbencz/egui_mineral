@@ -24,7 +24,9 @@ use crate::widget::{
     indication, parts,
     row_parts::{self, RowColors, RowState},
 };
-use crate::{SelectionResponse, containment::ListLines};
+use egui_mineral::select::SelectionResponse;
+
+use crate::containment::ListLines;
 use crate::{
     spec::{
         defaults,

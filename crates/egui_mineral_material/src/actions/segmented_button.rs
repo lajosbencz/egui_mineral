@@ -1,6 +1,7 @@
 use crate::MaterialUiExt as _;
 use egui_mineral::kit::choice::Choice;
 use egui_mineral::select::ItemKey;
+use egui_mineral::select::SelectionResponse;
 use std::sync::Arc;
 
 use egui::{Color32, Galley, Rangef, Rect, Sense, Stroke, StrokeKind, Vec2, pos2, vec2};
@@ -16,7 +17,7 @@ use egui_mineral::{
 
 use crate::widget::{common, indication, parts};
 use crate::{
-    Icon, Material, MaterialExt, SelectionResponse, motion,
+    Icon, Material, MaterialExt, motion,
     spec::{
         defaults::{button, segmented_button as sbx},
         tokens::outlined_segmented_button as sb,

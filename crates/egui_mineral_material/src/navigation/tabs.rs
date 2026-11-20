@@ -4,6 +4,7 @@ use crate::MaterialUiExt as _;
 use egui_mineral::i18n::I18n;
 use egui_mineral::kit::choice::Choice;
 use egui_mineral::select::ItemKey;
+use egui_mineral::select::SelectionResponse;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::MineralUi;
 use std::sync::Arc;
@@ -20,6 +21,7 @@ use egui_mineral::{
     widget::{MineralWidget, WidgetFrame, WidgetResponse},
 };
 
+use crate::widget::common::{self, Interaction};
 use crate::widget::{indication, parts};
 use crate::{
     Icon, motion,
@@ -28,10 +30,6 @@ use crate::{
         tokens::{divider, primary_navigation_tab as primary, secondary_navigation_tab as secondary},
     },
     tokens::Tokens,
-};
-use crate::{
-    SelectionResponse,
-    widget::common::{self, Interaction},
 };
 
 /// Compose `PrimaryTabRow` and `SecondaryTabRow` styles.
