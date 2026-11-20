@@ -10,8 +10,8 @@ mod facade {
         pub(crate) mod __private {
             pub(crate) use super::super::super::core_nav::__private::*;
 
-            pub(crate) fn segment(field: &str, value: &impl std::fmt::Display) -> String {
-                format!("<{}>", super::super::super::core_nav::__private::segment(field, value))
+            pub(crate) fn segment(value: &impl std::fmt::Display) -> String {
+                format!("<{}>", super::super::super::core_nav::__private::segment(value))
             }
         }
     }

@@ -170,10 +170,10 @@ fn expand(input: &DeriveInput) -> syn::Result<TokenStream2> {
 
         let pushes = segs.iter().map(|s| match s {
             Segment::Lit(l) => quote!(__p.push('/'); __p.push_str(#l);),
-            Segment::Param(p) => quote!(__p.push('/'); __p.push_str(&#private::segment(stringify!(#p), #p));),
+            Segment::Param(p) => quote!(__p.push('/'); __p.push_str(&#private::segment(#p));),
             Segment::OptParam(p) => quote! {
                 if let ::core::option::Option::Some(__v) = #p {
-                    __p.push('/'); __p.push_str(&#private::segment(stringify!(#p), __v));
+                    __p.push('/'); __p.push_str(&#private::segment(__v));
                 }
             },
         });

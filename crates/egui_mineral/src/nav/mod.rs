@@ -184,7 +184,7 @@ pub mod __private {
     const EMPTY: &str = "~";
 
     /// Encoded path segment of a route field; empty values become `~`.
-    pub fn segment(_field: &str, value: &impl std::fmt::Display) -> String {
+    pub fn segment(value: &impl std::fmt::Display) -> String {
         let s = value.to_string();
         if s.is_empty() {
             return EMPTY.to_owned();
