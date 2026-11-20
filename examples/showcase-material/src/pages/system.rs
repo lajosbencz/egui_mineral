@@ -298,13 +298,14 @@ fn undo(ui: &mut MaterialUi<'_>, s: &mut State) {
             s.undo.seal();
         }
         if row.add(|ui| button(ui, "undo-batch", "Batch of 3 (one step)")) {
-            s.undo.begin_group("Batch");
-            for _ in 0..3 {
-                let n = s.doc.items.len() + 1;
-                s.undo.execute(AddItem(format!("Item {n}")), &mut s.doc);
-                s.undo.seal();
-            }
-            s.undo.end_group();
+            let doc = &mut s.doc;
+            s.undo.group("Batch", |undo| {
+                for _ in 0..3 {
+                    let n = doc.items.len() + 1;
+                    undo.execute(AddItem(format!("Item {n}")), doc);
+                    undo.seal();
+                }
+            });
         }
     });
     super::row(ui, |row| {

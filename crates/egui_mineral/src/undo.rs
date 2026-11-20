@@ -133,19 +133,23 @@ impl<S: 'static> UndoStack<S> {
         self.sealed = true;
     }
 
-    /// Collects commands into one undo step until [`Self::end_group`]; nested calls are ignored.
-    pub fn begin_group(&mut self, label: impl Into<String>) {
-        if self.group.is_none() {
-            self.group = Some(Group {
-                label: label.into(),
-                commands: Vec::new(),
-            });
-            self.sealed = true;
+    /// Commands `f` executes form one undo step labeled `label`; an empty group adds no step, and a group inside
+    /// another joins the outer one.
+    pub fn group<R>(&mut self, label: impl Into<String>, f: impl FnOnce(&mut Self) -> R) -> R {
+        if self.group.is_some() {
+            return f(self);
         }
+        self.group = Some(Group {
+            label: label.into(),
+            commands: Vec::new(),
+        });
+        self.sealed = true;
+        let r = f(self);
+        self.end_group();
+        r
     }
 
-    /// Closes the open group; an empty group adds no step.
-    pub fn end_group(&mut self) {
+    fn end_group(&mut self) {
         if let Some(g) = self.group.take()
             && !g.commands.is_empty()
         {
@@ -248,11 +252,11 @@ mod tests {
         assert!(u.redo(&mut s));
         assert_eq!(s, "ab");
 
-        u.begin_group("batch");
-        u.execute(Push("x".into()), &mut s);
-        u.seal();
-        u.execute(Push("y".into()), &mut s);
-        u.end_group();
+        u.group("batch", |u| {
+            u.execute(Push("x".into()), &mut s);
+            u.seal();
+            u.execute(Push("y".into()), &mut s);
+        });
         assert_eq!(s, "abxy");
         assert!(u.undo(&mut s));
         assert_eq!(s, "ab");
@@ -289,10 +293,10 @@ mod tests {
     fn group_counts_as_one_step() {
         let (mut s, mut u) = (String::new(), UndoStack::new(2));
         push(&mut u, &mut s, "a");
-        u.begin_group("batch");
-        push(&mut u, &mut s, "x");
-        push(&mut u, &mut s, "y");
-        u.end_group();
+        u.group("batch", |u| {
+            push(u, &mut s, "x");
+            u.group("inner", |u| push(u, &mut s, "y"));
+        });
         assert!(u.undo(&mut s));
         assert_eq!(s, "a");
         assert!(u.undo(&mut s));
