@@ -1,5 +1,5 @@
 use crate::MaterialUiExt as _;
-use crate::widget::ValueBinding;
+use egui_mineral::kit::choice::Choice;
 use std::sync::Arc;
 
 use egui::{Color32, Galley, Rangef, Rect, Sense, Stroke, StrokeKind, Vec2, pos2, vec2};
@@ -61,110 +61,50 @@ impl Segment {
     }
 }
 
-#[derive(Debug)]
-enum Bound<'a> {
-    Single(&'a mut usize),
-    Optional(&'a mut Option<usize>),
-    Value(ValueBinding<'a>),
-    Multi(&'a mut Selection<usize>),
-}
-
-impl Bound<'_> {
-    fn is_selected(&self, i: usize) -> bool {
-        match self {
-            Self::Single(s) => **s == i,
-            Self::Optional(s) => **s == Some(i),
-            Self::Value(b) => b.index() == Some(i),
-            Self::Multi(s) => s.is_selected(&i),
-        }
-    }
-
-    fn clamp(&mut self, len: usize) {
-        let selected = match self {
-            Self::Single(s) => &mut **s,
-            Self::Optional(Some(s)) => s,
-            Self::Optional(None) | Self::Value(_) | Self::Multi(_) => return,
-        };
-        crate::navigation::nav::clamp_selected(selected, len, "SegmentedButton selected");
-    }
-
-    fn single(&self) -> bool {
-        !matches!(self, Self::Multi(_))
-    }
-
-    fn pick(&mut self, i: usize) -> bool {
-        match self {
-            Self::Single(s) => {
-                let changed = **s != i;
-                **s = i;
-                changed
-            }
-            Self::Optional(s) => s.replace(i) != Some(i),
-            Self::Value(b) => b.pick(i),
-            Self::Multi(s) => s.toggle(i),
-        }
-    }
-}
-
 /// Compose `SingleChoiceSegmentedButtonRow` and `MultiChoiceSegmentedButtonRow`: outlined segments
 /// joined in one row, of equal width unless [`Self::equal_width`] is off. Arrow keys move focus; in
 /// single mode they also select.
 #[derive(Debug)]
 #[must_use = "call .show(..)"]
-pub struct SegmentedButton<'a> {
+pub struct SegmentedButton<'a, K> {
     salt: KeyedSalt,
     label: String,
-    bound: Bound<'a>,
+    choice: Choice<'a, K>,
     items: Vec<Segment>,
     disabled: bool,
     equal_width: bool,
 }
 
-impl<'a> SegmentedButton<'a> {
-    fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, bound: Bound<'a>) -> Self {
+impl<'a, K: PartialEq + Clone> SegmentedButton<'a, K> {
+    fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, choice: Choice<'a, K>) -> Self {
         Self {
             salt: id_salt.into(),
             label: label.into(),
-            bound,
+            choice,
             items: Vec::new(),
             disabled: false,
             equal_width: true,
         }
     }
 
-    /// Radio group binding the selected index; `label` names the group, segment agent keys are
-    /// `<id_salt>-<item>-segment`, `<item>` the segment's `salt(..)`, else its index.
-    pub fn single(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selected: &'a mut usize) -> Self {
-        Self::new(id_salt, label, Bound::Single(selected))
+    /// Radio group: the segment whose value equals `selected` is selected, none when no segment matches.
+    /// `label` names the group; segment agent keys are `<id_salt>-<item>-segment`, `<item>` the segment's
+    /// `salt(..)`, else its index.
+    pub fn single(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selected: &'a mut K) -> Self {
+        Self::new(id_salt, label, Choice::one(selected))
     }
 
     /// [`Self::single`] that may have no segment selected: `None` shows none, a click selects one.
-    pub fn single_optional(
-        id_salt: impl Into<KeyedSalt>,
-        label: impl Into<String>,
-        selected: &'a mut Option<usize>,
-    ) -> Self {
-        Self::new(id_salt, label, Bound::Optional(selected))
+    pub fn optional(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selected: &'a mut Option<K>) -> Self {
+        Self::new(id_salt, label, Choice::optional(selected))
     }
 
-    /// Radio group over segments that carry values, like [`RadioGroup`](crate::selection::RadioGroup): the
-    /// segment whose value equals `value` is selected (none when no segment matches) and a pick writes that
-    /// segment's value. Segments added later with [`Self::item`] carry no value and cannot be picked.
-    pub fn bound<T: PartialEq + Clone + 'a>(
-        id_salt: impl Into<KeyedSalt>,
-        label: impl Into<String>,
-        segments: impl IntoIterator<Item = (T, impl Into<Segment>)>,
-        value: &'a mut T,
-    ) -> Self {
-        let (values, items): (Vec<T>, Vec<Segment>) = segments.into_iter().map(|(v, s)| (v, s.into())).unzip();
-        let mut this = Self::new(id_salt, label, Bound::Value(ValueBinding::new(values, value)));
-        this.items = items;
-        this
-    }
-
-    /// Checkbox group; a click toggles the segment's index in `selection`.
-    pub fn multi(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selection: &'a mut Selection<usize>) -> Self {
-        Self::new(id_salt, label, Bound::Multi(selection))
+    /// Checkbox group; a click toggles the segment's value in `selection`.
+    pub fn multi(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selection: &'a mut Selection<K>) -> Self
+    where
+        K: Ord,
+    {
+        Self::new(id_salt, label, Choice::many(selection))
     }
 
     crate::widget::setters! {
@@ -172,15 +112,18 @@ impl<'a> SegmentedButton<'a> {
         agent_key(salt)
     }
 
-    /// Appends one segment.
-    pub fn item(mut self, item: impl Into<Segment>) -> Self {
+    /// Appends one segment carrying `value`.
+    pub fn item(mut self, value: K, item: impl Into<Segment>) -> Self {
+        self.choice.push(value);
         self.items.push(item.into());
         self
     }
 
-    /// Appends segments; labels convert into [`Segment`].
-    pub fn items(mut self, items: impl IntoIterator<Item = impl Into<Segment>>) -> Self {
-        self.items.extend(items.into_iter().map(Into::into));
+    /// Appends `(value, segment)` pairs; labels convert into [`Segment`].
+    pub fn items(mut self, items: impl IntoIterator<Item = (K, impl Into<Segment>)>) -> Self {
+        for (value, item) in items {
+            self = self.item(value, item);
+        }
         self
     }
 
@@ -196,19 +139,17 @@ impl<'a> SegmentedButton<'a> {
         self
     }
 
-    /// Paints the row, narrowed to the available width; a single `selected` past the last segment
-    /// moves onto it.
-    pub fn show(mut self, ui: &mut MineralUi<'_, Material>) -> SelectionResponse {
+    /// Paints the row, narrowed to the available width.
+    pub fn show(mut self, ui: &mut MineralUi<'_, Material>) -> SelectionResponse<K> {
         let rt = ui.rt();
         let ctx = rt.ctx();
         for s in &mut self.items {
             s.disabled |= self.disabled;
         }
         let len = self.items.len();
-        self.bound.clamp(len);
-        let single = self.bound.single();
+        let single = self.choice.is_single();
         let id = ui.make_persistent_id(self.salt.id_salt());
-        let selected: Vec<bool> = (0..len).map(|i| self.bound.is_selected(i)).collect();
+        let selected: Vec<bool> = (0..len).map(|i| self.choice.is_selected(i)).collect();
         let enabled = |i: usize| self.items.get(i).is_some_and(|s| !s.disabled);
         let stop = focus::tab_stop(ctx, id, selected.iter().position(|s| *s), len, enabled);
 
@@ -269,20 +210,12 @@ impl<'a> SegmentedButton<'a> {
             })
         });
 
-        let mut picked = None;
-        let mut changed = false;
-        if let Some(i) = clicked {
-            changed = self.bound.pick(i);
-            picked = Some(i);
-        }
         // APG radio group: arrows move focus and select; checkboxes only move focus.
-        if let Some(i) = RovingFocus::new(Axis::Horizontal).update_group(rt.core(), id, &ids, enabled)
-            && single
-            && !self.bound.is_selected(i)
-        {
-            changed |= self.bound.pick(i);
-            picked = Some(i);
-        }
+        let picked = clicked.or_else(|| {
+            RovingFocus::new(Axis::Horizontal)
+                .update_group(rt.core(), id, &ids, enabled)
+                .filter(|&i| single && !self.choice.is_selected(i))
+        });
 
         let response = outer.response.interact(Sense::hover());
         semantic::emit(ctx, Some(response.id), response.rect, || {
@@ -291,7 +224,7 @@ impl<'a> SegmentedButton<'a> {
             n.state.disabled = self.disabled;
             n
         });
-        SelectionResponse::new(response, picked, changed)
+        self.choice.pick(response, picked)
     }
 }
 

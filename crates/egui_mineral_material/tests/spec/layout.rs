@@ -253,7 +253,7 @@ fn dense_controls_shrink_to_their_content_and_no_further() {
             |ui| {
                 let mut s = 0;
                 SegmentedButton::single("s", "Seg", &mut s)
-                    .items(["A", "B"])
+                    .items(["A", "B"].into_iter().enumerate())
                     .show(ui)
                     .response
                     .rect
@@ -265,8 +265,8 @@ fn dense_controls_shrink_to_their_content_and_no_further() {
             |ui| {
                 let mut s = 0;
                 Tabs::new("t", "Tabs", &mut s)
-                    .item(Tab::new("A"))
-                    .item(Tab::new("B"))
+                    .item(0, Tab::new("A"))
+                    .item(1, Tab::new("B"))
                     .show(ui)
                     .response
                     .rect

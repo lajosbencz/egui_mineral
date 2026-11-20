@@ -7,8 +7,9 @@ use egui_mineral::widget::MineralUi;
 use egui_mineral::{
     action::Clicked,
     focus::{self, RovingFocus, TabStop},
+    kit::choice::Choice,
     layout::{Axis, Constraints},
-    select::{Selection, SelectionMode},
+    select::Selection,
     semantic::{self, Role, SemanticNode, StableId},
     widget::MineralWidget,
 };
@@ -80,9 +81,9 @@ impl ButtonGroupItem {
 /// Result of [`ButtonGroup::show`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct ButtonGroupResponse {
-    /// Toggle outcome; empty without [`ButtonGroup::selection`].
-    pub selection: SelectionResponse,
+pub struct ButtonGroupResponse<K> {
+    /// Toggle outcome of a [`ButtonGroup::selection`] group.
+    pub selection: Option<SelectionResponse<K>>,
     /// Button clicked this frame, with its [`ButtonGroupItem::key`].
     pub clicked: Option<Clicked>,
 }
@@ -101,7 +102,7 @@ pub enum ButtonGroupVariant {
 /// MD3 Expressive button group; `connected` is Compose `ConnectedButtonGroup`.
 #[derive(Debug)]
 #[must_use = "call .show(..)"]
-pub struct ButtonGroup<'a> {
+pub struct ButtonGroup<'a, K> {
     salt: KeyedSalt,
     label: String,
     items: Vec<ButtonGroupItem>,
@@ -109,36 +110,15 @@ pub struct ButtonGroup<'a> {
     size: Option<Size>,
     button_variant: ContainerVariant,
     shape: ButtonShape,
-    selection: Option<&'a mut Selection<usize>>,
+    choice: Option<Choice<'a, K>>,
     disabled: bool,
 }
 
-impl<'a> ButtonGroup<'a> {
-    /// `label` is the group's accessible name; item agent keys are `<id_salt>-<item>-button`, `<item>` the item's `salt(..)`, else its index.
+impl ButtonGroup<'_, ()> {
+    /// Click-only buttons; `label` is the group's accessible name; item agent keys are `<id_salt>-<item>-button`,
+    /// `<item>` the item's `salt(..)`, else its index.
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>) -> Self {
-        let id_salt: KeyedSalt = id_salt.into();
-        Self {
-            salt: id_salt,
-            label: label.into(),
-            items: Vec::new(),
-            connected: false,
-            size: None,
-            button_variant: ContainerVariant::default(),
-            shape: ButtonShape::default(),
-            selection: None,
-            disabled: false,
-        }
-    }
-
-    crate::widget::setters! {
-        /// Replaces the `<id_salt>` key prefix of the group and its items.
-        agent_key(salt)
-    }
-
-    /// Default [`ButtonGroupVariant::Standard`].
-    pub fn variant(mut self, variant: ButtonGroupVariant) -> Self {
-        self.connected = variant == ButtonGroupVariant::Connected;
-        self
+        Self::with(id_salt.into(), label, None)
     }
 
     /// Appends one button.
@@ -152,10 +132,56 @@ impl<'a> ButtonGroup<'a> {
         self.items.extend(items.into_iter().map(Into::into));
         self
     }
+}
 
-    /// Toggle state of the buttons; without it they are click-only.
-    pub fn selection(mut self, selection: &'a mut Selection<usize>) -> Self {
-        self.selection = Some(selection);
+impl<'a, K: Ord + Clone> ButtonGroup<'a, K> {
+    /// Toggle buttons whose values `selection` holds; a [`Selection::single`] makes a radio group. Add the
+    /// buttons with [`Self::toggle`].
+    pub fn selection(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selection: &'a mut Selection<K>) -> Self {
+        Self::with(id_salt.into(), label, Some(Choice::many(selection)))
+    }
+
+    /// Appends one toggle button carrying `value`.
+    pub fn toggle(mut self, value: K, item: impl Into<ButtonGroupItem>) -> Self {
+        if let Some(c) = &mut self.choice {
+            c.push(value);
+        }
+        self.items.push(item.into());
+        self
+    }
+
+    /// Appends `(value, button)` pairs.
+    pub fn toggles(mut self, items: impl IntoIterator<Item = (K, impl Into<ButtonGroupItem>)>) -> Self {
+        for (value, item) in items {
+            self = self.toggle(value, item);
+        }
+        self
+    }
+}
+
+impl<'a, K: PartialEq + Clone> ButtonGroup<'a, K> {
+    fn with(id_salt: KeyedSalt, label: impl Into<String>, choice: Option<Choice<'a, K>>) -> Self {
+        Self {
+            salt: id_salt,
+            label: label.into(),
+            items: Vec::new(),
+            connected: false,
+            size: None,
+            button_variant: ContainerVariant::default(),
+            shape: ButtonShape::default(),
+            choice,
+            disabled: false,
+        }
+    }
+
+    crate::widget::setters! {
+        /// Replaces the `<id_salt>` key prefix of the group and its items.
+        agent_key(salt)
+    }
+
+    /// Default [`ButtonGroupVariant::Standard`].
+    pub fn variant(mut self, variant: ButtonGroupVariant) -> Self {
+        self.connected = variant == ButtonGroupVariant::Connected;
         self
     }
 
@@ -198,9 +224,9 @@ impl<'a> ButtonGroup<'a> {
             b = b.icon(icon);
         }
         b.icon_only = !item.label_visible && item.icon.is_some();
-        if let Some(sel) = self.selection.as_deref() {
-            b = b.selected(sel.is_selected(&i));
-            if sel.mode() == SelectionMode::Single {
+        if let Some(c) = &self.choice {
+            b = b.selected(c.is_selected(i));
+            if c.is_single() {
                 b.role = Role::RadioButton;
             }
         }
@@ -259,7 +285,7 @@ impl<'a> ButtonGroup<'a> {
     }
 
     /// Lays out the buttons in a row; a standard group wraps onto more rows when narrow.
-    pub fn show(mut self, ui: &mut MineralUi<'_, Material>) -> ButtonGroupResponse {
+    pub fn show(mut self, ui: &mut MineralUi<'_, Material>) -> ButtonGroupResponse<K> {
         let rt = ui.rt();
         let ctx = rt.ctx();
         let id = ui.make_persistent_id(self.salt.id_salt());
@@ -276,8 +302,8 @@ impl<'a> ButtonGroup<'a> {
             .collect();
         // Selection groups (radio or toggle) are one Tab stop with arrow roving; plain click groups keep a
         // stop per button, as in a standard APG button row.
-        if let Some(sel) = self.selection.as_deref() {
-            let selected = (0..len).find(|i| sel.is_selected(i));
+        if let Some(c) = &self.choice {
+            let selected = c.index();
             let stop = focus::tab_stop(ctx, id, selected, len, enabled);
             for (i, b) in buttons.iter_mut().enumerate() {
                 b.tab_stop = TabStop::at(i, stop);
@@ -331,35 +357,28 @@ impl<'a> ButtonGroup<'a> {
             ctx.request_repaint();
         }
 
-        let mut changed = false;
-        let mut selected = None;
-        if let Some(sel) = self.selection.as_deref_mut() {
-            if let Some(i) = clicked {
-                changed = sel.toggle(i);
-                selected = Some(i);
-            }
-            // APG radio group: arrows move focus and select; toggles only move focus.
-            if let Some(i) = RovingFocus::new(Axis::Horizontal).update_group(rt.core(), id, &ids, enabled)
-                && sel.mode() == SelectionMode::Single
-                && !sel.is_selected(&i)
-            {
-                changed |= sel.select(i);
-                selected = Some(i);
-            }
-        }
-
         let response = outer.response.interact(Sense::hover());
         self.announce(ctx, &response);
+        let roved = self
+            .choice
+            .is_some()
+            .then(|| RovingFocus::new(Axis::Horizontal).update_group(rt.core(), id, &ids, enabled))
+            .flatten();
+        let selection = self.choice.as_mut().map(|c| {
+            // APG radio group: arrows move focus and select; toggles only move focus.
+            let picked = clicked.or_else(|| roved.filter(|&i| c.is_single() && !c.is_selected(i)));
+            c.pick(response.clone(), picked)
+        });
         ButtonGroupResponse {
-            selection: SelectionResponse::new(response, selected, changed),
+            selection,
             clicked: crate::widget::clicked(&self.items, clicked, |i| i.action_key.as_ref()),
         }
     }
 
     fn announce(&self, ctx: &egui::Context, response: &Response) {
         semantic::emit(ctx, Some(response.id), response.rect, || {
-            let role = match self.selection.as_deref() {
-                Some(s) if s.mode() == SelectionMode::Single => Role::RadioGroup,
+            let role = match &self.choice {
+                Some(c) if c.is_single() => Role::RadioGroup,
                 _ => Role::Group,
             };
             let mut n = SemanticNode::new(StableId::of(&self.salt, "button-group"), role, &self.label);

@@ -283,10 +283,9 @@ pub(crate) fn sub(ui: &mut MaterialUi<'_>, text: &str) {
 
 pub(crate) fn choice(ui: &mut MaterialUi<'_>, id: &'static str, label: &str, labels: &[&str], current: usize) -> usize {
     let mut sel = Selection::single().required(true).with([current]);
-    ButtonGroup::new(id, label)
+    ButtonGroup::selection(id, label, &mut sel)
         .variant(ButtonGroupVariant::Connected)
-        .items(labels.iter().map(|l| ButtonGroupItem::new(*l)))
-        .selection(&mut sel)
+        .toggles(labels.iter().map(|l| ButtonGroupItem::new(*l)).enumerate())
         .show(ui);
     sel.first().copied().unwrap_or(current)
 }

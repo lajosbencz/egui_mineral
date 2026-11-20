@@ -134,7 +134,15 @@ fn contrast(bg: Color32) -> Color32 {
 fn theme(ui: &mut MaterialUi<'_>, shared: &mut Shared) {
     let s = &mut shared.settings;
     let mut theme = Some(s.theme);
-    ui.mineral(Select::new("set-theme", "Theme", THEMES.map(|(_, n)| n), &mut theme).preferred_width(240.0));
+    ui.mineral(
+        Select::new(
+            "set-theme",
+            "Theme",
+            THEMES.map(|(_, n)| n).into_iter().enumerate(),
+            &mut theme,
+        )
+        .preferred_width(240.0),
+    );
     if let Some(t) = theme {
         s.theme = t;
     }
@@ -157,14 +165,22 @@ fn theme(ui: &mut MaterialUi<'_>, shared: &mut Shared) {
     ui.add_space(8.0);
     let mut variant = Some(s.variant);
     ui.mineral(
-        Select::new("set-variant", "Scheme variant", VARIANTS.map(|(_, n)| n), &mut variant).preferred_width(240.0),
+        Select::new(
+            "set-variant",
+            "Scheme variant",
+            VARIANTS.map(|(_, n)| n).into_iter().enumerate(),
+            &mut variant,
+        )
+        .preferred_width(240.0),
     );
     if let Some(v) = variant {
         s.variant = v;
     }
     ui.add_space(8.0);
     let mut locale = Some(s.locale);
-    ui.mineral(Select::new("set-locale", "Locale", LOCALES, &mut locale).preferred_width(240.0));
+    ui.mineral(
+        Select::new("set-locale", "Locale", LOCALES.into_iter().enumerate(), &mut locale).preferred_width(240.0),
+    );
     if let Some(l) = locale {
         s.locale = l;
     }
@@ -412,10 +428,9 @@ fn motion_demo(ui: &mut MaterialUi<'_>, s: &mut State) {
         .preferred_width(200.0),
     );
     let mut sel = s.group.clone();
-    ButtonGroup::new("motion-group", "Duration group")
+    ButtonGroup::selection("motion-group", "Duration group", &mut sel)
         .variant(ButtonGroupVariant::Connected)
-        .items(DURATION_GROUPS.iter().map(|g| ButtonGroupItem::new(*g)))
-        .selection(&mut sel)
+        .toggles(DURATION_GROUPS.iter().map(|g| ButtonGroupItem::new(*g)).enumerate())
         .show(ui);
     s.group = sel;
     let g = s.group.first().copied().unwrap_or(1);

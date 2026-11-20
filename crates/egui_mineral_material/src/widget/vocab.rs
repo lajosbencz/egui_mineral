@@ -116,46 +116,6 @@ impl TextAction {
     }
 }
 
-pub(crate) struct ValueBinding<'a> {
-    index: Option<usize>,
-    set: Box<dyn FnMut(usize) -> bool + 'a>,
-}
-
-impl std::fmt::Debug for ValueBinding<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ValueBinding")
-            .field("index", &self.index)
-            .finish_non_exhaustive()
-    }
-}
-
-impl<'a> ValueBinding<'a> {
-    pub(crate) fn new<T: PartialEq + Clone + 'a>(values: Vec<T>, value: &'a mut T) -> Self {
-        Self {
-            index: values.iter().position(|v| v == value),
-            set: Box::new(move |i| match values.get(i) {
-                Some(v) if v != value => {
-                    *value = v.clone();
-                    true
-                }
-                _ => false,
-            }),
-        }
-    }
-
-    pub(crate) fn index(&self) -> Option<usize> {
-        self.index
-    }
-
-    pub(crate) fn pick(&mut self, i: usize) -> bool {
-        let changed = (self.set)(i);
-        if changed {
-            self.index = Some(i);
-        }
-        changed
-    }
-}
-
 pub(crate) fn clicked<T>(
     items: &[T],
     index: Option<usize>,

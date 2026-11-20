@@ -2,6 +2,7 @@ use crate::Material;
 use crate::MaterialExt;
 use crate::MaterialUiExt as _;
 use egui_mineral::i18n::I18n;
+use egui_mineral::kit::choice::Choice;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::MineralUi;
 use std::sync::Arc;
@@ -91,24 +92,25 @@ impl Tab {
 /// scrollable tabs size to content. Arrow keys move focus and select (automatic activation).
 #[derive(Debug)]
 #[must_use = "call .show(..)"]
-pub struct Tabs<'a> {
+pub struct Tabs<'a, K> {
     salt: KeyedSalt,
     label: String,
-    selected: &'a mut usize,
+    choice: Choice<'a, K>,
     specs: Vec<Tab>,
     variant: TabsVariant,
     scrollable: bool,
     disabled: bool,
 }
 
-impl<'a> Tabs<'a> {
-    /// `label` names the tab list for assistive technology.
-    pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selected: &'a mut usize) -> Self {
+impl<'a, K: PartialEq + Clone> Tabs<'a, K> {
+    /// Selects the tab whose value equals `selected`, none when no tab matches; `label` names the tab list for
+    /// assistive technology.
+    pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selected: &'a mut K) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
             salt: id_salt,
             label: label.into(),
-            selected,
+            choice: Choice::one(selected),
             specs: Vec::new(),
             variant: TabsVariant::default(),
             scrollable: false,
@@ -121,15 +123,18 @@ impl<'a> Tabs<'a> {
         agent_key(salt)
     }
 
-    /// Appends one tab.
-    pub fn item(mut self, tab: impl Into<Tab>) -> Self {
+    /// Appends one tab carrying `value`.
+    pub fn item(mut self, value: K, tab: impl Into<Tab>) -> Self {
+        self.choice.push(value);
         self.specs.push(tab.into());
         self
     }
 
-    /// Appends tabs.
-    pub fn items(mut self, tabs: impl IntoIterator<Item = impl Into<Tab>>) -> Self {
-        self.specs.extend(tabs.into_iter().map(Into::into));
+    /// Appends `(value, tab)` pairs.
+    pub fn items(mut self, tabs: impl IntoIterator<Item = (K, impl Into<Tab>)>) -> Self {
+        for (value, tab) in tabs {
+            self = self.item(value, tab);
+        }
         self
     }
 
@@ -150,8 +155,8 @@ impl<'a> Tabs<'a> {
         self
     }
 
-    /// Paints the row and updates `selected` on a pick; a `selected` past the last tab moves onto it.
-    pub fn show(mut self, ui: &mut MineralUi<'_, Material>) -> SelectionResponse {
+    /// Paints the row and writes the picked tab's value to `selected`.
+    pub fn show(mut self, ui: &mut MineralUi<'_, Material>) -> SelectionResponse<K> {
         let rt = ui.rt();
         let ctx = rt.ctx();
         let t = rt.tokens();
@@ -159,9 +164,8 @@ impl<'a> Tabs<'a> {
             s.disabled |= self.disabled;
         }
         let n = self.specs.len();
-        crate::navigation::nav::clamp_selected(self.selected, n, "Tabs selected");
         let id = ui.make_persistent_id(self.salt.id_salt());
-        let mut sel = *self.selected;
+        let mut sel = self.choice.index();
         let contents: Vec<TabContent> = self.specs.iter().map(|s| TabContent::new(ui, s)).collect();
         let height = contents
             .iter()
@@ -192,7 +196,7 @@ impl<'a> Tabs<'a> {
                 }
             })
             .collect();
-        let tab_stop = focus::tab_stop(ctx, id, Some(sel), self.specs.len(), |i| {
+        let tab_stop = focus::tab_stop(ctx, id, sel, self.specs.len(), |i| {
             self.specs.get(i).is_some_and(|s| !s.disabled)
         });
         let dir = rt.i18n().direction();
@@ -224,23 +228,19 @@ impl<'a> Tabs<'a> {
             .set(divider_shape, Shape::rect_filled(line, 0.0, t.role(divider::COLOR)));
 
         let response = container;
-        let changed = picked.is_some() && sel != *self.selected;
-        if changed {
-            *self.selected = sel;
-        }
         semantic::emit(ctx, Some(response.id), bar, || {
             let mut n = SemanticNode::new(StableId::of(&self.salt, "tablist"), Role::TabList, &self.label);
             n.state.disabled = self.disabled;
             n
         });
-        SelectionResponse::new(response, changed.then_some(sel), changed)
+        self.choice.pick(response, picked)
     }
 
     fn show_row(
         &self,
         ui: &mut MineralUi<'_, Material>,
         row: &TabRow<'_>,
-        sel: &mut usize,
+        sel: &mut Option<usize>,
         picked: &mut Option<usize>,
         t: &Tokens,
     ) {
@@ -262,7 +262,7 @@ impl<'a> Tabs<'a> {
                 spec,
                 content,
                 variant: self.variant,
-                selected: i == *sel,
+                selected: *sel == Some(i),
                 tab_stop: focus::TabStop::at(i, row.tab_stop),
                 width: row.widths[i].0,
                 height: row.height,
@@ -276,26 +276,27 @@ impl<'a> Tabs<'a> {
         if self.scrollable {
             ui.add_space(tx::SCROLLABLE_EDGE_PADDING);
         }
-        if let Some(i) = *picked {
-            *sel = i;
+        if picked.is_some() {
+            *sel = *picked;
         }
         if let Some(i) = RovingFocus::new(Axis::Horizontal).update_group(ui.core(), row.id, &ids, |i| {
             row.specs.get(i).is_some_and(|s| !s.disabled)
         }) {
-            *sel = i;
+            *sel = Some(i);
             *picked = Some(i);
         }
+        let shown = sel.and_then(|i| Some((responses.get(i)?, row.widths.get(i)?.1)));
         if picked.is_some()
-            && let Some(r) = responses.get(*sel)
+            && let Some((r, _)) = shown
         {
             r.scroll_to_me(Some(egui::Align::Center));
         }
-        if let (Some(first), Some(r)) = (responses.first(), responses.get(*sel)) {
+        if let (Some(first), Some((r, content_width))) = (responses.first(), shown) {
             let indicator = Indicator {
                 origin: row.dir.start_edge(first.rect),
                 dir: row.dir,
                 tab: r.rect,
-                content_width: row.widths[*sel].1,
+                content_width,
             };
             indicator.paint(ui, row.id, self.variant, t);
         }

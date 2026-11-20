@@ -26,7 +26,7 @@ use crate::{
     widget::paint,
 };
 
-use super::value::{Exact, Value};
+use egui_mineral::kit::choice::Choice;
 
 /// `size` of a swatch.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -170,11 +170,11 @@ impl Swatch {
 /// Fluent `SwatchPicker`: single selection among swatches, one Tab stop, arrow-key navigation.
 #[derive(Debug)]
 #[must_use = "show with SwatchPicker::show"]
-pub struct SwatchPicker<'a, K = String> {
+pub struct SwatchPicker<'a, K> {
     salt: KeyedSalt,
     label: String,
-    value: Value<'a, K>,
-    swatches: Vec<(K, Swatch)>,
+    choice: Choice<'a, K>,
+    swatches: Vec<Swatch>,
     layout: SwatchLayout,
     size: SwatchSize,
     shape: SwatchShape,
@@ -182,35 +182,24 @@ pub struct SwatchPicker<'a, K = String> {
     disabled: bool,
 }
 
-impl<'a, K: PartialEq + Clone + 'a> SwatchPicker<'a, K> {
+impl<'a, K: PartialEq + Clone> SwatchPicker<'a, K> {
     /// `label` names the group for assistive technology; node key `<id_salt>-swatch-picker`, swatches
     /// `<id_salt>-<index>-swatch`. Nothing is picked while `value` is `None`.
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, value: &'a mut Option<K>) -> Self {
-        Self::with(id_salt.into(), label.into(), Value::new(value), Vec::new())
+        Self::with(id_salt.into(), label.into(), Choice::optional(value))
     }
 
-    /// Binds a value that is always one of the swatches': each of `swatches` comes with its value, a pick
-    /// writes it into `value`, and no swatch is selected while `value` matches none.
-    pub fn bound(
-        id_salt: impl Into<KeyedSalt>,
-        label: impl Into<String>,
-        swatches: impl IntoIterator<Item = (K, Swatch)>,
-        value: &'a mut K,
-    ) -> Self {
-        Self::with(
-            id_salt.into(),
-            label.into(),
-            Value::new(Exact(value)),
-            swatches.into_iter().collect(),
-        )
+    /// [`Self::new`] that always holds a value; no swatch is selected while `value` matches none.
+    pub fn bound(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, value: &'a mut K) -> Self {
+        Self::with(id_salt.into(), label.into(), Choice::one(value))
     }
 
-    fn with(salt: KeyedSalt, label: String, value: Value<'a, K>, swatches: Vec<(K, Swatch)>) -> Self {
+    fn with(salt: KeyedSalt, label: String, choice: Choice<'a, K>) -> Self {
         Self {
             salt,
             label,
-            value,
-            swatches,
+            choice,
+            swatches: Vec::new(),
             layout: SwatchLayout::Row,
             size: SwatchSize::Medium,
             shape: SwatchShape::Square,
@@ -219,9 +208,18 @@ impl<'a, K: PartialEq + Clone + 'a> SwatchPicker<'a, K> {
         }
     }
 
-    /// Adds swatches in order, each with its value.
+    /// Appends one swatch carrying `value`.
+    pub fn swatch(mut self, value: K, swatch: Swatch) -> Self {
+        self.choice.push(value);
+        self.swatches.push(swatch);
+        self
+    }
+
+    /// Appends `(value, swatch)` pairs.
     pub fn swatches(mut self, swatches: impl IntoIterator<Item = (K, Swatch)>) -> Self {
-        self.swatches.extend(swatches);
+        for (value, swatch) in swatches {
+            self = self.swatch(value, swatch);
+        }
         self
     }
 
@@ -255,12 +253,12 @@ impl<'a, K: PartialEq + Clone + 'a> SwatchPicker<'a, K> {
     }
 
     /// Lays out the swatches; a pick writes `value` and reports `changed`.
-    pub fn show(self, ui: &mut MineralUi<'_, Fluent>) -> SelectionResponse {
+    pub fn show(self, ui: &mut MineralUi<'_, Fluent>) -> SelectionResponse<K> {
         let rt = ui.rt();
         let Self {
             salt,
             label,
-            mut value,
+            mut choice,
             swatches,
             layout,
             size,
@@ -279,15 +277,15 @@ impl<'a, K: PartialEq + Clone + 'a> SwatchPicker<'a, K> {
         let mut ids = Vec::with_capacity(swatches.len());
         let mut picked = None;
         let group_id = ui.make_persistent_id(salt.id_salt());
-        let enabled = |i: usize| !disabled && swatches.get(i).is_some_and(|(_, s)| !s.disabled);
-        let selected = swatches.iter().position(|(v, _)| value.is_selected(v));
+        let enabled = |i: usize| !disabled && swatches.get(i).is_some_and(|s| !s.disabled);
+        let selected = choice.index();
         let tab_stop = focus::tab_stop(ui.ctx(), group_id, selected, swatches.len(), enabled);
         let mut body = |ui: &mut Ui| {
             ui.spacing_mut().item_spacing = vec2(gap, gap);
             for (r, row) in swatches.chunks(columns).enumerate() {
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing = vec2(gap, gap);
-                    for (c, (_, s)) in row.iter().enumerate() {
+                    for (c, s) in row.iter().enumerate() {
                         let i = r * columns + c;
                         let out = rt.ui(ui).mineral(Cell {
                             salt: s.salt.clone().unwrap_or_else(|| salt.child(i)),
@@ -316,14 +314,12 @@ impl<'a, K: PartialEq + Clone + 'a> SwatchPicker<'a, K> {
         if let Some(i) = roving.update_group(ui.core(), group_id, &ids, enabled) {
             picked = Some(i);
         }
-        let changed = picked.and_then(|i| swatches.get(i)).is_some_and(|(v, _)| value.pick(v));
         semantic::emit(ui.ctx(), Some(group.id), group.rect, || {
             let mut n = SemanticNode::new(StableId::of(&salt, "swatch-picker"), Role::RadioGroup, &label);
             n.state.disabled = disabled;
             n
         });
-        let response = group;
-        SelectionResponse::new(response, picked.filter(|_| changed), changed)
+        choice.pick(group, picked)
     }
 }
 

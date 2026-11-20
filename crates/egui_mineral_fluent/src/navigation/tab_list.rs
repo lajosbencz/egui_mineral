@@ -1,4 +1,5 @@
 use egui::{Rect, Sense, Stroke, StrokeKind, Ui, UiBuilder, pos2, text::LayoutJob, vec2};
+use egui_mineral::kit::choice::Choice;
 use egui_mineral::{
     focus::{self as roving, RovingFocus},
     i18n::I18n,
@@ -32,7 +33,6 @@ use crate::{
     theme::{Elevation, Radius},
     typography::TypeRamp,
     widget::{
-        choice::{self, Choice},
         paint,
         state::{Ramp, State},
         tween,
@@ -596,11 +596,11 @@ impl Indicator {
 /// move focus (wrapping) and Enter or Space selects; [`Self::select_on_focus`] selects on focus.
 #[derive(Debug)]
 #[must_use = "call .show(..)"]
-pub struct TabList<'a> {
+pub struct TabList<'a, K> {
     salt: KeyedSalt,
     key: AgentKey,
     label: String,
-    selected: Choice<'a>,
+    selected: Choice<'a, K>,
     tabs: Vec<Tab>,
     appearance: TabAppearance,
     size: Size,
@@ -609,32 +609,16 @@ pub struct TabList<'a> {
     disabled: bool,
 }
 
-impl<'a> TabList<'a> {
-    /// `label` names the list for assistive technology; agent key `<id_salt>-tablist`.
-    pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selected: &'a mut usize) -> Self {
-        Self::with(id_salt.into(), label.into(), Choice::by_index(selected), Vec::new())
-    }
-
-    /// Binds the value of the selected tab instead of its index (`selectedValue`): each of `tabs` comes with
-    /// its value, a pick writes it into `value`, and no tab is selected while `value` matches none. Tabs
-    /// added with [`Self::tab`] or [`Self::tabs`] have no value and cannot be picked.
-    pub fn bound<T: PartialEq + Clone + 'a>(
-        id_salt: impl Into<KeyedSalt>,
-        label: impl Into<String>,
-        tabs: impl IntoIterator<Item = (T, impl Into<Tab>)>,
-        value: &'a mut T,
-    ) -> Self {
-        let (values, tabs) = choice::split(tabs);
-        Self::with(id_salt.into(), label.into(), Choice::by_value(value, values), tabs)
-    }
-
-    fn with(salt: KeyedSalt, label: String, selected: Choice<'a>, tabs: Vec<Tab>) -> Self {
+impl<'a, K: PartialEq + Clone> TabList<'a, K> {
+    /// Selects the tab whose value equals `selected` (`selectedValue`), none when no tab matches; `label` names
+    /// the list for assistive technology; agent key `<id_salt>-tablist`.
+    pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selected: &'a mut K) -> Self {
         Self {
-            salt,
+            salt: id_salt.into(),
             key: egui_mineral::agent_key!("tablist"),
-            label,
-            selected,
-            tabs,
+            label: label.into(),
+            selected: Choice::one(selected),
+            tabs: Vec::new(),
             appearance: TabAppearance::default(),
             size: Size::Medium,
             vertical: false,
@@ -643,15 +627,18 @@ impl<'a> TabList<'a> {
         }
     }
 
-    /// Appends one tab.
-    pub fn tab(mut self, tab: impl Into<Tab>) -> Self {
+    /// Appends one tab carrying `value`.
+    pub fn tab(mut self, value: K, tab: impl Into<Tab>) -> Self {
+        self.selected.push(value);
         self.tabs.push(tab.into());
         self
     }
 
-    /// Appends tabs in order.
-    pub fn tabs(mut self, tabs: impl IntoIterator<Item = impl Into<Tab>>) -> Self {
-        self.tabs.extend(tabs.into_iter().map(Into::into));
+    /// Appends `(value, tab)` pairs.
+    pub fn tabs(mut self, tabs: impl IntoIterator<Item = (K, impl Into<Tab>)>) -> Self {
+        for (value, tab) in tabs {
+            self = self.tab(value, tab);
+        }
         self
     }
 
@@ -689,9 +676,8 @@ impl<'a> TabList<'a> {
         agent_key(key)
     }
 
-    /// Shows the list; a pick writes the bound index or value and reports `changed`. A bound index past the
-    /// last tab is moved onto it.
-    pub fn show(self, ui: &mut MineralUi<'_, Fluent>) -> SelectionResponse {
+    /// Shows the list; a pick writes the tab's value and reports `changed`.
+    pub fn show(self, ui: &mut MineralUi<'_, Fluent>) -> SelectionResponse<K> {
         let rt = ui.rt();
         let Self {
             salt,
@@ -705,15 +691,14 @@ impl<'a> TabList<'a> {
             select_on_focus,
             disabled,
         } = self;
-        selected.clamp(tabs.len(), "TabList selected");
         let id = ui.make_persistent_id(salt.id_salt());
         let enabled = |i: usize| !disabled && tabs.get(i).is_some_and(|t| !t.disabled);
-        let tab_stop = roving::tab_stop(ui.ctx(), id, selected.selected(), tabs.len(), enabled);
+        let tab_stop = roving::tab_stop(ui.ctx(), id, selected.index(), tabs.len(), enabled);
         let measured: Vec<Measured> = tabs.iter().map(|t| Measured::of(ui, t, size, vertical)).collect();
         let stretch = measured.iter().fold(0.0_f32, |m, l| m.max(l.cross(vertical)));
         let dir = rt.i18n().direction();
         let gap = gap(appearance, size);
-        let current = selected.selected();
+        let current = selected.index();
         let mut picked = None;
         let mut ids = Vec::with_capacity(tabs.len());
         let mut rects = Vec::with_capacity(tabs.len());
@@ -756,9 +741,9 @@ impl<'a> TabList<'a> {
         {
             picked = Some(i);
         }
-        let changed = picked.is_some_and(|i| Some(i) != current && selected.select(i));
+        let out = selected.pick(group, picked);
         if !appearance.circular()
-            && let Some((at, sel)) = selected.selected().and_then(|i| Some((i, rects.get(i)?)))
+            && let Some((at, sel)) = selected.index().and_then(|i| Some((i, rects.get(i)?)))
         {
             let on = Indicator {
                 id,
@@ -768,12 +753,11 @@ impl<'a> TabList<'a> {
             };
             on.paint(ui, sel, &rects);
         }
-        semantic::emit(ui.ctx(), Some(group.id), group.rect, || {
+        semantic::emit(ui.ctx(), Some(out.response.id), out.response.rect, || {
             let mut n = SemanticNode::new(key.id(&salt), Role::TabList, &label);
             n.state.disabled = disabled;
             n
         });
-        let response = group;
-        SelectionResponse::new(response, picked.filter(|_| changed), changed)
+        out
     }
 }

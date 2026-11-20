@@ -28,6 +28,7 @@ use crate::{
         state::{Ramp, State},
     },
 };
+use egui_mineral::kit::choice::Choice;
 
 /// Side of the label a [`Radio`] puts it on (`labelPosition`); mirrored in right-to-left locales.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -349,7 +350,7 @@ impl<'a, T: PartialEq + Clone> RadioGroup<'a, T> {
     }
 
     /// Lays out the radios; a pick writes `value` and reports `changed`.
-    pub fn show(self, ui: &mut MineralUi<'_, Fluent>) -> SelectionResponse {
+    pub fn show(self, ui: &mut MineralUi<'_, Fluent>) -> SelectionResponse<T> {
         let rt = ui.rt();
         let Self {
             salt,
@@ -368,7 +369,6 @@ impl<'a, T: PartialEq + Clone> RadioGroup<'a, T> {
             RadioLayout::Vertical | RadioLayout::Horizontal => RadioLabelPosition::After,
         };
         let mut ids = Vec::with_capacity(options.len());
-        let mut changed = false;
         let mut picked = None;
         let group_id = ui.make_persistent_id(salt.id_salt());
         let enabled = |i: usize| !disabled && options.get(i).is_some_and(|o| !o.disabled);
@@ -384,8 +384,6 @@ impl<'a, T: PartialEq + Clone> RadioGroup<'a, T> {
                         .disabled(!enabled(i)),
                 );
                 if r.changed() {
-                    *value = o.value.clone();
-                    changed = true;
                     picked = Some(i);
                 }
                 ids.push(r.id);
@@ -397,12 +395,7 @@ impl<'a, T: PartialEq + Clone> RadioGroup<'a, T> {
                 Axis::Vertical => ui.vertical(|ui| body(ui)).response,
             })
             .inner;
-        if let Some((i, o)) = RovingFocus::new(axis)
-            .update_group(ui.core(), group_id, &ids, enabled)
-            .and_then(|i| Some((i, options.get(i)?)))
-        {
-            *value = o.value.clone();
-            changed = true;
+        if let Some(i) = RovingFocus::new(axis).update_group(ui.core(), group_id, &ids, enabled) {
             picked = Some(i);
         }
         semantic::emit(ui.ctx(), Some(group.id), group.rect, || {
@@ -410,7 +403,10 @@ impl<'a, T: PartialEq + Clone> RadioGroup<'a, T> {
             n.state.disabled = disabled;
             n
         });
-        let response = group;
-        SelectionResponse::new(response, picked, changed)
+        let mut choice = Choice::one(value);
+        for o in &options {
+            choice.push(o.value.clone());
+        }
+        choice.pick(group, picked)
     }
 }

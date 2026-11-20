@@ -243,21 +243,28 @@ impl<'a, K: Ord> IntoIterator for &'a Selection<K> {
     }
 }
 
-/// Outcome of a single-selection group (radio group, tabs, navigation, stepper, button group).
+/// Outcome of a selection group (radio group, tabs, navigation, stepper, segmented button); built by
+/// [`Choice::pick`](crate::kit::choice::Choice::pick).
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct SelectionResponse {
+pub struct SelectionResponse<K> {
     /// Group response; `mark_changed` when `changed`.
     pub response: egui::Response,
-    /// `selected` changed this frame.
+    /// Agrees with `response.changed()`: the bound value changed this frame.
     pub changed: bool,
-    /// Index picked this frame.
-    pub selected: Option<usize>,
+    /// Value of the item picked this frame, also when it was already selected.
+    pub selected: Option<K>,
 }
 
-impl SelectionResponse {
-    /// Marks `response` changed when `changed`.
-    pub fn new(mut response: egui::Response, selected: Option<usize>, changed: bool) -> Self {
+impl<K> SelectionResponse<K> {
+    /// Reports a pick of `selected` that changed the group's own model (e.g. [`Steps`](crate::steps::Steps)); `None`
+    /// reports no pick. Groups bound to an app value use [`Choice::pick`](crate::kit::choice::Choice::pick).
+    pub fn changed_to(response: egui::Response, selected: Option<K>) -> Self {
+        let changed = selected.is_some();
+        Self::new(response, selected, changed)
+    }
+
+    pub(crate) fn new(mut response: egui::Response, selected: Option<K>, changed: bool) -> Self {
         if changed {
             response.mark_changed();
         }
@@ -266,15 +273,6 @@ impl SelectionResponse {
             changed,
             selected,
         }
-    }
-
-    /// Writes `picked` to `bound`; `changed` when it differs from the bound index.
-    pub fn pick(response: egui::Response, bound: &mut usize, picked: Option<usize>) -> Self {
-        let changed = picked.is_some_and(|i| i != *bound);
-        if let Some(i) = picked {
-            *bound = i;
-        }
-        Self::new(response, picked, changed)
     }
 }
 

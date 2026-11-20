@@ -4,13 +4,13 @@ use crate::MaterialUiExt as _;
 use crate::Rt;
 use crate::adaptive::Density;
 use crate::text_inputs::text_field::FieldChrome;
-use crate::widget::ValueBinding;
 use egui::{
     Color32, Frame, Id, Key, LayerId, Rangef, Rect, Response, UiBuilder, Vec2, pos2,
     text::{LayoutJob, TextWrapping},
     vec2,
 };
 use egui_mineral::i18n::I18n;
+use egui_mineral::kit::choice::Choice;
 use egui_mineral::semantic::AgentKey;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::Availability;
@@ -263,12 +263,6 @@ pub(crate) fn highlighted(
     job
 }
 
-enum Value<'a> {
-    Single(&'a mut Option<usize>),
-    Bound(ValueBinding<'a>),
-    Multi(&'a mut Selection<usize>),
-}
-
 /// Option of a [`Select`]; converts from its label.
 #[derive(Clone, Debug)]
 #[must_use]
@@ -370,77 +364,79 @@ pub struct SelectState {
 
 /// MD3 exposed dropdown menu (Compose `ExposedDropdownMenuBox`), select-only or multi.
 #[must_use = "show with ui.mineral(..)"]
-pub struct Select<'a> {
+pub struct Select<'a, K> {
     salt: KeyedSalt,
     key: AgentKey,
     label: String,
     options: Vec<SelectOption>,
-    value: Value<'a>,
+    choice: Choice<'a, K>,
     disabled: bool,
     label_visible: bool,
     chrome: FieldChrome,
 }
 
-egui_mineral::kit::opaque_debug!(Select<'_>);
+egui_mineral::kit::opaque_debug!(Select<'_, K>);
 
-impl<'a> Select<'a> {
-    /// Single select; `selected` is the bound option index, `None` before a pick. Agent key `<id_salt>-select`.
+impl<'a, K: PartialEq + Clone> Select<'a, K> {
+    /// Single select of `(value, option)` pairs; shows the option whose value equals `selected`, none while it
+    /// is `None` or matches no option. Agent key `<id_salt>-select`.
     pub fn new(
         id_salt: impl Into<KeyedSalt>,
         label: impl Into<String>,
-        options: impl IntoIterator<Item = impl Into<SelectOption>>,
-        selected: &'a mut Option<usize>,
+        options: impl IntoIterator<Item = (K, impl Into<SelectOption>)>,
+        selected: &'a mut Option<K>,
     ) -> Self {
-        Self::with(id_salt.into(), label, options, Value::Single(selected))
+        Self::with(id_salt.into(), label, options, Choice::optional(selected))
     }
 
-    /// Single select over options that carry values, like [`RadioGroup`](crate::selection::RadioGroup): shows
-    /// the option whose value equals `value` (none when no option matches) and a pick writes that option's
-    /// value. Bind an `Option<T>` with `Some(..)` option values to start empty.
-    pub fn bound<T: PartialEq + Clone + 'a>(
+    /// [`Self::new`] that always holds a value: shows the option whose value equals `selected`.
+    pub fn bound(
         id_salt: impl Into<KeyedSalt>,
         label: impl Into<String>,
-        options: impl IntoIterator<Item = (T, impl Into<SelectOption>)>,
-        value: &'a mut T,
+        options: impl IntoIterator<Item = (K, impl Into<SelectOption>)>,
+        selected: &'a mut K,
     ) -> Self {
-        let (values, options): (Vec<T>, Vec<SelectOption>) = options.into_iter().map(|(v, o)| (v, o.into())).unzip();
-        Self::with(
-            id_salt.into(),
-            label,
-            options,
-            Value::Bound(ValueBinding::new(values, value)),
-        )
+        Self::with(id_salt.into(), label, options, Choice::one(selected))
     }
 
-    /// Multi-select; `selection` holds the chosen option indices.
+    /// Multi-select; `selection` holds the values of the chosen options.
     pub fn multi(
         id_salt: impl Into<KeyedSalt>,
         label: impl Into<String>,
-        options: impl IntoIterator<Item = impl Into<MultiOption>>,
-        selection: &'a mut Selection<usize>,
-    ) -> Self {
-        let id_salt: KeyedSalt = id_salt.into();
+        options: impl IntoIterator<Item = (K, impl Into<MultiOption>)>,
+        selection: &'a mut Selection<K>,
+    ) -> Self
+    where
+        K: Ord,
+    {
         Self::with(
-            id_salt,
+            id_salt.into(),
             label,
-            options.into_iter().map(|o| SelectOption::from(o.into())),
-            Value::Multi(selection),
+            options.into_iter().map(|(v, o)| (v, SelectOption::from(o.into()))),
+            Choice::many(selection),
         )
     }
 
     fn with(
         id_salt: KeyedSalt,
         label: impl Into<String>,
-        options: impl IntoIterator<Item = impl Into<SelectOption>>,
-        value: Value<'a>,
+        options: impl IntoIterator<Item = (K, impl Into<SelectOption>)>,
+        mut choice: Choice<'a, K>,
     ) -> Self {
+        let options = options
+            .into_iter()
+            .map(|(v, o)| {
+                choice.push(v);
+                o.into()
+            })
+            .collect();
         Self {
             chrome: FieldChrome::default(),
             key: egui_mineral::agent_key!("select"),
             salt: id_salt,
             label: label.into(),
-            options: options.into_iter().map(Into::into).collect(),
-            value,
+            options,
+            choice,
             disabled: false,
             label_visible: true,
         }
@@ -469,26 +465,18 @@ impl<'a> Select<'a> {
     }
 
     fn is_selected(&self, i: usize) -> bool {
-        match &self.value {
-            Value::Single(s) => **s == Some(i),
-            Value::Bound(b) => b.index() == Some(i),
-            Value::Multi(s) => s.is_selected(&i),
-        }
+        self.choice.is_selected(i)
     }
 
     fn first_selected(&self) -> Option<usize> {
-        match &self.value {
-            Value::Single(s) => **s,
-            Value::Bound(b) => b.index(),
-            Value::Multi(s) => s.first().copied(),
-        }
+        self.choice.index()
     }
 
     fn chips(&self) -> Vec<usize> {
-        match &self.value {
-            Value::Single(_) | Value::Bound(_) => Vec::new(),
-            Value::Multi(s) => s.selected().copied().filter(|i| *i < self.options.len()).collect(),
+        if self.choice.is_single() {
+            return Vec::new();
         }
+        (0..self.options.len()).filter(|&i| self.is_selected(i)).collect()
     }
 
     fn label_of(&self, i: usize) -> &str {
@@ -522,37 +510,27 @@ impl<'a> Select<'a> {
     }
 
     fn commit(&mut self, i: usize) -> bool {
-        match &mut self.value {
-            Value::Single(s) => {
-                let changed = **s != Some(i);
-                **s = Some(i);
-                changed
-            }
-            Value::Bound(b) => b.pick(i),
-            Value::Multi(s) => s.toggle(i),
-        }
+        self.choice.select(i)
     }
 
     fn summary(&self) -> String {
-        match &self.value {
-            Value::Single(_) | Value::Bound(_) => self
-                .first_selected()
-                .and_then(|i| self.options.get(i))
-                .map_or_default(|o| o.label.clone()),
-            Value::Multi(s) => s
-                .selected()
-                .filter_map(|i| self.options.get(*i).map(|o| o.label.as_str()))
-                .collect::<Vec<_>>()
-                .join(", "),
-        }
+        self.options
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| self.is_selected(*i))
+            .map(|(_, o)| o.label.as_str())
+            .collect::<Vec<_>>()
+            .join(", ")
     }
-}
 
-impl Select<'_> {
+    fn is_multi(&self) -> bool {
+        !self.choice.is_single()
+    }
+
     fn drive_combo(&mut self, rt: &Rt, r: &egui::Response, state: &mut SelectState, pressed: bool) -> (bool, bool) {
         let ctx = rt.ctx();
         let len = self.options.len();
-        let multi = matches!(self.value, Value::Multi(_));
+        let multi = self.is_multi();
         let mut changed = false;
         let mut moved = false;
         if self.disabled {
@@ -621,7 +599,7 @@ impl Select<'_> {
         let r = &frame.response;
         let base = ui.make_persistent_id(self.salt.id_salt());
         let field = frame.zones.visual;
-        let multi = matches!(self.value, Value::Multi(_));
+        let multi = self.is_multi();
         let mut changed = false;
         let chips = self.chips();
         let summary = (!multi).then(|| self.summary());
@@ -704,7 +682,7 @@ impl Select<'_> {
         }
         let r = &frame.response;
         let len = self.options.len();
-        let multi = matches!(self.value, Value::Multi(_));
+        let multi = self.is_multi();
         let mut changed = false;
         let this = &*self;
         let row = |i: usize| {
@@ -752,7 +730,7 @@ impl Select<'_> {
     }
 }
 
-impl MineralWidget for Select<'_> {
+impl<K: PartialEq + Clone> MineralWidget for Select<'_, K> {
     type Kit = Material;
     type State = SelectState;
     type Output = ();

@@ -1,6 +1,7 @@
 //! Stylekit plumbing: helpers that widget implementations call and apps do not. Submodules mirror the
 //! core module they serve.
 
+pub mod choice;
 pub mod edit;
 pub mod focus;
 pub mod i18n;

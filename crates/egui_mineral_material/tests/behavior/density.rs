@@ -117,7 +117,11 @@ fn cases() -> [(&'static str, Add, f32, Visual); 13] {
                 scope(ui, |ui| {
                     let mut selected = 0;
                     NavigationBar::new("nav", &mut selected)
-                        .items([NavDestination::new(ICON_MAIL, "A"), NavDestination::new(ICON_MAIL, "B")])
+                        .items(
+                            ([NavDestination::new(ICON_MAIL, "A"), NavDestination::new(ICON_MAIL, "B")])
+                                .into_iter()
+                                .enumerate(),
+                        )
                         .show(ui);
                 })
             },

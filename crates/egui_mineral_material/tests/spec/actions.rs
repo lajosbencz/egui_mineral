@@ -175,7 +175,7 @@ fn segmented_button_joins_equal_outlined_segments() {
     let p = render(|ui| {
         let mut selected = 1;
         SegmentedButton::single("seg", "Period", &mut selected)
-            .items(["Day", "Week", "Month"])
+            .items(["Day", "Week", "Month"].into_iter().enumerate())
             .show(ui);
     });
     let segments = p.stroked(ColorRole::Outline);

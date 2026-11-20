@@ -124,15 +124,22 @@ fn button_group<'a>(
     selection: Option<Selection<usize>>,
 ) -> Harness<'a, Option<Selection<usize>>> {
     harness(SCREEN, selection, move |ui, selection| {
-        let mut group = ButtonGroup::new("grp", "Letters").variant(variant).items([
+        let items = [
             ButtonGroupItem::new("A"),
             ButtonGroupItem::new("B").disabled(true),
             ButtonGroupItem::new("C"),
-        ]);
+        ];
         if let Some(s) = selection {
-            group = group.selection(s);
+            ButtonGroup::selection("grp", "Letters", s)
+                .variant(variant)
+                .toggles(items.into_iter().enumerate())
+                .show(ui);
+        } else {
+            ButtonGroup::new("grp", "Letters")
+                .variant(variant)
+                .items(items)
+                .show(ui);
         }
-        group.show(ui);
         ui.mineral(PushButton::new("after", "After"));
     })
 }
@@ -241,16 +248,20 @@ type Segments = (usize, Selection<usize>, u32);
 fn segmented() -> Harness<'static, Segments> {
     harness(SCREEN, (0, Selection::multiple(), 0), |ui, (single, multi, changes)| {
         let r = SegmentedButton::single("one", "Period", single)
-            .items([
-                Segment::new("Day"),
-                Segment::new("Week").disabled(true),
-                Segment::new("Month"),
-            ])
+            .items(
+                ([
+                    Segment::new("Day"),
+                    Segment::new("Week").disabled(true),
+                    Segment::new("Month"),
+                ])
+                .into_iter()
+                .enumerate(),
+            )
             .show(ui);
         assert_eq!(r.changed, r.response.changed(), "response marks the change");
         *changes += u32::from(r.changed);
         SegmentedButton::multi("many", "Days", multi)
-            .items(["Mon", "Tue", "Wed"])
+            .items(["Mon", "Tue", "Wed"].into_iter().enumerate())
             .show(ui);
         ui.mineral(PushButton::new("after", "After"));
     })
@@ -321,12 +332,14 @@ fn segmented_button_click_released_in_one_pass_hands_arrows_to_the_segment() {
 fn optional_single_segments_start_empty_and_content_width_hugs_labels() {
     let mut h = harness(SCREEN, None, |ui, picked: &mut Option<usize>| {
         let items = ["Field", "Both", "Intensity"];
-        SegmentedButton::single_optional("opt", "View", picked)
+        SegmentedButton::optional("opt", "View", picked)
             .equal_width(false)
-            .items(items)
+            .items(items.into_iter().enumerate())
             .show(ui);
         let mut equal = 0;
-        SegmentedButton::single("eq", "View", &mut equal).items(items).show(ui);
+        SegmentedButton::single("eq", "View", &mut equal)
+            .items(items.into_iter().enumerate())
+            .show(ui);
     });
     assert_eq!(h.state().value, None, "nothing selected");
     let (opt, eq) = (h.rect("opt-1-segment").width(), h.rect("eq-1-segment").width());
@@ -378,7 +391,9 @@ fn auto_targets_keep_their_height_through_ewebs_touchless_pointerdown_pass() {
 fn segmented_button_value_binds_the_segment_value() {
     let mut h = harness(SCREEN, ('w', 0), |ui, (period, changes)| {
         let segments = [('d', "Day"), ('w', "Week"), ('m', "Month")];
-        let r = SegmentedButton::bound("period", "Period", segments, period).show(ui);
+        let r = SegmentedButton::single("period", "Period", period)
+            .items(segments)
+            .show(ui);
         *changes += u32::from(r.changed);
     });
     assert_eq!(

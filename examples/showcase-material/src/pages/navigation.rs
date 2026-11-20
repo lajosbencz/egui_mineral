@@ -222,12 +222,12 @@ fn status_bar(ui: &mut MaterialUi<'_>, s: &mut State) {
 }
 
 fn tabs(ui: &mut MaterialUi<'_>, s: &mut State) {
-    super::section(ui, TOPICS[0], Some(<Tabs<'static>>::META), |ui| {
+    super::section(ui, TOPICS[0], Some(<Tabs<'static, ()>>::META), |ui| {
         caption(ui, TypeScale::LabelMedium, "Primary, text only");
         Tabs::new("nav-tabs-primary", "Primary tabs", &mut s.tab_primary)
-            .item(Tab::new("Flights"))
-            .item(Tab::new("Trips"))
-            .item(Tab::new("Explore"))
+            .item(0, Tab::new("Flights"))
+            .item(1, Tab::new("Trips"))
+            .item(2, Tab::new("Explore"))
             .show(ui);
         caption(ui, TypeScale::LabelMedium, "Primary with icons");
         Tabs::new(
@@ -235,16 +235,16 @@ fn tabs(ui: &mut MaterialUi<'_>, s: &mut State) {
             "Primary tabs with icons",
             &mut s.tab_primary_icons,
         )
-        .item(Tab::new("Flights").icon(ICON_SEND))
-        .item(Tab::new("Trips").icon(ICON_BOOKMARK))
-        .item(Tab::new("Explore").icon(ICON_EXPLORE))
+        .item(0, Tab::new("Flights").icon(ICON_SEND))
+        .item(1, Tab::new("Trips").icon(ICON_BOOKMARK))
+        .item(2, Tab::new("Explore").icon(ICON_EXPLORE))
         .show(ui);
         caption(ui, TypeScale::LabelMedium, "Secondary");
         Tabs::new("nav-tabs-secondary", "Secondary tabs", &mut s.tab_secondary)
             .variant(TabsVariant::Secondary)
-            .item(Tab::new("Video"))
-            .item(Tab::new("Photos"))
-            .item(Tab::new("Audio"))
+            .item(0, Tab::new("Video"))
+            .item(1, Tab::new("Photos"))
+            .item(2, Tab::new("Audio"))
             .show(ui);
         caption(ui, TypeScale::LabelMedium, "Secondary with icons");
         Tabs::new(
@@ -253,13 +253,13 @@ fn tabs(ui: &mut MaterialUi<'_>, s: &mut State) {
             &mut s.tab_secondary_icons,
         )
         .variant(TabsVariant::Secondary)
-        .item(Tab::new("Video").icon(ICON_MAIL))
-        .item(Tab::new("Photos").icon(ICON_STAR))
-        .item(Tab::new("Audio").icon(ICON_MIC))
+        .item(0, Tab::new("Video").icon(ICON_MAIL))
+        .item(1, Tab::new("Photos").icon(ICON_STAR))
+        .item(2, Tab::new("Audio").icon(ICON_MIC))
         .show(ui);
         caption(ui, TypeScale::LabelMedium, "Scrollable");
         let mut t = Tabs::new("nav-tabs-scroll", "Scrollable tabs", &mut s.tab_scroll).scrollable(true);
-        for name in [
+        for (i, name) in [
             "Overview",
             "Specifications",
             "Reviews",
@@ -270,56 +270,59 @@ fn tabs(ui: &mut MaterialUi<'_>, s: &mut State) {
             "Support",
             "Community",
             "Downloads",
-        ] {
-            t = t.item(Tab::new(name));
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            t = t.item(i, Tab::new(name));
         }
         t.show(ui);
     });
 }
 
 fn bars(ui: &mut MaterialUi<'_>, s: &mut State) {
-    super::section(ui, TOPICS[1], Some(<NavigationBar<'static>>::META), |ui| {
+    super::section(ui, TOPICS[1], Some(<NavigationBar<'static, ()>>::META), |ui| {
         caption(ui, TypeScale::LabelMedium, "Baseline");
         NavigationBar::new("nav-bar", &mut s.bar)
-            .item(NavDestination::new(ICON_HOME, "Home"))
-            .item(NavDestination::new(ICON_SEARCH, "Search"))
-            .item(NavDestination::new(ICON_FAVORITE, "Saved"))
-            .item(NavDestination::new(ICON_PERSON, "Profile"))
+            .item(0, NavDestination::new(ICON_HOME, "Home"))
+            .item(1, NavDestination::new(ICON_SEARCH, "Search"))
+            .item(2, NavDestination::new(ICON_FAVORITE, "Saved"))
+            .item(3, NavDestination::new(ICON_PERSON, "Profile"))
             .show(ui);
         caption(ui, TypeScale::LabelMedium, "Badges (dot, count)");
         NavigationBar::new("nav-bar-badges", &mut s.bar_badges)
-            .item(NavDestination::new(ICON_HOME, "Home"))
-            .item(NavDestination::new(ICON_MAIL, "Mail").badge(Badge::count(7)))
-            .item(NavDestination::new(ICON_INBOX, "Inbox").badge(Badge::dot()))
+            .item(0, NavDestination::new(ICON_HOME, "Home"))
+            .item(1, NavDestination::new(ICON_MAIL, "Mail").badge(Badge::count(7)))
+            .item(2, NavDestination::new(ICON_INBOX, "Inbox").badge(Badge::dot()))
             .show(ui);
         caption(ui, TypeScale::LabelMedium, "Flexible (Expressive), vertical items");
         NavigationBar::new("nav-bar-flex", &mut s.bar_flex)
             .flexible(true)
             .item_axis(Axis::Vertical)
-            .item(NavDestination::new(ICON_HOME, "Home"))
-            .item(NavDestination::new(ICON_SEARCH, "Search"))
-            .item(NavDestination::new(ICON_SETTINGS, "Settings"))
+            .item(0, NavDestination::new(ICON_HOME, "Home"))
+            .item(1, NavDestination::new(ICON_SEARCH, "Search"))
+            .item(2, NavDestination::new(ICON_SETTINGS, "Settings"))
             .show(ui);
         caption(ui, TypeScale::LabelMedium, "Flexible, horizontal items");
         NavigationBar::new("nav-bar-flex-h", &mut s.bar_horizontal)
             .flexible(true)
             .item_axis(Axis::Horizontal)
-            .item(NavDestination::new(ICON_HOME, "Home"))
-            .item(NavDestination::new(ICON_SEARCH, "Search"))
-            .item(NavDestination::new(ICON_SETTINGS, "Settings"))
+            .item(0, NavDestination::new(ICON_HOME, "Home"))
+            .item(1, NavDestination::new(ICON_SEARCH, "Search"))
+            .item(2, NavDestination::new(ICON_SETTINGS, "Settings"))
             .show(ui);
         caption(ui, TypeScale::LabelMedium, "Labels: selected only");
         NavigationBar::new("nav-bar-sel", &mut s.bar_selected_only)
             .labels(NavLabels::SelectedOnly)
-            .item(NavDestination::new(ICON_HOME, "Home"))
-            .item(NavDestination::new(ICON_SEARCH, "Search"))
-            .item(NavDestination::new(ICON_FAVORITE, "Saved"))
+            .item(0, NavDestination::new(ICON_HOME, "Home"))
+            .item(1, NavDestination::new(ICON_SEARCH, "Search"))
+            .item(2, NavDestination::new(ICON_FAVORITE, "Saved"))
             .show(ui);
     });
 }
 
 fn rail_drawer(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
-    super::section(ui, TOPICS[2], Some(<NavigationRail<'static>>::META), |ui| {
+    super::section(ui, TOPICS[2], Some(<NavigationRail<'static, ()>>::META), |ui| {
         super::top_row(ui, |row| {
             row.add(|ui| {
                 caption(ui, TypeScale::LabelMedium, "Baseline: menu, FAB, badges");
@@ -331,10 +334,10 @@ fn rail_drawer(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
                                 shared.toast("Compose");
                             }
                         })
-                        .item(NavDestination::new(ICON_HOME, "Home"))
-                        .item(NavDestination::new(ICON_MAIL, "Mail").badge(Badge::count(3)))
-                        .item(NavDestination::new(ICON_STAR, "Starred").badge(Badge::dot()))
-                        .item(NavDestination::new(ICON_SETTINGS, "Settings"))
+                        .item(0, NavDestination::new(ICON_HOME, "Home"))
+                        .item(1, NavDestination::new(ICON_MAIL, "Mail").badge(Badge::count(3)))
+                        .item(2, NavDestination::new(ICON_STAR, "Starred").badge(Badge::dot()))
+                        .item(3, NavDestination::new(ICON_SETTINGS, "Settings"))
                         .show(ui);
                     if r.leading_clicked {
                         shared.toast("Rail menu");
@@ -346,9 +349,9 @@ fn rail_drawer(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
                 boxed(ui, vec2(120.0, 420.0), |ui| {
                     NavigationRail::new("nav-rail-expr", &mut s.rail_expr)
                         .expanded(false)
-                        .item(NavDestination::new(ICON_HOME, "Home"))
-                        .item(NavDestination::new(ICON_MAIL, "Mail"))
-                        .item(NavDestination::new(ICON_STAR, "Starred"))
+                        .item(0, NavDestination::new(ICON_HOME, "Home"))
+                        .item(1, NavDestination::new(ICON_MAIL, "Mail"))
+                        .item(2, NavDestination::new(ICON_STAR, "Starred"))
                         .show(ui);
                 });
             });
@@ -360,9 +363,9 @@ fn rail_drawer(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
                         .expanded(expanded)
                         .menu_button(true)
                         .labels(NavLabels::SelectedOnly)
-                        .item(NavDestination::new(ICON_HOME, "Home"))
-                        .item(NavDestination::new(ICON_MAIL, "Mail"))
-                        .item(NavDestination::new(ICON_STAR, "Starred"))
+                        .item(0, NavDestination::new(ICON_HOME, "Home"))
+                        .item(1, NavDestination::new(ICON_MAIL, "Mail"))
+                        .item(2, NavDestination::new(ICON_STAR, "Starred"))
                         .show(ui);
                     if r.leading_clicked {
                         s.rail_expanded = !s.rail_expanded;
@@ -371,15 +374,15 @@ fn rail_drawer(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
             });
         });
     });
-    super::section(ui, TOPICS[3], Some(NavigationDrawer::META), |ui| {
+    super::section(ui, TOPICS[3], Some(<NavigationDrawer<'static, ()>>::META), |ui| {
         super::top_row(ui, |row| {
             row.add(|ui| {
                 caption(ui, TypeScale::LabelMedium, "Standard");
                 boxed(ui, vec2(300.0, 300.0), |ui| {
                     NavigationDrawer::new("nav-drawer", &mut s.drawer)
-                        .item(NavDestination::new(ICON_INBOX, "Inbox").badge(Badge::count(24)))
-                        .item(NavDestination::new(ICON_SEND, "Sent"))
-                        .item(NavDestination::new(ICON_DELETE, "Trash"))
+                        .item(0, NavDestination::new(ICON_INBOX, "Inbox").badge(Badge::count(24)))
+                        .item(1, NavDestination::new(ICON_SEND, "Sent"))
+                        .item(2, NavDestination::new(ICON_DELETE, "Trash"))
                         .show(ui);
                 });
             });
@@ -388,12 +391,15 @@ fn rail_drawer(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
                 boxed(ui, vec2(300.0, 380.0), |ui| {
                     NavigationDrawer::new("nav-drawer-sections", &mut s.drawer_sections)
                         .section("Mail")
-                        .item(NavDestination::new(ICON_INBOX, "Inbox").badge(Badge::count(24)))
-                        .item(NavDestination::new(ICON_SEND, "Sent"))
+                        .item(0, NavDestination::new(ICON_INBOX, "Inbox").badge(Badge::count(24)))
+                        .item(1, NavDestination::new(ICON_SEND, "Sent"))
                         .divider()
                         .section("Labels")
-                        .item(NavDestination::new(ICON_BOOKMARK, "Work"))
-                        .item(NavDestination::new(ICON_FAVORITE, "Family").badge(Badge::count(100).max(99)))
+                        .item(2, NavDestination::new(ICON_BOOKMARK, "Work"))
+                        .item(
+                            3,
+                            NavDestination::new(ICON_FAVORITE, "Family").badge(Badge::count(100).max(99)),
+                        )
                         .show(ui);
                 });
             });
@@ -551,7 +557,7 @@ fn toolbars(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
             .action(IconAction::new(ICON_CONTENT_CUT, "Cut"))
             .custom("mode", |ui| {
                 SegmentedButton::single("nav-toolbar-mode", "Display", mode)
-                    .items(["Field", "Both", "Intensity"])
+                    .items(["Field", "Both", "Intensity"].into_iter().enumerate())
                     .show(ui)
                     .response
             })

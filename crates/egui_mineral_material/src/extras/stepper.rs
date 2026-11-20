@@ -469,10 +469,10 @@ impl<'a> Stepper<'a> {
         self,
         ui: &mut MineralUi<'_, Material>,
         mut content: impl FnMut(&mut MineralUi<'_, Material>, usize),
-    ) -> SelectionResponse {
+    ) -> SelectionResponse<usize> {
         let rt = ui.rt();
         let out = ui.scope(|ui| self.run(&mut rt.ui(ui), &mut content));
-        SelectionResponse::new(out.response, out.inner, out.inner.is_some())
+        SelectionResponse::changed_to(out.response, out.inner)
     }
 
     fn run(

@@ -1,3 +1,4 @@
+use egui_mineral::semantic::KeySalt;
 use std::collections::{BTreeMap, BTreeSet};
 
 use egui::{Frame, Id, Margin, Panel, Sense, Stroke, StrokeKind, UiBuilder, pos2, text::LayoutJob, vec2};
@@ -42,20 +43,25 @@ macro_rules! row_setters {
     };
 }
 
+/// Value of a [`Nav`] row: it keys the row (`<id_salt>-<value>`) and persists across passes as open categories.
+pub trait NavValue: KeySalt + egui::AsIdSalt + Ord + Clone + Send + Sync + 'static {}
+
+impl<K: KeySalt + egui::AsIdSalt + Ord + Clone + Send + Sync + 'static> NavValue for K {}
+
 /// Fluent `NavItem`: a link row of a [`Nav`].
 #[derive(Clone, Debug)]
 #[must_use]
-pub struct NavItem {
-    value: usize,
+pub struct NavItem<K> {
+    value: K,
     label: String,
     icon: Option<Icon>,
     salt: Option<KeyedSalt>,
 }
 
-impl NavItem {
+impl<K> NavItem<K> {
     /// `value` is what the nav's `selected` holds while this item is selected; `label` is the visible text and
     /// accessible name.
-    pub fn new(value: usize, label: impl Into<String>) -> Self {
+    pub fn new(value: K, label: impl Into<String>) -> Self {
         Self {
             value,
             label: label.into(),
@@ -76,15 +82,15 @@ impl NavItem {
 /// Fluent `NavSubItem`: an indented link row inside a [`NavCategory`].
 #[derive(Clone, Debug)]
 #[must_use]
-pub struct NavSubItem {
-    value: usize,
+pub struct NavSubItem<K> {
+    value: K,
     label: String,
     salt: Option<KeyedSalt>,
 }
 
-impl NavSubItem {
+impl<K> NavSubItem<K> {
     /// `value` is what the nav's `selected` holds while this item is selected.
-    pub fn new(value: usize, label: impl Into<String>) -> Self {
+    pub fn new(value: K, label: impl Into<String>) -> Self {
         Self {
             value,
             label: label.into(),
@@ -99,16 +105,16 @@ impl NavSubItem {
 /// of its sub items is selected (known once the category has been open).
 #[derive(Clone, Debug)]
 #[must_use]
-pub struct NavCategory {
-    value: usize,
+pub struct NavCategory<K> {
+    value: K,
     label: String,
     icon: Option<Icon>,
     salt: Option<KeyedSalt>,
 }
 
-impl NavCategory {
+impl<K> NavCategory<K> {
     /// `value` identifies the category among the nav's open categories.
-    pub fn new(value: usize, label: impl Into<String>) -> Self {
+    pub fn new(value: K, label: impl Into<String>) -> Self {
         Self {
             value,
             label: label.into(),
@@ -323,67 +329,76 @@ pub struct NavItemResponse<R = ()> {
 }
 
 /// Places the rows of a [`Nav`].
-pub struct NavUi<'u, 's> {
+pub struct NavUi<'u, 's, K> {
     ui: &'u mut MineralUi<'s, Fluent>,
     salt: &'u KeyedSalt,
     id: Id,
-    selected: &'u mut Option<usize>,
-    open: &'u mut Vec<usize>,
+    selected: &'u mut Option<K>,
+    open: &'u mut Vec<K>,
     multiple: bool,
     density: NavDensity,
-    picked: &'u mut Option<usize>,
-    values: Vec<usize>,
-    children: &'u mut Children,
+    picked: &'u mut Option<K>,
+    values: Vec<K>,
+    children: &'u mut Children<K>,
 }
 
 // Sub item values per category value; entries of categories no longer placed are pruned.
-#[derive(Clone, Default)]
-struct Children {
-    known: BTreeMap<usize, Vec<usize>>,
-    seen: BTreeSet<usize>,
+#[derive(Clone)]
+struct Children<K> {
+    known: BTreeMap<K, Vec<K>>,
+    seen: BTreeSet<K>,
 }
 
-impl NavUi<'_, '_> {
-    fn row(&mut self, value: usize, salt: Option<&KeyedSalt>, row: Row) -> egui::Response {
+impl<K> Default for Children<K> {
+    fn default() -> Self {
+        Self {
+            known: BTreeMap::new(),
+            seen: BTreeSet::new(),
+        }
+    }
+}
+
+impl<K: NavValue> NavUi<'_, '_, K> {
+    fn row(&mut self, value: &K, salt: Option<&KeyedSalt>, row: Row) -> egui::Response {
         let salt = salt.cloned().unwrap_or_else(|| self.salt.child(value));
         let r = self.ui.mineral(Row { salt, ..row });
         r.response().clone()
     }
 
     /// `NavItem`: a click selects `value`.
-    pub fn item(&mut self, item: NavItem) -> NavItemResponse {
-        self.values.push(item.value);
+    pub fn item(&mut self, item: NavItem<K>) -> NavItemResponse {
+        self.values.push(item.value.clone());
         let row = Row {
             salt: self.salt.clone(),
             label: item.label,
             icon: item.icon,
             kind: Kind::Item,
-            selected: *self.selected == Some(item.value),
+            selected: self.selected.as_ref() == Some(&item.value),
             density: self.density,
         };
-        let response = self.row(item.value, item.salt.as_ref(), row);
+        let response = self.row(&item.value, item.salt.as_ref(), row);
         self.select(response, item.value)
     }
 
     /// `NavSubItem`: a click selects `value`.
-    pub fn sub_item(&mut self, item: NavSubItem) -> NavItemResponse {
-        self.values.push(item.value);
+    pub fn sub_item(&mut self, item: NavSubItem<K>) -> NavItemResponse {
+        self.values.push(item.value.clone());
         let row = Row {
             salt: self.salt.clone(),
             label: item.label,
             icon: None,
             kind: Kind::Sub,
-            selected: *self.selected == Some(item.value),
+            selected: self.selected.as_ref() == Some(&item.value),
             density: self.density,
         };
-        let response = self.row(item.value, item.salt.as_ref(), row);
+        let response = self.row(&item.value, item.salt.as_ref(), row);
         self.select(response, item.value)
     }
 
-    fn select(&mut self, response: egui::Response, value: usize) -> NavItemResponse {
+    fn select(&mut self, response: egui::Response, value: K) -> NavItemResponse {
         let clicked = response.clicked();
-        if clicked && *self.selected != Some(value) {
-            *self.selected = Some(value);
+        if clicked && self.selected.as_ref() != Some(&value) {
+            *self.selected = Some(value.clone());
             *self.picked = Some(value);
         }
         NavItemResponse {
@@ -396,14 +411,14 @@ impl NavUi<'_, '_> {
     /// `NavCategory`: a click toggles it; `add` places the [`NavSubItem`]s while it is open.
     pub fn category<R>(
         &mut self,
-        category: NavCategory,
-        add: impl FnOnce(&mut NavUi<'_, '_>) -> R,
+        category: NavCategory<K>,
+        add: impl FnOnce(&mut NavUi<'_, '_, K>) -> R,
     ) -> NavItemResponse<R> {
         let value = category.value;
         let open = self.open.contains(&value);
-        self.children.seen.insert(value);
+        self.children.seen.insert(value.clone());
         let known = self.children.known.get(&value).map_or(&[][..], Vec::as_slice);
-        let selected = !open && self.selected.is_some_and(|s| known.contains(&s));
+        let selected = !open && self.selected.as_ref().is_some_and(|s| known.contains(s));
         let row = Row {
             salt: self.salt.clone(),
             label: category.label,
@@ -412,7 +427,7 @@ impl NavUi<'_, '_> {
             selected,
             density: self.density,
         };
-        let response = self.row(value, category.salt.as_ref(), row);
+        let response = self.row(&value, category.salt.as_ref(), row);
         let clicked = response.clicked();
         if clicked {
             if open {
@@ -421,7 +436,7 @@ impl NavUi<'_, '_> {
                 if !self.multiple {
                     self.open.clear();
                 }
-                self.open.push(value);
+                self.open.push(value.clone());
             }
         }
         let inner = (open && !clicked).then(|| {
@@ -479,13 +494,13 @@ impl NavUi<'_, '_> {
 /// Result of showing a [`Nav`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct NavResponse<R = ()> {
+pub struct NavResponse<K, R = ()> {
     /// Spans every row; `mark_changed` when `changed`.
     pub response: egui::Response,
     /// Agrees with `response.changed()`; `selected` is `Some`.
     pub changed: bool,
     /// Value picked this frame.
-    pub selected: Option<usize>,
+    pub selected: Option<K>,
     /// What `add` returned.
     pub inner: R,
 }
@@ -494,21 +509,21 @@ pub struct NavResponse<R = ()> {
 /// bound to one selected value. Every row is a Tab stop.
 #[derive(Debug)]
 #[must_use = "call .show(..)"]
-pub struct Nav<'a> {
+pub struct Nav<'a, K> {
     salt: KeyedSalt,
     key: AgentKey,
     label: String,
-    selected: &'a mut Option<usize>,
+    selected: &'a mut Option<K>,
     density: NavDensity,
     multiple: bool,
-    default_open: Vec<usize>,
+    default_open: Vec<K>,
     gap: f32,
 }
 
-impl<'a> Nav<'a> {
+impl<'a, K: NavValue> Nav<'a, K> {
     /// `label` names the navigation for assistive technology; `selected` holds the picked item's value.
-    /// Agent key `<id_salt>-nav`.
-    pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selected: &'a mut Option<usize>) -> Self {
+    /// Agent key `<id_salt>-nav`; rows without a `salt(..)` are keyed `<id_salt>-<value>`.
+    pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selected: &'a mut Option<K>) -> Self {
         Self {
             salt: id_salt.into(),
             key: egui_mineral::agent_key!("nav"),
@@ -534,7 +549,7 @@ impl<'a> Nav<'a> {
     }
 
     /// Categories open until the first click (`defaultOpenCategories`).
-    pub fn default_open(mut self, values: impl IntoIterator<Item = usize>) -> Self {
+    pub fn default_open(mut self, values: impl IntoIterator<Item = K>) -> Self {
         self.default_open = values.into_iter().collect();
         self
     }
@@ -545,7 +560,11 @@ impl<'a> Nav<'a> {
     }
 
     /// Shows the rows `add` places.
-    pub fn show<R>(self, ui: &mut MineralUi<'_, Fluent>, add: impl FnOnce(&mut NavUi<'_, '_>) -> R) -> NavResponse<R> {
+    pub fn show<R>(
+        self,
+        ui: &mut MineralUi<'_, Fluent>,
+        add: impl FnOnce(&mut NavUi<'_, '_, K>) -> R,
+    ) -> NavResponse<K, R> {
         let rt = ui.rt();
         let Self {
             salt,
@@ -559,15 +578,15 @@ impl<'a> Nav<'a> {
         } = self;
         let id = ui.make_persistent_id(salt.id_salt());
         let open_id = id.with("mineral::nav-open");
-        let mut open: Vec<usize> = ui.ctx().data(|d| d.get_temp(open_id)).unwrap_or(if multiple {
+        let mut open: Vec<K> = ui.ctx().data(|d| d.get_temp(open_id)).unwrap_or(if multiple {
             default_open
         } else {
             default_open.into_iter().take(1).collect()
         });
-        let before = *selected;
+        let before = selected.clone();
         let mut picked = None;
         let children_id = id.with("mineral::nav-children");
-        let mut children: Children = ui.ctx().data(|d| d.get_temp(children_id)).unwrap_or_default();
+        let mut children: Children<K> = ui.ctx().data(|d| d.get_temp(children_id)).unwrap_or_default();
         children.seen.clear();
         let group = ui
             .push_id(salt.id_salt(), |ui| {
@@ -624,14 +643,14 @@ impl<'a> Nav<'a> {
 /// Fluent `NavDrawer`: a [`Nav`] in an inline panel on the start edge, on `colorNeutralBackground4`.
 #[derive(Debug)]
 #[must_use = "call .show(..)"]
-pub struct NavDrawer<'a> {
-    nav: Nav<'a>,
+pub struct NavDrawer<'a, K> {
+    nav: Nav<'a, K>,
     width: f32,
 }
 
-impl<'a> NavDrawer<'a> {
+impl<'a, K: NavValue> NavDrawer<'a, K> {
     /// See [`Nav::new`]; 260pt wide.
-    pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selected: &'a mut Option<usize>) -> Self {
+    pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selected: &'a mut Option<K>) -> Self {
         let mut nav = Nav::new(id_salt, label, selected);
         nav.gap = g::SPACING_VERTICAL_XXS;
         Self {
@@ -659,13 +678,17 @@ impl<'a> NavDrawer<'a> {
     }
 
     /// Categories open until the first click.
-    pub fn default_open(mut self, values: impl IntoIterator<Item = usize>) -> Self {
+    pub fn default_open(mut self, values: impl IntoIterator<Item = K>) -> Self {
         self.nav = self.nav.default_open(values);
         self
     }
 
     /// Docked in the layout of `ui` on the start edge, beside what is added after it.
-    pub fn show<R>(self, ui: &mut MineralUi<'_, Fluent>, add: impl FnOnce(&mut NavUi<'_, '_>) -> R) -> NavResponse<R> {
+    pub fn show<R>(
+        self,
+        ui: &mut MineralUi<'_, Fluent>,
+        add: impl FnOnce(&mut NavUi<'_, '_, K>) -> R,
+    ) -> NavResponse<K, R> {
         let rt = ui.rt();
         let t = rt.tokens();
         let dir = rt.i18n().direction();

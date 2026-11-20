@@ -26,8 +26,8 @@ fn tabs_response_changed_matches_field() {
     let mut selected = 0;
     let seen = click_key("tabs-1-tab", |ui| {
         let r = Tabs::new("tabs", "Pages", &mut selected)
-            .item(Tab::new("One"))
-            .item(Tab::new("Two"))
+            .item(0, Tab::new("One"))
+            .item(1, Tab::new("Two"))
             .show(ui);
         (r.changed, r.response.changed())
     });
@@ -40,8 +40,8 @@ fn navigation_bar_response_changed_matches_field() {
     let mut selected = 0;
     let seen = click_key("bar-1-nav-item", |ui| {
         let r = NavigationBar::new("bar", &mut selected)
-            .item(NavDestination::new(icons::ICON_HOME, "Home"))
-            .item(NavDestination::new(icons::ICON_SEARCH, "Search"))
+            .item(0, NavDestination::new(icons::ICON_HOME, "Home"))
+            .item(1, NavDestination::new(icons::ICON_SEARCH, "Search"))
             .show(ui);
         (r.changed, r.response.changed())
     });

@@ -113,8 +113,8 @@ pub trait Component {
 }
 
 macro_rules! meta {
-    ($ty:ident $(<$lt:lifetime>)?, $category:ident, $react:literal, $styles:literal) => {
-        impl $(<$lt>)? Component for $ty $(<$lt>)? {
+    ($ty:ident $(<$($g:tt),+>)?, $category:ident, $react:literal, $styles:literal) => {
+        impl $(<$($g),+>)? Component for $ty $(<$($g),+>)? {
             const META: ComponentMeta = ComponentMeta {
                 name: stringify!($ty),
                 category: Category::$category,
@@ -308,7 +308,7 @@ meta!(
     "react-tag-picker/library/src/components/TagPickerControl/useTagPickerControlStyles.styles.ts"
 );
 meta!(
-    SwatchPicker<'a>,
+    SwatchPicker<'a, K>,
     Inputs,
     "SwatchPicker",
     "react-swatch-picker/library/src/components/SwatchPicker/useSwatchPickerStyles.styles.ts"
@@ -551,7 +551,7 @@ meta!(
     "react-tabs/library/src/components/Tab/useTabStyles.styles.ts"
 );
 meta!(
-    TabList<'a>,
+    TabList<'a, K>,
     Navigation,
     "TabList",
     "react-tabs/library/src/components/TabList/useTabListStyles.styles.ts"
@@ -617,31 +617,31 @@ meta!(
     "react-overflow/library/src/components/Overflow/useOverflowStyles.styles.ts"
 );
 meta!(
-    Nav<'a>,
+    Nav<'a, K>,
     Navigation,
     "Nav",
     "react-nav/library/src/components/Nav/useNavStyles.styles.ts"
 );
 meta!(
-    NavDrawer<'a>,
+    NavDrawer<'a, K>,
     Navigation,
     "NavDrawer",
     "react-nav/library/src/components/NavDrawer/useNavDrawerStyles.styles.ts"
 );
 meta!(
-    NavItem,
+    NavItem<K>,
     Navigation,
     "NavItem",
     "react-nav/library/src/components/NavItem/useNavItemStyles.styles.ts"
 );
 meta!(
-    NavCategory,
+    NavCategory<K>,
     Navigation,
     "NavCategory",
     "react-nav/library/src/components/NavCategoryItem/useNavCategoryItem.styles.ts"
 );
 meta!(
-    NavSubItem,
+    NavSubItem<K>,
     Navigation,
     "NavSubItem",
     "react-nav/library/src/components/NavSubItem/useNavSubItemStyles.styles.ts"
@@ -778,7 +778,7 @@ pub const CATALOG: &[ComponentMeta] = &[
     <TagPicker<'static>>::META,
     <Calendar<'static>>::META,
     <DatePicker<'static>>::META,
-    <SwatchPicker<'static>>::META,
+    <SwatchPicker<'static, ()>>::META,
     Swatch::META,
     <ColorPicker<'static>>::META,
     ListOption::META,
@@ -816,7 +816,7 @@ pub const CATALOG: &[ComponentMeta] = &[
     CounterBadge::META,
     PresenceBadge::META,
     Tab::META,
-    <TabList<'static>>::META,
+    <TabList<'static, ()>>::META,
     <Toolbar<'static>>::META,
     ToolbarButton::META,
     <ToolbarToggleButton<'static>>::META,
@@ -827,11 +827,11 @@ pub const CATALOG: &[ComponentMeta] = &[
     BreadcrumbButton::META,
     BreadcrumbDivider::META,
     Overflow::META,
-    <Nav<'static>>::META,
-    <NavDrawer<'static>>::META,
-    NavItem::META,
-    NavCategory::META,
-    NavSubItem::META,
+    <Nav<'static, usize>>::META,
+    <NavDrawer<'static, usize>>::META,
+    <NavItem<usize>>::META,
+    <NavCategory<usize>>::META,
+    <NavSubItem<usize>>::META,
     NavSectionHeader::META,
     NavDivider::META,
     Menu::META,

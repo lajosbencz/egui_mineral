@@ -24,7 +24,7 @@ fn list(size: Size, appearance: TabAppearance, vertical: bool) -> impl FnMut(&mu
     let mut selected = 0;
     move |ui| {
         TabList::new("t", "Tabs", &mut selected)
-            .tabs(["One", "Two"])
+            .tabs(["One", "Two"].into_iter().enumerate())
             .size(size)
             .appearance(appearance)
             .axis(if vertical { Axis::Vertical } else { Axis::Horizontal })
@@ -89,12 +89,12 @@ fn icon_slot_adds_its_size_and_gap() {
     let with_icon = render(|ui| {
         let mut s = 0;
         TabList::new("t", "Tabs", &mut s)
-            .tab(Tab::new("One").icon(ICON_PERSON))
+            .tab(0, Tab::new("One").icon(ICON_PERSON))
             .show(ui);
     });
     let plain = render(|ui| {
         let mut s = 0;
-        TabList::new("t", "Tabs", &mut s).tab("One").show(ui);
+        TabList::new("t", "Tabs", &mut s).tab(0, "One").show(ui);
     });
     let gap = egui_mineral_fluent::spec::tokens::geometry::SPACING_HORIZONTAL_S_NUDGE;
     let extra = tab_rect(&with_icon, "t-0-tab").width() - tab_rect(&plain, "t-0-tab").width();

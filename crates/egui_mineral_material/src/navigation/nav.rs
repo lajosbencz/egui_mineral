@@ -5,6 +5,7 @@ use crate::Rt;
 use crate::msg;
 use egui::{Align, Align2, Color32, Frame, Id, Layout, Pos2, Rangef, Rect, Response, Sense, Vec2, pos2, vec2};
 use egui_mineral::i18n::I18n;
+use egui_mineral::kit::choice::Choice;
 use egui_mineral::kit::state::TempState;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::Availability;
@@ -153,17 +154,17 @@ impl Group {
         ui: &mut MineralUi<'_, Material>,
         group: Id,
         items: &[NavDestination],
-        selected: usize,
+        selected: Option<usize>,
         row: ItemRow,
     ) -> (Option<usize>, Option<Id>) {
         let rt = ui.rt();
         let enabled = |i: usize| items.get(i).is_some_and(|d| !d.disabled);
-        let tab_stop = focus::tab_stop(rt.ctx(), group, Some(selected), items.len(), enabled);
+        let tab_stop = focus::tab_stop(rt.ctx(), group, selected, items.len(), enabled);
         let mut ids = Vec::with_capacity(items.len());
         let mut picked = None;
         let shape = row.shape.dense(ui.density(), row.font);
         for (i, dest) in items.iter().enumerate() {
-            let is_selected = i == selected;
+            let is_selected = selected == Some(i);
             let own = crate::widget::item_salt(&self.salt, dest.salt.as_ref(), None, i);
             let r = ui.mineral(NavItem {
                 salt: own.child("nav-item"),
@@ -219,15 +220,18 @@ macro_rules! group_setters {
 /// `item` and `items` over the `items` field.
 macro_rules! destination_setters {
     () => {
-        /// Appends one destination.
-        pub fn item(mut self, destination: impl Into<NavDestination>) -> Self {
+        /// Appends one destination carrying `value`.
+        pub fn item(mut self, value: K, destination: impl Into<NavDestination>) -> Self {
+            self.choice.push(value);
             self.items.push(destination.into());
             self
         }
 
-        /// Appends destinations.
-        pub fn items(mut self, destinations: impl IntoIterator<Item = impl Into<NavDestination>>) -> Self {
-            self.items.extend(destinations.into_iter().map(Into::into));
+        /// Appends `(value, destination)` pairs.
+        pub fn items(mut self, destinations: impl IntoIterator<Item = (K, impl Into<NavDestination>)>) -> Self {
+            for (value, destination) in destinations {
+                self = self.item(value, destination);
+            }
             self
         }
     };
@@ -691,22 +695,23 @@ impl MineralWidget for NavItem<'_> {
 /// MD3 bottom navigation bar (Compose `NavigationBar`, `ShortNavigationBar`).
 #[derive(Debug)]
 #[must_use = "call .show(..)"]
-pub struct NavigationBar<'a> {
+pub struct NavigationBar<'a, K> {
     group: Group,
-    selected: &'a mut usize,
+    choice: Choice<'a, K>,
     items: Vec<NavDestination>,
     flexible: bool,
     item_axis: Option<Axis>,
     labels: NavLabels,
 }
 
-impl<'a> NavigationBar<'a> {
-    /// `selected` is the bound destination index, moved onto the last one when past it. Agent key prefix `<id_salt>`.
-    pub fn new(id_salt: impl Into<KeyedSalt>, selected: &'a mut usize) -> Self {
+impl<'a, K: PartialEq + Clone> NavigationBar<'a, K> {
+    /// Selects the destination whose value equals `selected`, none when no destination matches. Agent key
+    /// prefix `<id_salt>`.
+    pub fn new(id_salt: impl Into<KeyedSalt>, selected: &'a mut K) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
             group: Group::new(id_salt),
-            selected,
+            choice: Choice::one(selected),
             items: Vec::new(),
             flexible: false,
             item_axis: None,
@@ -740,11 +745,10 @@ impl<'a> NavigationBar<'a> {
         self
     }
 
-    /// Paints the bar and updates `selected` on a pick.
-    pub fn show(mut self, ui: &mut MineralUi<'_, Material>) -> SelectionResponse {
+    /// Paints the bar and writes the picked destination's value to `selected`.
+    pub fn show(mut self, ui: &mut MineralUi<'_, Material>) -> SelectionResponse<K> {
         let rt = ui.rt();
         let n = self.items.len();
-        clamp_selected(self.selected, n, "NavigationBar selected");
         self.group.apply(&mut self.items);
         let t = rt.tokens();
         let id = ui.make_persistent_id(self.group.salt.id_salt());
@@ -797,19 +801,19 @@ impl<'a> NavigationBar<'a> {
         let scope = self.group.salt.child("items");
         egui_mineral::layout::child(ui, scope, rect, rt.i18n().direction().row(), |ui| {
             ui.spacing_mut().item_spacing = vec2(space, 0.0);
-            picked = self.group.items(ui, id, &self.items, *self.selected, row).0;
+            picked = self.group.items(ui, id, &self.items, self.choice.index(), row).0;
         });
         self.group.emit(rt, response.id, rect, "navigation", None);
-        SelectionResponse::pick(response, self.selected, picked)
+        self.choice.pick(response, picked)
     }
 }
 
 /// Result of [`NavigationRail::show`] and [`NavigationRail::show_modal`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct NavigationRailResponse {
+pub struct NavigationRailResponse<K> {
     /// Destination outcome.
-    pub selection: SelectionResponse,
+    pub selection: SelectionResponse<K>,
     /// Menu button clicked this frame; the app toggles [`NavigationRail::expanded`].
     pub leading_clicked: bool,
     /// Expanded modal rail surface; `None` while collapsed and always from [`NavigationRail::show`].
@@ -835,9 +839,9 @@ struct RailBody {
 
 /// MD3 navigation rail, optionally expanding modally (Compose `NavigationRail`, `ModalWideNavigationRail`).
 #[must_use = "call .show(..)"]
-pub struct NavigationRail<'a> {
+pub struct NavigationRail<'a, K> {
     group: Group,
-    selected: &'a mut usize,
+    choice: Choice<'a, K>,
     items: Vec<NavDestination>,
     menu: bool,
     fab: Option<FabFn<'a>>,
@@ -845,15 +849,16 @@ pub struct NavigationRail<'a> {
     labels: NavLabels,
 }
 
-egui_mineral::kit::opaque_debug!(NavigationRail<'_>);
+egui_mineral::kit::opaque_debug!(NavigationRail<'_, K>);
 
-impl<'a> NavigationRail<'a> {
-    /// `selected` is the bound destination index, moved onto the last one when past it. Agent key prefix `<id_salt>`.
-    pub fn new(id_salt: impl Into<KeyedSalt>, selected: &'a mut usize) -> Self {
+impl<'a, K: PartialEq + Clone> NavigationRail<'a, K> {
+    /// Selects the destination whose value equals `selected`, none when no destination matches. Agent key
+    /// prefix `<id_salt>`.
+    pub fn new(id_salt: impl Into<KeyedSalt>, selected: &'a mut K) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
             group: Group::new(id_salt),
-            selected,
+            choice: Choice::one(selected),
             items: Vec::new(),
             menu: false,
             fab: None,
@@ -923,21 +928,20 @@ impl<'a> NavigationRail<'a> {
         }
     }
 
-    /// Paints the rail in place and updates `selected` on a pick.
-    pub fn show(self, ui: &mut MineralUi<'_, Material>) -> NavigationRailResponse {
+    /// Paints the rail in place and writes the picked destination's value to `selected`.
+    pub fn show(self, ui: &mut MineralUi<'_, Material>) -> NavigationRailResponse<K> {
         self.run(ui, None)
     }
 
     /// `ModalWideNavigationRail`: the collapsed rail stays in the layout; while `open` the expanded rail
     /// floats over a scrim. A pick, the menu button or a dismissal closes it; the menu button opens it.
-    pub fn show_modal(mut self, ui: &mut MineralUi<'_, Material>, open: &mut bool) -> NavigationRailResponse {
+    pub fn show_modal(mut self, ui: &mut MineralUi<'_, Material>, open: &mut bool) -> NavigationRailResponse<K> {
         self.mode = RailMode::Modal(*open);
         self.run(ui, Some(open))
     }
 
-    fn run(mut self, ui: &mut MineralUi<'_, Material>, modal_open: Option<&mut bool>) -> NavigationRailResponse {
+    fn run(mut self, ui: &mut MineralUi<'_, Material>, modal_open: Option<&mut bool>) -> NavigationRailResponse<K> {
         let rt = ui.rt();
-        clamp_selected(self.selected, self.items.len(), "NavigationRail selected");
         self.group.apply(&mut self.items);
         let ctx = ui.ctx().clone();
         let t = rt.tokens();
@@ -988,7 +992,7 @@ impl<'a> NavigationRail<'a> {
         });
         self.group.emit(rt, response.id, rect, "navigation", expanded);
         NavigationRailResponse {
-            selection: SelectionResponse::pick(response, self.selected, body.picked),
+            selection: self.choice.pick(response, body.picked),
             leading_clicked: body.menu_clicked,
             popup,
             dismissed,
@@ -1139,7 +1143,7 @@ impl<'a> NavigationRail<'a> {
                 .auto_shrink([false, true])
                 .show(ui, |ui| {
                     self.group
-                        .items(&mut rt.ui(ui), group, &self.items, *self.selected, row)
+                        .items(&mut rt.ui(ui), group, &self.items, self.choice.index(), row)
                 })
                 .inner;
         });
@@ -1190,32 +1194,33 @@ enum DrawerEntry {
 /// Result of [`NavigationDrawer::show_modal`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct NavigationDrawerModalResponse {
+pub struct NavigationDrawerModalResponse<K> {
     /// Destination outcome on the drawer surface; `None` while closed.
-    pub selection: Option<SelectionResponse>,
+    pub selection: Option<SelectionResponse<K>>,
     /// `None` when a pick closed the drawer.
     pub dismissed: Option<Dismiss>,
 }
 
 /// MD3 navigation drawer, standard or modal (Compose `PermanentNavigationDrawer`, `ModalNavigationDrawer`).
 #[must_use = "call .show(..)"]
-pub struct NavigationDrawer<'a> {
+pub struct NavigationDrawer<'a, K> {
     drawer: Drawer,
-    selected: &'a mut usize,
+    choice: Choice<'a, K>,
 }
 
-egui_mineral::kit::opaque_debug!(NavigationDrawer<'_>);
+egui_mineral::kit::opaque_debug!(NavigationDrawer<'_, K>);
 
-impl<'a> NavigationDrawer<'a> {
-    /// `selected` is the bound destination index, moved onto the last one when past it. Agent key prefix `<id_salt>`.
-    pub fn new(id_salt: impl Into<KeyedSalt>, selected: &'a mut usize) -> Self {
+impl<'a, K: PartialEq + Clone> NavigationDrawer<'a, K> {
+    /// Selects the destination whose value equals `selected`, none when no destination matches. Agent key
+    /// prefix `<id_salt>`.
+    pub fn new(id_salt: impl Into<KeyedSalt>, selected: &'a mut K) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
             drawer: Drawer {
                 group: Group::new(id_salt),
                 entries: Vec::new(),
             },
-            selected,
+            choice: Choice::one(selected),
         }
     }
 
@@ -1231,17 +1236,18 @@ impl<'a> NavigationDrawer<'a> {
         self
     }
 
-    /// Appends one destination.
-    pub fn item(mut self, destination: impl Into<NavDestination>) -> Self {
+    /// Appends one destination carrying `value`.
+    pub fn item(mut self, value: K, destination: impl Into<NavDestination>) -> Self {
+        self.choice.push(value);
         self.drawer.entries.push(DrawerEntry::Item(destination.into()));
         self
     }
 
-    /// Appends destinations.
-    pub fn items(mut self, destinations: impl IntoIterator<Item = impl Into<NavDestination>>) -> Self {
-        self.drawer
-            .entries
-            .extend(destinations.into_iter().map(|d| DrawerEntry::Item(d.into())));
+    /// Appends `(value, destination)` pairs.
+    pub fn items(mut self, destinations: impl IntoIterator<Item = (K, impl Into<NavDestination>)>) -> Self {
+        for (value, destination) in destinations {
+            self = self.item(value, destination);
+        }
         self
     }
 
@@ -1252,13 +1258,13 @@ impl<'a> NavigationDrawer<'a> {
     }
 
     /// Standard drawer in the layout.
-    pub fn show(self, ui: &mut MineralUi<'_, Material>) -> SelectionResponse {
-        self.drawer.show(ui, self.selected)
+    pub fn show(mut self, ui: &mut MineralUi<'_, Material>) -> SelectionResponse<K> {
+        self.drawer.show(ui, &mut self.choice)
     }
 
     /// `ModalNavigationDrawer` over a scrim while `open`; a pick or a dismissal clears `open`.
-    pub fn show_modal(self, rt: &Rt, open: &mut bool) -> NavigationDrawerModalResponse {
-        self.drawer.show_modal(rt, open, self.selected)
+    pub fn show_modal(mut self, rt: &Rt, open: &mut bool) -> NavigationDrawerModalResponse<K> {
+        self.drawer.show_modal(rt, open, &mut self.choice)
     }
 }
 
@@ -1268,23 +1274,21 @@ struct Drawer {
 }
 
 impl Drawer {
-    fn prepare(&mut self, selected: &mut usize) {
+    fn prepare(&mut self) {
         let items = self.entries.iter_mut().filter_map(|e| match e {
             DrawerEntry::Item(d) => Some(d),
             DrawerEntry::Section(_) | DrawerEntry::Divider => None,
         });
         self.group.apply(items);
-        let n = self
-            .entries
-            .iter()
-            .filter(|e| matches!(e, DrawerEntry::Item(_)))
-            .count();
-        clamp_selected(selected, n, "NavigationDrawer selected");
     }
 
-    fn show(mut self, ui: &mut MineralUi<'_, Material>, selected: &mut usize) -> SelectionResponse {
+    fn show<K: PartialEq + Clone>(
+        mut self,
+        ui: &mut MineralUi<'_, Material>,
+        choice: &mut Choice<'_, K>,
+    ) -> SelectionResponse<K> {
         let rt = ui.rt();
-        self.prepare(selected);
+        self.prepare();
         let t = rt.tokens();
         let id = ui.make_persistent_id(self.group.salt.id_salt());
         let width = ui.available_width().min(drawer::CONTAINER_WIDTH);
@@ -1295,15 +1299,20 @@ impl Drawer {
         let mut picked = None;
         let scope = self.group.salt.child("content");
         egui_mineral::layout::child(ui, scope, rect, rt.i18n().direction().column(), |ui| {
-            picked = self.content(ui, id, width, *selected).0;
+            picked = self.content(ui, id, width, choice.index()).0;
         });
         self.group.emit(rt, response.id, rect, "navigation", None);
-        SelectionResponse::pick(response, selected, picked)
+        choice.pick(response, picked)
     }
 
-    fn show_modal(mut self, rt: &Rt, open: &mut bool, selected: &mut usize) -> NavigationDrawerModalResponse {
+    fn show_modal<K: PartialEq + Clone>(
+        mut self,
+        rt: &Rt,
+        open: &mut bool,
+        choice: &mut Choice<'_, K>,
+    ) -> NavigationDrawerModalResponse<K> {
         let ctx = rt.ctx();
-        self.prepare(selected);
+        self.prepare();
         let t = rt.tokens();
         let id = egui_mineral::kit::scoped_id(rt.core(), Id::unique(("mineral::drawer", self.group.salt.id_salt())));
         let screen = ctx.content_rect();
@@ -1322,7 +1331,7 @@ impl Drawer {
             pos2(screen.left() + offset.min(0.0), screen.top()),
             pos2(screen.left() + offset + width, screen.bottom()),
         ));
-        let current = *selected;
+        let current = choice.index();
         let mut picked = None;
         let (response, close) = ModalPanel {
             id,
@@ -1370,7 +1379,7 @@ impl Drawer {
         if picked.is_some() {
             *open = false;
         }
-        let selection = response.map(|response| SelectionResponse::pick(response, selected, picked));
+        let selection = response.map(|response| choice.pick(response, picked));
         NavigationDrawerModalResponse { selection, dismissed }
     }
 
@@ -1379,7 +1388,7 @@ impl Drawer {
         ui: &mut MineralUi<'_, Material>,
         id: Id,
         width: f32,
-        selected: usize,
+        selected: Option<usize>,
     ) -> (Option<usize>, Option<Id>) {
         let rt = ui.rt();
         let mut ids = Vec::new();
@@ -1423,7 +1432,7 @@ impl Drawer {
                                     salt: own.child("nav-item"),
                                     key: StableId::of(&own, "nav-item"),
                                     dest,
-                                    selected: selected == index,
+                                    selected: selected == Some(index),
                                 };
                                 let r = rt.ui(ui).mineral(item);
                                 if r.changed() {
@@ -1438,7 +1447,10 @@ impl Drawer {
                 });
             });
         RovingFocus::new(Axis::Vertical).update(ui.core(), &ids, |i| item_enabled[i]);
-        (picked, ids.get(picked.unwrap_or(selected)).or(ids.first()).copied())
+        (
+            picked,
+            picked.or(selected).and_then(|i| ids.get(i)).or(ids.first()).copied(),
+        )
     }
 }
 
@@ -1563,12 +1575,6 @@ impl MineralWidget for DrawerItem<'_> {
 }
 
 #[track_caller]
-pub(crate) fn clamp_selected(selected: &mut usize, len: usize, what: &str) {
-    if let Some(i) = egui_mineral::kit::sanitize::index(*selected, len, what) {
-        *selected = i;
-    }
-}
-
 fn drawer_motion_id(base: egui::Id) -> egui::Id {
     base.with("drawer-motion")
 }

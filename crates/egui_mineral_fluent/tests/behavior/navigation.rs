@@ -18,9 +18,9 @@ use crate::support::{FluentHarness, Harness, harness};
 fn tabs(vertical: bool, select_on_focus: bool) -> Harness<'static, usize> {
     harness(0_usize, move |ui, selected| {
         TabList::new("t", "Tabs", selected)
-            .tab("One")
-            .tab(Tab::new("Two").disabled(true))
-            .tab("Three")
+            .tab(0, "One")
+            .tab(1, Tab::new("Two").disabled(true))
+            .tab(2, "Three")
             .axis(if vertical { Axis::Vertical } else { Axis::Horizontal })
             .select_on_focus(select_on_focus)
             .show(ui);
@@ -97,7 +97,11 @@ fn toolbar(vertical: bool) -> Harness<'static, Bar> {
             .action(ToolbarButton::new("Copy").disabled(true))
             .divider()
             .toggle(ToolbarToggleButton::new("Bold", &mut s.bold))
-            .radio_group(ToolbarRadioGroup::new(&mut s.align).option("Left").option("Right"))
+            .radio_group(
+                ToolbarRadioGroup::new(&mut s.align)
+                    .option(0, "Left")
+                    .option(1, "Right"),
+            )
             .show(ui);
     })
 }

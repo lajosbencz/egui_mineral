@@ -133,8 +133,8 @@ pub trait Component {
 }
 
 macro_rules! meta {
-    ($ty:ident $(<$lt:lifetime>)?, $category:ident, $origin:expr, $spec:expr) => {
-        impl $(<$lt>)? Component for $ty $(<$lt>)? {
+    ($ty:ident $(<$lt:lifetime $(, $g:ident)*>)?, $category:ident, $origin:expr, $spec:expr) => {
+        impl $(<$lt $(, $g)*>)? Component for $ty $(<$lt $(, $g)*>)? {
             const META: ComponentMeta = ComponentMeta {
                 name: stringify!($ty),
                 category: Category::$category,
@@ -276,28 +276,28 @@ meta!(
 );
 
 meta!(
-    Tabs<'a>,
+    Tabs<'a, K>,
     Navigation,
     Origin::Md3,
     "https://m3.material.io/components/tabs/specs"
 );
 
 meta!(
-    NavigationBar<'a>,
+    NavigationBar<'a, K>,
     Navigation,
     Origin::Md3,
     "https://m3.material.io/components/navigation-bar/specs"
 );
 
 meta!(
-    NavigationRail<'a>,
+    NavigationRail<'a, K>,
     Navigation,
     Origin::Md3,
     "https://m3.material.io/components/navigation-rail/specs"
 );
 
 meta!(
-    NavigationDrawer<'a>,
+    NavigationDrawer<'a, K>,
     Navigation,
     Origin::Md3,
     "https://m3.material.io/components/navigation-drawer/specs"
@@ -402,14 +402,14 @@ meta!(
 );
 
 meta!(
-    ButtonGroup<'a>,
+    ButtonGroup<'a, K>,
     Actions,
     Origin::Md3Expressive,
     "https://m3.material.io/components/button-groups/specs"
 );
 
 meta!(
-    SegmentedButton<'a>,
+    SegmentedButton<'a, K>,
     Actions,
     Origin::Md3,
     "https://m3.material.io/components/segmented-buttons/specs"
@@ -465,7 +465,7 @@ meta!(
 );
 
 meta!(
-    Select<'a>,
+    Select<'a, K>,
     Selection,
     Origin::Md3,
     "https://m3.material.io/components/menus/specs"
@@ -846,10 +846,10 @@ pub const CATALOG: &[ComponentMeta] = &[
     Divider::META,
     LinearProgressIndicator::META,
     CircularProgressIndicator::META,
-    <Tabs<'static>>::META,
-    <NavigationBar<'static>>::META,
-    <NavigationRail<'static>>::META,
-    <NavigationDrawer<'static>>::META,
+    <Tabs<'static, ()>>::META,
+    <NavigationBar<'static, ()>>::META,
+    <NavigationRail<'static, ()>>::META,
+    <NavigationDrawer<'static, ()>>::META,
     Menu::META,
     ListItem::META,
     RichTooltip::META,
@@ -869,8 +869,8 @@ pub const CATALOG: &[ComponentMeta] = &[
     <DateRangePicker<'static>>::META,
     <TimePicker<'static>>::META,
     Carousel::META,
-    <ButtonGroup<'static>>::META,
-    <SegmentedButton<'static>>::META,
+    <ButtonGroup<'static, ()>>::META,
+    <SegmentedButton<'static, ()>>::META,
     SplitButton::META,
     FabMenu::META,
     <DockedToolbar<'static>>::META,
@@ -890,7 +890,7 @@ pub const CATALOG: &[ComponentMeta] = &[
     #[cfg(feature = "extras")]
     FloatingPanel::META,
     PullToRefresh::META,
-    <Select<'static>>::META,
+    <Select<'static, ()>>::META,
     #[cfg(feature = "extras")]
     <Combobox<'static>>::META,
     #[cfg(feature = "extras")]

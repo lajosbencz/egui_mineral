@@ -1,4 +1,5 @@
 use egui::{Frame, Margin, UiBuilder, vec2};
+use egui_mineral::kit::choice::Choice;
 use egui_mineral::{
     action::Clicked,
     focus::{self as roving, RovingFocus},
@@ -16,7 +17,6 @@ use crate::{
     },
     spec::{defaults::toolbar as d, tokens::geometry as g},
     surfaces::Divider,
-    widget::choice::{self, Choice},
 };
 
 use super::{
@@ -188,49 +188,67 @@ impl From<&str> for ToolbarRadioButton {
     }
 }
 
-/// Radio buttons sharing one bound index or value (Fluent `checkedValues` name).
+/// Radio buttons sharing one bound value (Fluent `checkedValues` name).
 #[derive(Debug)]
 #[must_use]
-pub struct ToolbarRadioGroup<'a> {
-    selected: Choice<'a>,
+pub struct ToolbarRadioGroup<'a, K> {
+    selected: Choice<'a, K>,
     buttons: Vec<ToolbarRadioButton>,
 }
 
-impl<'a> ToolbarRadioGroup<'a> {
-    /// `selected` is the checked button's index in the group.
-    pub fn new(selected: &'a mut usize) -> Self {
+impl<'a, K: PartialEq + Clone> ToolbarRadioGroup<'a, K> {
+    /// Checks the button whose value equals `selected`, none when no button matches.
+    pub fn new(selected: &'a mut K) -> Self {
         Self {
-            selected: Choice::by_index(selected),
+            selected: Choice::one(selected),
             buttons: Vec::new(),
         }
     }
 
-    /// Binds the value of the checked button instead of its index: each of `options` comes with its value,
-    /// a pick writes it into `value`, and no button is checked while `value` matches none. Buttons added
-    /// with [`Self::option`] have no value and cannot be picked.
-    pub fn bound<T: PartialEq + Clone + 'a>(
-        options: impl IntoIterator<Item = (T, impl Into<ToolbarRadioButton>)>,
-        value: &'a mut T,
-    ) -> Self {
-        let (values, buttons) = choice::split(options);
-        Self {
-            selected: Choice::by_value(value, values),
-            buttons,
-        }
-    }
-
-    /// Appends one radio button.
-    pub fn option(mut self, button: impl Into<ToolbarRadioButton>) -> Self {
+    /// Appends one radio button carrying `value`.
+    pub fn option(mut self, value: K, button: impl Into<ToolbarRadioButton>) -> Self {
+        self.selected.push(value);
         self.buttons.push(button.into());
         self
     }
+
+    /// Appends `(value, button)` pairs.
+    pub fn options(mut self, options: impl IntoIterator<Item = (K, impl Into<ToolbarRadioButton>)>) -> Self {
+        for (value, button) in options {
+            self = self.option(value, button);
+        }
+        self
+    }
 }
+
+// A radio group with its value type erased, so one toolbar holds groups of different types.
+trait Radios {
+    fn selected(&self) -> Option<usize>;
+    fn select(&mut self, index: usize) -> bool;
+}
+
+impl<K: PartialEq + Clone> Radios for Choice<'_, K> {
+    fn selected(&self) -> Option<usize> {
+        self.index()
+    }
+
+    fn select(&mut self, index: usize) -> bool {
+        Choice::select(self, index)
+    }
+}
+
+struct RadioEntry<'a> {
+    selected: Box<dyn Radios + 'a>,
+    buttons: Vec<ToolbarRadioButton>,
+}
+
+egui_mineral::kit::opaque_debug!(RadioEntry<'_>);
 
 #[derive(Debug)]
 enum Entry<'a> {
     Button(ToolbarButton),
     Toggle(ToolbarToggleButton<'a>),
-    Radio(ToolbarRadioGroup<'a>),
+    Radio(RadioEntry<'a>),
     Divider,
     Group(ToolbarGroup<'a>),
 }
@@ -255,8 +273,11 @@ macro_rules! entries {
         }
 
         /// Appends radio buttons.
-        pub fn radio_group(mut self, group: ToolbarRadioGroup<'a>) -> Self {
-            self.$field.push(Entry::Radio(group));
+        pub fn radio_group<K: PartialEq + Clone + 'a>(mut self, group: ToolbarRadioGroup<'a, K>) -> Self {
+            self.$field.push(Entry::Radio(RadioEntry {
+                selected: Box::new(group.selected),
+                buttons: group.buttons,
+            }));
             self
         }
 
@@ -294,7 +315,7 @@ enum Slot<'a> {
     Item(Box<Base>, Kind<'a>, usize),
 }
 
-fn flatten<'a>(entries: Vec<Entry<'a>>, slots: &mut Vec<Slot<'a>>, groups: &mut Vec<Choice<'a>>) {
+fn flatten<'a>(entries: Vec<Entry<'a>>, slots: &mut Vec<Slot<'a>>, groups: &mut Vec<Box<dyn Radios + 'a>>) {
     for entry in entries {
         match entry {
             Entry::Button(b) => slots.push(Slot::Item(Box::new(b.0), Kind::Plain, 0)),
@@ -352,7 +373,7 @@ impl Run {
         ui: &mut egui::Ui,
         salt: &KeyedSalt,
         (base, kind, index): (Base, Kind<'a>, usize),
-        groups: &mut [Choice<'a>],
+        groups: &mut [Box<dyn Radios + 'a>],
     ) {
         let pos = self.ids.len();
         let off = base.disabled;
@@ -394,7 +415,7 @@ impl Run {
         (menu, owner): (Menu, egui::Id),
         trigger: &egui::Response,
         hidden: Vec<Slot<'a>>,
-        groups: &mut [Choice<'a>],
+        groups: &mut [Box<dyn Radios + 'a>],
     ) {
         let mut open = overflow::is_open(ui.ctx(), owner);
         menu.show(rt, trigger, &mut open, |m| {
@@ -408,7 +429,7 @@ impl Run {
         overflow::set_open(ui.ctx(), owner, open);
     }
 
-    fn pick(&mut self, groups: &mut [Choice<'_>], group: usize, value: usize) {
+    fn pick(&mut self, groups: &mut [Box<dyn Radios + '_>], group: usize, value: usize) {
         if let Some(g) = groups.get_mut(group) {
             self.changed |= g.select(value);
         }
@@ -418,7 +439,7 @@ impl Run {
         &mut self,
         m: &mut MenuUi<'_, '_>,
         (base, kind, index): (Base, Kind<'a>, usize),
-        groups: &mut [Choice<'a>],
+        groups: &mut [Box<dyn Radios + 'a>],
     ) {
         let ran = Clicked::new(index, base.action_key);
         let mut item = MenuItem::new(base.label).disabled(base.disabled);

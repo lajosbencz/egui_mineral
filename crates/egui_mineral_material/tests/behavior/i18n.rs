@@ -111,8 +111,8 @@ mod mirror {
         ui.mineral(Rating::new("r", "Rate", &mut rating));
         ui.mineral(LinearProgressIndicator::determinate("lp", 0.4));
         Tabs::new("tabs", "Tabs", &mut tab)
-            .item(Tab::new("One"))
-            .item(Tab::new("Two").icon(ICON_MAIL))
+            .item(0, Tab::new("One"))
+            .item(1, Tab::new("Two").icon(ICON_MAIL))
             .show(ui);
         ui.mineral(Statistic::new("st", "Label", 42.0).supporting("Up"));
         ui.mineral(
@@ -167,8 +167,8 @@ mod mirror {
                 ui.label(format!("Step {i}"));
             });
         NavigationBar::new("nav", &mut tab)
-            .item(NavDestination::new(ICON_HOME, "Home"))
-            .item(NavDestination::new(ICON_MAIL, "Mail"))
+            .item(0, NavDestination::new(ICON_HOME, "Home"))
+            .item(1, NavDestination::new(ICON_MAIL, "Mail"))
             .show(ui);
         MenuStrip::new("strip")
             .menu(Menu::new("file", "File").item(MenuItem::new("Open")))
@@ -179,7 +179,12 @@ mod mirror {
             .show(ui);
         ui.mineral(IconButton::new("mail", ICON_MAIL, "Mail").badge(Badge::count(12)));
         let options = [SelectOption::new("Wav"), SelectOption::new("Flac")];
-        ui.mineral(Select::new("format", "Format", options, &mut selected));
+        ui.mineral(Select::new(
+            "format",
+            "Format",
+            options.into_iter().enumerate(),
+            &mut selected,
+        ));
     }
 
     type Gallery = fn(&mut Mui<'_>);
@@ -246,7 +251,7 @@ mod mirror {
             }),
             ("drawer", |ui| {
                 NavigationDrawer::new("nav", &mut 0)
-                    .item(NavDestination::new(ICON_HOME, "Home"))
+                    .item(0, NavDestination::new(ICON_HOME, "Home"))
                     .show_modal(ui.rt(), &mut true);
             }),
             ("side sheet", |ui| {

@@ -180,11 +180,11 @@ impl Shell {
     }
 
     fn rail(&mut self, ui: &mut MaterialUi<'_>, class: WindowClass) {
-        let mut selected = self.router.current().index();
+        let mut selected = *self.router.current();
         let rail = Page::ALL
             .iter()
             .fold(NavigationRail::new("rail", &mut selected).menu_button(true), |r, p| {
-                r.item(NavDestination::new(p.icon(), p.title()))
+                r.item(*p, NavDestination::new(p.icon(), p.title()))
             });
         let r = if class >= WindowClass::Expanded {
             rail.expanded(self.rail_expanded).show(ui)
@@ -194,23 +194,23 @@ impl Shell {
         if r.leading_clicked && class >= WindowClass::Expanded {
             self.rail_expanded = !self.rail_expanded;
         }
-        if let Some(i) = r.selection.selected.filter(|_| r.selection.changed) {
-            self.navigate(Page::ALL[i]);
+        if let Some(page) = r.selection.selected.filter(|_| r.selection.changed) {
+            self.navigate(page);
         }
     }
 
     fn drawer(&mut self, rt: &Rt) {
-        let mut selected = self.router.current().index();
+        let mut selected = *self.router.current();
         let drawer = Page::ALL.iter().fold(
             NavigationDrawer::new("drawer", &mut selected).section("egui_mineral"),
-            |d, p| d.item(NavDestination::new(p.icon(), p.title())),
+            |d, p| d.item(*p, NavDestination::new(p.icon(), p.title())),
         );
-        if let Some(i) = drawer
+        if let Some(page) = drawer
             .show_modal(rt, &mut self.drawer_open)
             .selection
             .and_then(|s| s.selected)
         {
-            self.navigate(Page::ALL[i]);
+            self.navigate(page);
         }
     }
 }

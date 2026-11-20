@@ -159,7 +159,7 @@ fn fields(size: Size) -> Vec<(String, Add)> {
         group(n("TabList"), move |ui| {
             let tabs = [Tab::new("One"), Tab::new("Two")];
             TabList::new("c", "Tabs", &mut 0)
-                .tabs(tabs)
+                .tabs(tabs.into_iter().enumerate())
                 .size(size)
                 .show(ui)
                 .response

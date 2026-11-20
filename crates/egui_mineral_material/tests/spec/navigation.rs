@@ -40,8 +40,8 @@ fn tab_rows_follow_compose_heights() {
     let mut sel = 0;
     let p = render(|ui| {
         Tabs::new("t", "Tabs", &mut sel)
-            .item(Tab::new("A"))
-            .item(Tab::new("B"))
+            .item(0, Tab::new("A"))
+            .item(1, Tab::new("B"))
             .show(ui);
     });
     assert_eq!(p.outer.height(), primary_navigation_tab::CONTAINER_HEIGHT);
@@ -55,7 +55,7 @@ fn tab_rows_follow_compose_heights() {
     );
     let p = render(|ui| {
         Tabs::new("ti", "Tabs", &mut sel)
-            .item(Tab::new("A").icon(ICON_HOME))
+            .item(0, Tab::new("A").icon(ICON_HOME))
             .show(ui);
     });
     assert_eq!(p.outer.height(), tab::LARGE_HEIGHT);
@@ -70,8 +70,8 @@ fn navigation_bars_take_their_container_heights() {
     ] {
         let p = render(|ui| {
             NavigationBar::new(("nb", flexible), &mut sel)
-                .item(NavDestination::new(ICON_HOME, "Home"))
-                .item(NavDestination::new(ICON_HOME, "Away"))
+                .item(0, NavDestination::new(ICON_HOME, "Home"))
+                .item(1, NavDestination::new(ICON_HOME, "Away"))
                 .flexible(flexible)
                 .item_axis(Axis::Vertical)
                 .show(ui);

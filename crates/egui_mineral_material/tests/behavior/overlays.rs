@@ -225,7 +225,7 @@ fn modal_navigation_drawer_reports_dismissal_and_picks() {
     let h = still(WIDE, (true, None), |ui, (open, dismissed)| {
         let mut selected = 0;
         let r = NavigationDrawer::new("nav", &mut selected)
-            .item(NavDestination::new(ICON_HOME, "Home"))
+            .item(0, NavDestination::new(ICON_HOME, "Home"))
             .show_modal(ui.rt(), open);
         *dismissed = dismissed.or(r.dismissed);
     });
@@ -236,8 +236,8 @@ fn modal_navigation_drawer_reports_dismissal_and_picks() {
     );
     let mut h = still(WIDE, (true, 0, None), |ui, (open, selected, picked)| {
         let r = NavigationDrawer::new("nav", selected)
-            .item(NavDestination::new(ICON_HOME, "Home"))
-            .item(NavDestination::new(ICON_MAIL, "Mail"))
+            .item(0, NavDestination::new(ICON_HOME, "Home"))
+            .item(1, NavDestination::new(ICON_MAIL, "Mail"))
             .show_modal(ui.rt(), open);
         *picked = picked.or(r.selection.and_then(|s| s.selected));
     });
@@ -251,7 +251,7 @@ fn modal_navigation_rail_reports_dismissal() {
     let h = still(WIDE, (true, None), |ui, (open, dismissed)| {
         let mut selected = 0;
         let r = NavigationRail::new("rail", &mut selected)
-            .item(NavDestination::new(ICON_HOME, "Home"))
+            .item(0, NavDestination::new(ICON_HOME, "Home"))
             .show_modal(ui, open);
         *dismissed = dismissed.or(r.dismissed);
     });

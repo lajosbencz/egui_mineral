@@ -1,4 +1,3 @@
-pub(crate) mod choice;
 pub(crate) mod focus;
 pub(crate) mod paint;
 pub(crate) mod state;

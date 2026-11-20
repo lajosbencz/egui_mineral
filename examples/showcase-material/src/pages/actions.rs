@@ -398,7 +398,7 @@ fn fab_menu(ui: &mut MaterialUi<'_>, shared: &mut Shared) {
 }
 
 fn button_group(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
-    section(ui, TOPICS[5], Some(<ButtonGroup<'static>>::META), |ui| {
+    section(ui, TOPICS[5], Some(<ButtonGroup<'static, ()>>::META), |ui| {
         sub(ui, "Standard, plain actions");
         let r = ButtonGroup::new("grp-std", "Actions")
             .items([
@@ -412,43 +412,52 @@ fn button_group(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
             shared.toast(format!("Group item {}", i.index()));
         }
         sub(ui, "Standard, single selection (mixed text/icon)");
-        ButtonGroup::new("grp-single", "Alignment")
-            .items([
-                ButtonGroupItem::new("Left").icon(ICON_EDIT),
-                ButtonGroupItem::new("Star").icon(ICON_STAR).label_visible(false),
-                ButtonGroupItem::new("Disabled").disabled(true),
-            ])
+        ButtonGroup::selection("grp-single", "Alignment", &mut s.group_single)
+            .toggles(
+                [
+                    ButtonGroupItem::new("Left").icon(ICON_EDIT),
+                    ButtonGroupItem::new("Star").icon(ICON_STAR).label_visible(false),
+                    ButtonGroupItem::new("Disabled").disabled(true),
+                ]
+                .into_iter()
+                .enumerate(),
+            )
             .button_variant(ContainerVariant::Outlined)
-            .selection(&mut s.group_single)
             .show(ui);
         sub(ui, "Standard, multi selection, sizes");
         for (i, (sz, name)) in SIZES.into_iter().enumerate().take(3) {
-            ButtonGroup::new(("grp-multi", i), name)
-                .items([
-                    ButtonGroupItem::new("Bold").icon(ICON_FORMAT_BOLD).label_visible(false),
-                    ButtonGroupItem::new("Italic")
-                        .icon(ICON_FORMAT_ITALIC)
-                        .label_visible(false),
-                    ButtonGroupItem::new("Underline")
-                        .icon(ICON_FORMAT_UNDERLINED)
-                        .label_visible(false),
-                ])
+            ButtonGroup::selection(("grp-multi", i), name, &mut s.group_multi)
+                .toggles(
+                    [
+                        ButtonGroupItem::new("Bold").icon(ICON_FORMAT_BOLD).label_visible(false),
+                        ButtonGroupItem::new("Italic")
+                            .icon(ICON_FORMAT_ITALIC)
+                            .label_visible(false),
+                        ButtonGroupItem::new("Underline")
+                            .icon(ICON_FORMAT_UNDERLINED)
+                            .label_visible(false),
+                    ]
+                    .into_iter()
+                    .enumerate(),
+                )
                 .button_variant(ContainerVariant::Filled)
                 .size(sz)
-                .selection(&mut s.group_multi)
                 .show(ui);
         }
         sub(ui, "Connected, single selection");
-        ButtonGroup::new("grp-conn", "Period")
+        ButtonGroup::selection("grp-conn", "Period", &mut s.group_connected)
             .variant(ButtonGroupVariant::Connected)
-            .items([
-                ButtonGroupItem::new("Day"),
-                ButtonGroupItem::new("Week"),
-                ButtonGroupItem::new("Month"),
-            ])
+            .toggles(
+                [
+                    ButtonGroupItem::new("Day"),
+                    ButtonGroupItem::new("Week"),
+                    ButtonGroupItem::new("Month"),
+                ]
+                .into_iter()
+                .enumerate(),
+            )
             .button_variant(ContainerVariant::Tonal)
             .shape(ButtonShape::Square)
-            .selection(&mut s.group_connected)
             .show(ui);
         sub(ui, "Disabled");
         ButtonGroup::new("grp-dis", "Disabled")
@@ -460,29 +469,29 @@ fn button_group(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
 }
 
 fn segmented_button(ui: &mut MaterialUi<'_>, s: &mut State) {
-    section(ui, TOPICS[6], Some(<SegmentedButton<'static>>::META), |ui| {
+    section(ui, TOPICS[6], Some(<SegmentedButton<'static, ()>>::META), |ui| {
         sub(ui, "Single choice");
         SegmentedButton::single("seg-period", "Period", &mut s.segment_period)
-            .items(["Day", "Week", "Month", "Year"])
+            .items(["Day", "Week", "Month", "Year"].into_iter().enumerate())
             .show(ui);
         sub(ui, "Single choice, icons, one disabled");
         SegmentedButton::single("seg-view", "View", &mut s.segment_view)
-            .item(Segment::new("List").icon(ICON_VIEW_LIST))
-            .item(Segment::new("Grid").icon(ICON_VIEW_MODULE))
-            .item(Segment::new("Gallery").icon(ICON_IMAGE).disabled(true))
+            .item(0, Segment::new("List").icon(ICON_VIEW_LIST))
+            .item(1, Segment::new("Grid").icon(ICON_VIEW_MODULE))
+            .item(2, Segment::new("Gallery").icon(ICON_IMAGE).disabled(true))
             .show(ui);
         sub(ui, "Content-width segments, nothing selected until a click");
-        SegmentedButton::single_optional("seg-layer", "Layer", &mut s.segment_layer)
-            .items(["Field", "Both", "Intensity"])
+        SegmentedButton::optional("seg-layer", "Layer", &mut s.segment_layer)
+            .items(["Field", "Both", "Intensity"].into_iter().enumerate())
             .equal_width(false)
             .show(ui);
         sub(ui, "Multiple choice");
         SegmentedButton::multi("seg-days", "Days", &mut s.segment_days)
-            .items(["Mon", "Tue", "Wed", "Thu", "Fri"])
+            .items(["Mon", "Tue", "Wed", "Thu", "Fri"].into_iter().enumerate())
             .show(ui);
         sub(ui, "Disabled");
         SegmentedButton::multi("seg-sizes", "Sizes", &mut s.segment_sizes)
-            .items(["S", "M", "L"])
+            .items(["S", "M", "L"].into_iter().enumerate())
             .disabled(true)
             .show(ui);
     });

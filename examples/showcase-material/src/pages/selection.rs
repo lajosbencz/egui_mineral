@@ -507,42 +507,65 @@ fn rating(ui: &mut MaterialUi<'_>, s: &mut State) {
 }
 
 fn selects(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
-    super::section(ui, TOPICS[6], Some(<Select<'static>>::META), |ui| {
+    super::section(ui, TOPICS[6], Some(<Select<'static, ()>>::META), |ui| {
         // Rows by box top: outlined fields with a label reserve its overhang above the box.
         super::top_row(ui, |row| {
-            row.mineral(Select::new("sel-select", "Fruit", FRUITS, &mut s.select_single).preferred_width(240.0));
+            row.mineral(
+                Select::new(
+                    "sel-select",
+                    "Fruit",
+                    FRUITS.into_iter().enumerate(),
+                    &mut s.select_single,
+                )
+                .preferred_width(240.0),
+            );
             row.add(|ui| color_select(ui, s));
             // No label, so no overhang: its box lines up with the filled ones.
             row.add(|ui| codec_select(ui, s));
             let mut dis = Some(0);
             row.mineral(
-                Select::new("sel-select-dis", "Disabled", FRUITS, &mut dis)
+                Select::new("sel-select-dis", "Disabled", FRUITS.into_iter().enumerate(), &mut dis)
                     .disabled(true)
                     .preferred_width(240.0),
             );
         });
         super::top_row(ui, |row| {
             row.mineral(
-                Select::new("sel-select-out", "Outlined", FRUITS, &mut s.select_outlined)
-                    .variant(TextFieldVariant::Outlined)
-                    .icon(ICON_SEARCH)
-                    .supporting("With leading icon")
-                    .preferred_width(240.0),
+                Select::new(
+                    "sel-select-out",
+                    "Outlined",
+                    FRUITS.into_iter().enumerate(),
+                    &mut s.select_outlined,
+                )
+                .variant(TextFieldVariant::Outlined)
+                .icon(ICON_SEARCH)
+                .supporting("With leading icon")
+                .preferred_width(240.0),
             );
             let err = s.select_err.is_none().then(|| "Pick a fruit".to_owned());
             row.mineral(
-                Select::new("sel-select-err", "Required", FRUITS, &mut s.select_err)
-                    .variant(TextFieldVariant::Outlined)
-                    .maybe_error(err)
-                    .preferred_width(240.0),
+                Select::new(
+                    "sel-select-err",
+                    "Required",
+                    FRUITS.into_iter().enumerate(),
+                    &mut s.select_err,
+                )
+                .variant(TextFieldVariant::Outlined)
+                .maybe_error(err)
+                .preferred_width(240.0),
             );
         });
         caption(ui, TypeScale::LabelMedium, "Multiple (input chips)");
         ui.mineral(
-            Select::multi("sel-select-multi", "Fruits", FRUITS, &mut s.select_multi)
-                .variant(TextFieldVariant::Outlined)
-                .supporting("Toggling keeps the menu open")
-                .preferred_width(420.0),
+            Select::multi(
+                "sel-select-multi",
+                "Fruits",
+                FRUITS.into_iter().enumerate(),
+                &mut s.select_multi,
+            )
+            .variant(TextFieldVariant::Outlined)
+            .supporting("Toggling keeps the menu open")
+            .preferred_width(420.0),
         );
         let picked: Vec<&str> = s.select_multi.selected().map(|i| FRUITS[*i]).collect();
         ui.label(format!(
@@ -630,9 +653,14 @@ fn color_select(ui: &mut MaterialUi<'_>, s: &mut State) {
         }))
     });
     ui.mineral(
-        Select::new("sel-select-color", "Colour", colors, &mut s.select_color)
-            .supporting("Painted option leading")
-            .preferred_width(240.0),
+        Select::new(
+            "sel-select-color",
+            "Colour",
+            colors.into_iter().enumerate(),
+            &mut s.select_color,
+        )
+        .supporting("Painted option leading")
+        .preferred_width(240.0),
     );
 }
 
@@ -643,11 +671,16 @@ fn codec_select(ui: &mut MaterialUi<'_>, s: &mut State) {
         SelectOption::new("WAV"),
     ];
     ui.mineral(
-        Select::new("sel-select-codec", "Codec", codecs, &mut s.select_codec)
-            .variant(TextFieldVariant::Outlined)
-            .label_visible(false)
-            .supporting("Hidden label, disabled option")
-            .preferred_width(240.0),
+        Select::new(
+            "sel-select-codec",
+            "Codec",
+            codecs.into_iter().enumerate(),
+            &mut s.select_codec,
+        )
+        .variant(TextFieldVariant::Outlined)
+        .label_visible(false)
+        .supporting("Hidden label, disabled option")
+        .preferred_width(240.0),
     );
 }
 

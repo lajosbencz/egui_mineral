@@ -329,7 +329,11 @@ fn toolbar_custom_items_share_the_row_height_and_the_roving_order() {
             .action(IconAction::new(ICON_STAR, "B"))
             .custom("seg", |ui| {
                 SegmentedButton::single("seg", "Mode", seg)
-                    .items([Segment::new("Field"), Segment::new("Both"), Segment::new("Intensity")])
+                    .items(
+                        ([Segment::new("Field"), Segment::new("Both"), Segment::new("Intensity")])
+                            .into_iter()
+                            .enumerate(),
+                    )
                     .show(ui)
                     .response
             })

@@ -72,20 +72,20 @@ fn tabs(ui: &mut FluentUi<'_>, s: &mut State) {
     heading(ui, "h-tabs", "Tab list");
     for ((i, appearance), selected) in TabAppearance::ALL.iter().copied().enumerate().zip(&mut s.appearances) {
         TabList::new(("tabs-appearance", i), format!("{appearance:?}"), selected)
-            .tabs(items())
+            .tabs(items().into_iter().enumerate())
             .appearance(appearance)
             .show(ui);
         ui.add_space(4.0);
     }
     for ((i, size), selected) in Size::ALL.iter().copied().enumerate().zip(&mut s.sizes) {
         TabList::new(("tabs-size", i), format!("{size:?}"), selected)
-            .tabs(["One", "Two", "Three"])
+            .tabs(["One", "Two", "Three"].into_iter().enumerate())
             .size(size)
             .show(ui);
     }
     ui.add_space(4.0);
     TabList::new("tabs-vertical", "Vertical", &mut s.vertical)
-        .tabs(items())
+        .tabs(items().into_iter().enumerate())
         .axis(Axis::Vertical)
         .show(ui);
 }
@@ -113,9 +113,9 @@ fn toolbars(ui: &mut FluentUi<'_>, s: &mut State) {
         )
         .radio_group(
             ToolbarRadioGroup::new(&mut s.align)
-                .option(radio("Person", ICON_PERSON))
-                .option(radio("Home", ICON_HOME))
-                .option(radio("Cut", ICON_CUT)),
+                .option(0, radio("Person", ICON_PERSON))
+                .option(1, radio("Home", ICON_HOME))
+                .option(2, radio("Cut", ICON_CUT)),
         )
         .show(ui);
     Toolbar::new("toolbar-vertical", "Vertical")

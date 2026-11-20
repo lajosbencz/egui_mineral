@@ -17,27 +17,27 @@ use crate::support::{Harness, MineralHarness, SCREEN, WIDE, render_directed, sti
 fn tabs<'a>() -> Harness<'a, usize> {
     still(SCREEN, 0, |ui, selected| {
         Tabs::new("tabs", "Letters", selected)
-            .item(Tab::new("A"))
-            .item(Tab::new("B").disabled(true))
-            .item(Tab::new("C").mnemonic('c'))
+            .item(0, Tab::new("A"))
+            .item(1, Tab::new("B").disabled(true))
+            .item(2, Tab::new("C").mnemonic('c'))
             .show(ui);
     })
 }
 
 fn nav_set<'a>(n: usize, selected: usize) -> Harness<'a, [usize; 3]> {
     still(WIDE, [selected; 3], move |ui, [tabs, bar, rail]| {
-        let items = (0..n).map(|i| NavDestination::new(icons::ICON_HOME, format!("D{i}")));
+        let items = (0..n).map(|i| (i, NavDestination::new(icons::ICON_HOME, format!("D{i}"))));
         (0..n)
             .fold(Tabs::new("tabs", "Letters", tabs), |t, i| {
-                t.item(Tab::new(format!("T{i}")))
+                t.item(i, Tab::new(format!("T{i}")))
             })
             .show(ui);
         items
             .clone()
-            .fold(NavigationBar::new("bar", bar), NavigationBar::item)
+            .fold(NavigationBar::new("bar", bar), |b, (i, d)| b.item(i, d))
             .show(ui);
         items
-            .fold(NavigationRail::new("rail", rail), NavigationRail::item)
+            .fold(NavigationRail::new("rail", rail), |r, (i, d)| r.item(i, d))
             .show(ui);
     })
 }
@@ -53,13 +53,15 @@ fn empty_navigation_renders_nothing_interactive() {
 }
 
 #[test]
-fn stale_selection_moves_onto_the_last_item() {
+fn a_value_matching_no_item_selects_none() {
     let mut h = nav_set(2, 5);
     h.run();
-    assert_eq!(h.state().value, [1; 3]);
-    assert_eq!(h.node("tabs-1-tab").state.selected, Some(true));
-    assert_eq!(h.node("bar-1-nav-item").state.selected, Some(true));
-    assert_eq!(h.node("rail-1-nav-item").state.selected, Some(true));
+    assert_eq!(h.state().value, [5; 3], "the binding is left as is");
+    for key in ["tabs-1-tab", "bar-1-nav-item", "rail-1-nav-item"] {
+        assert_eq!(h.node(key).state.selected, Some(false), "{key}");
+    }
+    h.click("bar-0-nav-item");
+    assert_eq!(h.state().value[1], 0);
 }
 
 #[test]
@@ -67,13 +69,13 @@ fn sibling_groups_keep_separate_item_ids() {
     let mut h = still(SCREEN, [0usize; 4], |ui, [t0, t1, b0, b1]| {
         for (salt, sel) in [("t0", t0), ("t1", t1)] {
             Tabs::new(salt, "Letters", sel)
-                .items([Tab::new("A"), Tab::new("B")])
+                .items([Tab::new("A"), Tab::new("B")].into_iter().enumerate())
                 .show(ui);
         }
         for (salt, sel) in [("b0", b0), ("b1", b1)] {
             NavigationBar::new(salt, sel)
-                .item(NavDestination::new(icons::ICON_HOME, "A"))
-                .item(NavDestination::new(icons::ICON_STAR, "B"))
+                .item(0, NavDestination::new(icons::ICON_HOME, "A"))
+                .item(1, NavDestination::new(icons::ICON_STAR, "B"))
                 .show(ui);
         }
     });
@@ -87,7 +89,7 @@ fn scrollable_tabs_past_the_viewport_keep_their_width() {
     let mut h = still(egui::vec2(240.0, 200.0), 0, |ui, sel| {
         Tabs::new("s", "Letters", sel)
             .scrollable(true)
-            .items((0..8).map(|i| Tab::new(format!("Tab {i}"))))
+            .items((0..8).map(|i| (i, Tab::new(format!("Tab {i}")))))
             .show(ui);
     });
     h.run();
@@ -142,8 +144,8 @@ fn modal_rail_moves_and_returns_focus() {
     let mut h = still(WIDE, (false, 1), |ui, (open, selected)| {
         NavigationRail::new("rail", selected)
             .menu_button(true)
-            .item(NavDestination::new(icons::ICON_HOME, "Home"))
-            .item(NavDestination::new(icons::ICON_SEARCH, "Search"))
+            .item(0, NavDestination::new(icons::ICON_HOME, "Home"))
+            .item(1, NavDestination::new(icons::ICON_SEARCH, "Search"))
             .show_modal(ui, open);
     });
     let focused = |h: &Harness<'_, (bool, usize)>| h.ctx.memory(egui::Memory::focused);
@@ -164,7 +166,7 @@ fn modal_rail_reports_its_surface() {
     let mut h = still(WIDE, (false, None), |ui, (open, popup)| {
         let mut selected = 0;
         *popup = NavigationRail::new("rail", &mut selected)
-            .item(NavDestination::new(icons::ICON_HOME, "Home"))
+            .item(0, NavDestination::new(icons::ICON_HOME, "Home"))
             .show_modal(ui, open)
             .popup
             .map(|r| r.rect);
@@ -180,9 +182,9 @@ fn tab_group<'a>(group: &'static str) -> Harness<'a, usize> {
     still(SCREEN, 0, move |ui, selected| {
         if group == "bar" {
             NavigationBar::new("bar", selected)
-                .item(NavDestination::new(icons::ICON_HOME, "A"))
-                .item(NavDestination::new(icons::ICON_SEARCH, "B").disabled(true))
-                .item(NavDestination::new(icons::ICON_STAR, "C"))
+                .item(0, NavDestination::new(icons::ICON_HOME, "A"))
+                .item(1, NavDestination::new(icons::ICON_SEARCH, "B").disabled(true))
+                .item(2, NavDestination::new(icons::ICON_STAR, "C"))
                 .show(ui);
         } else {
             RadioGroup::new("radio", "Letters", selected)
@@ -238,12 +240,12 @@ fn open_search_view_input_is_named() {
 fn disabled_group_blocks_items_and_reports_it() {
     let mut h = still(WIDE, [0usize; 2], |ui, [tabs, bar]| {
         Tabs::new("tabs", "Letters", tabs)
-            .items(["A", "B"])
+            .items(["A", "B"].into_iter().enumerate())
             .disabled(true)
             .show(ui);
         NavigationBar::new("bar", bar)
-            .item(NavDestination::new(icons::ICON_HOME, "Home"))
-            .item(NavDestination::new(icons::ICON_SEARCH, "Search"))
+            .item(0, NavDestination::new(icons::ICON_HOME, "Home"))
+            .item(1, NavDestination::new(icons::ICON_SEARCH, "Search"))
             .disabled(true)
             .show(ui);
     });
@@ -261,9 +263,13 @@ fn items_equals_chained_item() {
         let h = still(SCREEN, 0, move |ui, selected| {
             let tabs = Tabs::new("tabs", "Letters", selected);
             let tabs = if chained {
-                tabs.item("A").item(Tab::new("B").disabled(true)).item("C")
+                tabs.item(0, "A").item(1, Tab::new("B").disabled(true)).item(2, "C")
             } else {
-                tabs.items([Tab::new("A"), Tab::new("B").disabled(true), Tab::new("C")])
+                tabs.items(
+                    [Tab::new("A"), Tab::new("B").disabled(true), Tab::new("C")]
+                        .into_iter()
+                        .enumerate(),
+                )
             };
             tabs.show(ui);
         });
@@ -281,11 +287,11 @@ fn items_equals_chained_item() {
 fn navigation_bar_label_names_the_landmark() {
     let h = still(WIDE, [0usize; 2], |ui, [plain, named]| {
         NavigationBar::new("plain", plain)
-            .item(NavDestination::new(icons::ICON_HOME, "Home"))
+            .item(0, NavDestination::new(icons::ICON_HOME, "Home"))
             .show(ui);
         NavigationBar::new("named", named)
             .label("Sections")
-            .item(NavDestination::new(icons::ICON_HOME, "Home"))
+            .item(0, NavDestination::new(icons::ICON_HOME, "Home"))
             .show(ui);
     });
     assert_eq!(h.node("plain-navigation").name, "Navigation");
@@ -385,7 +391,7 @@ fn drawer_section_titles_start_at_the_reading_start() {
         let pass = render_directed(direction, WIDE, |ui| {
             NavigationDrawer::new("nav", &mut 0)
                 .section("Mail")
-                .item(NavDestination::new(icons::ICON_HOME, "Inbox"))
+                .item(0, NavDestination::new(icons::ICON_HOME, "Inbox"))
                 .show(ui);
         });
         let drawer = pass.rect("nav-navigation");
