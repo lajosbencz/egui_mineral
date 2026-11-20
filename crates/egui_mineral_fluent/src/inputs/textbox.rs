@@ -261,7 +261,14 @@ pub(crate) struct Pads {
 }
 
 // Horizontal room of the text between the contents: `padding` of the root, the input and the gap.
-pub(crate) fn pads(m: &Metrics, before: bool, after: bool) -> Pads {
+// Which content slots around the text are filled.
+#[derive(Clone, Copy)]
+pub(crate) struct Slots {
+    pub before: bool,
+    pub after: bool,
+}
+
+pub(crate) fn pads(m: &Metrics, slots: Slots) -> Pads {
     let side = |content: bool| {
         if content {
             m.root + m.icon + m.gap + m.input
@@ -270,8 +277,8 @@ pub(crate) fn pads(m: &Metrics, before: bool, after: bool) -> Pads {
         }
     };
     Pads {
-        start: side(before),
-        end: side(after),
+        start: side(slots.before),
+        end: side(slots.after),
     }
 }
 
@@ -281,7 +288,7 @@ pub(crate) struct Rects {
     pub after: Option<Rect>,
 }
 
-pub(crate) fn rects(frame: Rect, dir: Direction, m: &Metrics, pads: &Pads, before: bool, after: bool) -> Rects {
+pub(crate) fn rects(frame: Rect, dir: Direction, m: &Metrics, pads: &Pads, slots: Slots) -> Rects {
     let inner = frame.shrink(g::STROKE_WIDTH_THIN);
     let slot = |at: f32, trailing: bool| {
         let d = if trailing { dir.reversed() } else { dir };
@@ -294,8 +301,8 @@ pub(crate) fn rects(frame: Rect, dir: Direction, m: &Metrics, pads: &Pads, befor
             Pos2::new(inner.left() + left, inner.top()),
             Pos2::new((inner.right() - right).max(inner.left() + left), inner.bottom()),
         ),
-        before: before.then(|| slot(m.root, false)),
-        after: after.then(|| slot(m.root, true)),
+        before: slots.before.then(|| slot(m.root, false)),
+        after: slots.after.then(|| slot(m.root, true)),
     }
 }
 
@@ -403,16 +410,13 @@ pub(crate) fn show(ui: &mut MineralUi<'_, Fluent>, text: &mut String, frame: &Re
     let edit_id = f.base.with("edit");
     let focused = ctx.memory(|m| m.has_focus(edit_id));
     let m = f.metrics.unwrap_or_else(|| f.chrome.metrics());
-    let mut pads = pads(&m, f.content.before.is_some(), f.content.after.is_some());
+    let slots = Slots {
+        before: f.content.before.is_some(),
+        after: f.content.after.is_some(),
+    };
+    let mut pads = pads(&m, slots);
     pads.end += f.reserve_end;
-    let rects = rects(
-        f.frame,
-        dir,
-        &m,
-        &pads,
-        f.content.before.is_some(),
-        f.content.after.is_some(),
-    );
+    let rects = rects(f.frame, dir, &m, &pads, slots);
     let live = Live {
         hovered: frame.contains_pointer(),
         pressed: frame.contains_pointer() && ctx.input(|i| i.pointer.primary_down()),

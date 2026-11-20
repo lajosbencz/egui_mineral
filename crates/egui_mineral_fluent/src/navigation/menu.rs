@@ -475,11 +475,18 @@ pub struct MenuUi<'u, 's> {
     seen: Memo,
     state: Level,
     index: usize,
-    ids: Vec<Id>,
-    enabled: Vec<bool>,
-    initials: Vec<Option<char>>,
-    splits: Vec<(usize, Id)>,
+    rows: Vec<SeenRow>,
     shared: &'s mut Shared,
+}
+
+// A row shown this pass, in order.
+#[derive(Clone, Copy)]
+struct SeenRow {
+    id: Id,
+    enabled: bool,
+    initial: Option<char>,
+    // Submenu trigger of a split row.
+    split: Option<Id>,
 }
 
 kit::opaque_debug!(MenuUi<'_, '_>);
@@ -507,9 +514,12 @@ impl MenuUi<'_, '_> {
         });
         let clicked = out.changed();
         let response = out.into_response();
-        self.ids.push(response.id);
-        self.enabled.push(!item.disabled);
-        self.initials.push(initial(&item.label));
+        self.rows.push(SeenRow {
+            id: response.id,
+            enabled: !item.disabled,
+            initial: initial(&item.label),
+            split: None,
+        });
         let ctx = self.ui.ctx().clone();
         let now = ctx.input(|i| i.time);
         let mut held = false;
@@ -619,7 +629,9 @@ impl MenuUi<'_, '_> {
         };
         let trigger_id = trigger.id;
         let triggered = trigger.changed();
-        self.splits.push((i, trigger_id));
+        if let Some(row) = self.rows.get_mut(i) {
+            row.split = Some(trigger_id);
+        }
         let forward = dir.forward_key();
         let backward = if forward == Key::ArrowRight {
             Key::ArrowLeft
@@ -842,25 +854,16 @@ fn level<R>(
             },
             state,
             index: 0,
-            ids: Vec::new(),
-            enabled: Vec::new(),
-            initials: Vec::new(),
-            splits: Vec::new(),
+            rows: Vec::new(),
             shared,
         };
         let out = add(&mut mui);
-        let MenuUi {
-            ids,
-            enabled,
-            initials,
-            splits,
-            seen,
-            state,
-            ..
-        } = mui;
-        (out, ids, enabled, initials, splits, seen, state)
+        let MenuUi { rows, seen, state, .. } = mui;
+        (out, rows, seen, state)
     });
-    let (out, ids, enabled, initials, splits, seen, state) = inner.inner;
+    let (out, rows, seen, state) = inner.inner;
+    let ids: Vec<Id> = rows.iter().map(|r| r.id).collect();
+    let enabled = |i: usize| rows.get(i).is_some_and(|r| r.enabled);
     state.store(&ctx, level_id);
     let next = Memo {
         width: seen.width.clamp(Memo::MIN_WIDTH, Memo::MAX_WIDTH),
@@ -875,12 +878,12 @@ fn level<R>(
     }
     let within = ctx
         .memory(egui::Memory::focused)
-        .is_some_and(|f| ids.contains(&f) || splits.iter().any(|(_, t)| *t == f));
+        .is_some_and(|f| rows.iter().any(|r| r.id == f || r.split == Some(f)));
     // The area's sizing pass drops focus requests, so the request repeats until focus lands.
     let pending_id = id.with("mineral::menu-focus");
     let pending = !within && (focus_first || ctx.data(|d| d.get_temp::<bool>(pending_id)).unwrap_or(false));
     if pending {
-        if let Some(first) = ids.iter().zip(&enabled).find_map(|(id, on)| on.then_some(*id)) {
+        if let Some(first) = rows.iter().find_map(|r| r.enabled.then_some(r.id)) {
             ctx.memory_mut(|m| m.request_focus(first));
         }
         ctx.data_mut(|d| d.insert_temp(pending_id, true));
@@ -890,8 +893,8 @@ fn level<R>(
     }
     RovingFocus::new(Axis::Vertical)
         .wrap(d::WRAP)
-        .update(rt.core(), &ids, |i| enabled.get(i).copied().unwrap_or(false));
-    step_from_trigger(rt, &ids, &enabled, &splits);
+        .update(rt.core(), &ids, enabled);
+    step_from_trigger(rt, &rows);
     let mut back = false;
     if within {
         if ctx.input(|i| i.key_pressed(Key::Tab)) {
@@ -904,7 +907,7 @@ fn level<R>(
             Key::ArrowRight
         };
         if let Some(i) = focused_index(&ctx, &ids)
-            && let Some(to) = typeahead(&ctx, i, &initials, &enabled).and_then(|to| ids.get(to))
+            && let Some(to) = typeahead(&ctx, i, &rows).and_then(|to| ids.get(to))
         {
             ctx.memory_mut(|m| m.request_focus(*to));
         }
@@ -916,24 +919,24 @@ fn level<R>(
 }
 
 // Up and Down on a split trigger step to the neighbouring rows.
-fn step_from_trigger(rt: &Rt, ids: &[Id], enabled: &[bool], splits: &[(usize, Id)]) {
+fn step_from_trigger(rt: &Rt, rows: &[SeenRow]) {
     let ctx = rt.ctx();
-    let Some(&(row, trigger)) = ctx
+    let Some((row, trigger)) = ctx
         .memory(egui::Memory::focused)
-        .and_then(|f| splits.iter().find(|(_, t)| *t == f))
+        .and_then(|f| rows.iter().position(|r| r.split == Some(f)).map(|i| (i, f)))
     else {
         return;
     };
     kit::focus::lock_arrows(ctx, trigger, kit::focus::Arrows::Axis(Axis::Vertical));
     let dir = rt.i18n().direction();
     let roving = RovingFocus::new(Axis::Vertical).wrap(d::WRAP);
-    let enabled_at = |i: usize| enabled.get(i).copied().unwrap_or(false);
+    let enabled_at = |i: usize| rows.get(i).is_some_and(|r| r.enabled);
     for key in kit::input::plain_key_presses(ctx) {
         if let Some(to) = roving
-            .target(key, dir, row, ids.len(), enabled_at)
-            .and_then(|to| ids.get(to))
+            .target(key, dir, row, rows.len(), enabled_at)
+            .and_then(|to| rows.get(to))
         {
-            ctx.memory_mut(|m| m.request_focus(*to));
+            ctx.memory_mut(|m| m.request_focus(to.id));
         }
     }
 }
@@ -949,7 +952,7 @@ fn focused_index(ctx: &egui::Context, ids: &[Id]) -> Option<usize> {
 
 // useMenuList focusItemMatchingFirstCharacter: next enabled row after `from` whose label starts with the typed
 // character, wrapping; one-character text events only.
-fn typeahead(ctx: &egui::Context, from: usize, initials: &[Option<char>], enabled: &[bool]) -> Option<usize> {
+fn typeahead(ctx: &egui::Context, from: usize, rows: &[SeenRow]) -> Option<usize> {
     let typed = ctx.input(|i| {
         i.events.iter().rev().find_map(|e| match e {
             egui::Event::Text(t) => {
@@ -960,10 +963,10 @@ fn typeahead(ctx: &egui::Context, from: usize, initials: &[Option<char>], enable
         })
     })?;
     let key = typed.to_lowercase().next()?;
-    let n = initials.len();
+    let n = rows.len();
     (1..=n)
         .map(|k| (from + k) % n)
-        .find(|&i| enabled.get(i).copied().unwrap_or(false) && initials[i] == Some(key))
+        .find(|&i| rows.get(i).is_some_and(|r| r.enabled && r.initial == Some(key)))
 }
 
 fn overlay_escape(ctx: &egui::Context) -> bool {

@@ -446,8 +446,17 @@ struct ItemColors {
     label: Color32,
 }
 
+#[derive(Clone, Copy)]
+struct ItemLook {
+    selected: bool,
+    enabled: bool,
+    // Icon above the label, not at its start.
+    top: bool,
+}
+
 impl ItemColors {
-    fn of(c: &crate::color::ColorScheme, selected: bool, enabled: bool, top: bool) -> Self {
+    fn of(c: &crate::color::ColorScheme, look: ItemLook) -> Self {
+        let ItemLook { selected, enabled, top } = look;
         let unselected = Self {
             icon: c.role(bar::ITEM_INACTIVE_ICON_COLOR),
             label: c.role(bar::ITEM_INACTIVE_LABEL_TEXT_COLOR),
@@ -605,8 +614,23 @@ impl MineralWidget for NavItem<'_> {
             egui_mineral::motion::spring(rt.core(), response.id.with("indicator-size"), on, motion::FAST_SPATIAL)
                 .max(0.0);
         let top = matches!(self.shape, ItemShape::Vertical { .. });
-        let to = ItemColors::of(c, true, !dis, top);
-        let from = ItemColors::of(c, false, !dis, top);
+        let enabled = !dis;
+        let to = ItemColors::of(
+            c,
+            ItemLook {
+                selected: true,
+                enabled,
+                top,
+            },
+        );
+        let from = ItemColors::of(
+            c,
+            ItemLook {
+                selected: false,
+                enabled,
+                top,
+            },
+        );
         let (icon_col, label_col) = if dis {
             (from.icon, from.label)
         } else {
@@ -1043,8 +1067,13 @@ impl<'a> NavigationRail<'a> {
         let ctx = rt.ctx();
         let expanded = self.expanded_state();
         let expressive = expanded.is_some();
-        let wide = expressive && width >= f32::midpoint(rail::CONTAINER_WIDTH, self.expanded_width(ctx));
-        let shape = rail_item_shape(expressive, wide, width);
+        let layout = match expanded {
+            None => RailLayout::Classic,
+            Some(_) if width >= f32::midpoint(rail::CONTAINER_WIDTH, self.expanded_width(ctx)) => RailLayout::Wide,
+            Some(_) => RailLayout::Expressive,
+        };
+        let shape = rail_item_shape(layout, width);
+        let wide = matches!(layout, RailLayout::Wide);
         // (top padding, space below the header, item spacing)
         let (top, header_space, gap) = if expressive {
             (
@@ -1118,13 +1147,23 @@ impl<'a> NavigationRail<'a> {
     }
 }
 
-fn rail_item_shape(expressive: bool, wide: bool, width: f32) -> ItemShape {
-    if !expressive {
+#[derive(Clone, Copy)]
+enum RailLayout {
+    // Compose `NavigationRail`.
+    Classic,
+    // Compose `WideNavigationRail`, collapsed or too narrow for start icons.
+    Expressive,
+    // Compose `WideNavigationRail` with start-icon items.
+    Wide,
+}
+
+fn rail_item_shape(layout: RailLayout, width: f32) -> ItemShape {
+    if let RailLayout::Classic = layout {
         ItemShape::Vertical {
             size: vec2(rail::NARROW_CONTAINER_WIDTH, rail_v::ACTIVE_INDICATOR_WIDTH),
             top: IndicatorTop::Baseline,
         }
-    } else if wide {
+    } else if let RailLayout::Wide = layout {
         ItemShape::Horizontal {
             size: vec2(
                 width - 2.0 * nx::WIDE_RAIL_ITEM_PADDING,

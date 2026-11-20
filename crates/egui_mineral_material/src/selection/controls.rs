@@ -233,8 +233,16 @@ struct CheckColors {
     mark: Color32,
 }
 
+#[derive(Clone, Copy)]
+struct CheckLook {
+    on: bool,
+    error: bool,
+    enabled: bool,
+}
+
 impl CheckColors {
-    fn of(on: bool, error: bool, enabled: bool, c: &ColorScheme) -> Self {
+    fn of(look: CheckLook, c: &ColorScheme) -> Self {
+        let CheckLook { on, error, enabled } = look;
         let r = |role: ColorRole| c.role(role);
         let none = Color32::TRANSPARENT;
         match (on, enabled) {
@@ -417,8 +425,25 @@ pub(crate) fn paint_checkbox(
         motion::FAST_EFFECTS
     };
     let k = color_fraction(rt, id.with("check-color"), on, enabled, spring);
-    let colors =
-        CheckColors::of(false, error, enabled, &t.color).lerp(CheckColors::of(true, error, enabled, &t.color), k);
+    let colors = CheckColors::of(
+        CheckLook {
+            on: false,
+            error,
+            enabled,
+        },
+        &t.color,
+    )
+    .lerp(
+        CheckColors::of(
+            CheckLook {
+                on: true,
+                error,
+                enabled,
+            },
+            &t.color,
+        ),
+        k,
+    );
     let [draw, gravity] = check_motion(rt, id, state);
     let bx = Rect::from_center_size(center, Vec2::splat(cbx::BOX_SIZE));
     paint_box(ui.painter(), bx, colors);

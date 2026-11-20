@@ -72,6 +72,7 @@ impl PersonaSize {
         if presence && self == Self::Small {
             return d::PRESENCE_SMALL_SPACING;
         }
+        crate::widget::dense_tables!(PersonaSize: d::AVATAR_SPACING);
         d::AVATAR_SPACING.get(self as usize).copied().unwrap_or_default()
     }
 

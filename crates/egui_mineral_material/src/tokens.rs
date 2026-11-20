@@ -272,11 +272,14 @@ impl Tokens {
         self.shadow_dp(level.dp())
     }
 
-    /// Shadow of an elevation in dp, for elevations animated between levels.
+    /// Shadow of an elevation in dp (0 to 127), for elevations animated between levels.
+    #[track_caller]
     pub fn shadow_dp(&self, dp: f32) -> egui::Shadow {
+        // 127 dp: the blur (2 * dp) fits a `u8`.
+        let dp = egui_mineral::kit::sanitize::within(dp, 0.0..=127.0, "shadow dp");
         egui::Shadow {
             offset: [0, dp.min(8.0) as i8],
-            #[expect(clippy::cast_sign_loss, reason = "elevation dp tokens are >= 0")]
+            #[expect(clippy::cast_sign_loss, reason = "dp is clamped to 0..=127 above")]
             blur: (dp * 2.0) as u8,
             spread: 0,
             color: self.color.shadow.gamma_multiply(0.25),

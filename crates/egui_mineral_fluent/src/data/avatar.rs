@@ -254,6 +254,7 @@ impl AvatarNamedColor {
     ];
 
     fn palette(self) -> Palette {
+        crate::widget::dense_tables!(AvatarNamedColor: PALETTES);
         PALETTES.get(self as usize).copied().unwrap_or(NEUTRAL)
     }
 }

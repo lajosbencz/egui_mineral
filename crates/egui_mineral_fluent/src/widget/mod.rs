@@ -43,6 +43,24 @@ macro_rules! setters {
 
 pub(crate) use setters;
 
+// Compile-time proof that `$enum::ALL` lists the variants in discriminant order and that each table has one
+// entry per variant, so `table.get(variant as usize)` never misses.
+macro_rules! dense_tables {
+    ($enum:ty: $($table:expr),* $(,)?) => {
+        const _: () = {
+            let all = <$enum>::ALL;
+            let mut i = 0;
+            while i < all.len() {
+                assert!(all[i] as usize == i, "ALL is not in discriminant order");
+                i += 1;
+            }
+            $(assert!($table.len() == all.len(), "table length differs from the variant count");)*
+        };
+    };
+}
+
+pub(crate) use dense_tables;
+
 // Centered row `height` tall: a row layout otherwise spans, and centers its items in, all the height left.
 pub(crate) fn row(ui: &egui::Ui, dir: egui_mineral::i18n::Direction, height: f32) -> egui::UiBuilder {
     let size = egui::vec2(ui.available_width(), height);

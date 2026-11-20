@@ -197,7 +197,8 @@ fn shape_roles(shape_keys: &[String], shape_tokens: &Object) -> Result<(Scales, 
                     "Top" => [d, d, 0.0, 0.0],
                     "Bottom" => [0.0, 0.0, d, d],
                     "Start" => [d, 0.0, 0.0, d],
-                    _ => [0.0, d, d, 0.0],
+                    "End" => [0.0, d, d, 0.0],
+                    _ => return Err(Error::new(format!("ShapeKeyTokens: {key}: unknown side {side}"))),
                 })
             }
         };

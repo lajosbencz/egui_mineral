@@ -46,6 +46,7 @@ impl TableSize {
     pub const ALL: &'static [Self] = &[Self::Medium, Self::Small, Self::ExtraSmall];
 
     fn index(self) -> usize {
+        crate::widget::dense_tables!(TableSize: d::ROW_HEIGHTS, d::MEDIA);
         self as usize
     }
 

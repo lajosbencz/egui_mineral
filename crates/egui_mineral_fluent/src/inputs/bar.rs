@@ -374,7 +374,7 @@ impl Bar {
             );
         }
         if !single {
-            for (i, th) in thumbs.iter().enumerate() {
+            for (i, (th, &value)) in thumbs.iter().zip(values).enumerate() {
                 semantic::emit(ctx, Some(th.id), th.rect, || {
                     let (salt, label) = names;
                     let label = label.into();
@@ -387,7 +387,7 @@ impl Bar {
                         rt.i18n(),
                         StableId::of(salt, if i == 0 { "slider-start" } else { "slider-end" }),
                         &name,
-                        values.get(i).copied().unwrap_or_default(),
+                        value,
                     );
                     n.depth = 1;
                     n

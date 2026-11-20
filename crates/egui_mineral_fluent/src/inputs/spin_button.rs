@@ -270,7 +270,14 @@ impl<'a> SpinButton<'a> {
         let pad = self.pad();
         let m = chrome.metrics();
         let lead = if self.before.is_some() {
-            textbox::pads(&m, true, false).start
+            textbox::pads(
+                &m,
+                textbox::Slots {
+                    before: true,
+                    after: false,
+                },
+            )
+            .start
         } else {
             pad
         };

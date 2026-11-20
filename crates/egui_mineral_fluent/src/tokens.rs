@@ -187,6 +187,8 @@ impl Tokens {
 
     /// Color of `token`.
     pub fn color(&self, token: ColorToken) -> Color32 {
+        // `colors` maps `ColorToken::ALL`.
+        crate::widget::dense_tables!(ColorToken:);
         self.colors.get(token as usize).copied().unwrap_or(Color32::PLACEHOLDER)
     }
 

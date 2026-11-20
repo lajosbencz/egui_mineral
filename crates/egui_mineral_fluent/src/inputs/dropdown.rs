@@ -187,7 +187,13 @@ impl<K> Dropdown<'_, K> {
             (true, Some(p)) => (p.to_owned(), chrome.placeholder_color(&t)),
             _ => (text, format.color),
         };
-        let pads = textbox::pads(&m, self.before.is_some(), false);
+        let pads = textbox::pads(
+            &m,
+            textbox::Slots {
+                before: self.before.is_some(),
+                after: false,
+            },
+        );
         if let Some(icon) = self.before {
             let x = dir.start_x(inner, Rangef::new(m.root, m.root + m.icon));
             paint::icon(

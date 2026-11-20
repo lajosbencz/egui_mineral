@@ -690,8 +690,8 @@ impl<K: Ord + Clone> TagPicker<'_, K> {
         paint_frame(ui, base, visual, chrome, live, &t);
 
         let mut removed = None;
-        for (i, ((v, text), (row, x))) in tags.iter().zip(&geo.flow.tags).enumerate() {
-            let rect = geo.rect(dir, *row, *x, widths.get(i).copied().unwrap_or_default());
+        for (i, (((v, text), (row, x)), width)) in tags.iter().zip(&geo.flow.tags).zip(&widths).enumerate() {
+            let rect = geo.rect(dir, *row, *x, *width);
             if self.paint_tag(ui, rect, i, (text, base), dir) {
                 removed = Some(v.clone());
             }
