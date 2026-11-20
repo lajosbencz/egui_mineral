@@ -150,7 +150,7 @@ pub(crate) struct State {
     input_log: Vec<String>,
     input_kind: Option<PointerKind>,
     win_open: bool,
-    modals: ModalStack,
+    modals: ModalStack<Modal>,
     shapes: ShapeCache,
     shape_builds: u32,
 }
@@ -193,7 +193,7 @@ impl Default for State {
             input_log: Vec::new(),
             input_kind: None,
             win_open: false,
-            modals: ModalStack::default(),
+            modals: ModalStack::new("showcase-modals"),
             shapes: ShapeCache::default(),
             shape_builds: 0,
         }
@@ -803,18 +803,20 @@ fn input(ui: &mut MaterialUi<'_>, s: &mut State) {
     }
 }
 
-const MODAL_A: &str = "showcase-modal-a";
-const MODAL_B: &str = "showcase-modal-b";
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, KeySalt)]
+enum Modal {
+    First,
+    Nested,
+}
 
 fn windows(ui: &mut MaterialUi<'_>, s: &mut State) {
     let rt = ui.rt();
-    let (modal_a, modal_b) = (ui.make_persistent_id(MODAL_A), ui.make_persistent_id(MODAL_B));
     super::row(ui, |row| {
         if row.add(|ui| button(ui, "win-open", "Open window")) {
             s.win_open = true;
         }
         if row.add(|ui| button(ui, "modal-open", "Open modal")) {
-            s.modals.push(modal_a);
+            s.modals.push(Modal::First);
         }
     });
     let ctx = ui.ctx().clone();
@@ -825,18 +827,16 @@ fn windows(ui: &mut MaterialUi<'_>, s: &mut State) {
                 ui.label("A separate viewport; embedded when the backend has no multi-viewport support.");
             });
         });
-    let mut nest = false;
-    s.modals.show(rt, |ui, id| {
-        let first = id == modal_a;
+    s.modals.show(rt, |ui, m| {
+        let first = *m.key() == Modal::First;
         ui.label(if first { "First modal" } else { "Nested modal" });
         if first && button(ui, "modal-nest", "Open nested modal") {
-            nest = true;
+            m.push(Modal::Nested);
         }
-        button(ui, if first { "modal-close-a" } else { "modal-close-b" }, "Close")
+        if button(ui, if first { "modal-close-a" } else { "modal-close-b" }, "Close") {
+            m.close();
+        }
     });
-    if nest {
-        s.modals.push(modal_b);
-    }
     caption(
         ui,
         TypeScale::BodySmall,
@@ -844,7 +844,7 @@ fn windows(ui: &mut MaterialUi<'_>, s: &mut State) {
             "Modal stack top: {}",
             s.modals
                 .top(&ctx)
-                .map_or("none", |id| if id == modal_a { "first" } else { "nested" })
+                .map_or("none", |m| if *m == Modal::First { "first" } else { "nested" })
         ),
     );
 }

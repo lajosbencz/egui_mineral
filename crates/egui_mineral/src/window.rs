@@ -6,6 +6,7 @@ use crate::{
     input::Gesture,
     layout::{Measure, MinTarget, Zones},
     runtime::{Runtime, Stylekit},
+    select::ItemKey,
     semantic::{KeyedSalt, Role, SemanticNode, StableId},
     widget::{Availability, MineralUi},
 };
@@ -172,56 +173,110 @@ fn close_control<K: Stylekit>(rt: &Runtime<K>, ui: &mut Ui, salt: &KeyedSalt, vi
     response.clicked()
 }
 
-/// Modals render in push order; egui blocks input below the topmost.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct ModalStack {
-    stack: Vec<Id>,
+/// Stack of app-keyed modals rendering in push order; egui blocks input below the topmost.
+#[derive(Clone, Debug)]
+pub struct ModalStack<K> {
+    salt: KeyedSalt,
+    stack: Vec<K>,
 }
 
-impl ModalStack {
-    /// Opens `id` on top; no-op when already open.
-    pub fn push(&mut self, id: Id) {
-        if !self.stack.contains(&id) {
-            self.stack.push(id);
+impl<K: ItemKey> ModalStack<K> {
+    /// Empty stack; `id_salt` roots the modal layer ids.
+    pub fn new(id_salt: impl Into<KeyedSalt>) -> Self {
+        Self {
+            salt: id_salt.into(),
+            stack: Vec::new(),
+        }
+    }
+
+    /// Opens `key` on top; no-op when already open.
+    pub fn push(&mut self, key: K) {
+        if !self.stack.contains(&key) {
+            self.stack.push(key);
         }
     }
 
     /// Closes the last pushed modal, which renders on top.
-    pub fn pop(&mut self) -> Option<Id> {
+    pub fn pop(&mut self) -> Option<K> {
         self.stack.pop()
     }
 
-    /// Closes `id` wherever it is in the stack.
-    pub fn close(&mut self, id: Id) {
-        self.stack.retain(|m| *m != id);
+    /// Closes `key` wherever it is in the stack.
+    pub fn close(&mut self, key: &K) {
+        self.stack.retain(|m| m != key);
+    }
+
+    /// `key` anywhere in the stack.
+    pub fn is_open(&self, key: &K) -> bool {
+        self.stack.contains(key)
+    }
+
+    /// Open modals, bottom first.
+    pub fn keys(&self) -> &[K] {
+        &self.stack
+    }
+
+    /// Layer id of `key`'s modal ([`crate::shortcut::Scope::Modal`]).
+    pub fn id(&self, key: &K) -> Id {
+        Id::unique(self.salt.child(key.clone()).id_salt())
     }
 
     /// Entry that egui routes input to ([`crate::overlay::top_modal`]); `None` while a modal outside the stack is on
     /// top or before the first [`Self::show`].
-    pub fn top(&self, ctx: &egui::Context) -> Option<Id> {
-        crate::overlay::top_modal(ctx)
-            .map(|l| l.id)
-            .filter(|id| self.is_open(*id))
+    pub fn top(&self, ctx: &egui::Context) -> Option<&K> {
+        let top = crate::overlay::top_modal(ctx)?.id;
+        self.stack.iter().find(|k| self.id(k) == top)
     }
 
-    /// `id` anywhere in the stack.
-    pub fn is_open(&self, id: Id) -> bool {
-        self.stack.contains(&id)
-    }
-
-    /// `content` returns `true` to close its modal; backdrop click and Escape also close.
-    pub fn show<K>(&mut self, rt: &Runtime<K>, mut content: impl FnMut(&mut MineralUi<'_, K>, Id) -> bool) {
+    /// `content` draws each open modal; it closes its modal or opens another through [`ModalEntry`]. Backdrop click
+    /// and Escape also close.
+    pub fn show<S>(&mut self, rt: &Runtime<S>, mut content: impl FnMut(&mut MineralUi<'_, S>, &mut ModalEntry<'_, K>)) {
         let mut closed = Vec::new();
-        for &id in &self.stack {
+        let mut pushed = Vec::new();
+        for key in &self.stack {
+            let id = self.id(key);
+            let mut entry = ModalEntry {
+                key,
+                close: false,
+                pushed: &mut pushed,
+            };
             // The default frame reads the app-wide style.
             let r = crate::kit::layer::modal(rt.core(), id)
                 .frame(Frame::popup(&rt.style()))
-                .show(rt.ctx(), |ui| content(&mut rt.ui(ui), id));
-            if r.inner || r.should_close() {
-                closed.push(id);
+                .show(rt.ctx(), |ui| content(&mut rt.ui(ui), &mut entry));
+            if entry.close || r.should_close() {
+                closed.push(key.clone());
             }
         }
-        self.stack.retain(|id| !closed.contains(id));
+        self.stack.retain(|k| !closed.contains(k));
+        for key in pushed {
+            self.push(key);
+        }
+    }
+}
+
+/// One open modal of a [`ModalStack::show`] pass.
+#[derive(Debug)]
+pub struct ModalEntry<'a, K> {
+    key: &'a K,
+    close: bool,
+    pushed: &'a mut Vec<K>,
+}
+
+impl<K> ModalEntry<'_, K> {
+    /// Value it was pushed with; [`ModalStack::id`] names its layer.
+    pub fn key(&self) -> &K {
+        self.key
+    }
+
+    /// Closes this modal after the pass.
+    pub fn close(&mut self) {
+        self.close = true;
+    }
+
+    /// Opens `key` on top after the pass.
+    pub fn push(&mut self, key: K) {
+        self.pushed.push(key);
     }
 }
 
@@ -385,18 +440,35 @@ mod tests {
     fn top_and_shortcut_scope_agree() {
         let ctx = ctx();
         let rt = crate::test_support::runtime(&ctx);
-        let (a, b) = (Id::unique("modal-a"), Id::unique("modal-b"));
-        let mut stack = ModalStack::default();
-        stack.push(a);
-        stack.push(b);
-        run(&ctx, input(vec![]), |_| stack.show(&rt, |_, _| false));
+        let mut stack = ModalStack::new("modals");
+        stack.push("a");
+        stack.push("b");
+        let (a, b) = (stack.id(&"a"), stack.id(&"b"));
+        run(&ctx, input(vec![]), |_| stack.show(&rt, |_, _| {}));
         let layer = |id| LayerId::new(Order::Foreground, id);
-        assert_eq!(stack.top(&ctx), Some(b));
+        assert_eq!(stack.top(&ctx), Some(&"b"));
         assert_eq!(scope_of(&ctx, layer(b)), Scope::Modal(b));
         assert_eq!(scope_of(&ctx, layer(a)), Scope::Global, "covered modal");
         stack.pop();
-        run(&ctx, input(vec![]), |_| stack.show(&rt, |_, _| false));
-        assert_eq!(stack.top(&ctx), Some(a));
+        run(&ctx, input(vec![]), |_| stack.show(&rt, |_, _| {}));
+        assert_eq!(stack.top(&ctx), Some(&"a"));
         assert_eq!(scope_of(&ctx, layer(a)), Scope::Modal(a));
+    }
+
+    #[test]
+    fn entries_close_and_push_after_the_pass() {
+        let ctx = ctx();
+        let rt = crate::test_support::runtime(&ctx);
+        let mut stack = ModalStack::new("modals");
+        stack.push(1u8);
+        run(&ctx, input(vec![]), |_| {
+            stack.show(&rt, |_, m| {
+                if *m.key() == 1 {
+                    m.push(2);
+                    m.close();
+                }
+            });
+        });
+        assert_eq!(stack.keys(), &[2]);
     }
 }
