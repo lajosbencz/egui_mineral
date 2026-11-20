@@ -235,7 +235,7 @@ struct CheckColors {
 
 impl CheckColors {
     fn of(on: bool, error: bool, enabled: bool, c: &ColorScheme) -> Self {
-        let r = |role: ColorRole| role.resolve(c);
+        let r = |role: ColorRole| c.role(role);
         let none = Color32::TRANSPARENT;
         match (on, enabled) {
             (true, true) => {
@@ -427,14 +427,14 @@ pub(crate) fn paint_checkbox(
 
 fn radio_color(selected: bool, enabled: bool, c: &ColorScheme) -> Color32 {
     match (selected, enabled) {
-        (true, true) => rb::SELECTED_ICON_COLOR.resolve(c),
-        (false, true) => rb::UNSELECTED_ICON_COLOR.resolve(c),
+        (true, true) => c.role(rb::SELECTED_ICON_COLOR),
+        (false, true) => c.role(rb::UNSELECTED_ICON_COLOR),
         (true, false) => with_alpha(
-            rb::DISABLED_SELECTED_ICON_COLOR.resolve(c),
+            c.role(rb::DISABLED_SELECTED_ICON_COLOR),
             rb::DISABLED_SELECTED_ICON_OPACITY,
         ),
         (false, false) => with_alpha(
-            rb::DISABLED_UNSELECTED_ICON_COLOR.resolve(c),
+            c.role(rb::DISABLED_UNSELECTED_ICON_COLOR),
             rb::DISABLED_UNSELECTED_ICON_OPACITY,
         ),
     }
@@ -476,7 +476,7 @@ struct SwitchColors {
 
 impl SwitchColors {
     fn of(on: bool, enabled: bool, c: &ColorScheme) -> Self {
-        let r = |role: ColorRole| role.resolve(c);
+        let r = |role: ColorRole| c.role(role);
         let over = |role: ColorRole, alpha: f32| c.surface.blend(with_alpha(r(role), alpha));
         match (on, enabled) {
             (true, true) => Self {

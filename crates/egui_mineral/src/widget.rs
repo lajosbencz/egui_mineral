@@ -355,6 +355,27 @@ impl<'a, K> MineralUi<'a, K> {
     pub fn kit(&self) -> &'a K {
         self.rt.kit()
     }
+
+    /// Value of type `T` of the nearest enclosing [`Self::with_scoped`]; `None` outside any.
+    pub fn scoped<T: Send + Sync + 'static>(&self) -> Option<&T> {
+        let key = std::any::type_name::<T>();
+        self.ui.stack().iter().find_map(|s| s.info.tags.get_downcast::<T>(key))
+    }
+
+    /// Runs `add_contents` in a child `Ui` whose subtree reads `value` through [`Self::scoped`]; the slot is
+    /// the type `T`, so a kit keeps one private or newtype `T` per setting. Popups and dialogs opened from it
+    /// are separate roots and do not inherit it.
+    pub fn with_scoped<T: Send + Sync + 'static, R>(
+        &mut self,
+        value: T,
+        add_contents: impl FnOnce(&mut MineralUi<'_, K>) -> R,
+    ) -> R {
+        let mut info = egui::UiStackInfo::default();
+        info.tags
+            .insert(std::any::type_name::<T>(), Some(std::sync::Arc::new(value)));
+        self.scope_builder(egui::UiBuilder::new().ui_stack_info(info), add_contents)
+            .inner
+    }
 }
 
 macro_rules! layout_wrappers {

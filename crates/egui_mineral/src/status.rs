@@ -4,16 +4,20 @@ use egui::Color32;
 
 use std::any::Any;
 
-use crate::{action::ActionKey, icon::Icon, layout::Elide};
+use crate::{
+    action::ActionKey,
+    icon::Icon,
+    layout::{Elide, Fraction},
+};
 
 /// Progress indicator of a [`StatusItem`]: the fraction done, `None` for indeterminate.
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[non_exhaustive]
 pub enum StatusProgress {
     /// Circular indicator.
-    Circular(Option<f32>),
+    Circular(Option<Fraction>),
     /// Linear indicator.
-    Linear(Option<f32>),
+    Linear(Option<Fraction>),
 }
 
 /// Part before the text of a [`StatusItem`].

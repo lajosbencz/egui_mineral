@@ -1,4 +1,5 @@
 use egui::{CornerRadius, Stroke};
+use egui_mineral::layout::Fraction;
 use egui_mineral::{
     layout::Axis,
     semantic::{KeyedSalt, StableId},
@@ -48,8 +49,8 @@ impl SplitPane {
         self
     }
 
-    /// First pane share in 0..=1 before the user drags.
-    pub fn default_fraction(mut self, default_fraction: f32) -> Self {
+    /// First pane share before the user drags.
+    pub fn default_fraction(mut self, default_fraction: impl Into<Fraction>) -> Self {
         self.inner = self.inner.default_fraction(default_fraction);
         self
     }

@@ -45,7 +45,7 @@ rule:
               - kind: scoped_identifier
                 regex: (^|::)[A-Z]\w*::new$
                 not:
-                  regex: (^|::)(Id|IdSalt|StableId|IcuFormat|AsciiFormat|LanguageIdentifier|Error|ValidationError)::new$
+                  regex: (^|::)(Id|IdSalt|StableId|IconFamily|PersistKey|IcuFormat|AsciiFormat|LanguageIdentifier|Error|ValidationError)::new$
     - not:
         all:
           - nthChild: 1

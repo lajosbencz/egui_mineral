@@ -308,13 +308,12 @@ impl AltTrack {
     }
 }
 
-fn registry_id(ctx: &Context) -> Id {
-    crate::runtime::pass_scoped(ctx, "mineral::shortcut")
-}
+const MNEMONICS_REVEALED: crate::setting::Setting<bool> = crate::setting::Setting::new("mineral::mnemonics_revealed");
+
+type Pass = crate::runtime::PassScope<Registry>;
 
 fn with_registry<R>(ctx: &Context, f: impl FnOnce(&mut Registry) -> R) -> R {
-    let id = registry_id(ctx);
-    ctx.data_mut(|d| f(d.get_temp_mut_or_default::<Registry>(id)))
+    Pass::with(ctx, f)
 }
 
 /// Binds `shortcut` to `action` in `scope` for this pass. Rebinding the same action is a no-op;
@@ -383,8 +382,7 @@ pub fn fire(ctx: &Context, action: impl Into<ActionId>) {
 
 /// Non-consuming check: `action` was delivered this pass, taken or not.
 pub fn fired(ctx: &Context, action: &ActionId) -> bool {
-    let id = registry_id(ctx);
-    ctx.data(|d| d.get_temp::<Registry>(id).is_some_and(|r| r.log.contains(action)))
+    Pass::read(ctx, |r| r.is_some_and(|r| r.log.contains(action)))
 }
 
 /// Drains `action` only, leaving other fired actions for their owners.
@@ -439,18 +437,17 @@ pub fn label(ctx: &Context, shortcut: &KeyboardShortcut) -> String {
 /// menu bar toggle. `false` without [`Policies::mnemonics`](crate::policy::Policies::mnemonics).
 pub fn lone_alt(core: &crate::runtime::Core) -> bool {
     let ctx = core.ctx();
-    let id = registry_id(ctx);
-    core.policies().mnemonics && ctx.data(|d| d.get_temp::<Registry>(id).is_some_and(|r| r.alt.released))
+    core.policies().mnemonics && Pass::read(ctx, |r| r.is_some_and(|r| r.alt.released))
 }
 
 /// Keeps underlines visible without Alt, e.g. while a menu opened by keyboard is active.
 pub fn set_mnemonics_revealed(ctx: &Context, revealed: bool) {
-    crate::setting::set(ctx, "mineral::mnemonics_revealed", revealed);
+    MNEMONICS_REVEALED.set(ctx, revealed);
 }
 
 /// Reads the flag set by [`set_mnemonics_revealed`].
 pub fn mnemonics_revealed(ctx: &Context) -> bool {
-    crate::setting::get::<bool>(ctx, "mineral::mnemonics_revealed")
+    MNEMONICS_REVEALED.get(ctx)
 }
 
 /// True while enabled and (Alt held without Ctrl, which is `AltGr` on Windows, or revealed).
@@ -804,8 +801,7 @@ fn strip_readline(core: &crate::runtime::Core) {
 
 pub(crate) fn begin_pass(core: &crate::runtime::Core) {
     let ctx = core.ctx();
-    let id = registry_id(ctx);
-    let mut reg = ctx.data_mut(|d| d.remove_temp::<Registry>(id)).unwrap_or_default();
+    let mut reg = Pass::take(ctx).unwrap_or_default();
     reg.last_shortcuts = std::mem::take(&mut reg.shortcuts);
     reg.last_mnemonics = std::mem::take(&mut reg.mnemonics);
     reg.shortcut_index.clear();
@@ -822,12 +818,10 @@ pub(crate) fn begin_pass(core: &crate::runtime::Core) {
     reg.fired.extend(queued);
     dispatch(core, &mut reg);
     strip_readline(core);
-    ctx.data_mut(|d| {
-        // `fire` from another thread meanwhile wrote into a fresh registry.
-        if let Some(stray) = d.remove_temp::<Registry>(id) {
-            reg.queued.extend(stray.queued);
-        }
-        d.insert_temp(id, reg);
+    // `fire` from another thread meanwhile wrote into a fresh registry.
+    Pass::replace(ctx, |stray| {
+        reg.queued.extend(stray.into_iter().flat_map(|s| s.queued));
+        reg
     });
 }
 

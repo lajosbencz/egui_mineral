@@ -239,7 +239,7 @@ fn popover_opens_from_code() {
 
 fn status_bar(ui: &mut crate::support::Mui<'_>) -> Option<Clicked> {
     StatusBar::new("status", "Status")
-        .item(StatusItem::new("Indexing").progress(StatusProgress::Circular(Some(0.4))))
+        .item(StatusItem::new("Indexing").progress(StatusProgress::Circular(Some(0.4.into()))))
         .trailing(StatusItem::new("Ln 4, Col 2").key(Status::Position))
         .item(StatusItem::new("A very long item that does not fit").clickable(true))
         .show(ui)
@@ -435,7 +435,7 @@ fn menu_opened_by_a_menu_pick_survives_the_picking_press() {
 fn status_item_linear_progress_paints_a_status_line_bar_inside_its_item() {
     let mut h = harness(SCREEN, (), |ui, ()| {
         StatusBar::new("s", "Status")
-            .item(StatusItem::new("Upload").progress(StatusProgress::Linear(Some(0.5))))
+            .item(StatusItem::new("Upload").progress(StatusProgress::Linear(Some(0.5.into()))))
             .item(StatusItem::new("Sync").progress(StatusProgress::Linear(None)))
             .show(ui);
     });

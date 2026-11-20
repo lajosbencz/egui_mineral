@@ -336,7 +336,7 @@ pub struct Fling {
     /// Velocity retained per millisecond.
     pub deceleration: f32,
     /// Fraction of the extent past which a release dismisses.
-    pub dismiss_fraction: f32,
+    pub dismiss_fraction: crate::layout::Fraction,
     /// Outward release speed (points/s) that dismisses at any offset.
     pub dismiss_velocity: f32,
 }
@@ -361,7 +361,7 @@ impl Fling {
     /// Swipe-to-dismiss release over `extent`. `release.pos` (the offset) and `release.velocity` are signed along the
     /// dismiss direction.
     pub fn should_dismiss(&self, release: Release, extent: f32) -> bool {
-        release.pos > extent * self.dismiss_fraction || release.velocity > self.dismiss_velocity
+        release.pos > extent * self.dismiss_fraction.get() || release.velocity > self.dismiss_velocity
     }
 }
 
@@ -489,8 +489,8 @@ mod tests {
     fn fling_dismisses_by_distance_or_velocity() {
         let f = crate::test_support::FLING;
         let extent = 200.0;
-        let past = extent * f.dismiss_fraction + 1.0;
-        let short = extent * f.dismiss_fraction - 1.0;
+        let past = extent * f.dismiss_fraction.get() + 1.0;
+        let short = extent * f.dismiss_fraction.get() - 1.0;
         let slow = f.dismiss_velocity - 1.0;
         assert!(f.should_dismiss(release(past, 0.0), extent));
         assert!(f.should_dismiss(release(0.0, f.dismiss_velocity + 1.0), extent));

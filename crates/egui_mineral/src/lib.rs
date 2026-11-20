@@ -289,7 +289,7 @@ pub mod prelude {
         form::{Form, FormState},
         i18n::I18nError,
         icon::Icon,
-        layout::{Axis, Edge},
+        layout::{Axis, Edge, Fraction},
         mask::Charset,
         nav::{Route, Router},
         number::NumberSource,

@@ -559,14 +559,11 @@ fn roles_rs(sha: &str, consumed: &[&Source], roles: &Roles) -> String {
     );
     out.push_str("\nimpl ColorRole {\n");
     all_const(&mut out, &declaration_order("ColorSchemeKeyTokens"), &color);
-    let arms: Vec<_> = color.iter().map(|v| (*v, format!("scheme.{}", snake(v)))).collect();
-    match_fn(
-        &mut out,
-        Some("Color of this role in `scheme`."),
-        "pub const fn resolve(self, scheme: &ColorScheme) -> Color32",
-        &arms,
-    );
-    out.push_str("}\n");
+    out.push_str("}\n\nimpl ColorScheme {\n    /// Color of `role`.\n    pub const fn role(&self, role: ColorRole) -> Color32 {\n        match role {\n");
+    for v in &color {
+        w!(out, "            ColorRole::{v} => self.{},\n", snake(v));
+    }
+    out.push_str("        }\n    }\n}\n");
 
     shape_enums(&mut out, roles);
 

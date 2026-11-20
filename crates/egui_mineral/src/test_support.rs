@@ -13,7 +13,7 @@ use crate::{
 
 pub(crate) const FLING: Fling = Fling {
     deceleration: 0.998,
-    dismiss_fraction: 0.5,
+    dismiss_fraction: crate::layout::Fraction::HALF,
     dismiss_velocity: 1000.0,
 };
 

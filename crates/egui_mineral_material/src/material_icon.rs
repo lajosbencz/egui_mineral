@@ -1,4 +1,4 @@
-use egui_mineral::icon::{Glyph, Icon};
+use egui_mineral::icon::Icon;
 
 use crate::fonts::{FONT_FAMILY_FILLED, FONT_FAMILY_OUTLINED};
 
@@ -32,9 +32,9 @@ impl MaterialIcon {
 
 impl From<MaterialIcon> for Icon {
     fn from(icon: MaterialIcon) -> Self {
-        let outlined = Glyph::new(FONT_FAMILY_OUTLINED, icon.codepoint);
+        let outlined = FONT_FAMILY_OUTLINED.glyph(icon.codepoint);
         if icon.filled {
-            Self::new(outlined, Glyph::new(FONT_FAMILY_FILLED, icon.codepoint))
+            Self::new(outlined, FONT_FAMILY_FILLED.glyph(icon.codepoint))
         } else {
             Self::single(outlined)
         }
@@ -69,7 +69,7 @@ mod tests {
     #[cfg(feature = "bundled-icons")]
     #[test]
     fn families_match_the_bundled_fonts() {
-        assert_eq!(FONT_FAMILY_FILLED, egui_material_icons::FONT_FAMILY);
-        assert_eq!(FONT_FAMILY_OUTLINED, egui_material_icons::FONT_FAMILY_OUTLINED);
+        assert_eq!(FONT_FAMILY_FILLED.name(), egui_material_icons::FONT_FAMILY);
+        assert_eq!(FONT_FAMILY_OUTLINED.name(), egui_material_icons::FONT_FAMILY_OUTLINED);
     }
 }

@@ -1,7 +1,7 @@
 use std::{any::Any, collections::VecDeque};
 
 /// Reversible edit of state `S`.
-pub trait UndoCommand<S>: Any + Send {
+pub trait UndoCommand<S>: Send + 'static {
     /// Performs the edit; also called again on redo.
     fn apply(&mut self, state: &mut S);
     /// Exactly undoes [`Self::apply`].
@@ -9,16 +9,44 @@ pub trait UndoCommand<S>: Any + Send {
     /// Human-readable name for undo/redo menu items.
     fn label(&self) -> &str;
 
-    /// Absorbs an already-applied follow-up command (e.g. consecutive keystrokes).
-    /// Downcast `_next` to `Self`; return `true` if merged.
-    fn merge(&mut self, _next: &dyn Any) -> bool {
+    /// Absorbs an already-applied follow-up command of the same type (e.g. consecutive keystrokes);
+    /// `true` if merged. Commands of other types never merge.
+    fn merge(&mut self, _next: &Self) -> bool
+    where
+        Self: Sized,
+    {
         false
+    }
+}
+
+trait Erased<S>: Send {
+    fn apply(&mut self, state: &mut S);
+    fn revert(&mut self, state: &mut S);
+    fn label(&self) -> &str;
+    fn merge(&mut self, next: &dyn Any) -> bool;
+}
+
+impl<S, C: UndoCommand<S>> Erased<S> for C {
+    fn apply(&mut self, state: &mut S) {
+        UndoCommand::apply(self, state);
+    }
+
+    fn revert(&mut self, state: &mut S) {
+        UndoCommand::revert(self, state);
+    }
+
+    fn label(&self) -> &str {
+        UndoCommand::label(self)
+    }
+
+    fn merge(&mut self, next: &dyn Any) -> bool {
+        next.downcast_ref::<C>().is_some_and(|n| UndoCommand::merge(self, n))
     }
 }
 
 struct Group<S> {
     label: String,
-    commands: Vec<Box<dyn UndoCommand<S>>>,
+    commands: Vec<Box<dyn Erased<S>>>,
 }
 
 impl<S: 'static> UndoCommand<S> for Group<S> {
@@ -46,8 +74,8 @@ pub struct UndoShortcuts<'a> {
 
 /// Undo and redo history of [`UndoCommand`]s with grouping and a size limit.
 pub struct UndoStack<S> {
-    done: VecDeque<Box<dyn UndoCommand<S>>>,
-    undone: Vec<Box<dyn UndoCommand<S>>>,
+    done: VecDeque<Box<dyn Erased<S>>>,
+    undone: Vec<Box<dyn Erased<S>>>,
     group: Option<Group<S>>,
     limit: usize,
     sealed: bool,
@@ -77,7 +105,7 @@ impl<S: 'static> UndoStack<S> {
 
     /// Applies `cmd`, clears redo and merges into the previous command unless sealed.
     pub fn execute(&mut self, mut cmd: impl UndoCommand<S>, state: &mut S) {
-        cmd.apply(state);
+        UndoCommand::apply(&mut cmd, state);
         self.undone.clear();
         let last = match &mut self.group {
             Some(g) => g.commands.last_mut(),
@@ -199,11 +227,9 @@ mod tests {
             "type"
         }
 
-        fn merge(&mut self, next: &dyn Any) -> bool {
-            next.downcast_ref::<Self>().is_some_and(|n| {
-                self.0.push_str(&n.0);
-                true
-            })
+        fn merge(&mut self, next: &Self) -> bool {
+            self.0.push_str(&next.0);
+            true
         }
     }
 

@@ -23,7 +23,7 @@ pub enum Modality {
     Pointer,
 }
 
-const MODALITY: &str = "mineral::focus_modality";
+const MODALITY: crate::setting::Setting<Modality> = crate::setting::Setting::new("mineral::focus_modality");
 
 pub(crate) fn track_modality(ctx: &Context) {
     let latest = ctx.input(|i| {
@@ -44,13 +44,13 @@ pub(crate) fn track_modality(ctx: &Context) {
         })
     });
     if let Some(m) = latest {
-        crate::setting::set(ctx, MODALITY, m);
+        MODALITY.set(ctx, m);
     }
 }
 
 /// Last [`Modality`] seen by [`Runtime::pass`](crate::runtime::Runtime::pass).
 pub fn modality(ctx: &Context) -> Modality {
-    crate::setting::get(ctx, MODALITY)
+    MODALITY.get(ctx)
 }
 
 /// `id` has focus and it should be indicated, per the `:focus-visible` heuristics: focus reached by

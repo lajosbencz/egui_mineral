@@ -159,7 +159,8 @@ fn split_pane_divider_moves_by_key() {
     let mut h = still(WIDE, 0.0, |ui, fraction| {
         *fraction = SplitPane::new("sp", "Panes")
             .show(ui, |ui| ui.label("A"), |ui| ui.label("B"))
-            .fraction;
+            .fraction
+            .get();
     });
     let before = h.state().value;
     let handle = h.widget("sp-splitter");

@@ -202,33 +202,20 @@ pub(crate) struct Collector {
     pub(crate) tree: SemanticTree,
 }
 
-pub(crate) fn collector_id(ctx: &Context) -> Id {
-    crate::runtime::pass_scoped(ctx, COLLECTOR_SCOPE)
-}
-
-const COLLECTOR_SCOPE: &str = "mineral::semantic";
+pub(crate) type Pass = crate::runtime::PassScope<Collector>;
 
 pub(crate) fn begin_pass(ctx: &Context, wanted: bool) {
-    let id = collector_id(ctx);
-    ctx.data_mut(|d| {
-        d.insert_temp(
-            id,
-            Collector {
-                wanted,
-                tree: SemanticTree::default(),
-            },
-        )
-    });
+    Pass::set(
+        ctx,
+        Collector {
+            wanted,
+            tree: SemanticTree::default(),
+        },
+    );
 }
 
 pub(crate) fn collecting(ctx: &Context) -> bool {
-    let viewport = ctx.viewport_id();
-    ctx.data(|d| {
-        let id = crate::runtime::pass_scoped_in(d, viewport, COLLECTOR_SCOPE);
-        d.get_temp_raw(egui::util::id_type_map::RawKey::new::<Collector>(id))
-            .and_then(|c| c.downcast_ref::<Collector>())
-            .is_some_and(|c| c.wanted)
-    })
+    Pass::read(ctx, |c| c.is_some_and(|c| c.wanted))
 }
 
 /// Builds `node` only when [`wanted`], then writes it to AccessKit (with an `id`) and the tree.
@@ -260,11 +247,7 @@ pub fn emit_parent(ctx: &Context, id: Id, node: impl FnOnce() -> SemanticNode) {
 }
 
 pub(crate) fn end_pass(ctx: &Context) -> Option<SemanticTree> {
-    let id = collector_id(ctx);
-    let tree = ctx
-        .data_mut(|d| d.remove_temp::<Collector>(id))
-        .filter(|c| c.wanted)
-        .map(|c| c.tree)?;
+    let tree = Pass::take(ctx).filter(|c| c.wanted).map(|c| c.tree)?;
     let mut seen = std::collections::HashSet::with_capacity(tree.nodes.len());
     for n in &tree.nodes {
         if !seen.insert(n.id.key()) {
