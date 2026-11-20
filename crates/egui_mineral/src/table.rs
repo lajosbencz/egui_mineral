@@ -22,14 +22,30 @@ pub struct SortColumn {
     pub order: SortOrder,
 }
 
-/// Active sort column and direction.
+/// Active sort column and direction; unsorted by default.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SortState {
-    /// `None` keeps data order.
-    pub column: Option<SortColumn>,
+    column: Option<SortColumn>,
 }
 
 impl SortState {
+    /// Sorted by `column` in `order`.
+    pub fn by(column: usize, order: SortOrder) -> Self {
+        Self {
+            column: Some(SortColumn { index: column, order }),
+        }
+    }
+
+    /// `None` keeps data order.
+    pub fn column(&self) -> Option<SortColumn> {
+        self.column
+    }
+
+    /// Back to data order.
+    pub fn clear(&mut self) {
+        self.column = None;
+    }
+
     /// Header activation: none -> ascending -> descending -> none; another column starts ascending.
     pub fn cycle(&mut self, column: usize) {
         self.column = match self.column {

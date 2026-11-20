@@ -380,7 +380,7 @@ proptest! {
             match op {
                 SortOp::Cycle(c) => {
                     s.cycle(c);
-                    prop_assert!(s.order(c).is_some() || s.column.is_none(), "cycling selects the column or clears");
+                    prop_assert!(s.order(c).is_some() || s.column().is_none(), "cycling selects the column or clears");
                     for other in [0, 1, c.wrapping_add(1)] {
                         if other != c {
                             prop_assert!(s.order(other).is_none(), "only the sorted column reports an order");
@@ -394,7 +394,7 @@ proptest! {
                     let mut sorted = order.clone();
                     sorted.sort_unstable();
                     prop_assert_eq!(sorted, (0..len).collect::<Vec<_>>(), "order is a permutation of 0..len");
-                    match s.column {
+                    match s.column() {
                         None => prop_assert_eq!(order, (0..len).collect::<Vec<_>>(), "unsorted keeps data order"),
                         Some(SortColumn { index: column, order: dir }) => {
                             for pair in order.windows(2) {

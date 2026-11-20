@@ -230,13 +230,9 @@ impl<'a> CommandPalette<'a> {
         let area_id = id.with("area");
         let area = kit::layer::modal_area(rt.core(), area_id);
         let scope = shortcut::scope_of(ctx, area.layer());
-        palette::Shortcuts {
-            salt: &self.salt,
-            toggle: self.shortcut,
-            scope,
-            modal: area_id,
-        }
-        .bind(ctx, &self.commands, open);
+        palette::Shortcuts::new(&self.salt, scope, area_id)
+            .maybe_toggle(self.shortcut)
+            .bind(ctx, &self.commands, open);
         let mut st = State::load(ctx, id);
         if !*open {
             if st.was_open {

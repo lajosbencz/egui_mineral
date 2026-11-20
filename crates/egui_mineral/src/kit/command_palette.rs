@@ -158,18 +158,38 @@ impl State {
 
 /// Shortcut binding of a palette: its toggle and its entries' accelerators.
 #[derive(Clone, Copy, Debug)]
+#[non_exhaustive]
+#[must_use = "bind it with .bind(..)"]
 pub struct Shortcuts<'a> {
-    /// Palette salt; keys the toggle's action.
-    pub salt: &'a KeyedSalt,
-    /// Shortcut opening and closing the palette, bound globally and inside the palette's modal.
-    pub toggle: Option<KeyboardShortcut>,
-    /// Scope of the entries' accelerators.
-    pub scope: Scope,
-    /// Layer id of the palette's modal.
-    pub modal: Id,
+    salt: &'a KeyedSalt,
+    toggle: Option<KeyboardShortcut>,
+    scope: Scope,
+    modal: Id,
 }
 
-impl Shortcuts<'_> {
+impl<'a> Shortcuts<'a> {
+    /// `salt` keys the toggle's action, `scope` holds the entries' accelerators, `modal` is the palette's modal
+    /// layer id; no toggle.
+    pub fn new(salt: &'a KeyedSalt, scope: Scope, modal: Id) -> Self {
+        Self {
+            salt,
+            toggle: None,
+            scope,
+            modal,
+        }
+    }
+
+    /// Opens and closes the palette, bound globally and inside its modal.
+    pub fn toggle(self, toggle: KeyboardShortcut) -> Self {
+        self.maybe_toggle(Some(toggle))
+    }
+
+    /// [`Self::toggle`] when `Some`.
+    pub fn maybe_toggle(mut self, toggle: Option<KeyboardShortcut>) -> Self {
+        self.toggle = toggle;
+        self
+    }
+
     /// Binds the toggle and every enabled entry's shortcut, toggling `open` on the former and closing it when a
     /// command fires.
     pub fn bind<E: Entry>(&self, ctx: &Context, entries: &[E], open: &mut bool) {

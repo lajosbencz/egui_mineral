@@ -234,7 +234,7 @@ fn table(ui: &mut MaterialUi<'_>, s: &mut State) {
         s.table_note = format!("Activated row {row}");
     }
     if r.sort_changed {
-        s.table_note = format!("Sort: {:?}", r.sort.column);
+        s.table_note = format!("Sort: {:?}", r.sort.column());
     }
     if r.page_changed {
         "Page changed".clone_into(&mut s.table_note);
