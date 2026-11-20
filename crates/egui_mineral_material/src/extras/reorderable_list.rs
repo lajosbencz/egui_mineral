@@ -130,7 +130,7 @@ fn reorderable_list<T: AsIdSalt>(
     }
     let moved = res.moved;
     let keyed = focused.and_then(|i| {
-        kit::input::key_presses(ui.ctx())
+        kit::interact::key_presses(ui.ctx())
             .into_iter()
             .filter(|(_, m)| m.alt)
             .find_map(|(k, _)| match k {

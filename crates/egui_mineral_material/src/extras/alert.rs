@@ -216,7 +216,7 @@ impl Alert {
                 Stroke::new(w, t.role(divider::COLOR)),
             );
         }
-        kit::semantic::remember_rect(&ctx, id, rect);
+        kit::nodes::remember_rect(&ctx, id, rect);
         if let Some(a) = action.and_then(|i| self.actions.get(i)) {
             a.fire(&ctx);
         }

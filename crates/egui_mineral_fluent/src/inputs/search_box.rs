@@ -161,7 +161,7 @@ impl MineralWidget for SearchBox<'_> {
             Pos2::new(inner.left() + left, inner.top()),
             Pos2::new((inner.right() - right).max(inner.left() + left), inner.bottom()),
         );
-        let escape = focused && !self.disabled && kit::overlay::consume_escape_from(ctx, edit_id);
+        let escape = focused && !self.disabled && kit::layer::consume_escape_from(ctx, edit_id);
         if escape {
             self.value.clear();
         }

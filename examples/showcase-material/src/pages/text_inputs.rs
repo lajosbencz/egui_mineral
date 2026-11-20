@@ -1,7 +1,7 @@
 use egui::{Key, KeyboardShortcut, Modifiers};
 use egui_mineral::{
     edit,
-    form::{CheckError, FieldKind, MinLength, ValidateOn, ValidationError, Validator},
+    form::{CheckError, FieldKind, FieldValue, MaxLength, MinLength, ValidateOn, ValidationError, Validator},
     i18n::LocaleFormat,
     shortcut::{self, Scope},
 };
@@ -577,6 +577,22 @@ fn form(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
                     f.required(true).kind(FieldKind::Password)
                 })
                 .field("bio", "About you (optional)", |f| f.kind(FieldKind::Multiline))
+                .field("role", "Role", |f| {
+                    f.kind(FieldKind::Select).required(true).options([
+                        ("dev", "Developer"),
+                        ("design", "Designer"),
+                        ("pm", "Product manager"),
+                    ])
+                })
+                .field("topics", "Topics (up to 2)", |f| {
+                    f.kind(FieldKind::MultiSelect)
+                        .options([("ui", "UI"), ("a11y", "Accessibility"), ("perf", "Performance")])
+                        .validator(MaxLength(2))
+                })
+                .field("start", "Start date (optional)", |f| f.kind(FieldKind::Date))
+                .field("terms", "I accept the terms", |f| {
+                    f.kind(FieldKind::Checkbox).required(true)
+                })
                 .check(|st| {
                     if st.value("password") == st.value("confirm") {
                         Ok(())
@@ -590,7 +606,15 @@ fn form(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
                 .submit_label("Sign up")
                 .show(ui);
             if let Some(values) = r.submitted {
-                s.form_done = Some(format!("{} <{}>", values["username"], values["email"]));
+                let text = |name| values.text(name).unwrap_or_default();
+                s.form_done = Some(format!(
+                    "{} <{}>, {}, topics {:?}, start {:?}",
+                    text("username"),
+                    text("email"),
+                    values.choice("role").unwrap_or_default(),
+                    values.choices("topics").unwrap_or_default(),
+                    values.date("start"),
+                ));
                 s.form.finish_submit(Ok(()));
                 shared.toast("Signed up");
             }
@@ -662,7 +686,10 @@ fn files(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
 struct EmailValidator;
 
 impl Validator for EmailValidator {
-    fn validate(&self, value: &str, _locale: &dyn LocaleFormat) -> Result<(), ValidationError> {
+    fn validate(&self, value: &FieldValue, _locale: &dyn LocaleFormat) -> Result<(), ValidationError> {
+        let Some(value) = value.as_text() else {
+            return Ok(());
+        };
         let err = || Err(ValidationError::new("email", "Enter a valid email address"));
         let Some((local, domain)) = value.split_once('@') else {
             return err();
@@ -692,7 +719,10 @@ struct PasswordPolicy {
 }
 
 impl Validator for PasswordPolicy {
-    fn validate(&self, value: &str, _locale: &dyn LocaleFormat) -> Result<(), ValidationError> {
+    fn validate(&self, value: &FieldValue, _locale: &dyn LocaleFormat) -> Result<(), ValidationError> {
+        let Some(value) = value.as_text() else {
+            return Ok(());
+        };
         let classes = [
             value.chars().any(char::is_lowercase),
             value.chars().any(char::is_uppercase),

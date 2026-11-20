@@ -247,13 +247,12 @@ impl Popover {
     /// focusable widget of the content, if any.
     pub fn show_at<R>(
         self,
-        ui: &MineralUi<'_, Material>,
+        rt: &Rt,
         anchor: Rect,
         open: &mut bool,
         add: impl FnOnce(&mut MineralUi<'_, Material>) -> R,
     ) -> OverlayResponse<R> {
-        let rt = ui.rt();
-        let ctx = ui.ctx().clone();
+        let ctx = rt.ctx().clone();
         let focus_id =
             kit::scoped_id(rt.core(), Id::unique(("mineral::popover_at", self.base.salt.id_salt()))).with("focus");
         let chrome = Chrome {
@@ -345,7 +344,7 @@ impl HoverCard {
             close: self.close_delay,
         };
         st.intent.follow(&ctx, &mut st.open, engaged.into(), delays);
-        if st.open && kit::overlay::consume_escape(&ctx) {
+        if st.open && kit::layer::consume_escape(&ctx) {
             st.open = false;
             st.intent.cancel();
         }

@@ -1,5 +1,6 @@
 use egui::{Rect, Sense, Stroke, StrokeKind, Ui, UiBuilder, pos2, text::LayoutJob, vec2};
 use egui_mineral::kit::choice::Choice;
+use egui_mineral::select::ItemKey;
 use egui_mineral::{
     focus::{self as roving, RovingFocus},
     i18n::I18n,
@@ -447,8 +448,8 @@ impl MineralWidget for TabItem<'_> {
         let t = ui.tokens();
         let r = &frame.response;
         let availability = Availability::disabled_if(self.disabled);
-        kit::input::hover_cursor(ui.core(), r, availability);
-        kit::focus::follow_press(r);
+        kit::interact::hover_cursor(ui.core(), r, availability);
+        kit::interact::follow_press(r);
         let i = Interaction::of(r, availability);
         let s = State::of(i);
         let selected = self.selected;
@@ -609,7 +610,7 @@ pub struct TabList<'a, K> {
     disabled: bool,
 }
 
-impl<'a, K: PartialEq + Clone> TabList<'a, K> {
+impl<'a, K: ItemKey> TabList<'a, K> {
     /// Selects the tab whose value equals `selected` (`selectedValue`), none when no tab matches; `label` names
     /// the list for assistive technology; agent key `<id_salt>-tablist`.
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selected: &'a mut K) -> Self {
@@ -706,7 +707,7 @@ impl<'a, K: PartialEq + Clone> TabList<'a, K> {
             ui.spacing_mut().item_spacing = vec2(gap, gap);
             for (i, (tab, m)) in tabs.iter().zip(&measured).enumerate() {
                 let r = rt.ui(ui).mineral(TabItem {
-                    salt: tab.salt.clone().unwrap_or_else(|| salt.child(i)),
+                    salt: tab.salt.clone().unwrap_or_else(|| salt.child(selected.value(i))),
                     tab,
                     selected: Some(i) == current,
                     appearance,

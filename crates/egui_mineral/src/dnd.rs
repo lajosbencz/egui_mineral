@@ -62,7 +62,7 @@ fn drag_source_at<K, T: Send + Sync + 'static, R>(
         ctx.set_cursor_icon(CursorIcon::Grabbing);
         if let Some(pos) = ctx.pointer_interact_pos() {
             let offset = Vec2::load(ctx, grab);
-            crate::kit::overlay::area(rt.core(), id.with("mineral::dnd_preview"))
+            crate::kit::layer::area(rt.core(), id.with("mineral::dnd_preview"))
                 .order(Order::Tooltip)
                 .fixed_pos(pos + offset)
                 .interactable(false)

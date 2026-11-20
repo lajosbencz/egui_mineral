@@ -156,7 +156,7 @@ fn multiline_fields_in_one_ui_scroll_independently() {
     h.press(Key::End);
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, egui_mineral::semantic::KeySalt)]
 enum Fruit {
     Apple,
     Banana,

@@ -296,7 +296,7 @@ impl MineralWidget for DateField<'_> {
         let mut edited = false;
         let focused = r.has_focus();
         if focused && !self.disabled {
-            kit::focus::lock_arrows(ctx, r.id, kit::focus::Arrows::Both);
+            kit::interact::lock_arrows(ctx, r.id, kit::interact::Arrows::Both);
             let events = ctx.input(|i| i.events.clone());
             edited |= apply_events(events, &mut seg, &mut st.active, fmt.as_ref(), dir);
         }

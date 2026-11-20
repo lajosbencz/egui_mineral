@@ -250,38 +250,81 @@ impl Splitter {
     }
 }
 
-/// Handle over `rect` resizing one panel: a drag moves `size` (dp) by `gain` times the pointer
-/// distance along `track` (1 for an edge-anchored panel, 2 for a centered one), arrow and Page keys
-/// step it within `range` as on a [`Splitter`], AccessKit sets it.
-/// Returns the handle and the new size; the caller paints it and emits its [`Role::Splitter`] node.
-pub fn size_handle<K>(
-    ui: &MineralUi<'_, K>,
+/// Handle over a rect resizing one panel: a drag moves its size (dp) by the pointer distance along the track,
+/// arrow and Page keys step it within the range as on a [`Splitter`], AccessKit sets it. Paints nothing; the
+/// caller paints the handle and emits its [`Role::Splitter`] node.
+#[derive(Clone, Copy, Debug)]
+#[must_use = "call .show(..)"]
+pub struct SizeHandle {
     id: Id,
     rect: Rect,
     track: Track,
-    range: &RangeModel,
-    size: f64,
-    gain: f32,
-) -> (Response, f64) {
-    let core = ui.rt().core();
-    let handle = ui.interact(rect, id, Sense::click_and_drag());
-    if handle.hovered() || handle.dragged() {
-        ui.ctx().set_cursor_icon(match track.axis() {
-            Axis::Horizontal => CursorIcon::ResizeColumn,
-            Axis::Vertical => CursorIcon::ResizeRow,
-        });
+    range: RangeModel,
+    centered: bool,
+}
+
+/// Result of [`SizeHandle::show`].
+#[derive(Clone, Debug)]
+#[non_exhaustive]
+pub struct SizeHandleResponse {
+    /// Handle response; `double_clicked` is the app's reset gesture.
+    pub response: Response,
+    /// Panel size after this pass, dp, snapped to the range.
+    pub size: f64,
+}
+
+impl SizeHandle {
+    /// Hit zone `rect` with egui id `id`; `track` orients the drag and keys, `range` bounds the size.
+    pub const fn new(id: Id, rect: Rect, track: Track, range: RangeModel) -> Self {
+        Self {
+            id,
+            rect,
+            track,
+            range,
+            centered: false,
+        }
     }
-    let mut v = size;
-    if handle.dragged() {
-        v += f64::from(gain * track.sign() * track.axis().main(handle.drag_delta()));
+
+    /// Panel centered on the track, growing on both sides: a drag moves the size by twice the pointer distance;
+    /// default off (edge-anchored).
+    pub const fn centered(mut self, centered: bool) -> Self {
+        self.centered = centered;
+        self
     }
-    if handle.has_focus() {
-        v = keyboard(core, handle.id, track, range, v);
+
+    /// Handles input for a panel of `size` this pass.
+    pub fn show<K>(self, ui: &MineralUi<'_, K>, size: f64) -> SizeHandleResponse {
+        let Self {
+            id,
+            rect,
+            track,
+            range,
+            centered,
+        } = self;
+        let core = ui.rt().core();
+        let handle = ui.interact(rect, id, Sense::click_and_drag());
+        if handle.hovered() || handle.dragged() {
+            ui.ctx().set_cursor_icon(match track.axis() {
+                Axis::Horizontal => CursorIcon::ResizeColumn,
+                Axis::Vertical => CursorIcon::ResizeRow,
+            });
+        }
+        let gain = if centered { 2.0 } else { 1.0 };
+        let mut v = size;
+        if handle.dragged() {
+            v += f64::from(gain * track.sign() * track.axis().main(handle.drag_delta()));
+        }
+        if handle.has_focus() {
+            v = keyboard(core, handle.id, track, &range, v);
+        }
+        if let Some(n) = range.accesskit(core, handle.id, v) {
+            v = n;
+        }
+        SizeHandleResponse {
+            response: handle,
+            size: range.snap(v),
+        }
     }
-    if let Some(n) = range.accesskit(core, handle.id, v) {
-        v = n;
-    }
-    (handle, range.snap(v))
 }
 
 fn splitter_track(core: &crate::runtime::Core, axis: Axis) -> Track {
@@ -298,8 +341,8 @@ fn keyboard(core: &crate::runtime::Core, id: Id, track: Track, range: &RangeMode
         Axis::Horizontal => [Key::ArrowUp, Key::ArrowDown],
         Axis::Vertical => [Key::ArrowLeft, Key::ArrowRight],
     };
-    kit::focus::lock_arrows(ctx, id, kit::focus::Arrows::Axis(axis));
-    for k in kit::input::plain_key_presses(ctx) {
+    kit::interact::lock_arrows(ctx, id, kit::interact::Arrows::Axis(axis));
+    for k in kit::interact::plain_key_presses(ctx) {
         if cross.contains(&k) {
             continue;
         }

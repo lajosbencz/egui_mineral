@@ -397,12 +397,12 @@ fn segmented_button_value_binds_the_segment_value() {
         *changes += u32::from(r.changed);
     });
     assert_eq!(
-        h.node("period-1-segment").state.selected,
+        h.node("period-w-segment").state.selected,
         Some(true),
         "the segment equal to the value is selected"
     );
-    h.click("period-2-segment");
-    h.click("period-2-segment");
+    h.click("period-m-segment");
+    h.click("period-m-segment");
     assert_eq!(h.state().value, ('m', 1));
 }
 

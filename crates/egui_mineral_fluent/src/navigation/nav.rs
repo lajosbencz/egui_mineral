@@ -1,6 +1,6 @@
 use egui_mineral::kit::choice::Choice;
-use egui_mineral::semantic::KeySalt;
-use std::collections::{BTreeMap, BTreeSet};
+use egui_mineral::select::ItemKey;
+use std::collections::{HashMap, HashSet};
 
 use egui::{Frame, Id, Margin, Panel, Sense, Stroke, StrokeKind, UiBuilder, pos2, text::LayoutJob, vec2};
 use egui_mineral::{
@@ -47,10 +47,15 @@ macro_rules! row_setters {
 // Binding of a nav's selection with its lifetime erased, so `NavUi` needs none for it.
 trait Bound<K> {
     fn holds(&self, value: &K) -> bool;
+    fn holds_id(&self, id: Id) -> bool;
     fn write(&mut self, value: K) -> bool;
 }
 
-impl<K: PartialEq + Clone> Bound<K> for Choice<'_, K> {
+impl<K: ItemKey> Bound<K> for Choice<'_, K> {
+    fn holds_id(&self, id: Id) -> bool {
+        self.selected().any(|v| Id::unique(v) == id)
+    }
+
     fn holds(&self, value: &K) -> bool {
         self.contains(value)
     }
@@ -59,12 +64,6 @@ impl<K: PartialEq + Clone> Bound<K> for Choice<'_, K> {
         self.set(value)
     }
 }
-
-/// Value of a [`Nav`] row: it keys the row (`<id_salt>-<value>`) and persists across passes as open categories.
-/// App enums get `KeySalt` from `#[derive(KeySalt)]` (`egui_mineral::semantic`).
-pub trait NavValue: KeySalt + egui::AsIdSalt + Ord + Clone + Send + Sync + 'static {}
-
-impl<K: KeySalt + egui::AsIdSalt + Ord + Clone + Send + Sync + 'static> NavValue for K {}
 
 /// Fluent `NavItem`: a link row of a [`Nav`].
 #[derive(Clone, Debug)]
@@ -251,7 +250,7 @@ impl MineralWidget for Row {
         let t = ui.tokens();
         let r = &frame.response;
         let i = Interaction::of(r, Availability::Enabled);
-        kit::input::hover_cursor(ui.core(), r, Availability::Enabled);
+        kit::interact::hover_cursor(ui.core(), r, Availability::Enabled);
         let rect = frame.zones.visual;
         let fill = if i.pressed {
             ColorNeutralBackground4Pressed
@@ -352,32 +351,23 @@ pub struct NavUi<'u, 's, K> {
     salt: &'u KeyedSalt,
     id: Id,
     selected: &'u mut dyn Bound<K>,
-    open: &'u mut Vec<K>,
+    open: &'u mut Vec<Id>,
     multiple: bool,
     density: NavDensity,
     picked: &'u mut Option<K>,
     changed: &'u mut bool,
-    values: Vec<K>,
-    children: &'u mut Children<K>,
+    values: Vec<Id>,
+    children: &'u mut Children,
 }
 
-// Sub item values per category value; entries of categories no longer placed are pruned.
-#[derive(Clone)]
-struct Children<K> {
-    known: BTreeMap<K, Vec<K>>,
-    seen: BTreeSet<K>,
+// Ids of the sub item values per category value id; entries of categories no longer placed are pruned.
+#[derive(Clone, Default)]
+struct Children {
+    known: HashMap<Id, Vec<Id>>,
+    seen: HashSet<Id>,
 }
 
-impl<K> Default for Children<K> {
-    fn default() -> Self {
-        Self {
-            known: BTreeMap::new(),
-            seen: BTreeSet::new(),
-        }
-    }
-}
-
-impl<K: NavValue> NavUi<'_, '_, K> {
+impl<K: ItemKey> NavUi<'_, '_, K> {
     fn row(&mut self, value: &K, salt: Option<&KeyedSalt>, row: Row) -> egui::Response {
         let salt = salt.cloned().unwrap_or_else(|| self.salt.child(value));
         let r = self.ui.mineral(Row { salt, ..row });
@@ -386,7 +376,7 @@ impl<K: NavValue> NavUi<'_, '_, K> {
 
     /// `NavItem`: a click selects `value`.
     pub fn item(&mut self, item: NavItem<K>) -> NavItemResponse {
-        self.values.push(item.value.clone());
+        self.values.push(Id::unique(&item.value));
         let row = Row {
             salt: self.salt.clone(),
             label: item.label,
@@ -401,7 +391,7 @@ impl<K: NavValue> NavUi<'_, '_, K> {
 
     /// `NavSubItem`: a click selects `value`.
     pub fn sub_item(&mut self, item: NavSubItem<K>) -> NavItemResponse {
-        self.values.push(item.value.clone());
+        self.values.push(Id::unique(&item.value));
         let row = Row {
             salt: self.salt.clone(),
             label: item.label,
@@ -434,10 +424,11 @@ impl<K: NavValue> NavUi<'_, '_, K> {
         add: impl FnOnce(&mut NavUi<'_, '_, K>) -> R,
     ) -> NavItemResponse<R> {
         let value = category.value;
-        let open = self.open.contains(&value);
-        self.children.seen.insert(value.clone());
-        let known = self.children.known.get(&value).map_or(&[][..], Vec::as_slice);
-        let selected = !open && known.iter().any(|v| self.selected.holds(v));
+        let vid = Id::unique(&value);
+        let open = self.open.contains(&vid);
+        self.children.seen.insert(vid);
+        let known = self.children.known.get(&vid).map_or(&[][..], Vec::as_slice);
+        let selected = !open && known.iter().any(|v| self.selected.holds_id(*v));
         let row = Row {
             salt: self.salt.clone(),
             label: category.label,
@@ -450,12 +441,12 @@ impl<K: NavValue> NavUi<'_, '_, K> {
         let clicked = response.clicked();
         if clicked {
             if open {
-                self.open.retain(|v| *v != value);
+                self.open.retain(|v| *v != vid);
             } else {
                 if !self.multiple {
                     self.open.clear();
                 }
-                self.open.push(value.clone());
+                self.open.push(vid);
             }
         }
         let inner = (open && !clicked).then(|| {
@@ -474,7 +465,7 @@ impl<K: NavValue> NavUi<'_, '_, K> {
             };
             let out = add(&mut child);
             let values = child.values;
-            self.children.known.insert(value, values);
+            self.children.known.insert(vid, values);
             out
         });
         NavItemResponse {
@@ -540,7 +531,7 @@ pub struct Nav<'a, K> {
     gap: f32,
 }
 
-impl<'a, K: NavValue> Nav<'a, K> {
+impl<'a, K: ItemKey> Nav<'a, K> {
     /// Selects the item whose value equals `selected`; `label` names the navigation for assistive technology.
     /// Agent key `<id_salt>-nav`; rows without a `salt(..)` are keyed `<id_salt>-<value>`.
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selected: &'a mut K) -> Self {
@@ -607,15 +598,14 @@ impl<'a, K: NavValue> Nav<'a, K> {
         } = self;
         let id = ui.make_persistent_id(salt.id_salt());
         let open_id = id.with("mineral::nav-open");
-        let mut open: Vec<K> = ui.ctx().data(|d| d.get_temp(open_id)).unwrap_or(if multiple {
-            default_open
-        } else {
-            default_open.into_iter().take(1).collect()
+        let mut open: Vec<Id> = ui.ctx().data(|d| d.get_temp(open_id)).unwrap_or_else(|| {
+            let take = if multiple { usize::MAX } else { 1 };
+            default_open.iter().take(take).map(Id::unique).collect()
         });
         let mut changed = false;
         let mut picked = None;
         let children_id = id.with("mineral::nav-children");
-        let mut children: Children<K> = ui.ctx().data(|d| d.get_temp(children_id)).unwrap_or_default();
+        let mut children: Children = ui.ctx().data(|d| d.get_temp(children_id)).unwrap_or_default();
         children.seen.clear();
         let group = ui
             .push_id(salt.id_salt(), |ui| {
@@ -649,7 +639,7 @@ impl<'a, K: NavValue> Nav<'a, K> {
                 children_id,
                 Children {
                     known,
-                    seen: BTreeSet::new(),
+                    seen: HashSet::new(),
                 },
             );
         });
@@ -677,7 +667,7 @@ pub struct NavDrawer<'a, K> {
     width: f32,
 }
 
-impl<'a, K: NavValue> NavDrawer<'a, K> {
+impl<'a, K: ItemKey> NavDrawer<'a, K> {
     /// See [`Nav::new`]; 260pt wide.
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selected: &'a mut K) -> Self {
         Self::with(Nav::new(id_salt, label, selected))

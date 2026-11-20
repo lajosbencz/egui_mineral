@@ -1,4 +1,5 @@
 use crate::msg;
+use egui_mineral::select::ItemKey;
 use std::sync::Arc;
 
 use egui::{CornerRadius, Galley, IdSalt, Key, Rect, Sense, Stroke, StrokeKind, pos2, text::LayoutJob, vec2};
@@ -480,8 +481,8 @@ impl MineralWidget for Part<'_> {
         let availability = Availability::disabled_if(self.look.disabled);
         let i = Interaction::of(r, availability);
         if self.kind.interactive() {
-            kit::input::hover_cursor(ui.core(), r, availability);
-            kit::focus::follow_press(r);
+            kit::interact::hover_cursor(ui.core(), r, availability);
+            kit::interact::follow_press(r);
         }
         let rect = frame.zones.visual;
         self.paint(ui, rect, i, &t);
@@ -937,7 +938,7 @@ pub struct TagGroup<'a, K: Ord> {
 
 egui_mineral::kit::opaque_debug!(Entry<'_>);
 
-impl<'a, K: Ord + Clone> TagGroup<'a, K> {
+impl<'a, K: ItemKey> TagGroup<'a, K> {
     /// `label` names the group for assistive technology; agent key `<id_salt>-tag-group`.
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>) -> Self {
         Self {

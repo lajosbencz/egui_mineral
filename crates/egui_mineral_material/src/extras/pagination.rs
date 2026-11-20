@@ -279,7 +279,7 @@ impl Composite for Pagination<'_> {
                 target = total;
             }
         });
-        kit::semantic::remember_rect(ctx, id, r.response.rect);
+        kit::nodes::remember_rect(ctx, id, r.response.rect);
         let changed = target - 1 != *self.page;
         *self.page = target - 1;
         let response = r.response;
@@ -332,7 +332,7 @@ impl MineralWidget for Crumb<'_> {
             let c = t.role(CURRENT_CRUMB_COLOR);
             if self.disabled { common::disabled_content(&t) } else { c }
         } else {
-            kit::input::hover_cursor(ui.core(), r, Availability::disabled_if(self.disabled));
+            kit::interact::hover_cursor(ui.core(), r, Availability::disabled_if(self.disabled));
             let style = button::style(ButtonVariant::Text, None, !self.disabled, &t);
             let i = Interaction::of(r, Availability::disabled_if(self.disabled));
             button::Surface::of(rect, button_shape(m, rect, &t), style, m.outline).paint(
@@ -568,7 +568,7 @@ impl Breadcrumbs {
                 }
             }
         });
-        kit::semantic::remember_rect(ctx, id, r.response.rect);
+        kit::nodes::remember_rect(ctx, id, r.response.rect);
         BreadcrumbsResponse {
             response: r.response,
             clicked: out.map(|i| Clicked::new(i, self.items.get(i).and_then(|it| it.action_key.clone()))),

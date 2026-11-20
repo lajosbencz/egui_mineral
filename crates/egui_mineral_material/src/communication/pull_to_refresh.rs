@@ -141,7 +141,7 @@ impl PullToRefresh {
         let top = region.top() + fraction * m::INDICATOR_MAX_DISTANCE - size;
         let rect = Rect::from_min_size(pos2(region.center().x - size / 2.0, top), Vec2::splat(size));
         // Above the region while hidden: no pointer hits, but focus and AccessKit still reach it.
-        let resp = kit::input::interact(&rt.ui(ui), rect, indicator_salt, Sense::click(), Availability::Enabled);
+        let resp = kit::interact::interact(&rt.ui(ui), rect, indicator_salt, Sense::click(), Availability::Enabled);
         if !self.refreshing && resp.clicked() {
             refresh = true;
         }

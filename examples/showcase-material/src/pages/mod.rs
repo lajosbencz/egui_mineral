@@ -24,7 +24,9 @@ use egui_mineral_material::{
 };
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, egui_mineral::nav::Route)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, egui_mineral::nav::Route, PartialOrd, Ord, Hash, egui_mineral::semantic::KeySalt,
+)]
 pub(crate) enum Page {
     #[route("/")]
     Foundations,

@@ -738,9 +738,9 @@ impl MineralWidget for PushButton<'_> {
         let response = &frame.response;
         let rect = frame.zones.visual;
         let availability = Availability::disabled_if(self.disabled);
-        kit::input::hover_cursor(ui.core(), response, availability);
+        kit::interact::hover_cursor(ui.core(), response, availability);
         if self.tab_stop.is_some() {
-            kit::focus::follow_press(response);
+            kit::interact::follow_press(response);
         }
         let i = Interaction::of(response, availability);
         let toggled = response.clicked()

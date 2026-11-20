@@ -34,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - *(material)* [**breaking**] MaterialIcon is a local type with From<MaterialIcon> for Icon; drop the core material-icons feature
 - *(core)* [**breaking**] shared icon types, IconFont installer and glyph shape helper.
-- *(core)* kit::semantic::emit_culled and VirtualList::show_culled; Material TreeView keeps off-screen rows reachable to agents.
+- *(core)* kit::nodes::emit_culled and VirtualList::show_culled; Material TreeView keeps off-screen rows reachable to agents.
 - *(core)* [**breaking**] persist-fs no longer implies the codecs, defaults ship persist-toml only, so serde_json is opt-in via persist-json.
 
 ### Fixed
@@ -68,8 +68,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - *(core)* widget states untouched for 3600 passes are evicted from egui temp data, which never frees them.
 - *(core)* [**breaking**] PanClaim::update takes the MineralUi; kit interact, card and number field read the per-pass cached input, MinTarget::points_for skips the lookup.
 - *(core)* [**breaking**] PanClaim::update drops the enabled flag for PanClaim::reset, PanGate holds one state enum, both join kit::prelude.
-- *(core)* [**breaking**] declare_modal and is_modal are crate-private; kit::overlay::modal_on and outside_press_after_open replace them for kits.
-- *(core)* shared NumberPass::consume_step_keys, kit::i18n::tr_or, kit::rating::value_at; Fluent menus share text_width.
+- *(core)* [**breaking**] declare_modal and is_modal are crate-private; kit::layer::modal_on and outside_press_after_open replace them for kits.
+- *(core)* shared NumberPass::consume_step_keys, kit::tr_or, kit::rating::value_at; Fluent menus share text_width.
 - *(core)* kit::scroll::page replaces the duplicated Material and Fluent page containers.
 - *(wasm)* JsError keeps exception name, message and stack.
 - *(i18n)* tr caches plain messages as Arc<str> and skips the second lock for arg messages; set_locale and add_resource negotiate outside the state lock.
@@ -80,7 +80,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - *(core)* [**breaking**] MineralWidget::pan_axis routes single-axis touch drags through PanClaim so off-axis swipes scroll the page; slider, switch and color bars migrate.
-- *(core)* [**breaking**] kit::overlay::modal builds egui::Modal on modal_area, raw-egui-area flags Modal::new.
+- *(core)* [**breaking**] kit::layer::modal builds egui::Modal on modal_area, raw-egui-area flags Modal::new.
 - *(core)* [**breaking**] embedded windows get an owned close control with a modality-sized hit target, Stylekit::paint_window_close draws its glyph, WindowSpec::show requires Stylekit.
 - *(core)* PanClaim claims a pan on one axis and relays the rest, the overshoot and the release fling to the enclosing scroll area.
 - *(core)* opt-in GlobalStyle::Kit writes the kit style and theme preference into egui's globals from the outermost pass; default stays Egui

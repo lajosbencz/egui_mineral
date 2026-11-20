@@ -175,7 +175,7 @@ impl MineralWidget for StepHeader<'_> {
     fn update(&mut self, ui: &mut MineralUi<'_, Material>, frame: &WidgetFrame<'_>, (): &mut ()) -> WidgetResponse {
         let t = ui.tokens();
         let r = &frame.response;
-        kit::focus::follow_press(r);
+        kit::interact::follow_press(r);
         let rect = frame.zones.visual;
         let changed = self.selectable && parts::press(ui, frame, Availability::Enabled).clicked;
         let dir = ui.i18n().direction();
@@ -528,7 +528,7 @@ impl<'a> Stepper<'a> {
             out = Some(i);
         }
         let rect = Rect::from_min_max(start, pos2(start.x + ui.available_width().max(0.0), ui.cursor().min.y));
-        kit::semantic::remember_rect(ctx, id, rect);
+        kit::nodes::remember_rect(ctx, id, rect);
         out
     }
 }

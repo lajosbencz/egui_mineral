@@ -73,7 +73,7 @@ impl BarState {
 pub fn refocus_title(ctx: &egui::Context, group: Id, index: usize, title: Id) {
     ctx.memory_mut(|m| m.request_focus(title));
     // Left/Right switch menus without moving the roving stop; a non-stop title drops focus.
-    crate::kit::focus::remember(ctx, group, [(index, title)]);
+    crate::kit::interact::remember(ctx, group, [(index, title)]);
 }
 
 /// `nav` is -1 or 1; wraps: -1 from the first menu is the last, 1 from the last is the first.

@@ -74,12 +74,6 @@ pub fn sort_order<K: Ord>(len: usize, sort: SortState, mut key: impl FnMut(Cell)
     order
 }
 
-/// Bound of row and item keys: hashed into egui ids, written into agent keys, ordered in a
-/// [`Selection`](crate::select::Selection). Implemented for every such type; `#[derive(KeySalt)]` covers app enums.
-pub trait ItemKey: crate::semantic::KeySalt + egui::AsIdSalt + Ord + Clone {}
-
-impl<K: crate::semantic::KeySalt + egui::AsIdSalt + Ord + Clone> ItemKey for K {}
-
 /// Rows of a table: the count and the key of each data index. Keys bind selection, activation, row ids and agent
 /// keys, so they follow a row through inserts and reorders. `usize` keys rows by data index.
 pub trait Rows<K> {

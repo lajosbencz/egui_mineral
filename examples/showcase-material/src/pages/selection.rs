@@ -26,7 +26,7 @@ pub(crate) const TOPICS: &[&str] = &[
     "Time picker",
 ];
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, PartialOrd, Ord, Hash, egui_mineral::semantic::KeySalt)]
 enum Portion {
     Small,
     Medium,
@@ -72,10 +72,11 @@ pub(crate) struct State {
     select_err: Option<usize>,
     select_multi: Selection<usize>,
     combo_text: String,
+    combo_pick: Option<usize>,
     combo_free: String,
     combo_loading: String,
     combo_created: Vec<String>,
-    transfer: Vec<usize>,
+    transfer: Vec<&'static str>,
     color: Color32,
     color_hct: Color32,
     date_docked: Option<Date>,
@@ -137,10 +138,11 @@ impl Default for State {
             select_err: None,
             select_multi: Selection::multiple().with([0, 2]),
             combo_text: String::new(),
+            combo_pick: None,
             combo_free: String::new(),
             combo_loading: String::new(),
             combo_created: Vec::new(),
-            transfer: vec![1],
+            transfer: vec![FRUITS[1]],
             color: Color32::from_rgb(103, 80, 164),
             color_hct: Color32::from_rgb(0, 150, 136),
             date_docked: None,
@@ -569,11 +571,11 @@ fn selects(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
 }
 
 fn comboboxes(ui: &mut MaterialUi<'_>, s: &mut State) {
-    super::section(ui, TOPICS[7], Some(<Combobox<'static, ()>>::META), |ui| {
+    super::section(ui, TOPICS[7], Some(<Combobox<'static, usize>>::META), |ui| {
         super::top_row(ui, |row| {
             let r = row.add(|ui| {
                 ui.mineral(
-                    Combobox::new("sel-combo", "Filter fruit", &mut s.combo_text)
+                    Combobox::optional("sel-combo", "Filter fruit", &mut s.combo_pick, &mut s.combo_text)
                         .items(FRUITS.into_iter().enumerate())
                         .supporting("Type to filter")
                         .preferred_width(260.0),
@@ -582,10 +584,10 @@ fn comboboxes(ui: &mut MaterialUi<'_>, s: &mut State) {
             if let Some(i) = r.output().selected {
                 s.combo_created.push(format!("picked {}", FRUITS[i]));
             }
-            let mut dis = String::from("Fig");
+            let (mut dis, mut fig) = (String::from("Fig"), FRUITS.iter().position(|f| *f == "Fig"));
             row.add(|ui| {
                 ui.mineral(
-                    Combobox::new("sel-combo-dis", "Disabled", &mut dis)
+                    Combobox::optional("sel-combo-dis", "Disabled", &mut fig, &mut dis)
                         .items(FRUITS.into_iter().enumerate())
                         .disabled(true)
                         .preferred_width(260.0),
@@ -596,7 +598,7 @@ fn comboboxes(ui: &mut MaterialUi<'_>, s: &mut State) {
         super::top_row(ui, |row| {
             let r = row.add(|ui| {
                 ui.mineral(
-                    Combobox::new("sel-combo-free", "Free text", &mut s.combo_free)
+                    Combobox::optional("sel-combo-free", "Free text", &mut None, &mut s.combo_free)
                         .items(FRUITS.into_iter().enumerate())
                         .variant(TextFieldVariant::Outlined)
                         .free_text(true)
@@ -611,11 +613,16 @@ fn comboboxes(ui: &mut MaterialUi<'_>, s: &mut State) {
             let loading = !s.combo_loading.is_empty() && s.combo_loading.len() < 3;
             row.add(|ui| {
                 ui.mineral(
-                    Combobox::new("sel-combo-load", "Async (loading under 3 chars)", &mut s.combo_loading)
-                        .items(FRUITS.into_iter().enumerate())
-                        .variant(TextFieldVariant::Outlined)
-                        .loading(loading)
-                        .preferred_width(260.0),
+                    Combobox::optional(
+                        "sel-combo-load",
+                        "Async (loading under 3 chars)",
+                        &mut None,
+                        &mut s.combo_loading,
+                    )
+                    .items(FRUITS.into_iter().enumerate())
+                    .variant(TextFieldVariant::Outlined)
+                    .loading(loading)
+                    .preferred_width(260.0),
                 )
             });
         });
@@ -661,20 +668,21 @@ fn codec_select(ui: &mut MaterialUi<'_>, s: &mut State) {
 }
 
 fn transfer(ui: &mut MaterialUi<'_>, s: &mut State) {
-    super::section(ui, TOPICS[8], Some(<TransferList<'static>>::META), |ui| {
+    super::section(ui, TOPICS[8], Some(<TransferList<'static, &'static str>>::META), |ui| {
         ui.mineral(
-            TransferList::new("sel-transfer", FRUITS, &mut s.transfer)
+            TransferList::new("sel-transfer", &mut s.transfer)
+                .items(FRUITS.map(|f| (f, f)))
                 .source_title("Available")
                 .target_title("Basket")
                 .preferred_size(vec2(500.0, 300.0)),
         );
-        let names: Vec<&str> = s.transfer.iter().map(|i| FRUITS[*i]).collect();
-        ui.label(format!("Basket: {}", names.join(", ")));
-        let mut fixed = vec![0];
+        ui.label(format!("Basket: {}", s.transfer.join(", ")));
+        let mut fixed = vec![FRUITS[0]];
         ui.add_space(8.0);
         caption(ui, TypeScale::LabelMedium, "Disabled");
         ui.mineral(
-            TransferList::new("sel-transfer-dis", FRUITS, &mut fixed)
+            TransferList::new("sel-transfer-dis", &mut fixed)
+                .items(FRUITS.map(|f| (f, f)))
                 .disabled(true)
                 .preferred_size(vec2(500.0, 200.0)),
         );

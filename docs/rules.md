@@ -58,7 +58,7 @@ The ast-grep rules in [`lints/rules`](../lints/rules):
 - `nested-ctx-lock`: no Context/Ui/i18n calls inside egui lock closures (`input`, `memory`, `data`, `options`).
 - `data-mut-get-temp`: `get_temp` under `data(..)`, `data_mut` only to write or `remove_temp`.
 - `restating-doc`, `private-doc`, `ui-literal`, `raw-egui-widget`: comment (doc comments on public items only), i18n-literal and raw-widget conventions.
-- `raw-egui-area`: no `Area::new` or `Modal::default_area` outside `kit::overlay`, use `kit::overlay::area` and `modal_area`.
+- `raw-egui-area`: no `Area::new` or `Modal::default_area` outside `kit::layer`, use `kit::layer::area` and `modal_area`.
 - `stable-id-display-text`: `StableId::new` keys never include label/name/title text.
 
 Unused deps by `cargo machete`.

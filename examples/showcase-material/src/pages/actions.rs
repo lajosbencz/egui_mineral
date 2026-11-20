@@ -398,74 +398,79 @@ fn fab_menu(ui: &mut MaterialUi<'_>, shared: &mut Shared) {
 }
 
 fn button_group(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
-    section(ui, TOPICS[5], Some(<ButtonGroup<'static, ()>>::META), |ui| {
-        sub(ui, "Standard, plain actions");
-        let r = ButtonGroup::new("grp-std", "Actions")
-            .items([
-                ButtonGroupItem::new("Copy"),
-                ButtonGroupItem::new("Paste"),
-                ButtonGroupItem::new("Cut"),
-            ])
-            .button_variant(ContainerVariant::Tonal)
-            .show(ui);
-        if let Some(i) = r.clicked {
-            shared.toast(format!("Group item {}", i.index()));
-        }
-        sub(ui, "Standard, single selection (mixed text/icon)");
-        ButtonGroup::multi("grp-single", "Alignment", &mut s.group_single)
-            .toggles(
-                [
-                    ButtonGroupItem::new("Left").icon(ICON_EDIT),
-                    ButtonGroupItem::new("Star").icon(ICON_STAR).label_visible(false),
-                    ButtonGroupItem::new("Disabled").disabled(true),
-                ]
-                .into_iter()
-                .enumerate(),
-            )
-            .button_variant(ContainerVariant::Outlined)
-            .show(ui);
-        sub(ui, "Standard, multi selection, sizes");
-        for (i, (sz, name)) in SIZES.into_iter().enumerate().take(3) {
-            ButtonGroup::multi(("grp-multi", i), name, &mut s.group_multi)
+    section(
+        ui,
+        TOPICS[5],
+        Some(<ButtonGroup<'static, core::convert::Infallible>>::META),
+        |ui| {
+            sub(ui, "Standard, plain actions");
+            let r = ButtonGroup::new("grp-std", "Actions")
+                .items([
+                    ButtonGroupItem::new("Copy"),
+                    ButtonGroupItem::new("Paste"),
+                    ButtonGroupItem::new("Cut"),
+                ])
+                .button_variant(ContainerVariant::Tonal)
+                .show(ui);
+            if let Some(i) = r.clicked {
+                shared.toast(format!("Group item {}", i.index()));
+            }
+            sub(ui, "Standard, single selection (mixed text/icon)");
+            ButtonGroup::multi("grp-single", "Alignment", &mut s.group_single)
                 .toggles(
                     [
-                        ButtonGroupItem::new("Bold").icon(ICON_FORMAT_BOLD).label_visible(false),
-                        ButtonGroupItem::new("Italic")
-                            .icon(ICON_FORMAT_ITALIC)
-                            .label_visible(false),
-                        ButtonGroupItem::new("Underline")
-                            .icon(ICON_FORMAT_UNDERLINED)
-                            .label_visible(false),
+                        ButtonGroupItem::new("Left").icon(ICON_EDIT),
+                        ButtonGroupItem::new("Star").icon(ICON_STAR).label_visible(false),
+                        ButtonGroupItem::new("Disabled").disabled(true),
                     ]
                     .into_iter()
                     .enumerate(),
                 )
-                .button_variant(ContainerVariant::Filled)
-                .size(sz)
+                .button_variant(ContainerVariant::Outlined)
                 .show(ui);
-        }
-        sub(ui, "Connected, single selection");
-        ButtonGroup::multi("grp-conn", "Period", &mut s.group_connected)
-            .variant(ButtonGroupVariant::Connected)
-            .toggles(
-                [
-                    ButtonGroupItem::new("Day"),
-                    ButtonGroupItem::new("Week"),
-                    ButtonGroupItem::new("Month"),
-                ]
-                .into_iter()
-                .enumerate(),
-            )
-            .button_variant(ContainerVariant::Tonal)
-            .shape(ButtonShape::Square)
-            .show(ui);
-        sub(ui, "Disabled");
-        ButtonGroup::new("grp-dis", "Disabled")
-            .variant(ButtonGroupVariant::Connected)
-            .items([ButtonGroupItem::new("One"), ButtonGroupItem::new("Two")])
-            .disabled(true)
-            .show(ui);
-    });
+            sub(ui, "Standard, multi selection, sizes");
+            for (i, (sz, name)) in SIZES.into_iter().enumerate().take(3) {
+                ButtonGroup::multi(("grp-multi", i), name, &mut s.group_multi)
+                    .toggles(
+                        [
+                            ButtonGroupItem::new("Bold").icon(ICON_FORMAT_BOLD).label_visible(false),
+                            ButtonGroupItem::new("Italic")
+                                .icon(ICON_FORMAT_ITALIC)
+                                .label_visible(false),
+                            ButtonGroupItem::new("Underline")
+                                .icon(ICON_FORMAT_UNDERLINED)
+                                .label_visible(false),
+                        ]
+                        .into_iter()
+                        .enumerate(),
+                    )
+                    .button_variant(ContainerVariant::Filled)
+                    .size(sz)
+                    .show(ui);
+            }
+            sub(ui, "Connected, single selection");
+            ButtonGroup::multi("grp-conn", "Period", &mut s.group_connected)
+                .variant(ButtonGroupVariant::Connected)
+                .toggles(
+                    [
+                        ButtonGroupItem::new("Day"),
+                        ButtonGroupItem::new("Week"),
+                        ButtonGroupItem::new("Month"),
+                    ]
+                    .into_iter()
+                    .enumerate(),
+                )
+                .button_variant(ContainerVariant::Tonal)
+                .shape(ButtonShape::Square)
+                .show(ui);
+            sub(ui, "Disabled");
+            ButtonGroup::new("grp-dis", "Disabled")
+                .variant(ButtonGroupVariant::Connected)
+                .items([ButtonGroupItem::new("One"), ButtonGroupItem::new("Two")])
+                .disabled(true)
+                .show(ui);
+        },
+    );
 }
 
 fn segmented_button(ui: &mut MaterialUi<'_>, s: &mut State) {

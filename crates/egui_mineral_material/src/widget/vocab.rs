@@ -128,12 +128,12 @@ pub(crate) fn item_salt(
     parent: &KeyedSalt,
     own: Option<&KeyedSalt>,
     command: Option<&ActionId>,
-    index: usize,
+    fallback: impl egui_mineral::semantic::KeySalt + egui::AsIdSalt,
 ) -> KeyedSalt {
     match (own, command) {
         (Some(own), _) => parent.join(own),
         (None, Some(command)) => parent.child(command),
-        (None, None) => parent.child(index),
+        (None, None) => parent.child(fallback),
     }
 }
 

@@ -5,7 +5,6 @@ use egui_mineral_fluent::{
     egui_mineral::{
         action::Clicked,
         expand::Expansion,
-        focus::Cell,
         layout::Axis,
         select::{Selection, SelectionMode},
     },
@@ -44,7 +43,7 @@ pub(crate) struct State {
     tree_open: [Expansion<String>; 3],
     tree_checked: [Selection<String>; 3],
     tree_activated: Option<String>,
-    grid_last: Option<Cell>,
+    grid_last: Option<(usize, usize)>,
     carousel: [usize; 2],
 }
 
@@ -347,8 +346,8 @@ fn menu_grids(ui: &mut FluentUi<'_>, s: &mut State) {
         );
         g.row(MenuGridRow::new().cell(MenuGridItem::new("Paste").disabled(true)));
     });
-    s.grid_last = r.activated.or(s.grid_last);
-    ui.label(format!("Activated: {:?}", s.grid_last.map(|c| (c.row, c.column))));
+    s.grid_last = r.clicked.map(|c| (c.row, c.cell.index())).or(s.grid_last);
+    ui.label(format!("Activated: {:?}", s.grid_last));
 }
 
 fn carousels(ui: &mut FluentUi<'_>, s: &mut State) {
@@ -369,7 +368,7 @@ fn carousels(ui: &mut FluentUi<'_>, s: &mut State) {
             }
             carousel.show(ui, |c| {
                 for n in 1..=3 {
-                    c.card(format!("Slide {n}"), |ui| {
+                    c.card(n, format!("Slide {n}"), |ui| {
                         ui.set_height(96.0);
                         ui.label(format!("Slide {n}"));
                     });

@@ -228,7 +228,7 @@ impl StatusBar {
 fn text_galley(ui: &MineralUi<'_, Material>, item: &StatusItem, color: egui::Color32) -> std::sync::Arc<egui::Galley> {
     if item.has_tabular_figures() {
         let format = TEXT.format(ui.ctx(), color);
-        let job = egui_mineral::kit::text::tabular_figures(ui.ctx(), item.text(), &format);
+        let job = egui_mineral::kit::paint::tabular_figures(ui.ctx(), item.text(), &format);
         return ui.painter().layout_job(job);
     }
     parts::type_galley(ui.core(), ui.painter(), item.text(), TEXT, color, None)

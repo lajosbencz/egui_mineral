@@ -511,7 +511,7 @@ impl<'a> Carousel<'a> {
         let current = nearest(&strip.geo.snaps, st.scroll);
         let tab_stop = focus::tab_stop(&ctx, id, Some(current), self.count, |_| true);
         let items = self.paint_items(ui, &strip, st.scroll, tab_stop, &mut content, &mut out.activated);
-        kit::focus::remember(&ctx, id, items.ids);
+        kit::interact::remember(&ctx, id, items.ids);
         self.arrow_focus(rt, &strip, &mut st, items.focus.or(focused));
 
         semantic::emit(&ctx, None, rect, || {
@@ -647,8 +647,8 @@ impl<'a> Carousel<'a> {
             } else {
                 focus::roving_sense(Sense::click(), focus::TabStop::at(i, tab_stop))
             };
-            let resp = kit::input::interact(ui, shown, strip.item_id(i), sense, Availability::Enabled);
-            kit::focus::follow_press(&resp);
+            let resp = kit::interact::interact(ui, shown, strip.item_id(i), sense, Availability::Enabled);
+            kit::interact::follow_press(&resp);
             items.ids.push((i, resp.id));
             if resp.clicked() && !self.disabled {
                 *activated = Some(i);

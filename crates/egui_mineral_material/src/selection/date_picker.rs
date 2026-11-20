@@ -249,6 +249,11 @@ macro_rules! config_builders {
             self
         }
 
+        crate::widget::error_setters! {
+            /// Error state and text of the docked field and the modal input fields, in place of the supporting text.
+            |s| s.cfg.chrome.error
+        }
+
         dialog::picker_label_setters!(cfg.labels);
 
         /// [`show`](Self::show) and the initial mode of [`show_modal`](Self::show_modal).
@@ -439,7 +444,8 @@ impl Config {
         if !ctx.memory(|m| m.has_focus(edit_id)) {
             text = format_date(loc, *value);
         }
-        let error = self.text_error(rt, loc, &text);
+        // An unparsable entry outranks the app's error.
+        let error = self.text_error(rt, loc, &text).or_else(|| self.chrome.error.clone());
         let hint = input_hint(rt, loc);
         let field = TextField::new(field_salt, &self.label, &mut text)
             .with_chrome(self.field_chrome(TextFieldVariant::Filled))
@@ -908,7 +914,7 @@ impl Config {
             0.0,
             (crate::adaptive::min_interactive(ui.density()) - h).max(0.0) / 2.0,
         ));
-        let resp = kit::input::interact(
+        let resp = kit::interact::interact(
             ui,
             hit,
             id.with("year-menu"),
@@ -930,7 +936,7 @@ impl Config {
             Interaction::of(&resp, Availability::disabled_if(self.disabled)),
             t,
         );
-        kit::input::hover_cursor(rt.core(), &resp, Availability::disabled_if(self.disabled));
+        kit::interact::hover_cursor(rt.core(), &resp, Availability::disabled_if(self.disabled));
         let p = ui.painter();
         let text_x = dir.start_x(
             visual,
@@ -1046,14 +1052,14 @@ impl Config {
                 yc.size,
             );
             let sense = focus::roving_sense(Sense::click(), focus::TabStop::at(year, yc.stop));
-            let resp = kit::input::interact(
+            let resp = kit::interact::interact(
                 &rt.ui(ui),
                 cell,
                 yc.grid.with(year),
                 sense,
                 Availability::disabled_if(self.disabled),
             );
-            kit::focus::follow_press(&resp);
+            kit::interact::follow_press(&resp);
             if yc.pending == Some(year) {
                 resp.request_focus();
                 resp.scroll_to_me(None);
@@ -1070,9 +1076,9 @@ impl Config {
     }
 
     fn year_target(ctx: &Context, dir: Direction, grid: Id, cur: i16, years: std::ops::RangeInclusive<i16>) -> i16 {
-        kit::focus::lock_arrows(ctx, grid.with(cur), kit::focus::Arrows::Both);
+        kit::interact::lock_arrows(ctx, grid.with(cur), kit::interact::Arrows::Both);
         let mut target = cur;
-        for key in kit::input::plain_key_presses(ctx) {
+        for key in kit::interact::plain_key_presses(ctx) {
             let delta = match key {
                 Key::ArrowLeft | Key::ArrowRight => {
                     if key == dir.forward_key() {
@@ -1143,7 +1149,7 @@ impl Config {
                 StrokeKind::Inside,
             );
         }
-        kit::input::hover_cursor(rt.core(), resp, Availability::enabled_if(enabled));
+        kit::interact::hover_cursor(rt.core(), resp, Availability::enabled_if(enabled));
         let g = parts::type_galley(rt.core(), p, text, m::SELECTION_YEAR_LABEL_TEXT_FONT, content, None);
         p.galley(cell.center() - g.size() / 2.0, g, content);
         semantic::emit(ui.ctx(), Some(resp.id), cell, || {
@@ -1189,8 +1195,8 @@ impl Config {
     ) -> egui::Response {
         let enabled = !self.disabled && env.limits.contains(d);
         let sense = focus::roving_sense(Sense::click(), tab_stop);
-        let resp = kit::input::interact(ui, cell, env.id.with(d), sense, Availability::enabled_if(enabled));
-        kit::focus::follow_press(&resp);
+        let resp = kit::interact::interact(ui, cell, env.id.with(d), sense, Availability::enabled_if(enabled));
+        kit::interact::follow_press(&resp);
         let span = sel.span();
         let day = DayPaint {
             cell,
@@ -1289,7 +1295,7 @@ impl Config {
                 }
             }
         }
-        kit::focus::remember(ctx, id, day_ids);
+        kit::interact::remember(ctx, id, day_ids);
         let grid_rect = Rect::from_min_max(pos2(body.left(), grid_top), body.max);
         let title = loc.month_year(v.year, v.month);
         semantic::emit(ctx, None, grid_rect, || {
@@ -1300,7 +1306,7 @@ impl Config {
 
         // <https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/examples/datepicker-dialog/>
         if let Some(cur) = focused_date {
-            kit::focus::lock_arrows(ctx, id.with(cur), kit::focus::Arrows::Both);
+            kit::interact::lock_arrows(ctx, id.with(cur), kit::interact::Arrows::Both);
             let target = key_target(ctx, cur, env.limits, dir, week_start);
             if target != cur {
                 v.focus = Some(target);
@@ -1419,7 +1425,7 @@ impl Config {
                             let resp = self.day(&rt.ui(ui), env, cell, d, sel, focus::TabStop::at(d, stop));
                             if resp.has_focus() {
                                 focused = Some(d);
-                                kit::focus::lock_arrows(ui.ctx(), resp.id, kit::focus::Arrows::Both);
+                                kit::interact::lock_arrows(ui.ctx(), resp.id, kit::interact::Arrows::Both);
                             }
                             if resp.clicked() {
                                 sel.pick(d);
@@ -1481,7 +1487,7 @@ fn col_x(left: f32, col: usize, dir: Direction) -> f32 {
 }
 
 fn key_target(ctx: &Context, cur: Date, limits: Limits, dir: Direction, week_start: Weekday) -> Date {
-    kit::input::key_presses(ctx)
+    kit::interact::key_presses(ctx)
         .into_iter()
         .fold(cur, |target, (key, mods)| {
             date::on_key(target, key, mods, dir, week_start).map_or(target, |next| limits.clamp(next))
@@ -1619,7 +1625,7 @@ fn paint_day(ui: &MineralUi<'_, Material>, t: &Tokens, p: &DayPaint, resp: &egui
             StrokeKind::Inside,
         );
     }
-    kit::input::hover_cursor(rt.core(), resp, Availability::enabled_if(p.enabled));
+    kit::interact::hover_cursor(rt.core(), resp, Availability::enabled_if(p.enabled));
     let g = parts::type_galley(rt.core(), painter, &p.text, m::DATE_LABEL_TEXT_FONT, content, None);
     painter.galley(container.center() - g.size() / 2.0, g, content);
 }

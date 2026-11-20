@@ -1,4 +1,5 @@
 use egui::{Color32, CornerRadius, Sense, Stroke, Ui};
+use egui_mineral::select::ItemKey;
 use egui_mineral::{
     focus::{self, RovingFocus},
     i18n::I18n,
@@ -219,8 +220,8 @@ impl MineralWidget for Radio {
         let t = ui.tokens();
         let r = &frame.response;
         let availability = Availability::disabled_if(self.disabled);
-        kit::input::hover_cursor(ui.core(), r, availability);
-        kit::focus::follow_press(r);
+        kit::interact::hover_cursor(ui.core(), r, availability);
+        kit::interact::follow_press(r);
         let changed = r.clicked() && !self.disabled && !self.selected;
         self.selected |= changed;
         let i = Interaction::of(r, availability);
@@ -323,7 +324,7 @@ pub struct RadioGroup<'a, K> {
     disabled: bool,
 }
 
-impl<'a, K: PartialEq + Clone> RadioGroup<'a, K> {
+impl<'a, K: ItemKey> RadioGroup<'a, K> {
     /// Checks the option whose value equals `selected`, none when no option matches; `label` names the group
     /// for assistive technology; node key `<id_salt>-radio-group`.
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selected: &'a mut K) -> Self {
@@ -400,7 +401,7 @@ impl<'a, K: PartialEq + Clone> RadioGroup<'a, K> {
         let mut body = |ui: &mut Ui| {
             for (i, o) in options.iter().enumerate() {
                 let r = rt.ui(ui).mineral(
-                    Radio::new(o.salt.clone().unwrap_or_else(|| salt.child(i)), &o.label)
+                    Radio::new(o.salt.clone().unwrap_or_else(|| salt.child(choice.value(i))), &o.label)
                         .selected(choice.is_selected(i))
                         .label_position(position)
                         .tab_stop(i == tab_stop)

@@ -221,7 +221,7 @@ impl Drawer {
             let dir = rt.i18n().direction();
             let extent = self.extent(screen.size());
             let (align, hidden) = self.edge(dir, extent, e);
-            let mut area = kit::overlay::modal_area(rt.core(), self.id);
+            let mut area = kit::layer::modal_area(rt.core(), self.id);
             area = area.anchor(align, hidden);
             let modal = egui::Modal {
                 area,

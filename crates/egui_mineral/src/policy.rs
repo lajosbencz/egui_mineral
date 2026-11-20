@@ -36,7 +36,7 @@ pub struct Policies {
     pub cursors: Cursors,
 }
 
-/// Cursor over a hovered interactive element (see [`crate::kit::input::hover_cursor`]); `None` keeps
+/// Cursor over a hovered interactive element (see [`crate::kit::interact::hover_cursor`]); `None` keeps
 /// egui's choice.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[non_exhaustive]

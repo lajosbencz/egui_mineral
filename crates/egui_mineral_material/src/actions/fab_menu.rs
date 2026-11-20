@@ -327,7 +327,7 @@ impl FabMenu {
             Align2([dir.end_align(), Align::Max]),
             dir.end_align(),
         );
-        let area = egui_mineral::kit::overlay::area(rt.core(), items_id(base))
+        let area = egui_mineral::kit::layer::area(rt.core(), items_id(base))
             .order(Order::Foreground)
             .fixed_pos(anchor)
             .pivot(pivot)

@@ -3,6 +3,7 @@ use crate::MaterialExt;
 use crate::MaterialUiExt as _;
 use egui_mineral::i18n::I18n;
 use egui_mineral::kit::choice::Choice;
+use egui_mineral::select::ItemKey;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::MineralUi;
 use std::sync::Arc;
@@ -102,7 +103,7 @@ pub struct Tabs<'a, K> {
     disabled: bool,
 }
 
-impl<'a, K: PartialEq + Clone> Tabs<'a, K> {
+impl<'a, K: ItemKey> Tabs<'a, K> {
     /// Selects the tab whose value equals `selected`, none when no tab matches; `label` names the tab list for
     /// assistive technology.
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selected: &'a mut K) -> Self {
@@ -255,7 +256,7 @@ impl<'a, K: PartialEq + Clone> Tabs<'a, K> {
             ui.add_space(tx::SCROLLABLE_EDGE_PADDING);
         }
         for (i, (spec, content)) in self.specs.iter().zip(row.contents).enumerate() {
-            let own = crate::widget::item_salt(&self.salt, spec.salt.as_ref(), None, i);
+            let own = crate::widget::item_salt(&self.salt, spec.salt.as_ref(), None, self.choice.value(i));
             let r = rt.ui(ui).mineral(TabItem {
                 salt: own.child("tab"),
                 key: StableId::of(&own, "tab"),
@@ -499,7 +500,7 @@ impl MineralWidget for TabItem<'_> {
     fn update(&mut self, ui: &mut MineralUi<'_, Material>, frame: &WidgetFrame<'_>, (): &mut ()) -> WidgetResponse {
         let t = ui.tokens();
         let response = &frame.response;
-        kit::focus::follow_press(response);
+        kit::interact::follow_press(response);
         let rect = frame.zones.visual;
         let dis = self.spec.disabled;
         let press = parts::press(ui, frame, Availability::disabled_if(dis));

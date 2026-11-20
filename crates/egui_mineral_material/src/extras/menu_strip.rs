@@ -223,14 +223,14 @@ impl MenuStrip {
             let left = dir.start_x(rect, Rangef::new(x, x + w));
             let r = Rect::from_min_size(pos2(left, rect.top() + BAR_INSET), vec2(w, BAR_H - 2.0 * BAR_INSET));
             x += w + BAR_INSET;
-            let resp = kit::input::interact(
+            let resp = kit::interact::interact(
                 ui,
                 r,
                 id.with(("item", i)),
                 focus::roving_sense(Sense::click(), focus::TabStop::at(i, tab_stop)),
                 availability,
             );
-            kit::focus::follow_press(&resp);
+            kit::interact::follow_press(&resp);
             if let Some(m) = menu.mnemonic.filter(|_| !menu.disabled) {
                 shortcut::bind_mnemonic(ctx, scope, m, Trigger::Alt, resp.id);
             }
@@ -240,7 +240,7 @@ impl MenuStrip {
             }
             indication::paint(ui, &resp, r, round, fg, Interaction::of(&resp, availability), &t);
             ui.painter().galley(r.center() - galley.size() / 2.0, galley, fg);
-            kit::input::hover_cursor(rt.core(), &resp, availability);
+            kit::interact::hover_cursor(rt.core(), &resp, availability);
             buttons.push(resp);
         }
         buttons
@@ -279,7 +279,7 @@ impl MenuStrip {
                 bar.open = Some(i);
                 Self::reopen(ctx, id, i, b.rect, focus);
             } else if b.has_focus() && bar.open.is_none() {
-                for key in kit::input::plain_key_presses(ctx) {
+                for key in kit::interact::plain_key_presses(ctx) {
                     match key {
                         Key::ArrowDown => {
                             bar.open = Some(i);

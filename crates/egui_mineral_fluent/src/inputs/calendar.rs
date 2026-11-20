@@ -226,8 +226,8 @@ struct Item<'a> {
 // Button with centered text; the shared look of day, month and year cells.
 fn item(ui: &mut MineralUi<'_, Fluent>, cx: &Cx<'_>, i: &Item<'_>) -> Response {
     let availability = Availability::enabled_if(!i.disabled && !cx.disabled);
-    let r = kit::input::interact(ui, i.rect, i.id, i.sense, availability);
-    kit::focus::follow_press(&r);
+    let r = kit::interact::interact(ui, i.rect, i.id, i.sense, availability);
+    kit::interact::follow_press(&r);
     let hot = Interaction::of(&r, availability);
     let off = i.disabled || cx.disabled;
     let radius = CornerRadius::from(g::BORDER_RADIUS_MEDIUM);
@@ -315,8 +315,8 @@ impl Run<'_> {
         );
         let tid = cx.id.with("title");
         let availability = Availability::enabled_if(clickable && !cx.disabled);
-        let r = kit::input::interact(ui, tr, tid, Sense::click(), availability);
-        kit::focus::follow_press(&r);
+        let r = kit::interact::interact(ui, tr, tid, Sense::click(), availability);
+        kit::interact::follow_press(&r);
         let hot = Interaction::of(&r, availability);
         let radius = CornerRadius::from(g::BORDER_RADIUS_MEDIUM);
         let p = ui.painter().clone();
@@ -359,8 +359,8 @@ impl Run<'_> {
             let rect = cell(cx, self.root, x, cal::PADDING, Pos2::new(nav_w, cal::HEADER_HEIGHT));
             let id = cx.id.with(("nav", k));
             let av = Availability::enabled_if(!off && !cx.disabled);
-            let r = kit::input::interact(ui, rect, id, Sense::click(), av);
-            kit::focus::follow_press(&r);
+            let r = kit::interact::interact(ui, rect, id, Sense::click(), av);
+            kit::interact::follow_press(&r);
             let hot = Interaction::of(&r, av);
             let off = off || cx.disabled;
             if let Some(f) = fill(hot, Look::Rest, off) {
@@ -624,7 +624,7 @@ impl Run<'_> {
                 picked = if hit.clicked { Some(d) } else { picked };
             }
         }
-        kit::focus::remember(&ctx, self.cx.id, ids);
+        kit::interact::remember(&ctx, self.cx.id, ids);
         if let Some(d) = picked {
             st.shown = Some(d);
             if !grid.in_month(d) {
@@ -640,8 +640,8 @@ impl Run<'_> {
     fn arrow_keys(&self, ctx: &egui::Context, st: &mut View, grid: &MonthGrid, focused: Option<Date>) {
         let (cx, b) = (&self.cx, self.bounds);
         if let Some(cur) = focused {
-            kit::focus::lock_arrows(ctx, cx.id.with(cur), kit::focus::Arrows::Both);
-            let target = kit::input::key_presses(ctx).into_iter().fold(cur, |t, (key, mods)| {
+            kit::interact::lock_arrows(ctx, cx.id.with(cur), kit::interact::Arrows::Both);
+            let target = kit::interact::key_presses(ctx).into_iter().fold(cur, |t, (key, mods)| {
                 date::on_key(t, key, mods, cx.dir, self.week_start).map_or(t, |n| b.clamp(n))
             });
             if target != cur {
@@ -690,8 +690,8 @@ impl Run<'_> {
         let x = self.root.width() - cal::GO_TODAY_MARGIN_END - w;
         let rect = cell(cx, self.root, x, y, Pos2::new(w, cal::GO_TODAY_HEIGHT));
         let av = Availability::enabled_if(!cx.disabled);
-        let r = kit::input::interact(ui, rect, cx.id.with("today"), Sense::click(), av);
-        kit::focus::follow_press(&r);
+        let r = kit::interact::interact(ui, rect, cx.id.with("today"), Sense::click(), av);
+        kit::interact::follow_press(&r);
         let hot = Interaction::of(&r, av);
         let color = cx.t.color(if cx.disabled {
             ColorNeutralForegroundDisabled

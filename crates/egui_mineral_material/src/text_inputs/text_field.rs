@@ -1156,7 +1156,7 @@ impl TextField<'_> {
         }
         let focus = FieldFocus::of(focused);
         buffer.sync(self.value, focus);
-        if !self.disabled && egui_mineral::kit::overlay::consume_escape_from(ctx, edit_id) {
+        if !self.disabled && egui_mineral::kit::layer::consume_escape_from(ctx, edit_id) {
             out.edit = buffer.cancel();
             ctx.memory_mut(|m| m.surrender_focus(edit_id));
         }
@@ -1181,7 +1181,7 @@ impl TextField<'_> {
             .then(|| {
                 if self.chrome.tabular {
                     let format = style.format(ui.ctx(), cx.colors.input);
-                    let mut job = egui_mineral::kit::text::tabular_figures(ui.ctx(), text, &format);
+                    let mut job = egui_mineral::kit::paint::tabular_figures(ui.ctx(), text, &format);
                     job.wrap = TextWrapping::truncate_at_width(cx.rect.width());
                     return Some(ui.painter().layout_job(job));
                 }

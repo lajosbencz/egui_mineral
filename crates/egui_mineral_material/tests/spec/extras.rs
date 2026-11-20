@@ -177,7 +177,7 @@ fn field_wrappers_forward_the_text_chrome() {
                 .suffix("mm");
             let zones = ui.mineral(n).zones();
             ui.mineral(
-                Combobox::new("c", "Unit", &mut text)
+                Combobox::optional("c", "Unit", &mut None::<usize>, &mut text)
                     .items(["a"].into_iter().enumerate())
                     .label_visible(false)
                     .prefix("#")

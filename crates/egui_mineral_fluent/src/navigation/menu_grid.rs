@@ -241,8 +241,8 @@ impl MineralWidget for GridCell<'_> {
         let t = ui.tokens();
         let r = &frame.response;
         let availability = Availability::disabled_if(self.cell.disabled());
-        kit::input::hover_cursor(ui.core(), r, availability);
-        kit::focus::follow_press(r);
+        kit::interact::hover_cursor(ui.core(), r, availability);
+        kit::interact::follow_press(r);
         let i = Interaction::of(r, availability);
         let rect = frame.zones.visual;
         let dir = ui.i18n().direction();
@@ -415,8 +415,7 @@ pub struct MenuGridUi<'u, 's> {
     stop: usize,
     row: usize,
     slots: Vec<Slot>,
-    activated: Option<Cell>,
-    clicked: Option<Clicked>,
+    clicked: Option<MenuGridClicked>,
     memo: Memo,
     seen: f32,
 }
@@ -503,12 +502,11 @@ impl MenuGridUi<'_, '_> {
                 cells.push(r);
             }
         }
-        if let Some(c) = &clicked {
-            self.activated = Some(Cell {
+        if let Some(cell) = &clicked {
+            self.clicked = Some(MenuGridClicked {
                 row: index,
-                column: c.index(),
+                cell: cell.clone(),
             });
-            self.clicked.clone_from(&clicked);
         }
         let name = cells_in.first().map_or("", MenuGridCell::label).to_owned();
         let key = egui_mineral::agent_key!("gridrow").id(&salt);
@@ -521,6 +519,16 @@ impl MenuGridUi<'_, '_> {
     }
 }
 
+/// Cell of a [`MenuGrid`] activated this pass.
+#[derive(Clone, Debug)]
+#[non_exhaustive]
+pub struct MenuGridClicked {
+    /// Row position in the grid.
+    pub row: usize,
+    /// Index is the column, key the cell's `key(..)`.
+    pub cell: Clicked,
+}
+
 /// Result of showing a [`MenuGrid`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
@@ -529,10 +537,8 @@ pub struct MenuGridResponse<R = ()> {
     pub response: Option<Response>,
     /// Why it closed this pass.
     pub dismissed: Option<Dismiss>,
-    /// Position of the cell activated this pass.
-    pub activated: Option<Cell>,
-    /// Cell activated this pass; its index is the column, [`Self::activated`] has the row.
-    pub clicked: Option<Clicked>,
+    /// Cell activated this pass.
+    pub clicked: Option<MenuGridClicked>,
     /// What `add` returned, on passes it showed.
     pub inner: Option<R>,
 }
@@ -542,7 +548,6 @@ impl<R> MenuGridResponse<R> {
         Self {
             response: None,
             dismissed,
-            activated: None,
             clicked: None,
             inner: None,
         }
@@ -612,7 +617,6 @@ impl MenuGrid {
         let memo_id = id.with("mineral::menu-grid-memo");
         let memo = Memo::sized(ctx, memo_id);
         let mut slots = Vec::new();
-        let mut activated = None;
         let mut clicked = None;
         let mut seen = 0.0;
         let area = Popup::new(salt.child("area"), Anchor::new(Side::Bottom, Align::Start))
@@ -629,14 +633,12 @@ impl MenuGrid {
                             stop,
                             row: 0,
                             slots: Vec::new(),
-                            activated: None,
                             clicked: None,
                             memo,
                             seen: 0.0,
                         };
                         let inner = add(&mut grid);
                         slots = grid.slots;
-                        activated = grid.activated;
                         clicked = grid.clicked;
                         seen = grid.seen;
                         inner
@@ -662,7 +664,7 @@ impl MenuGrid {
         }
         let tab = within && ctx.input(|i| i.key_pressed(egui::Key::Tab));
         navigate(rt, &slots);
-        kit::focus::remember(ctx, id, slots.iter().enumerate().map(|(i, s)| (i, s.id)));
+        kit::interact::remember(ctx, id, slots.iter().enumerate().map(|(i, s)| (i, s.id)));
         let inside = [area.response.rect, trigger.rect];
         let mut dismissal = overlay::dismissal(rt.core(), area.response.layer_id, &inside, Some(trigger.id));
         if tab {
@@ -680,7 +682,6 @@ impl MenuGrid {
         MenuGridResponse {
             response: Some(area.response),
             dismissed: dismissal,
-            activated,
             clicked,
             inner: Some(area.inner),
         }
@@ -695,7 +696,7 @@ fn navigate(rt: &crate::Rt, slots: &[Slot]) {
     else {
         return;
     };
-    kit::focus::lock_arrows(ctx, focused, kit::focus::Arrows::Both);
+    kit::interact::lock_arrows(ctx, focused, kit::interact::Arrows::Both);
     let dir = rt.i18n().direction();
     let rows = slots.last().map_or(0, |s| s.row + 1);
     let columns = |row: usize| slots.iter().filter(|s| s.row == row).count();
@@ -707,7 +708,7 @@ fn navigate(rt: &crate::Rt, slots: &[Slot]) {
             .position(|s| s.row == c.row && s.column == c.column.min(columns(c.row).saturating_sub(1)))
     };
     let mut at = cur;
-    for (key, modifiers) in kit::input::key_presses(ctx) {
+    for (key, modifiers) in kit::interact::key_presses(ctx) {
         let Some(from) = slots.get(at) else { break };
         let mut cell = Cell {
             row: from.row,

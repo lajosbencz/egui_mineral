@@ -6,7 +6,7 @@ files:
   - crates/**/src/**
   - examples/**
 ignores:
-  - crates/egui_mineral/src/kit/overlay.rs
+  - crates/egui_mineral/src/kit/layer.rs
 rule:
   kind: call_expression
   has:

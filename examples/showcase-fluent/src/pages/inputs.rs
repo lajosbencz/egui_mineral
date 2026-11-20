@@ -242,7 +242,7 @@ fn composed(ui: &mut FluentUi<'_>, s: &mut State) {
     ));
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, egui_mineral_fluent::prelude::KeySalt)]
 pub(crate) enum Animal {
     Cat,
     Dog,
@@ -324,7 +324,7 @@ fn tags_and_dates(ui: &mut FluentUi<'_>, s: &mut State) {
     ui.mineral(DatePicker::new("date-1", "Date", &mut s.date).placeholder("Select a date"));
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, egui_mineral_fluent::prelude::KeySalt)]
 pub(crate) enum Paint {
     Red,
     Green,

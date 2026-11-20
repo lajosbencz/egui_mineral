@@ -27,14 +27,10 @@ pub(crate) fn galley(
 }
 
 pub(crate) fn icon(p: &Painter, center: Pos2, icon: Icon, filled: bool, size: f32, color: Color32) {
-    p.add(egui_mineral::kit::icon::shape(
-        p.ctx(),
-        center,
-        icon.glyph(IconStyle::filled_if(filled)),
-        size,
-        color,
-        0.0,
-    ));
+    p.add(
+        egui_mineral::kit::paint::GlyphShape::new(icon.glyph(IconStyle::filled_if(filled)), size, color)
+            .shape(p.ctx(), center),
+    );
 }
 
 pub(crate) fn shadow(p: &Painter, rect: Rect, r: CornerRadius, level: Elevation, t: &Tokens) {

@@ -1,5 +1,9 @@
 //! Form state, validation and submission. Headless: stylekits render fields and the footer through
 //! [`Form::show_with`].
+//!
+//! Each field holds a typed [`FieldValue`] whose variant follows its [`FieldKind`]: text kinds hold the raw text
+//! (validators do the locale parsing), checkboxes a `bool`, selects option keys, dates a civil date. A submit hands
+//! back the validated [`FormValues`].
 
 mod validators;
 
@@ -13,6 +17,7 @@ use std::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    date::Date,
     i18n::{self, Arg, LocaleFormat},
     semantic::KeyedSalt,
 };
@@ -75,16 +80,180 @@ impl std::error::Error for ValidationError {}
 
 /// `locale` parses locale-formatted input (numbers, dates).
 pub trait Validator: Send + Sync {
-    /// Never sees an empty value when called through [`FieldSpec::check`].
+    /// Never sees an empty value when called through [`FieldSpec::check`]. Built-in text validators pass values
+    /// of other kinds.
     ///
     /// # Errors
     /// [`ValidationError`] describing why `value` is rejected.
-    fn validate(&self, value: &str, locale: &dyn LocaleFormat) -> Result<(), ValidationError>;
+    fn validate(&self, value: &FieldValue, locale: &dyn LocaleFormat) -> Result<(), ValidationError>;
 }
 
-impl<F: Fn(&str, &dyn LocaleFormat) -> Result<(), ValidationError> + Send + Sync> Validator for F {
-    fn validate(&self, value: &str, locale: &dyn LocaleFormat) -> Result<(), ValidationError> {
+impl<F: Fn(&FieldValue, &dyn LocaleFormat) -> Result<(), ValidationError> + Send + Sync> Validator for F {
+    fn validate(&self, value: &FieldValue, locale: &dyn LocaleFormat) -> Result<(), ValidationError> {
         self(value, locale)
+    }
+}
+
+/// Value of a form field; the variant follows the field's [`FieldKind`] ([`FieldKind::empty_value`]).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub enum FieldValue {
+    /// Text kinds: the raw text as entered.
+    Text(String),
+    /// [`FieldKind::Checkbox`]: checked.
+    Bool(bool),
+    /// [`FieldKind::Select`]: key of the picked option.
+    Choice(Option<String>),
+    /// [`FieldKind::MultiSelect`]: keys of the picked options, in option order.
+    Choices(Vec<String>),
+    /// [`FieldKind::Date`]: picked day.
+    Date(Option<Date>),
+}
+
+impl Default for FieldValue {
+    fn default() -> Self {
+        Self::Text(String::new())
+    }
+}
+
+impl FieldValue {
+    /// Blank text, unchecked, nothing picked; what a non-required field may submit.
+    pub fn is_empty(&self) -> bool {
+        match self {
+            Self::Text(t) => t.trim().is_empty(),
+            Self::Bool(b) => !b,
+            Self::Choice(c) => c.is_none(),
+            Self::Choices(c) => c.is_empty(),
+            Self::Date(d) => d.is_none(),
+        }
+    }
+
+    /// Text of a text kind.
+    pub fn as_text(&self) -> Option<&str> {
+        match self {
+            Self::Text(t) => Some(t),
+            _ => None,
+        }
+    }
+
+    /// State of a checkbox.
+    pub fn as_bool(&self) -> Option<bool> {
+        match self {
+            Self::Bool(b) => Some(*b),
+            _ => None,
+        }
+    }
+
+    /// Picked option key of a select.
+    pub fn as_choice(&self) -> Option<&str> {
+        match self {
+            Self::Choice(c) => c.as_deref(),
+            _ => None,
+        }
+    }
+
+    /// Picked option keys of a multi-select.
+    pub fn as_choices(&self) -> Option<&[String]> {
+        match self {
+            Self::Choices(c) => Some(c),
+            _ => None,
+        }
+    }
+
+    /// Picked day of a date field.
+    pub fn as_date(&self) -> Option<Date> {
+        match self {
+            Self::Date(d) => *d,
+            _ => None,
+        }
+    }
+
+    fn fits(&self, kind: FieldKind) -> bool {
+        matches!(
+            (self, kind),
+            (
+                Self::Text(_),
+                FieldKind::Text | FieldKind::Password | FieldKind::Multiline
+            ) | (Self::Bool(_), FieldKind::Checkbox)
+                | (Self::Choice(_), FieldKind::Select)
+                | (Self::Choices(_), FieldKind::MultiSelect)
+                | (Self::Date(_), FieldKind::Date)
+        )
+    }
+}
+
+impl From<String> for FieldValue {
+    fn from(text: String) -> Self {
+        Self::Text(text)
+    }
+}
+
+impl From<&str> for FieldValue {
+    fn from(text: &str) -> Self {
+        Self::Text(text.to_owned())
+    }
+}
+
+impl From<bool> for FieldValue {
+    fn from(checked: bool) -> Self {
+        Self::Bool(checked)
+    }
+}
+
+impl From<Date> for FieldValue {
+    fn from(date: Date) -> Self {
+        Self::Date(Some(date))
+    }
+}
+
+/// Validated values of a submitted [`Form`], by field name.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct FormValues(BTreeMap<String, FieldValue>);
+
+impl FormValues {
+    /// Value of field `name`.
+    pub fn get(&self, name: &str) -> Option<&FieldValue> {
+        self.0.get(name)
+    }
+
+    /// Text of text field `name`.
+    pub fn text(&self, name: &str) -> Option<&str> {
+        self.get(name).and_then(FieldValue::as_text)
+    }
+
+    /// State of checkbox `name`.
+    pub fn bool(&self, name: &str) -> Option<bool> {
+        self.get(name).and_then(FieldValue::as_bool)
+    }
+
+    /// Picked option key of select `name`.
+    pub fn choice(&self, name: &str) -> Option<&str> {
+        self.get(name).and_then(FieldValue::as_choice)
+    }
+
+    /// Picked option keys of multi-select `name`.
+    pub fn choices(&self, name: &str) -> Option<&[String]> {
+        self.get(name).and_then(FieldValue::as_choices)
+    }
+
+    /// Picked day of date field `name`.
+    pub fn date(&self, name: &str) -> Option<Date> {
+        self.get(name).and_then(FieldValue::as_date)
+    }
+
+    /// Fields by name.
+    pub fn iter(&self) -> impl Iterator<Item = (&str, &FieldValue)> {
+        self.0.iter().map(|(k, v)| (k.as_str(), v))
+    }
+
+    /// Field count.
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// No fields.
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
     }
 }
 
@@ -104,7 +273,7 @@ pub enum ValidateOn {
 /// Runtime state of one form field.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct FieldState {
-    value: String,
+    value: FieldValue,
     dirty: bool,
     touched: bool,
     #[serde(skip)]
@@ -114,18 +283,24 @@ pub struct FieldState {
 }
 
 impl FieldState {
-    /// Raw text as entered; validators do the locale parsing.
-    pub fn value(&self) -> &str {
+    /// Current value; its variant follows the field's kind once the form has shown or validated it.
+    pub fn value(&self) -> &FieldValue {
         &self.value
     }
 
-    /// Renderer access to the text; call [`FieldCtx::changed`] after editing.
-    pub fn value_mut(&mut self) -> &mut String {
+    /// Text of a text kind, else empty.
+    pub fn text(&self) -> &str {
+        self.value.as_text().unwrap_or("")
+    }
+
+    /// Renderer access to the value; call [`FieldCtx::changed`] after editing.
+    pub fn value_mut(&mut self) -> &mut FieldValue {
         &mut self.value
     }
 
-    /// Replaces the text from code (initial values); does not mark the field dirty.
-    pub fn set_value(&mut self, value: impl Into<String>) {
+    /// Replaces the value from code (initial values); does not mark the field dirty. A value of another kind than
+    /// the field's is reported and replaced by the kind's empty value.
+    pub fn set_value(&mut self, value: impl Into<FieldValue>) {
         self.value = value.into();
     }
 
@@ -201,14 +376,19 @@ impl FormState {
         self.fields.entry(name.to_owned()).or_default()
     }
 
-    /// Empty for unknown fields.
-    pub fn value(&self, name: &str) -> &str {
-        self.fields.get(name).map_or("", FieldState::value)
+    /// `None` for unknown fields.
+    pub fn value(&self, name: &str) -> Option<&FieldValue> {
+        self.fields.get(name).map(FieldState::value)
+    }
+
+    /// Text of text field `name`; empty for unknown and non-text fields.
+    pub fn text(&self, name: &str) -> &str {
+        self.fields.get(name).map_or("", FieldState::text)
     }
 
     /// Snapshot of all values by field name.
-    pub fn values(&self) -> BTreeMap<String, String> {
-        self.fields.iter().map(|(k, v)| (k.clone(), v.value.clone())).collect()
+    pub fn values(&self) -> FormValues {
+        FormValues(self.fields.iter().map(|(k, v)| (k.clone(), v.value.clone())).collect())
     }
 
     /// `true` when any field is dirty.
@@ -277,10 +457,45 @@ pub enum FieldKind {
     /// Single line; Enter submits.
     #[default]
     Text,
-    /// Masked single line.
+    /// Masked single line; Enter submits.
     Password,
     /// Enter inserts a newline instead of submitting.
     Multiline,
+    /// Checkbox labeled by the field label; required means checked.
+    Checkbox,
+    /// One of the [`FieldSpec::option`]s, or none.
+    Select,
+    /// Any of the [`FieldSpec::option`]s.
+    MultiSelect,
+    /// Civil date.
+    Date,
+}
+
+impl FieldKind {
+    /// Value of a fresh field of this kind.
+    pub fn empty_value(self) -> FieldValue {
+        match self {
+            Self::Text | Self::Password | Self::Multiline => FieldValue::Text(String::new()),
+            Self::Checkbox => FieldValue::Bool(false),
+            Self::Select => FieldValue::Choice(None),
+            Self::MultiSelect => FieldValue::Choices(Vec::new()),
+            Self::Date => FieldValue::Date(None),
+        }
+    }
+
+    fn submits_on_enter(self) -> bool {
+        matches!(self, Self::Text | Self::Password)
+    }
+}
+
+/// Option of a [`FieldKind::Select`] or [`FieldKind::MultiSelect`] field.
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct FieldOption {
+    /// Stable key, the submitted value.
+    pub key: String,
+    /// Visible text.
+    pub label: String,
 }
 
 /// Declaration of one [`Form`] field: name, label, kind, validators.
@@ -291,6 +506,7 @@ pub struct FieldSpec {
     supporting: Option<String>,
     required: bool,
     kind: FieldKind,
+    options: Vec<FieldOption>,
     validate_on: ValidateOn,
     validators: Vec<Box<dyn Validator>>,
 }
@@ -303,6 +519,7 @@ impl std::fmt::Debug for FieldSpec {
             .field("supporting", &self.supporting)
             .field("required", &self.required)
             .field("kind", &self.kind)
+            .field("options", &self.options)
             .field("validate_on", &self.validate_on)
             .field("validators", &self.validators.len())
             .finish()
@@ -330,9 +547,14 @@ impl FieldSpec {
         self.required
     }
 
-    /// Input form; [`FieldKind::Multiline`] disables Enter-to-submit.
+    /// Input form; only [`FieldKind::Text`] and [`FieldKind::Password`] submit on Enter.
     pub fn input_kind(&self) -> FieldKind {
         self.kind
+    }
+
+    /// Options of a select kind, in display order.
+    pub fn field_options(&self) -> &[FieldOption] {
+        &self.options
     }
 
     /// When edits and focus loss re-validate.
@@ -347,6 +569,7 @@ impl FieldSpec {
             supporting: None,
             required: false,
             kind: FieldKind::default(),
+            options: Vec::new(),
             validate_on: ValidateOn::default(),
             validators: Vec::new(),
         }
@@ -358,7 +581,7 @@ impl FieldSpec {
         self
     }
 
-    /// Empty values fail with [`Required`]; when `false`, empty values skip validators.
+    /// Empty values ([`FieldValue::is_empty`]) fail with [`Required`]; when `false`, empty values skip validators.
     pub fn required(mut self, required: bool) -> Self {
         self.required = required;
         self
@@ -367,6 +590,23 @@ impl FieldSpec {
     /// Defaults to [`FieldKind::Text`].
     pub fn kind(mut self, kind: FieldKind) -> Self {
         self.kind = kind;
+        self
+    }
+
+    /// Appends an option of a select kind; `key` is what the field submits.
+    pub fn option(mut self, key: impl Into<String>, label: impl Into<String>) -> Self {
+        self.options.push(FieldOption {
+            key: key.into(),
+            label: label.into(),
+        });
+        self
+    }
+
+    /// Appends `(key, label)` options.
+    pub fn options(mut self, options: impl IntoIterator<Item = (impl Into<String>, impl Into<String>)>) -> Self {
+        for (key, label) in options {
+            self = self.option(key, label);
+        }
         self
     }
 
@@ -386,7 +626,7 @@ impl FieldSpec {
     ///
     /// # Errors
     /// Error of the required check, else of the first validator that rejects `value`.
-    pub fn check(&self, value: &str, locale: &dyn LocaleFormat) -> Result<(), ValidationError> {
+    pub fn check(&self, value: &FieldValue, locale: &dyn LocaleFormat) -> Result<(), ValidationError> {
         if self.required {
             Required.validate(value, locale)?;
         } else if value.is_empty() {
@@ -403,7 +643,7 @@ pub struct FieldCtx<'a> {
     pub form_salt: &'a KeyedSalt,
     /// Declaration of the rendered field.
     pub spec: &'a FieldSpec,
-    /// Renderers edit [`FieldState::value_mut`], then call [`Self::changed`].
+    /// Renderers edit [`FieldState::value_mut`], then call [`Self::changed`]; its variant matches the spec's kind.
     pub state: &'a mut FieldState,
     /// Locale validators parse with.
     pub locale: &'a dyn LocaleFormat,
@@ -442,7 +682,7 @@ pub struct FormResponse {
     /// Form container.
     pub response: egui::Response,
     /// `Some` with all values on the pass a submission starts.
-    pub submitted: Option<BTreeMap<String, String>>,
+    pub submitted: Option<FormValues>,
 }
 
 /// Form driver: validation timing, submit and error state over [`FormState`].
@@ -499,21 +739,55 @@ impl<'a> Form<'a> {
         self
     }
 
-    // Drops state without a spec and adds missing entries; a no-op while specs and state are unchanged.
+    // Drops state without a spec, adds missing entries and replaces values of another kind.
     fn sync_fields(&mut self) {
         let mut hasher = DefaultHasher::new();
-        self.fields.iter().for_each(|s| s.name.hash(&mut hasher));
+        self.fields.iter().for_each(|s| (&s.name, s.kind).hash(&mut hasher));
         let sig = (hasher.finish(), self.state.fields.len());
-        if self.state.synced == Some(sig) {
-            return;
-        }
         let specs = &self.fields;
-        self.state
-            .fields
-            .retain(|name, _| specs.iter().any(|s| &s.name == name));
+        if self.state.synced != Some(sig) {
+            self.state
+                .fields
+                .retain(|name, _| specs.iter().any(|s| &s.name == name));
+        }
         for spec in specs {
             if !self.state.fields.contains_key(&spec.name) {
-                self.state.fields.insert(spec.name.clone(), FieldState::default());
+                let fresh = FieldState {
+                    value: spec.kind.empty_value(),
+                    ..FieldState::default()
+                };
+                self.state.fields.insert(spec.name.clone(), fresh);
+            }
+            let Some(f) = self.state.fields.get_mut(&spec.name) else {
+                continue;
+            };
+            if !f.value.fits(spec.kind) {
+                crate::kit::sanitize::report(format_args!(
+                    "form field `{}` holds {:?}, not a {:?} value",
+                    spec.name, f.value, spec.kind
+                ));
+                f.value = spec.kind.empty_value();
+            }
+            if let FieldValue::Choice(Some(key)) = &f.value
+                && !spec.options.iter().any(|o| &o.key == key)
+            {
+                f.value = FieldValue::Choice(None);
+            }
+            if let FieldValue::Choices(keys) = &mut f.value {
+                let position = |k: &String| spec.options.iter().position(|o| &o.key == k);
+                let ordered = keys.iter().map(position).try_fold(None, |prev, at| match at {
+                    Some(at) if prev < Some(at) => Some(Some(at)),
+                    _ => None,
+                });
+                if ordered.is_none() {
+                    let picked = std::mem::take(keys);
+                    keys.extend(
+                        spec.options
+                            .iter()
+                            .filter(|o| picked.contains(&o.key))
+                            .map(|o| o.key.clone()),
+                    );
+                }
             }
         }
         self.state.synced = Some((sig.0, self.state.fields.len()));
@@ -550,7 +824,7 @@ impl<'a> Form<'a> {
     }
 
     /// Validates and, if valid, starts a submission; the app ends it with [`FormState::finish_submit`].
-    pub fn submit(&mut self, i18n: &i18n::I18n) -> Option<BTreeMap<String, String>> {
+    pub fn submit(&mut self, i18n: &i18n::I18n) -> Option<FormValues> {
         self.state.submit_count += 1;
         if self.state.submitting || !self.validate(i18n) {
             return None;
@@ -587,9 +861,8 @@ impl<'a> Form<'a> {
                         locale: locale.as_ref(),
                     },
                 );
-                enter |= spec.kind != FieldKind::Multiline
-                    && r.lost_focus()
-                    && ui.input(|i| i.key_pressed(egui::Key::Enter));
+                enter |=
+                    spec.kind.submits_on_enter() && r.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
             }
             let clicked = footer(
                 ui,
@@ -643,8 +916,8 @@ mod tests {
         let mut form = Form::new("f", &mut state)
             .locale(en)
             .field("email", "Email", |f| {
-                f.required(true).validator(|v: &str, _: &dyn LocaleFormat| {
-                    if v.contains('@') {
+                f.required(true).validator(|v: &FieldValue, _: &dyn LocaleFormat| {
+                    if v.as_text().is_some_and(|t| t.contains('@')) {
                         Ok(())
                     } else {
                         Err(ValidationError::new("email", "Not an email"))
@@ -670,7 +943,7 @@ mod tests {
         form.state.field("email").set_value("a@b.co");
         form.state.field("pw2").set_value("abc");
         let values = form.submit(rt.core().i18n()).expect("valid");
-        assert_eq!(values["email"], "a@b.co");
+        assert_eq!(values.text("email"), Some("a@b.co"));
         assert!(form.submit(rt.core().i18n()).is_none(), "no double submit");
         assert!(state.submitting());
         assert_eq!(state.submit_count(), 3);
@@ -682,7 +955,7 @@ mod tests {
     fn field_state_is_changed_through_accessors() {
         let mut state = FormState::default();
         state.field("a").set_value("x");
-        assert_eq!(state.value("a"), "x");
+        assert_eq!(state.text("a"), "x");
         assert!(!state.is_dirty(), "programmatic values are not edits");
         let spec = FieldSpec::new("a", "A".into()).required(true);
         assert_eq!((spec.name(), spec.label(), spec.is_required()), ("a", "A", true));
@@ -693,7 +966,7 @@ mod tests {
             state: state.field("a"),
             locale: &en,
         };
-        ctx.state.value_mut().clear();
+        *ctx.state.value_mut() = FieldValue::Text(String::new());
         ctx.changed();
         ctx.blurred();
         assert!(ctx.state.dirty() && ctx.state.touched());
@@ -706,6 +979,68 @@ mod tests {
         );
         state.field("a").set_pending(true);
         assert!(!state.is_valid(), "a pending check blocks validity");
+    }
+
+    #[test]
+    fn typed_kinds_hold_their_values_and_submit_them() {
+        let mut state = FormState::default();
+        state.field("terms").set_value("stale text");
+        state.field("size").set_value(FieldValue::Choice(Some("gone".into())));
+        state
+            .field("tags")
+            .set_value(FieldValue::Choices(vec!["b".into(), "x".into(), "a".into()]));
+        let en: Arc<dyn LocaleFormat> = Arc::new(crate::test_support::en_us());
+        let ctx = egui::Context::default();
+        let rt = crate::test_support::runtime(&ctx);
+        let day = Date::constant(2026, 11, 20);
+        let mut form = Form::new("f", &mut state)
+            .locale(en)
+            .field("terms", "Accept", |f| f.kind(FieldKind::Checkbox).required(true))
+            .field("size", "Size", |f| {
+                f.kind(FieldKind::Select).options([("s", "Small"), ("m", "Medium")])
+            })
+            .field("tags", "Tags", |f| {
+                f.kind(FieldKind::MultiSelect)
+                    .options([("a", "A"), ("b", "B")])
+                    .validator(MaxLength(1))
+            })
+            .field("day", "Day", |f| f.kind(FieldKind::Date).required(true));
+        assert!(form.submit(rt.core().i18n()).is_none());
+        assert_eq!(
+            form.state.value("terms"),
+            Some(&FieldValue::Bool(false)),
+            "wrong kind replaced"
+        );
+        assert_eq!(
+            form.state.value("size"),
+            Some(&FieldValue::Choice(None)),
+            "unknown key dropped"
+        );
+        assert_eq!(
+            form.state.value("tags").and_then(FieldValue::as_choices),
+            Some(&["a".to_owned(), "b".to_owned()][..]),
+            "known keys in option order"
+        );
+        let errors = ["terms", "tags", "day"].map(|n| form.state.fields[n].error.as_ref().map(|e| e.code.clone()));
+        assert_eq!(
+            errors,
+            [
+                Some("mineral-required".into()),
+                Some("mineral-max-picks".into()),
+                Some("mineral-required".into())
+            ]
+        );
+        form.state.field("terms").set_value(true);
+        form.state
+            .field("tags")
+            .set_value(FieldValue::Choices(vec!["b".into()]));
+        form.state.field("day").set_value(day);
+        let values = form.submit(rt.core().i18n()).expect("valid");
+        assert_eq!(
+            (values.bool("terms"), values.choice("size"), values.date("day")),
+            (Some(true), None, Some(day))
+        );
+        assert_eq!(values.choices("tags"), Some(&["b".to_owned()][..]));
     }
 
     #[test]

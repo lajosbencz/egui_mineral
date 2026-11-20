@@ -4,9 +4,8 @@ use egui_mineral::{
     focus::{self as roving, RovingFocus, TabStop},
     kit,
     layout::Axis,
-    select::{Selection, SelectionMode},
+    select::{ItemKey, Selection, SelectionMode},
     semantic::{self, AgentKey, KeyedSalt, Role, SemanticNode},
-    table::ItemKey,
     widget::{Availability, MineralUi},
 };
 
@@ -329,7 +328,7 @@ impl<K: ItemKey> ListUi<'_, '_, K> {
     }
 }
 
-fn flip<K: Ord + Clone>(selection: &mut Selection<K>, key: K) -> bool {
+fn flip<K: ItemKey>(selection: &mut Selection<K>, key: K) -> bool {
     if selection.mode() == SelectionMode::Multiple {
         selection.toggle(key)
     } else {

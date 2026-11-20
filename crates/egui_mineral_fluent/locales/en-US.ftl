@@ -18,6 +18,14 @@ mineral-max-length = { $max ->
     [one] Use at most { $max } character
    *[other] Use at most { $max } characters
 }
+mineral-min-picks = { $min ->
+    [one] Pick at least { $min } option
+   *[other] Pick at least { $min } options
+}
+mineral-max-picks = { $max ->
+    [one] Pick at most { $max } option
+   *[other] Pick at most { $max } options
+}
 mineral-number = Enter a number
 mineral-range-between = Enter a number between { $min } and { $max }
 mineral-range-min = Enter a number of at least { $min }

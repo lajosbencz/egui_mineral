@@ -9,13 +9,15 @@ Macros for [egui_mineral](https://crates.io/crates/egui_mineral). Do not depend 
 
 `#[derive(Route)]` implements `egui_mineral::nav::Route` for an enum whose variants carry
 `#[route("/user/{id}")]` patterns (`{param?}` for a trailing optional parameter). Use it through
-`egui_mineral::nav::Route`, which names both the trait and this derive. `#[route(crate = path)]` names the crate
-that hosts `nav` when it is reached through a re-export, e.g. `egui_mineral_material::egui_mineral`.
+`egui_mineral::nav::Route`, which names both the trait and this derive. The derives find `egui_mineral` from the
+calling crate's manifest: its own dependency, else the re-export of the stylekit it depends on
+(`egui_mineral_material::egui_mineral`); `#[route(crate = path)]` and `#[key_salt(crate = path)]` name it
+explicitly.
 
 `#[derive(KeySalt)]` implements `egui_mineral::semantic::KeySalt`: a unit variant or unit struct is keyed by its
 kebab-case name (`ListItem` -> `list-item`), fields append their own keys joined by `-`, a struct with fields is
 keyed by its fields alone. `#[key_salt(rename = "key")]` on a variant or the type fixes the name,
-`#[key_salt(crate = path)]` on the type names the crate that hosts `semantic`.
+`#[key_salt(crate = path)]` on the type overrides the found `egui_mineral`.
 
 `messages!(mod msg = "locales/en-US.ftl")` turns the Fluent catalog at that path (relative to the crate root)
 into a module of typed message ids. Use it through `egui_mineral::i18n::messages`, which documents it.

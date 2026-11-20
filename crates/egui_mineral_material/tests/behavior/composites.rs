@@ -86,7 +86,7 @@ fn stepper_advances_only_to_selectable_steps() {
 #[test]
 fn transfer_list_moves_checked_items_to_the_target() {
     let mut h = still(WIDE, Vec::new(), |ui, chosen| {
-        ui.mineral(TransferList::new("tl", ["Red", "Green", "Blue"], chosen));
+        ui.mineral(TransferList::new("tl", chosen).items(["Red", "Green", "Blue"].into_iter().enumerate()));
     });
     h.click("tl-source-1");
     h.click("tl-to-target-button");
@@ -99,15 +99,19 @@ fn transfer_list_moves_checked_items_to_the_target() {
 #[test]
 fn transfer_list_takes_its_size_from_constraints() {
     let h = still(WIDE, Vec::new(), |ui, chosen| {
-        ui.mineral(TransferList::new("tl", ["Red"], chosen).preferred_size(vec2(480.0, 240.0)));
+        ui.mineral(
+            TransferList::new("tl", chosen)
+                .item(0, "Red")
+                .preferred_size(vec2(480.0, 240.0)),
+        );
     });
     assert_eq!(h.rect("tl-transfer").size(), vec2(480.0, 240.0));
 }
 
 #[test]
-fn transfer_list_drops_duplicate_and_out_of_range_choices() {
+fn transfer_list_drops_repeated_and_unknown_choices() {
     let h = still(WIDE, vec![1, 1, 7, 0], |ui, chosen| {
-        ui.mineral(TransferList::new("tl", ["Red", "Green", "Blue"], chosen));
+        ui.mineral(TransferList::new("tl", chosen).items(["Red", "Green", "Blue"].into_iter().enumerate()));
     });
     assert_eq!(h.state().value, [1, 0]);
 }

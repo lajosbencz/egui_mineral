@@ -311,7 +311,7 @@ impl<K> View<'_, K> {
 }
 
 // react-combobox Listbox / OptionGroup / Option, shown as a popup under `anchor`.
-pub(crate) fn show<K>(
+pub(crate) fn show<K: egui_mineral::select::ItemKey>(
     ui: &MineralUi<'_, Fluent>,
     popup: KeyedSalt,
     trigger: &Response,
@@ -390,7 +390,7 @@ struct Rows<'a, 'b, K> {
     icons: &'b crate::IconSet,
 }
 
-impl<K> Rows<'_, '_, K> {
+impl<K: egui_mineral::select::ItemKey> Rows<'_, '_, K> {
     fn draw(&self, ui: &mut egui::Ui) -> (Option<usize>, Option<Id>) {
         let (view, t, dir, icons) = (self.view, self.t, self.dir, self.icons);
         let ctx = ui.ctx().clone();
@@ -427,9 +427,8 @@ impl<K> Rows<'_, '_, K> {
                         ui.scroll_to_rect(r.rect, None);
                     }
                     semantic::emit(&ctx, Some(r.id), r.rect, || {
-                        let mut n =
-                            SemanticNode::new(option_key(self.key, i, opt), Role::ListBoxOption, opt.text.clone())
-                                .pressable(Availability::disabled_if(opt.disabled));
+                        let mut n = SemanticNode::new(option_key(self.key, opt), Role::ListBoxOption, opt.text.clone())
+                            .pressable(Availability::disabled_if(opt.disabled));
                         n.state.selected = Some(selected);
                         n.depth = 2;
                         n
@@ -447,10 +446,10 @@ impl<K> Rows<'_, '_, K> {
     }
 }
 
-fn option_key<K>(key: &StableId, i: usize, opt: &Item<K>) -> StableId {
+fn option_key<K: egui_mineral::select::ItemKey>(key: &StableId, opt: &Item<K>) -> StableId {
     match &opt.salt {
         Some(salt) => key.sub((salt, "option")),
-        None => key.sub((i, "option")),
+        None => key.sub((&opt.value, "option")),
     }
 }
 

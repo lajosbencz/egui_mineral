@@ -11,6 +11,7 @@ use egui::{
 };
 use egui_mineral::i18n::I18n;
 use egui_mineral::kit::choice::Choice;
+use egui_mineral::select::ItemKey;
 use egui_mineral::semantic::AgentKey;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::Availability;
@@ -124,6 +125,8 @@ pub(crate) struct Listbox<'a> {
     pub len: usize,
     /// Built for visible rows only.
     pub row: &'a dyn Fn(usize) -> OptionRow<'a>,
+    /// Id and agent key part of a row: its value.
+    pub part: &'a dyn Fn(usize) -> KeyedSalt,
     pub active: Option<usize>,
     pub scroll_to_active: bool,
 }
@@ -155,6 +158,7 @@ impl Listbox<'_> {
             label,
             len,
             row: row_at,
+            part,
             active,
             scroll_to_active,
         } = self;
@@ -206,8 +210,9 @@ impl Listbox<'_> {
                             active: active == Some(i),
                             ..row_at(i)
                         };
-                        let resp = row.show(&mut rt.ui(ui), base.with(i), width, &m, &t);
-                        text_field::emit_part(ctx, &resp, 2, || row.value_node(key.sub((i, "option"))));
+                        let part = part(i);
+                        let resp = row.show(&mut rt.ui(ui), base.with(part.id_salt()), width, &m, &t);
+                        text_field::emit_part(ctx, &resp, 2, || row.value_node(key.sub((part, "option"))));
                         if resp.clicked() {
                             clicked = Some(i);
                         }
@@ -331,7 +336,7 @@ pub struct Select<'a, K> {
 
 egui_mineral::kit::opaque_debug!(Select<'_, K>);
 
-impl<'a, K: PartialEq + Clone> Select<'a, K> {
+impl<'a, K: ItemKey> Select<'a, K> {
     /// Shows the option whose value equals `selected`, none when no option matches. Agent key
     /// `<id_salt>-select`.
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selected: &'a mut K) -> Self {
@@ -488,10 +493,10 @@ impl<'a, K: PartialEq + Clone> Select<'a, K> {
         }
         if r.has_focus() {
             // Up/Down drive the list, not egui's directional focus navigation.
-            kit::focus::lock_arrows(
+            kit::interact::lock_arrows(
                 ctx,
                 r.id,
-                kit::focus::Arrows::Axis(egui_mineral::layout::Axis::Vertical),
+                kit::interact::Arrows::Axis(egui_mineral::layout::Axis::Vertical),
             );
             for a in state.combo.update(ctx, list) {
                 match a {
@@ -582,10 +587,11 @@ impl<'a, K: PartialEq + Clone> Select<'a, K> {
                 let x0 = dir.span_x(decor.span, Rangef::new(x, x + widths[n]));
                 let crect =
                     Rect::from_min_size(pos2(x0, field.top() + rows.row_top(row)), vec2(widths[n], rows.chip_h));
-                let chip = Chip::input(self.salt.child(("chip", i)), self.label_of(i))
+                let value = self.choice.value(i);
+                let chip = Chip::input(self.salt.child(("chip", value)), self.label_of(i))
                     .disabled(self.disabled || !self.option_enabled(i))
-                    .agent_key(self.key.id(&self.salt).sub((i, "chip")));
-                if place_chip(ui, ("chip", i), crect, chip) {
+                    .agent_key(self.key.id(&self.salt).sub((value, "chip")));
+                if place_chip(ui, ("chip", value), crect, chip) {
                     removed = Some(i);
                 }
             }
@@ -642,6 +648,7 @@ impl<'a, K: PartialEq + Clone> Select<'a, K> {
             label: &self.label,
             len,
             row: &row,
+            part: &|i| KeyedSalt::from(self.choice.value(i)),
             active: state.combo.active(),
             scroll_to_active: moved || !was_open,
         }
@@ -663,7 +670,7 @@ impl<'a, K: PartialEq + Clone> Select<'a, K> {
     }
 }
 
-impl<K: PartialEq + Clone> MineralWidget for Select<'_, K> {
+impl<K: ItemKey> MineralWidget for Select<'_, K> {
     type Kit = Material;
     type State = SelectState;
     type Output = ();

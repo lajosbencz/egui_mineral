@@ -254,7 +254,7 @@ impl Card {
         }
         p.set(fill, Shape::rect_filled(rect, r, s.container));
         if self.clickable {
-            kit::input::hover_cursor(ui.core(), &response, Availability::disabled_if(self.disabled));
+            kit::interact::hover_cursor(ui.core(), &response, Availability::disabled_if(self.disabled));
             indication::paint(ui, &response, rect, r, content_color, i, &t);
         }
         // Compose draws the border over the content, inside the bounds.

@@ -4,8 +4,9 @@ use crate::MaterialUiExt as _;
 use crate::Rt;
 use crate::msg;
 use egui_mineral::kit::state::TempState;
+use egui_mineral::select::ItemKey;
 use egui_mineral::semantic::KeyedSalt;
-use egui_mineral::table::{ItemKey, Rows};
+use egui_mineral::table::Rows;
 use egui_mineral::widget::MineralUi;
 use std::{borrow::Cow, cmp::Ordering, sync::Arc};
 
@@ -638,7 +639,7 @@ impl<'a, K: ItemKey> DataTable<'a, K> {
         }
 
         if let Some((cell_pos, fid)) = pass.focused {
-            kit::focus::lock_arrows(ctx, fid, kit::focus::Arrows::Both);
+            kit::interact::lock_arrows(ctx, fid, kit::interact::Arrows::Both);
             let grid = focus::Grid::new(GridSize {
                 rows: page_rows + 1,
                 columns: grid_cols,
@@ -662,7 +663,7 @@ impl<'a, K: ItemKey> DataTable<'a, K> {
             }
         }
         out.sort = st.sort;
-        kit::semantic::remember_rect(
+        kit::nodes::remember_rect(
             ctx,
             id,
             Rect::from_min_max(start, pos2(start.x + avail_w, ui.cursor().min.y)),
@@ -810,14 +811,14 @@ impl<K: ItemKey> TableView<'_, '_, K> {
         let disabled = self.table.disabled;
         let all_on_page = !self.page.is_empty() && self.page_ids().all(|d| self.is_selected(d));
         let any_on_page = self.page_ids().any(|d| self.is_selected(d));
-        let r = kit::input::interact(
+        let r = kit::interact::interact(
             &rt.ui(ui),
             self.geo.check(hrect),
             self.id.with("all"),
             self.sense_at(Cell { row: 0, column: 0 }),
             Availability::Enabled,
         );
-        kit::input::hover_cursor(self.rt.core(), &r, Availability::disabled_if(disabled));
+        kit::interact::hover_cursor(self.rt.core(), &r, Availability::disabled_if(disabled));
         if r.clicked() && !disabled {
             pass.header_check = Some(!all_on_page);
         }
@@ -841,7 +842,7 @@ impl<K: ItemKey> TableView<'_, '_, K> {
     // So the grid has no hole at (0, 0)
     fn selection_header(&self, ui: &MineralUi<'_, Material>, st: &mut TableState, pass: &mut Pass, hrect: Rect) {
         let pos = Cell { row: 0, column: 0 };
-        let r = kit::input::interact(
+        let r = kit::interact::interact(
             ui,
             self.geo.check(hrect),
             self.id.with("selection"),
@@ -879,7 +880,7 @@ impl<K: ItemKey> TableView<'_, '_, K> {
         let col = &self.table.columns[c];
         let rect = self.geo.cell(hrect, c);
         let gc = c + usize::from(self.has_sel());
-        let r = kit::input::interact(
+        let r = kit::interact::interact(
             &rt.ui(ui),
             rect,
             self.id.with(("h", c)),
@@ -889,7 +890,7 @@ impl<K: ItemKey> TableView<'_, '_, K> {
         take_cell(ctx, st, Cell { row: 0, column: gc }, &r, &mut pass.focused);
         let sort = st.sort.order(c);
         if col.sortable {
-            kit::input::hover_cursor(rt.core(), &r, Availability::disabled_if(disabled));
+            kit::interact::hover_cursor(rt.core(), &r, Availability::disabled_if(disabled));
             if r.clicked() && !disabled {
                 pass.sort_click = Some(c);
             }
@@ -1042,7 +1043,7 @@ impl<K: ItemKey> TableView<'_, '_, K> {
         let disabled = self.table.disabled;
         let has_sel = self.has_sel();
         let check = has_sel.then(|| {
-            let r = kit::input::interact(
+            let r = kit::interact::interact(
                 &rt.ui(ui),
                 self.geo.check(rect),
                 self.id.with(("check", key)),
@@ -1052,7 +1053,7 @@ impl<K: ItemKey> TableView<'_, '_, K> {
                 }),
                 Availability::Enabled,
             );
-            kit::input::hover_cursor(rt.core(), &r, Availability::disabled_if(disabled));
+            kit::interact::hover_cursor(rt.core(), &r, Availability::disabled_if(disabled));
             if r.clicked() && !disabled {
                 pass.events.push(RowEvent::Check(d, ui.input(|i| i.modifiers)));
             }
@@ -1072,7 +1073,7 @@ impl<K: ItemKey> TableView<'_, '_, K> {
         for c in 0..self.table.columns.len() {
             {
                 let gc = c + usize::from(has_sel);
-                let r = kit::input::interact(
+                let r = kit::interact::interact(
                     &rt.ui(ui),
                     self.geo.cell(rect, c),
                     self.id.with(("c", key, c)),
@@ -1171,7 +1172,7 @@ impl<K: ItemKey> TableView<'_, '_, K> {
 
 fn grid_focus_target(ctx: &Context, from: Cell, grid: focus::Grid, dir: Direction) -> Option<Cell> {
     let mut target = from;
-    for (k, m) in kit::input::key_presses(ctx) {
+    for (k, m) in kit::interact::key_presses(ctx) {
         if let Some(next) = focus::on_grid_key(grid, target, k, m, dir) {
             target = next;
         }
@@ -1179,7 +1180,7 @@ fn grid_focus_target(ctx: &Context, from: Cell, grid: focus::Grid, dir: Directio
     (target != from).then_some(target)
 }
 
-fn toggle_row<K: Ord + Clone>(sel: &mut Selection<K>, d: K, m: Modifiers, order: &[K]) -> bool {
+fn toggle_row<K: ItemKey>(sel: &mut Selection<K>, d: K, m: Modifiers, order: &[K]) -> bool {
     if m.shift {
         let extend = Modifiers {
             shift: true,
@@ -1193,7 +1194,7 @@ fn toggle_row<K: Ord + Clone>(sel: &mut Selection<K>, d: K, m: Modifiers, order:
 }
 
 fn take_cell(ctx: &Context, st: &mut TableState, pos: Cell, r: &egui::Response, focused: &mut Option<(Cell, Id)>) {
-    kit::focus::follow_press(r);
+    kit::interact::follow_press(r);
     if st.pending == Some(pos) {
         ctx.memory_mut(|m| m.request_focus(r.id));
         st.pending = None;

@@ -160,7 +160,7 @@ impl Tooltip {
         st.escaped &= engaged;
         st.intent
             .follow(&ctx, &mut st.open, (engaged && !st.escaped).into(), delays);
-        if st.open && kit::overlay::consume_escape(&ctx) {
+        if st.open && kit::layer::consume_escape(&ctx) {
             st.open = false;
             st.escaped = true;
             st.intent.cancel();

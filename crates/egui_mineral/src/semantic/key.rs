@@ -480,6 +480,47 @@ impl KeySalt for char {
     }
 }
 
+// ISO text with every separator a `-`: `2026-11-20`, `09-30-00`, `09-30-00-5`.
+fn write_iso(text: &str, out: &mut String) {
+    out.extend(text.chars().map(|c| if c.is_ascii_digit() { c } else { '-' }));
+}
+
+impl KeySalt for jiff::civil::Date {
+    fn write_key(&self, out: &mut String) {
+        write_iso(&self.to_string(), out);
+    }
+}
+
+impl KeySalt for jiff::civil::Time {
+    fn write_key(&self, out: &mut String) {
+        write_iso(&self.to_string(), out);
+    }
+}
+
+// `none`, else the value's own key.
+impl<T: KeySalt> KeySalt for Option<T> {
+    fn write_key(&self, out: &mut String) {
+        match self {
+            Some(v) => v.write_key(out),
+            None => out.push_str("none"),
+        }
+    }
+
+    fn key_parts(&self, parts: &mut KeyParts) -> bool {
+        match self {
+            Some(v) => v.key_parts(parts),
+            None => parts.push_str("none"),
+        }
+    }
+}
+
+// Key type of groups that carry no values.
+impl KeySalt for core::convert::Infallible {
+    fn write_key(&self, _: &mut String) {
+        match *self {}
+    }
+}
+
 impl KeySalt for bool {
     fn write_key(&self, out: &mut String) {
         out.push_str(if *self { "true" } else { "false" });

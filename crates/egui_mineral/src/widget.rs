@@ -588,7 +588,7 @@ fn show<K: Stylekit, W: MineralWidget<Kit = K>>(ui: &mut MineralUi<'_, K>, mut w
     };
     let mut response = pan.apply(response);
     if sense.is_focusable() {
-        crate::kit::focus::follow_press(&response);
+        crate::kit::interact::follow_press(&response);
     }
     if widget.enabled() {
         let scope = shortcut::scope_of(&ctx, response.layer_id);
@@ -654,7 +654,7 @@ fn node_of<W: MineralWidget>(
 }
 
 fn emit_node(ctx: &egui::Context, id: egui::Id, rect: egui::Rect, node: impl FnOnce() -> Option<SemanticNode>) {
-    if crate::kit::semantic::wanted(ctx, Some(id))
+    if crate::kit::nodes::wanted(ctx, Some(id))
         && let Some(node) = node()
     {
         semantic::emit(ctx, Some(id), rect, || node);

@@ -355,14 +355,14 @@ impl<'a> ImageList<'a> {
             if !ui.is_rect_visible(rect) && held != Some(i) {
                 continue;
             }
-            let resp = kit::input::interact(
+            let resp = kit::interact::interact(
                 ui,
                 rect,
                 tid,
                 focus::roving_sense(Sense::click(), focus::TabStop::at(i, tab)),
                 availability,
             );
-            kit::focus::follow_press(&resp);
+            kit::interact::follow_press(&resp);
             if resp.has_focus() {
                 focus_at = Some(i);
             }
@@ -399,7 +399,7 @@ impl<'a> ImageList<'a> {
         }
         st.focus = focus_at;
         st.store(&ctx, id);
-        kit::semantic::remember_rect(&ctx, id, area);
+        kit::nodes::remember_rect(&ctx, id, area);
         ImageListResponse {
             response,
             activated: activated.and_then(|i| tiles.key(i)),

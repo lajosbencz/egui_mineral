@@ -88,7 +88,7 @@ fn fields(fields: &Fields) -> (TokenStream2, Vec<syn::Ident>) {
 
 pub(crate) fn expand(input: &DeriveInput) -> syn::Result<TokenStream2> {
     let own = attrs(&input.attrs, true)?;
-    let root = own.root.map_or_else(|| syn::parse_str("::egui_mineral"), Ok)?;
+    let root = own.root.unwrap_or_else(crate::host);
     let key = quote!(#root::semantic);
     let name = &input.ident;
     // Type parameters are keyed by their own `KeySalt`.

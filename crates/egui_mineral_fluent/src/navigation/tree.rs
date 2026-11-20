@@ -552,8 +552,8 @@ impl Row<'_> {
                 out.toggle = self.branch;
             }
         }
-        if kit::input::accesskit_requested(ui.ctx(), r.id, Action::Expand) && self.branch && !self.expanded
-            || kit::input::accesskit_requested(ui.ctx(), r.id, Action::Collapse) && self.expanded
+        if kit::interact::accesskit_requested(ui.ctx(), r.id, Action::Expand) && self.branch && !self.expanded
+            || kit::interact::accesskit_requested(ui.ctx(), r.id, Action::Collapse) && self.expanded
         {
             out.toggle = true;
         }
@@ -588,8 +588,8 @@ impl MineralWidget for Row<'_> {
     ) -> WidgetResponse<RowOut> {
         let t = ui.tokens();
         let r = &frame.response;
-        kit::input::hover_cursor(ui.core(), r, Availability::Enabled);
-        kit::focus::follow_press(r);
+        kit::interact::hover_cursor(ui.core(), r, Availability::Enabled);
+        kit::interact::follow_press(r);
         let i = Interaction::of(r, Availability::Enabled);
         let s = State::of(i);
         let rect = frame.zones.visual;
@@ -931,7 +931,7 @@ impl<'a, N: TreeData> Tree<'a, N> {
                     }
                     drawn.push(Drawn { row: i, out, response });
                 }
-                if kit::semantic::wanted(ctx, None) {
+                if kit::nodes::wanted(ctx, None) {
                     for i in (0..rows.len()).filter(|i| !visible.contains(i) && extra != Some(*i)) {
                         self.emit_culled(ui, &rows, i, stop, rect_of(i));
                     }
@@ -972,7 +972,7 @@ impl<'a, N: TreeData> Tree<'a, N> {
         let Some(row) = rows.get(i) else { return };
         let widget = self.row(i, row, (self.layout)(row.node), stop);
         let rid = ui.scope_id().with(ROW_SCOPE).with(widget.id_salt());
-        kit::semantic::emit_culled(ui, rid, rect, || widget.node(false));
+        kit::nodes::emit_culled(ui, rid, rect, || widget.node(false));
     }
 
     fn apply(&mut self, rows: &[TreeRow<'a, N>], drawn: &[Drawn], out: &mut TreeResponse<N::Key>) {
@@ -1015,9 +1015,9 @@ impl<'a, N: TreeData> Tree<'a, N> {
         if let Some(row) = rows.get(cur_row) {
             state.stop = Some(row.node.key().clone());
         }
-        kit::focus::lock_arrows(ctx, response.id, kit::focus::Arrows::Both);
+        kit::interact::lock_arrows(ctx, response.id, kit::interact::Arrows::Both);
         let mut jump = None;
-        for k in kit::input::plain_key_presses(ctx) {
+        for k in kit::interact::plain_key_presses(ctx) {
             match tree::on_key(rows, jump.unwrap_or(cur_row), k, dir) {
                 Some(TreeNav::Focus(j)) => jump = Some(j),
                 Some(TreeNav::Expand(j) | TreeNav::Collapse(j)) => {

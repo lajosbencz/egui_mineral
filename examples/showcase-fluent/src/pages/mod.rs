@@ -26,7 +26,7 @@ use crate::FluentUi;
 // The pages workflow bakes ICU4X data for these only.
 pub(crate) const LOCALES: [&str; 5] = ["en-US", "de-DE", "hu-HU", "ja-JP", "ar-EG"];
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, egui_mineral_fluent::prelude::KeySalt)]
 pub(crate) enum Page {
     Foundations,
     Category(Category),

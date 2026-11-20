@@ -1,6 +1,6 @@
 use crate::MaterialUiExt as _;
 use crate::msg;
-use egui_mineral::kit::palette::{self, Entry, Labels, Row, State};
+use egui_mineral::kit::command_palette::{self as palette, Entry, Labels, Row, State};
 use egui_mineral::kit::state::TempState;
 
 use crate::Material;
@@ -228,9 +228,15 @@ impl<'a> CommandPalette<'a> {
     fn run(self, rt: &Rt, id: Id, open: &mut bool) -> CommandPaletteResponse {
         let ctx = rt.ctx();
         let area_id = id.with("area");
-        let area = kit::overlay::modal_area(rt.core(), area_id);
+        let area = kit::layer::modal_area(rt.core(), area_id);
         let scope = shortcut::scope_of(ctx, area.layer());
-        palette::bind_shortcuts(ctx, &self.salt, self.shortcut, &self.commands, scope, area_id, open);
+        palette::Shortcuts {
+            salt: &self.salt,
+            toggle: self.shortcut,
+            scope,
+            modal: area_id,
+        }
+        .bind(ctx, &self.commands, open);
         let mut st = State::load(ctx, id);
         if !*open {
             if st.was_open {

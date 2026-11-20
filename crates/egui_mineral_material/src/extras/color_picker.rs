@@ -499,8 +499,8 @@ impl MineralWidget for Area<'_> {
                 r.request_focus();
             }
             if r.has_focus() {
-                kit::focus::lock_arrows(ctx, r.id, kit::focus::Arrows::Both);
-                for k in kit::input::plain_key_presses(ctx) {
+                kit::interact::lock_arrows(ctx, r.id, kit::interact::Arrows::Both);
+                for k in kit::interact::plain_key_presses(ctx) {
                     let (v, track) = match k {
                         Key::ArrowLeft | Key::ArrowRight => (&mut self.co.x, x_track),
                         Key::ArrowUp | Key::ArrowDown => (&mut self.co.y, y_track),
@@ -637,7 +637,7 @@ impl MineralWidget for HueBar<'_> {
         };
         let handle = Rect::from_center_size(pos2(x, y), vec2(handle_w, rect.height()));
         p.rect_filled(handle, CornerRadius::from(handle_w / 2.0), handle_color);
-        kit::input::hover_cursor(rt.core(), r, Availability::disabled_if(self.disabled));
+        kit::interact::hover_cursor(rt.core(), r, Availability::disabled_if(self.disabled));
         WidgetResponse::new(r.clone(), ()).with_changed((*self.hue - before).abs() > f64::EPSILON)
     }
 

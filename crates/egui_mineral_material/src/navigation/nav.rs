@@ -7,6 +7,7 @@ use egui::{Align, Align2, Color32, Frame, Id, Layout, Pos2, Rangef, Rect, Respon
 use egui_mineral::i18n::I18n;
 use egui_mineral::kit::choice::Choice;
 use egui_mineral::kit::state::TempState;
+use egui_mineral::select::ItemKey;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::Availability;
 use egui_mineral::widget::MineralUi;
@@ -149,14 +150,15 @@ impl Group {
         });
     }
 
-    fn items(
+    fn items<K: ItemKey>(
         &self,
         ui: &mut MineralUi<'_, Material>,
         group: Id,
         items: &[NavDestination],
-        selected: Option<usize>,
+        choice: &Choice<'_, K>,
         row: ItemRow,
     ) -> (Option<usize>, Option<Id>) {
+        let selected = choice.index();
         let rt = ui.rt();
         let enabled = |i: usize| items.get(i).is_some_and(|d| !d.disabled);
         let tab_stop = focus::tab_stop(rt.ctx(), group, selected, items.len(), enabled);
@@ -165,7 +167,7 @@ impl Group {
         let shape = row.shape.dense(ui.density(), row.font);
         for (i, dest) in items.iter().enumerate() {
             let is_selected = selected == Some(i);
-            let own = crate::widget::item_salt(&self.salt, dest.salt.as_ref(), None, i);
+            let own = crate::widget::item_salt(&self.salt, dest.salt.as_ref(), None, choice.value(i));
             let r = ui.mineral(NavItem {
                 salt: own.child("nav-item"),
                 key: StableId::of(&own, "nav-item"),
@@ -600,7 +602,7 @@ impl MineralWidget for NavItem<'_> {
         let t = rt.tokens();
         let c = &t.color;
         let response = &frame.response;
-        kit::focus::follow_press(response);
+        kit::interact::follow_press(response);
         let rect = frame.zones.visual;
         let dis = self.dest.disabled;
         let press = parts::press(ui, frame, Availability::disabled_if(dis));
@@ -704,7 +706,7 @@ pub struct NavigationBar<'a, K> {
     labels: NavLabels,
 }
 
-impl<'a, K: PartialEq + Clone> NavigationBar<'a, K> {
+impl<'a, K: ItemKey> NavigationBar<'a, K> {
     /// Selects the destination whose value equals `selected`, none when no destination matches. Agent key
     /// prefix `<id_salt>`.
     pub fn new(id_salt: impl Into<KeyedSalt>, selected: &'a mut K) -> Self {
@@ -801,7 +803,7 @@ impl<'a, K: PartialEq + Clone> NavigationBar<'a, K> {
         let scope = self.group.salt.child("items");
         egui_mineral::layout::child(ui, scope, rect, rt.i18n().direction().row(), |ui| {
             ui.spacing_mut().item_spacing = vec2(space, 0.0);
-            picked = self.group.items(ui, id, &self.items, self.choice.index(), row).0;
+            picked = self.group.items(ui, id, &self.items, &self.choice, row).0;
         });
         self.group.emit(rt, response.id, rect, "navigation", None);
         self.choice.pick(response, picked)
@@ -851,7 +853,7 @@ pub struct NavigationRail<'a, K> {
 
 egui_mineral::kit::opaque_debug!(NavigationRail<'_, K>);
 
-impl<'a, K: PartialEq + Clone> NavigationRail<'a, K> {
+impl<'a, K: ItemKey> NavigationRail<'a, K> {
     /// Selects the destination whose value equals `selected`, none when no destination matches. Agent key
     /// prefix `<id_salt>`.
     pub fn new(id_salt: impl Into<KeyedSalt>, selected: &'a mut K) -> Self {
@@ -1142,8 +1144,7 @@ impl<'a, K: PartialEq + Clone> NavigationRail<'a, K> {
                 .id_salt("items")
                 .auto_shrink([false, true])
                 .show(ui, |ui| {
-                    self.group
-                        .items(&mut rt.ui(ui), group, &self.items, self.choice.index(), row)
+                    self.group.items(&mut rt.ui(ui), group, &self.items, &self.choice, row)
                 })
                 .inner;
         });
@@ -1210,7 +1211,7 @@ pub struct NavigationDrawer<'a, K> {
 
 egui_mineral::kit::opaque_debug!(NavigationDrawer<'_, K>);
 
-impl<'a, K: PartialEq + Clone> NavigationDrawer<'a, K> {
+impl<'a, K: ItemKey> NavigationDrawer<'a, K> {
     /// Selects the destination whose value equals `selected`, none when no destination matches. Agent key
     /// prefix `<id_salt>`.
     pub fn new(id_salt: impl Into<KeyedSalt>, selected: &'a mut K) -> Self {
@@ -1282,7 +1283,7 @@ impl Drawer {
         self.group.apply(items);
     }
 
-    fn show<K: PartialEq + Clone>(
+    fn show<K: ItemKey>(
         mut self,
         ui: &mut MineralUi<'_, Material>,
         choice: &mut Choice<'_, K>,
@@ -1299,13 +1300,13 @@ impl Drawer {
         let mut picked = None;
         let scope = self.group.salt.child("content");
         egui_mineral::layout::child(ui, scope, rect, rt.i18n().direction().column(), |ui| {
-            picked = self.content(ui, id, width, choice.index()).0;
+            picked = self.content(ui, id, width, choice).0;
         });
         self.group.emit(rt, response.id, rect, "navigation", None);
         choice.pick(response, picked)
     }
 
-    fn show_modal<K: PartialEq + Clone>(
+    fn show_modal<K: ItemKey>(
         mut self,
         rt: &Rt,
         open: &mut bool,
@@ -1331,7 +1332,6 @@ impl Drawer {
             pos2(screen.left() + offset.min(0.0), screen.top()),
             pos2(screen.left() + offset + width, screen.bottom()),
         ));
-        let current = choice.index();
         let mut picked = None;
         let (response, close) = ModalPanel {
             id,
@@ -1349,7 +1349,7 @@ impl Drawer {
             let mut target = None;
             let scope = self.group.salt.child("content");
             egui_mineral::layout::child(ui, scope, panel, rt.i18n().direction().column(), |ui| {
-                (picked, target) = self.content(ui, id, width, current);
+                (picked, target) = self.content(ui, id, width, choice);
             });
             self.group.emit(rt, panel_id, panel, "navigation", None);
             target
@@ -1383,13 +1383,14 @@ impl Drawer {
         NavigationDrawerModalResponse { selection, dismissed }
     }
 
-    fn content(
+    fn content<K: ItemKey>(
         &self,
         ui: &mut MineralUi<'_, Material>,
         id: Id,
         width: f32,
-        selected: Option<usize>,
+        choice: &Choice<'_, K>,
     ) -> (Option<usize>, Option<Id>) {
+        let selected = choice.index();
         let rt = ui.rt();
         let mut ids = Vec::new();
         let mut item_enabled = Vec::new();
@@ -1427,7 +1428,12 @@ impl Drawer {
                                 );
                             }
                             DrawerEntry::Item(dest) => {
-                                let own = crate::widget::item_salt(&self.group.salt, dest.salt.as_ref(), None, index);
+                                let own = crate::widget::item_salt(
+                                    &self.group.salt,
+                                    dest.salt.as_ref(),
+                                    None,
+                                    choice.value(index),
+                                );
                                 let item = DrawerItem {
                                     salt: own.child("nav-item"),
                                     key: StableId::of(&own, "nav-item"),

@@ -148,7 +148,7 @@ impl MineralWidget for TextLink {
         let r = &frame.response;
         let rect = frame.zones.visual;
         let availability = Availability::disabled_if(self.disabled);
-        kit::input::hover_cursor(ui.core(), r, availability);
+        kit::interact::hover_cursor(ui.core(), r, availability);
         let i = Interaction::of(r, availability);
         if let Some(url) = &self.url {
             if r.clicked() {

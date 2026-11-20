@@ -806,7 +806,7 @@ impl Resolved {
         };
         for (i, p) in [DayPeriod::Am, DayPeriod::Pm].into_iter().enumerate() {
             let cell = Rect::from_min_size(rect.min + step * i as f32, item);
-            let resp = kit::input::interact(
+            let resp = kit::interact::interact(
                 &rt.ui(ui),
                 cell,
                 id.with(("period", p)),
@@ -834,7 +834,7 @@ impl Resolved {
             };
             ui.painter().rect_filled(cell, r, container);
             indication::paint(ui, &resp, cell, r, content, i_state, t);
-            kit::input::hover_cursor(ui.core(), &resp, Availability::disabled_if(self.disabled));
+            kit::interact::hover_cursor(ui.core(), &resp, Availability::disabled_if(self.disabled));
             let label = &self.period_labels[i];
             let g = parts::type_wrapped(
                 ui.painter(),
@@ -1046,7 +1046,7 @@ impl Resolved {
         if Interaction::of(cx.resp, Availability::disabled_if(self.disabled)).focused {
             common::focus_ring(p, area, CornerRadius::from(DIAL / 2.0), t);
         }
-        kit::input::hover_cursor(rt.core(), cx.resp, Availability::disabled_if(self.disabled));
+        kit::interact::hover_cursor(rt.core(), cx.resp, Availability::disabled_if(self.disabled));
     }
 
     fn emit_dial(&self, rt: &Rt, cx: &DialCx<'_>, st: &State, time: Time) {
@@ -1154,7 +1154,7 @@ fn selector_box(ui: &mut MineralUi<'_, Material>, id: Id, rect: Rect, selector: 
         value,
         text,
     } = selector;
-    let resp = kit::input::interact(
+    let resp = kit::interact::interact(
         &rt.ui(ui),
         rect,
         id.with(("box", slug)),
@@ -1193,7 +1193,7 @@ fn selector_box(ui: &mut MineralUi<'_, Material>, id: Id, rect: Rect, selector: 
         None,
     );
     ui.painter().galley(rect.center() - g.size() / 2.0, g, fg);
-    kit::input::hover_cursor(ui.core(), &resp, Availability::disabled_if(disabled));
+    kit::interact::hover_cursor(ui.core(), &resp, Availability::disabled_if(disabled));
     semantic::emit(ui.ctx(), Some(resp.id), rect, || {
         let mut node = SemanticNode::new(StableId::of(salt, (slug, "selector")), Role::Button, name)
             .value(format!("{value:02}"))

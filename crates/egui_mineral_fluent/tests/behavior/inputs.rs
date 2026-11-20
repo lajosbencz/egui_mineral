@@ -218,7 +218,7 @@ fn dropdown_opens_picks_and_closes() {
     h.click("d-dropdown");
     h.run();
     assert_eq!(h.node("d-dropdown").state.expanded, Some(true));
-    h.click("d-dropdown-1-option");
+    h.click("d-dropdown-dog-option");
     h.run();
     assert!(h.state().value.is_selected(&"dog"));
     assert_eq!(h.node("d-dropdown").state.expanded, Some(false));
@@ -245,8 +245,8 @@ fn multiselect_dropdown_keeps_the_list_open_and_joins_texts() {
     });
     h.run();
     h.click("d-dropdown");
-    h.click("d-dropdown-0-option");
-    h.click("d-dropdown-2-option");
+    h.click("d-dropdown-cat-option");
+    h.click("d-dropdown-bird-option");
     assert_eq!(h.node("d-dropdown").state.expanded, Some(true));
     assert_eq!(h.node("d-dropdown").value.as_deref(), Some("Cat, Bird"));
 }
@@ -269,7 +269,7 @@ fn select_binds_an_option_value() {
     });
     h.run();
     h.click("s-select");
-    h.click("s-select-2-option");
+    h.click("s-select-bird-option");
     assert_eq!(h.state().value, Some("bird"));
 }
 
@@ -301,7 +301,7 @@ fn combobox_filters_by_typed_text_and_picks() {
     h.click("c-combobox");
     h.run();
     assert_eq!(h.node("c-combobox").state.expanded, Some(true));
-    h.click("c-combobox-2-option");
+    h.click("c-combobox-bird-option");
     assert_eq!(h.state().value.1, "Bird");
     assert!(h.state().value.0.is_selected(&"bird"));
 }
@@ -321,7 +321,7 @@ fn time_picker_lists_the_increment_and_picks_a_time() {
         .filter(|n| n.role == egui_mineral_fluent::egui_mineral::semantic::Role::ListBoxOption)
         .count();
     assert_eq!(options, 4);
-    h.click("t-time-picker-1-option");
+    h.click("t-time-picker-09-30-00-option");
     let picked = h.state().value.expect("a time");
     assert_eq!((picked.hour(), picked.minute()), (9, 30));
 }
@@ -340,12 +340,12 @@ fn swatch_picker_picks_by_click_and_skips_disabled() {
         SwatchPicker::optional("s", "Color", v).items(swatches()).show(ui);
     });
     h.run();
-    h.click("s-1-swatch");
+    h.click("s-b-swatch");
     assert_eq!(h.state().value, Some("b"));
-    assert_eq!(h.node("s-1-swatch").state.checked, Some(Check::Checked));
-    h.click("s-2-swatch");
+    assert_eq!(h.node("s-b-swatch").state.checked, Some(Check::Checked));
+    h.click("s-c-swatch");
     assert_eq!(h.state().value, Some("b"));
-    assert!(h.node("s-2-swatch").state.disabled);
+    assert!(h.node("s-c-swatch").state.disabled);
 }
 
 #[test]
@@ -354,7 +354,7 @@ fn swatch_picker_arrow_key_moves_the_selection() {
         SwatchPicker::optional("s", "Color", v).items(swatches()).show(ui);
     });
     h.run();
-    h.click("s-0-swatch");
+    h.click("s-a-swatch");
     h.press(Key::ArrowRight);
     assert_eq!(h.state().value, Some("b"));
 }
@@ -458,13 +458,13 @@ fn tag_picker_picks_removes_and_backspace_drops_the_last_tag() {
         h.tree().nodes.iter().filter(|n| n.role == Role::ListBoxOption).count()
     };
     assert_eq!(options(&h), 2);
-    h.click("t-tag-picker-0-option");
+    h.click("t-tag-picker-a-option");
     assert!(h.state().value.0.is_selected(&"a"));
     h.click("t-tag-picker");
     assert_eq!(options(&h), 1, "selected options leave the list");
-    h.click("t-tag-picker-0-option");
+    h.click("t-tag-picker-b-option");
     assert_eq!(h.state().value.0.len(), 2);
-    h.click("t-tag-picker-0-dismiss");
+    h.click("t-tag-picker-a-dismiss");
     assert!(!h.state().value.0.is_selected(&"a"));
     assert_eq!(h.state().value.0.len(), 1);
     h.click("t-tag-picker");
@@ -514,7 +514,7 @@ fn tag_picker_button_variant_opens_the_list_without_an_input() {
     h.run();
     assert_eq!(h.node("t-tag-picker").role, Role::ComboBox);
     h.click("t-tag-picker");
-    h.click("t-tag-picker-1-option");
+    h.click("t-tag-picker-b-option");
     assert!(h.state().value.0.is_selected(&"b"));
     assert_eq!(h.state().value.1, "");
 }
@@ -566,5 +566,36 @@ fn form_blocks_an_empty_required_field_then_submits() {
     h.state_mut().value.0.field("name").set_value("Ada");
     h.run();
     h.click("signup-submit-button");
-    assert_eq!(h.state().value.1.as_ref().map(|v| v["name"].as_str()), Some("Ada"));
+    assert_eq!(h.state().value.1.as_ref().and_then(|v| v.text("name")), Some("Ada"));
+}
+
+#[test]
+fn form_renders_typed_kinds_and_submits_their_values() {
+    use egui_mineral_fluent::{
+        egui_mineral::form::{FieldKind, Form, FormState},
+        inputs::FormExt,
+    };
+
+    let mut h = harness((FormState::default(), None), |ui, (state, submitted)| {
+        let r = Form::new("signup", state)
+            .field("role", "Role", |f| {
+                f.kind(FieldKind::Select).options([("dev", "Developer"), ("pm", "PM")])
+            })
+            .field("terms", "Accept", |f| f.kind(FieldKind::Checkbox).required(true))
+            .show(ui);
+        if r.submitted.is_some() {
+            *submitted = r.submitted;
+        }
+    });
+    h.run();
+    h.click("signup-submit-button");
+    assert!(h.state().value.1.is_none(), "the unchecked required box blocks");
+    h.click("signup-terms-checkbox");
+    h.click("signup-role-dropdown");
+    h.run();
+    h.click("signup-role-dropdown-dev-option");
+    h.run();
+    h.click("signup-submit-button");
+    let values = h.state().value.1.clone().expect("submitted");
+    assert_eq!((values.bool("terms"), values.choice("role")), (Some(true), Some("dev")));
 }

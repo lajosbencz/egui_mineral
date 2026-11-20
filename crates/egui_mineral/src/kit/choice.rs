@@ -3,17 +3,22 @@
 //! A widget pushes each item's value in display order, resolves the selected positions while painting and hands
 //! the position picked this pass to [`Choice::pick`], which writes the item's value to the app's binding.
 
-use crate::select::{Selection, SelectionResponse};
+use crate::select::{ItemKey, Selection, SelectionResponse};
 
 trait Many<K> {
     fn is_single_mode(&self) -> bool;
+    fn held(&self) -> Box<dyn Iterator<Item = &K> + '_>;
     fn holds(&self, value: &K) -> bool;
     fn flip(&mut self, value: K) -> bool;
 }
 
-impl<K: Ord + Clone> Many<K> for Selection<K> {
+impl<K: ItemKey> Many<K> for Selection<K> {
     fn is_single_mode(&self) -> bool {
         self.mode() == crate::select::SelectionMode::Single
+    }
+
+    fn held(&self) -> Box<dyn Iterator<Item = &K> + '_> {
+        Box::new(Selection::selected(self))
     }
 
     fn holds(&self, value: &K) -> bool {
@@ -39,7 +44,7 @@ pub struct Choice<'a, K> {
 
 crate::kit::opaque_debug!(Choice<'_, K>);
 
-impl<'a, K: PartialEq + Clone> Choice<'a, K> {
+impl<'a, K: ItemKey> Choice<'a, K> {
     /// Exactly one item selected: the one whose value equals `bound`.
     pub fn new(bound: &'a mut K) -> Self {
         Self::with(Bound::One(bound))
@@ -51,10 +56,7 @@ impl<'a, K: PartialEq + Clone> Choice<'a, K> {
     }
 
     /// Any number of items selected, at most one for a [`Selection::single`]; a pick toggles the item.
-    pub fn multi(bound: &'a mut Selection<K>) -> Self
-    where
-        K: Ord,
-    {
+    pub fn multi(bound: &'a mut Selection<K>) -> Self {
         Self::with(Bound::Many(bound))
     }
 
@@ -75,6 +77,11 @@ impl<'a, K: PartialEq + Clone> Choice<'a, K> {
         &self.values
     }
 
+    /// Value of item `index`.
+    pub fn value(&self, index: usize) -> Option<&K> {
+        self.values.get(index)
+    }
+
     /// At most one item selected: [`Self::new`], [`Self::optional`] and [`Self::multi`] of a
     /// [`Selection::single`].
     pub fn is_single(&self) -> bool {
@@ -87,6 +94,15 @@ impl<'a, K: PartialEq + Clone> Choice<'a, K> {
     /// `true` when item `index` carries a selected value.
     pub fn is_selected(&self, index: usize) -> bool {
         self.values.get(index).is_some_and(|v| self.contains(v))
+    }
+
+    /// Selected values, whether or not an item carries them.
+    pub fn selected(&self) -> Box<dyn Iterator<Item = &K> + '_> {
+        match &self.bound {
+            Bound::One(b) => Box::new(std::iter::once(&**b)),
+            Bound::Optional(b) => Box::new(b.iter()),
+            Bound::Many(b) => b.held(),
+        }
     }
 
     /// `true` when `value` is selected, whether or not an item carries it.
@@ -135,7 +151,7 @@ mod tests {
     use super::Choice;
     use crate::select::Selection;
 
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, crate::semantic::KeySalt)]
     enum Tab {
         Home,
         Mail,
@@ -152,7 +168,7 @@ mod tests {
 
     fn with_tabs<K>(mut c: Choice<'_, K>, values: impl IntoIterator<Item = K>) -> Choice<'_, K>
     where
-        K: PartialEq + Clone,
+        K: crate::select::ItemKey,
     {
         for v in values {
             c.push(v);

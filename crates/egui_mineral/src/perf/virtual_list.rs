@@ -79,7 +79,7 @@ impl VirtualList {
     }
 
     /// [`Self::show`], and `culled` runs for each row outside the visible range with its rect, only when a
-    /// semantic tree is wanted (`kit::semantic::wanted`), inside the scroll content so a scroll request reaches it.
+    /// semantic tree is wanted (`kit::nodes::wanted`), inside the scroll content so a scroll request reaches it.
     #[tracing::instrument(level = "trace", skip_all)]
     pub fn show_culled(
         self,
@@ -108,7 +108,7 @@ impl VirtualList {
                 };
                 let out = scroll.show_rows(ui, row_height, total_rows, |ui, range| {
                     range.clone().for_each(|i| row(ui, i));
-                    if crate::kit::semantic::wanted(ui.ctx(), None) {
+                    if crate::kit::nodes::wanted(ui.ctx(), None) {
                         let (origin, width) = (ui.max_rect().min, ui.max_rect().width());
                         for i in outside(&range, total_rows) {
                             let top = origin.y + i as f32 * pitch;
@@ -140,7 +140,7 @@ impl VirtualList {
                     let origin = ui.max_rect().min;
                     let width = ui.max_rect().width();
                     let visible = index.range(viewport.y_range());
-                    if crate::kit::semantic::wanted(ui.ctx(), None) {
+                    if crate::kit::nodes::wanted(ui.ctx(), None) {
                         for i in outside(&visible, total_rows) {
                             let h = index.height(i).unwrap_or(estimate);
                             culled(

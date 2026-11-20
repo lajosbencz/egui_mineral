@@ -685,7 +685,7 @@ fn popovers(ui: &mut MaterialUi<'_>, s: &mut State) {
         at_rect = Some(r.response().rect);
     });
     if let Some(rect) = at_rect {
-        Popover::new("pop-at-p", "Anchored popover").show_at(ui, rect, &mut s.popovers[5], |ui| {
+        Popover::new("pop-at-p", "Anchored popover").show_at(ui.rt(), rect, &mut s.popovers[5], |ui| {
             ui.label("Anchored at a rect; the button never toggles it.");
         });
     }

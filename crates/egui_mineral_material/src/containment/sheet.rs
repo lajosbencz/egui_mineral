@@ -329,8 +329,8 @@ fn paint_handle(
         step: 0,
     };
     if resp.has_focus() {
-        kit::focus::lock_arrows(ctx, hid, kit::focus::Arrows::Axis(Axis::Vertical));
-        for k in kit::input::plain_key_presses(ctx) {
+        kit::interact::lock_arrows(ctx, hid, kit::interact::Arrows::Axis(Axis::Vertical));
+        for k in kit::interact::plain_key_presses(ctx) {
             match k {
                 Key::ArrowUp => out.step += 1,
                 Key::ArrowDown => out.step -= 1,
@@ -633,18 +633,16 @@ impl SideSheet {
         let hit = crate::adaptive::resize_edge(ui);
         let rect = Rect::from_x_y_ranges(edge - hit / 2.0..=edge + hit / 2.0, sheet.y_range());
         let range = RangeModel::new(f64::from(self.widths.min), f64::from(self.widths.max));
-        let (handle, v) = egui_mineral::splitter::size_handle(
-            ui,
-            self.id.with("resize"),
-            rect,
-            match self.edge {
-                Edge::End => Track::horizontal(dir).reversed(),
-                Edge::Start => Track::horizontal(dir),
-            },
-            &range,
-            f64::from(width),
-            1.0,
-        );
+        let track = match self.edge {
+            Edge::End => Track::horizontal(dir).reversed(),
+            Edge::Start => Track::horizontal(dir),
+        };
+        let egui_mineral::splitter::SizeHandleResponse {
+            response: handle,
+            size: v,
+            ..
+        } = egui_mineral::splitter::SizeHandle::new(self.id.with("resize"), rect, track, range)
+            .show(ui, f64::from(width));
         crate::containment::drag_handle::paint(ui, &handle, pos2(edge, sheet.center().y), Axis::Horizontal, false);
         let label = crate::tr(rt.i18n(), msg::SHEET_RESIZE);
         semantic::emit(ui.ctx(), Some(handle.id), rect, || {

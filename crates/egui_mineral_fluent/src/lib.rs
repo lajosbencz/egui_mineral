@@ -150,4 +150,4 @@ pub use icon::FluentIcon;
 pub use icon_set::IconSet;
 pub use widget::vocab::{IconPosition, Size};
 
-pub(crate) use egui_mineral::kit::i18n::{tr, tr_or};
+pub(crate) use egui_mineral::kit::{tr, tr_or};

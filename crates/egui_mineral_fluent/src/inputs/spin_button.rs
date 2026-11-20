@@ -386,7 +386,7 @@ impl MineralWidget for SpinButton<'_> {
         let visual = frame.zones.visual;
         let before = *self.value;
         let focused = ctx.memory(|m| m.has_focus(edit_id));
-        let escape = focused && !self.disabled && kit::overlay::consume_escape_from(ctx, edit_id);
+        let escape = focused && !self.disabled && kit::layer::consume_escape_from(ctx, edit_id);
         let fmt = |v: f64| self.text(rt.i18n(), v);
         let mut edit = NumberEdit::load_or(ctx, state_id, || NumberEdit::new(self.range, before, fmt));
         let mut pass = edit.begin(self.range, before, FieldFocus::of(focused || escape), &fmt);

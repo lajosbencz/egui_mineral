@@ -254,7 +254,7 @@ impl Dialog {
         let width = d::MAX_WIDTH.min(ctx.content_rect().width());
         match self.kind {
             DialogKind::NonModal => {
-                let area = kit::overlay::area(rt.core(), self.id)
+                let area = kit::layer::area(rt.core(), self.id)
                     .order(Order::Foreground)
                     .anchor(Align2::CENTER_CENTER, Vec2::ZERO);
                 let r = area.show(ctx, |ui| self.surface(rt, ui, focus, eased, width, add));
@@ -266,7 +266,7 @@ impl Dialog {
             }
             DialogKind::Modal | DialogKind::Alert => {
                 let modal = egui::Modal {
-                    area: kit::overlay::modal_area(rt.core(), self.id),
+                    area: kit::layer::modal_area(rt.core(), self.id),
                     backdrop_color: t.color(ColorBackgroundOverlay).gamma_multiply(eased),
                     frame: Some(Frame::NONE),
                 };

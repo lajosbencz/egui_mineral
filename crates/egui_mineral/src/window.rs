@@ -152,7 +152,7 @@ fn submit(ui: &Ui, shapes: Vec<egui::Shape>) {
 fn close_control<K: Stylekit>(rt: &Runtime<K>, ui: &mut Ui, salt: &KeyedSalt, visual: Rect, hit: Rect) -> bool {
     let id = ui.scope_id();
     let mut response = ui.interact(hit, id, Sense::click());
-    crate::kit::focus::follow_press(&response);
+    crate::kit::interact::follow_press(&response);
     let chrome = rt.kit().window_close(ui, visual, &response);
     submit(ui, chrome);
     let layer = response.layer_id;
@@ -214,7 +214,7 @@ impl ModalStack {
         let mut closed = Vec::new();
         for &id in &self.stack {
             // The default frame reads the app-wide style.
-            let r = crate::kit::overlay::modal(rt.core(), id)
+            let r = crate::kit::layer::modal(rt.core(), id)
                 .frame(Frame::popup(&rt.style()))
                 .show(rt.ctx(), |ui| content(&mut rt.ui(ui), id));
             if r.inner || r.should_close() {

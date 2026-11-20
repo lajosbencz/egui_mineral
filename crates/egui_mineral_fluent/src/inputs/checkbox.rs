@@ -281,7 +281,7 @@ impl MineralWidget for Checkbox<'_> {
         let t = ui.tokens();
         let r = &frame.response;
         let availability = Availability::disabled_if(self.disabled);
-        kit::input::hover_cursor(ui.core(), r, availability);
+        kit::interact::hover_cursor(ui.core(), r, availability);
         let changed = r.clicked() && !self.disabled;
         if changed {
             *self.checked = self.mixed || !*self.checked;

@@ -1,4 +1,5 @@
 use egui::{Id, LayerId};
+use egui_mineral::select::ItemKey;
 use egui_mineral::{combobox::ComboState, kit::choice::Choice};
 
 use super::listbox::{Entry, Flat};
@@ -11,7 +12,7 @@ pub struct ListState {
     pub filtering: bool,
 }
 
-pub(crate) fn selected_text<K: PartialEq + Clone>(entries: &[Entry<K>], value: &Choice<'_, K>) -> String {
+pub(crate) fn selected_text<K: ItemKey>(entries: &[Entry<K>], value: &Choice<'_, K>) -> String {
     let flat = Flat::new(entries, &|_, _| true);
     flat.options
         .iter()

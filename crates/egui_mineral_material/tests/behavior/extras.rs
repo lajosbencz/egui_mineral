@@ -349,7 +349,7 @@ fn status_item_custom_tone_paints_its_strip() {
 fn popover_show_at_follows_the_app_flag_and_ignores_anchor_clicks() {
     let mut h = harness(SCREEN, (false, None), |ui, (open, dismissed)| {
         let anchor = ui.mineral(PushButton::new("trigger", "Open")).response().rect;
-        let r = Popover::new("pop", "Details").show_at(ui, anchor, open, |ui| ui.label("Details"));
+        let r = Popover::new("pop", "Details").show_at(ui.rt(), anchor, open, |ui| ui.label("Details"));
         *dismissed = dismissed.or(r.dismissed);
     });
     h.run();
@@ -383,7 +383,7 @@ fn popover_opened_by_a_menu_pick_survives_the_picking_press() {
         *pop |= picked.is_some();
         ui.add_space(200.0);
         let target = ui.mineral(PushButton::new("target", "Target")).response().rect;
-        Popover::new("pop", "Details").show_at(ui, target, pop, |ui| ui.label("Details"));
+        Popover::new("pop", "Details").show_at(ui.rt(), target, pop, |ui| ui.label("Details"));
     });
     h.click("more-button");
     h.click("m-0-menu-item");
@@ -396,7 +396,7 @@ fn popover_opened_by_a_menu_pick_survives_the_picking_press() {
 fn popover_show_at_focuses_the_first_focusable_of_its_content() {
     let mut h = harness(SCREEN, false, |ui, open| {
         let anchor = ui.mineral(PushButton::new("trigger", "Open")).response().rect;
-        Popover::new("pop", "Details").show_at(ui, anchor, open, |ui| {
+        Popover::new("pop", "Details").show_at(ui.rt(), anchor, open, |ui| {
             ui.mineral(PushButton::new("first", "First"));
             ui.mineral(PushButton::new("second", "Second"));
         });

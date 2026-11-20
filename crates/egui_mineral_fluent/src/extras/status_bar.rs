@@ -112,7 +112,7 @@ impl StatusBar {
         let galley = |it: &StatusItem, room: Option<f32>| -> Arc<Galley> {
             let format = TEXT.format(ui.ctx(), content_of(it));
             let mut job = if it.has_tabular_figures() {
-                egui_mineral::kit::text::tabular_figures(ui.ctx(), it.text(), &format)
+                egui_mineral::kit::paint::tabular_figures(ui.ctx(), it.text(), &format)
             } else {
                 LayoutJob::single_section(it.text().to_owned(), format)
             };

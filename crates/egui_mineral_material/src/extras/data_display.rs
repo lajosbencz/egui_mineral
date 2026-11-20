@@ -166,7 +166,7 @@ impl EmptyPlaceholder {
             }
             ui.add_space(defaults::dialog::PADDING);
         });
-        kit::semantic::remember_rect(&ctx, id, r.response.rect);
+        kit::nodes::remember_rect(&ctx, id, r.response.rect);
         EmptyPlaceholderResponse {
             response: r.response,
             action_clicked: clicked,
@@ -588,7 +588,7 @@ impl DescriptionList {
             }
         }
         let (rect, response) = ui.allocate_exact_size(vec2(total, y - origin.y), Sense::hover());
-        kit::semantic::remember_rect(&ctx, id, rect);
+        kit::nodes::remember_rect(&ctx, id, rect);
         response
     }
 }
@@ -806,7 +806,7 @@ impl Timeline {
             y += item_h;
         }
         let (rect, response) = ui.allocate_exact_size(vec2(total, y - origin.y), Sense::hover());
-        kit::semantic::remember_rect(&ctx, id, rect);
+        kit::nodes::remember_rect(&ctx, id, rect);
         response
     }
 }

@@ -1,3 +1,4 @@
+use egui_mineral::select::ItemKey;
 use std::collections::HashSet;
 
 use egui::{Pos2, Rangef, Rect, Sense, vec2};
@@ -45,7 +46,7 @@ pub struct Combobox<'a, K> {
     disabled: bool,
 }
 
-impl<'a, K: PartialEq + Clone> Combobox<'a, K> {
+impl<'a, K: ItemKey> Combobox<'a, K> {
     /// Selects the option whose value equals `selected`; `label` is the accessible name; `text` is the typed
     /// value. Agent key `<id_salt>-combobox`.
     pub fn new(
@@ -103,7 +104,7 @@ impl<'a, K: PartialEq + Clone> Combobox<'a, K> {
     }
 }
 
-impl<K: PartialEq + Clone> Combobox<'_, K> {
+impl<K: ItemKey> Combobox<'_, K> {
     /// Default [`InputAppearance::Outline`].
     pub fn appearance(mut self, appearance: InputAppearance) -> Self {
         self.appearance = appearance;
@@ -186,7 +187,7 @@ impl<K: PartialEq + Clone> Combobox<'_, K> {
     }
 }
 
-impl<K: PartialEq + Clone> Combobox<'_, K> {
+impl<K: ItemKey> Combobox<'_, K> {
     fn chevron(&self, ui: &mut MineralUi<'_, Fluent>, base: egui::Id, visual: Rect) -> egui::Response {
         let t = ui.tokens();
         let dir = ui.i18n().direction();
@@ -296,7 +297,7 @@ struct Commit {
     edited: bool,
 }
 
-fn commit<K: PartialEq + Clone>(
+fn commit<K: ItemKey>(
     value: &mut Choice<'_, K>,
     text: &mut String,
     entries: &[Entry<K>],
@@ -333,7 +334,7 @@ fn commit<K: PartialEq + Clone>(
     changed
 }
 
-impl<K: PartialEq + Clone> MineralWidget for Combobox<'_, K> {
+impl<K: ItemKey> MineralWidget for Combobox<'_, K> {
     type Kit = Fluent;
     type State = ListState;
     type Output = FieldOutput;

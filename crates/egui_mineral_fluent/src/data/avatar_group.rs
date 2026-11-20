@@ -180,8 +180,8 @@ impl MineralWidget for Trigger {
     fn update(&mut self, ui: &mut MineralUi<'_, Fluent>, frame: &WidgetFrame<'_>, (): &mut ()) -> WidgetResponse {
         let t = ui.tokens();
         let r = &frame.response;
-        kit::input::hover_cursor(ui.core(), r, Availability::Enabled);
-        kit::focus::follow_press(r);
+        kit::interact::hover_cursor(ui.core(), r, Availability::Enabled);
+        kit::interact::follow_press(r);
         let i = Interaction::of(r, Availability::Enabled);
         let rect = frame.zones.visual;
         let size = self.size.px();

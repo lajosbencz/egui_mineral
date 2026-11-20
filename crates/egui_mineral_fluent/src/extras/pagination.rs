@@ -179,7 +179,7 @@ impl Composite for Pagination<'_> {
                 target = total;
             }
         });
-        kit::semantic::remember_rect(ctx, id, row.response.rect);
+        kit::nodes::remember_rect(ctx, id, row.response.rect);
         let changed = target - 1 != *self.page;
         *self.page = target - 1;
         WidgetResponse::new(row.response, ()).with_changed(changed)

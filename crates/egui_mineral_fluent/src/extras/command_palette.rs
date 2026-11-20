@@ -7,7 +7,7 @@ use egui_mineral::{
     i18n::Direction,
     kit::{
         self,
-        palette::{self, Entry, Labels, Row, State},
+        command_palette::{self as palette, Entry, Labels, Row, State},
         state::TempState,
     },
     overlay,
@@ -98,9 +98,15 @@ impl<'a> CommandPalette<'a> {
     fn run(self, rt: &Rt, id: Id, open: &mut bool) -> CommandPaletteResponse {
         let ctx = rt.ctx();
         let area_id = id.with("area");
-        let area = kit::overlay::modal_area(rt.core(), area_id);
+        let area = kit::layer::modal_area(rt.core(), area_id);
         let scope = shortcut::scope_of(ctx, area.layer());
-        palette::bind_shortcuts(ctx, &self.salt, self.shortcut, &self.commands, scope, area_id, open);
+        palette::Shortcuts {
+            salt: &self.salt,
+            toggle: self.shortcut,
+            scope,
+            modal: area_id,
+        }
+        .bind(ctx, &self.commands, open);
         let mut st = State::load(ctx, id);
         if !*open {
             if st.was_open {
@@ -135,7 +141,7 @@ impl<'a> CommandPalette<'a> {
         let t = rt.tokens();
         let area = area.anchor(Align2::CENTER_TOP, vec2(0.0, (screen.height() - max_h) / 2.0));
         let mut search = None;
-        let modal = kit::overlay::modal_on(rt.core(), id, area)
+        let modal = kit::layer::modal_on(rt.core(), id, area)
             .backdrop_color(t.color(ColorBackgroundOverlay))
             .frame(Frame::NONE)
             .show(ctx, |ui| {

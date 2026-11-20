@@ -1,4 +1,5 @@
 use egui::{Pos2, Rangef, vec2};
+use egui_mineral::select::ItemKey;
 use egui_mineral::{
     combobox::{ComboKind, ComboList},
     i18n::I18n,
@@ -49,7 +50,7 @@ pub struct Dropdown<'a, K> {
     disabled: bool,
 }
 
-impl<'a, K: PartialEq + Clone> Dropdown<'a, K> {
+impl<'a, K: ItemKey> Dropdown<'a, K> {
     /// Shows the option whose value equals `selected`; `label` is the accessible name. Agent key
     /// `<id_salt>-dropdown`.
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selected: &'a mut K) -> Self {
@@ -72,7 +73,7 @@ impl<'a, K: PartialEq + Clone> Dropdown<'a, K> {
     listbox::entry_setters!();
 }
 
-impl<'a, K: PartialEq + Clone> Dropdown<'a, K> {
+impl<'a, K: ItemKey> Dropdown<'a, K> {
     pub(crate) fn with(kind: Kind, salt: KeyedSalt, label: String, value: Choice<'a, K>) -> Self {
         Self {
             kind,
@@ -144,7 +145,7 @@ impl<'a, K: PartialEq + Clone> Dropdown<'a, K> {
     }
 }
 
-impl<K: PartialEq + Clone> Dropdown<'_, K> {
+impl<K: ItemKey> Dropdown<'_, K> {
     fn paint(
         &self,
         ui: &mut MineralUi<'_, Fluent>,
@@ -216,7 +217,7 @@ impl<K: PartialEq + Clone> Dropdown<'_, K> {
     }
 }
 
-impl<K: PartialEq + Clone> MineralWidget for Dropdown<'_, K> {
+impl<K: ItemKey> MineralWidget for Dropdown<'_, K> {
     type Kit = Fluent;
     type State = ListState;
     type Output = ();

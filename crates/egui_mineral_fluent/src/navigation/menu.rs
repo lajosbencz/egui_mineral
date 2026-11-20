@@ -263,8 +263,8 @@ impl MineralWidget for Row<'_> {
         let t = ui.tokens();
         let r = &frame.response;
         let availability = Availability::disabled_if(self.item.disabled);
-        kit::input::hover_cursor(ui.core(), r, availability);
-        kit::focus::follow_press(r);
+        kit::interact::hover_cursor(ui.core(), r, availability);
+        kit::interact::follow_press(r);
         let i = Interaction::of(r, availability);
         let open = self.kind == Kind::Submenu(true);
         let s = if open && !i.disabled {
@@ -386,8 +386,8 @@ impl MineralWidget for SplitTrigger<'_> {
         let t = ui.tokens();
         let r = &frame.response;
         let availability = Availability::disabled_if(self.disabled);
-        kit::input::hover_cursor(ui.core(), r, availability);
-        kit::focus::follow_press(r);
+        kit::interact::hover_cursor(ui.core(), r, availability);
+        kit::interact::follow_press(r);
         let i = Interaction::of(r, availability);
         let s = if self.open && !i.disabled {
             State::Hover
@@ -935,11 +935,11 @@ fn step_from_trigger(rt: &Rt, rows: &[SeenRow]) {
     else {
         return;
     };
-    kit::focus::lock_arrows(ctx, trigger, kit::focus::Arrows::Axis(Axis::Vertical));
+    kit::interact::lock_arrows(ctx, trigger, kit::interact::Arrows::Axis(Axis::Vertical));
     let dir = rt.i18n().direction();
     let roving = RovingFocus::new(Axis::Vertical).wrap(d::WRAP);
     let enabled_at = |i: usize| rows.get(i).is_some_and(|r| r.enabled);
-    for key in kit::input::plain_key_presses(ctx) {
+    for key in kit::interact::plain_key_presses(ctx) {
         if let Some(to) = roving
             .target(key, dir, row, rows.len(), enabled_at)
             .and_then(|to| rows.get(to))
@@ -978,7 +978,7 @@ fn typeahead(ctx: &egui::Context, from: usize, rows: &[SeenRow]) -> Option<usize
 }
 
 fn overlay_escape(ctx: &egui::Context) -> bool {
-    kit::overlay::consume_escape(ctx)
+    kit::layer::consume_escape(ctx)
 }
 
 /// Result of [`Menu::show`].

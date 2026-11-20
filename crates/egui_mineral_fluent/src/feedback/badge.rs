@@ -526,7 +526,7 @@ pub struct CounterBadge {
     key: AgentKey,
     count: u32,
     overflow: u32,
-    show_zero: bool,
+    zero_visible: bool,
     dot: bool,
     size: BadgeSize,
     shape: BadgeShape,
@@ -542,7 +542,7 @@ impl CounterBadge {
             key: egui_mineral::agent_key!("counter-badge"),
             count,
             overflow: cd::OVERFLOW_COUNT,
-            show_zero: false,
+            zero_visible: false,
             dot: false,
             size: BadgeSize::Medium,
             shape: BadgeShape::Circular,
@@ -558,8 +558,8 @@ impl CounterBadge {
     }
 
     /// `showZero`: show a count of 0; default hidden.
-    pub fn show_zero(mut self, show_zero: bool) -> Self {
-        self.show_zero = show_zero;
+    pub fn zero_visible(mut self, zero_visible: bool) -> Self {
+        self.zero_visible = zero_visible;
         self
     }
 
@@ -623,7 +623,7 @@ impl CounterBadge {
                 CounterBadgeColor::Informative => BadgeColor::Informative,
             });
         badge.dot = self.dot;
-        badge.hidden = self.count == 0 && !self.show_zero && !self.dot;
+        badge.hidden = self.count == 0 && !self.zero_visible && !self.dot;
         badge
     }
 }

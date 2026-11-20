@@ -224,7 +224,7 @@ fn paint(
     let ctx = rt.ctx();
     let offset = vec2(0.0, -(d::OUTER_PADDING + stack) + (1.0 - eased) * SLIDE);
     // Below modals, menus and popups (`Foreground`), above content.
-    let inner = egui_mineral::kit::overlay::area(rt.core(), keys.id.with("area"))
+    let inner = egui_mineral::kit::layer::area(rt.core(), keys.id.with("area"))
         .order(Order::Middle)
         .anchor(Align2::CENTER_BOTTOM, offset)
         .show(ctx, |ui| {
@@ -407,7 +407,7 @@ fn action_button(
         ),
         vec2(row.action_w, row.target),
     );
-    let resp = kit::input::interact(
+    let resp = kit::interact::interact(
         &rt.ui(ui),
         target,
         row.keys.id.with("action"),

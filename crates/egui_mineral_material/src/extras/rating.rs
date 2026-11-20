@@ -126,14 +126,14 @@ impl<'a> Rating<'a> {
     }
 
     fn value_at(&self, rect: Rect, p: Pos2, dir: Direction) -> f64 {
-        egui_mineral::kit::rating::value_at(
+        egui_mineral::kit::rating::Stars {
             rect,
-            p,
             dir,
-            self.cell().0.x,
-            self.max,
-            egui_mineral::kit::rating::Step::half_if(self.half),
-        )
+            cell: self.cell().0.x,
+            max: self.max,
+            step: egui_mineral::kit::rating::Step::half_if(self.half),
+        }
+        .value_at(p)
     }
 
     fn text(&self, i18n: &egui_mineral::i18n::I18n, v: f64) -> String {

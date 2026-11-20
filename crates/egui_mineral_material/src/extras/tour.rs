@@ -235,7 +235,7 @@ impl<'a> Tour<'a> {
             },
         );
         ctx.move_to_top(callout.layer_id);
-        if kit::overlay::consume_escape(ctx) {
+        if kit::layer::consume_escape(ctx) {
             dismissed = Some(Dismiss::Escape);
         }
         let before = *self.step;
@@ -266,7 +266,7 @@ fn paint_spotlight(rt: &Rt, id: Id, hole: Rect, mask: bool, t: &crate::tokens::T
     let ctx = rt.ctx();
     if mask {
         let screen = ctx.content_rect();
-        egui_mineral::kit::overlay::floating(rt.core(), id.with("mask"), screen.min).show(ctx, |ui| {
+        egui_mineral::kit::layer::floating(rt.core(), id.with("mask"), screen.min).show(ctx, |ui| {
             let fill = t.scrim(1.0);
             let parts = [
                 Rect::from_min_max(screen.min, egui::pos2(screen.right(), hole.top())),
@@ -288,7 +288,7 @@ fn paint_spotlight(rt: &Rt, id: Id, hole: Rect, mask: bool, t: &crate::tokens::T
             }
         });
     }
-    egui_mineral::kit::overlay::area(rt.core(), id.with("ring"))
+    egui_mineral::kit::layer::area(rt.core(), id.with("ring"))
         .order(Order::Foreground)
         .fixed_pos(hole.min)
         .interactable(false)

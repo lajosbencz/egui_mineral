@@ -472,7 +472,7 @@ impl<K: Clone> Composite for SearchSuggestions<'_, K> {
         // Up/Down/Escape act before the text edit sees them.
         let focused_before = ctx.memory(|m| m.has_focus(edit_id));
         let shown_before = if st.open { st.shown } else { 0 };
-        if st.open && shown_before > 0 && kit::overlay::consume_escape_from(ctx, edit_id) {
+        if st.open && shown_before > 0 && kit::layer::consume_escape_from(ctx, edit_id) {
             st.suppress = true;
         }
         let mut picked = None;
@@ -874,7 +874,7 @@ impl<'a, K: Clone> SearchView<'a, K> {
             matches,
         };
         let mut inner = None;
-        let area = egui_mineral::kit::overlay::floating(rt.core(), base.with("view-area"), panel_pos).show(ctx, |ui| {
+        let area = egui_mineral::kit::layer::floating(rt.core(), base.with("view-area"), panel_pos).show(ctx, |ui| {
             let framed = Frame::new()
                 .fill(t.role(search_view::CONTAINER_COLOR))
                 .corner_radius(r)
@@ -883,7 +883,7 @@ impl<'a, K: Clone> SearchView<'a, K> {
                 });
             framed.response.rect
         });
-        egui_mineral::kit::overlay::keep_above(ctx, area.response.layer_id, ui.layer_id());
+        egui_mineral::kit::layer::keep_above(ctx, area.response.layer_id, ui.layer_id());
         let view = area.response.clone();
         // After the opening press is released: egui drops focus on a click that ends off the pressed widget.
         if st.focus && !ctx.input(|i| i.pointer.any_down()) {

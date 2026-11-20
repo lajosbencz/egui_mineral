@@ -2,6 +2,12 @@ use std::collections::BTreeSet;
 
 use egui::Modifiers;
 
+/// Bound of every app key an item, row or panel carries: hashed into egui ids, written into agent keys, ordered in
+/// a [`Selection`]. Implemented for every such type; `#[derive(KeySalt)]` covers app enums.
+pub trait ItemKey: crate::semantic::KeySalt + egui::AsIdSalt + Ord + Clone {}
+
+impl<K: crate::semantic::KeySalt + egui::AsIdSalt + Ord + Clone> ItemKey for K {}
+
 /// Single or multiple selection.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default, serde::Serialize, serde::Deserialize)]
 pub enum SelectionMode {

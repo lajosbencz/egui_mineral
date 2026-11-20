@@ -1,4 +1,5 @@
 use crate::msg;
+use egui_mineral::select::ItemKey;
 use std::sync::Arc;
 
 use egui::{Align2, Galley, Id, Rect, Response, Sense, Ui, UiBuilder, epaint::TextShape, pos2, text::LayoutJob, vec2};
@@ -203,7 +204,7 @@ impl MineralWidget for Header<'_> {
         let r = &frame.response;
         let rect = frame.zones.visual;
         let availability = Availability::disabled_if(self.item.disabled);
-        kit::input::hover_cursor(ui.core(), r, availability);
+        kit::interact::hover_cursor(ui.core(), r, availability);
         let i = Interaction::of(r, availability);
         let color = t.color(if self.item.disabled {
             ColorNeutralForegroundDisabled
@@ -254,8 +255,8 @@ impl MineralWidget for Header<'_> {
             focus::outline(ui.painter(), rect, t_radius(rect), &t);
         }
         let ctx = ui.ctx().clone();
-        let expand = kit::input::accesskit_requested(&ctx, r.id, Action::Expand);
-        let collapse = kit::input::accesskit_requested(&ctx, r.id, Action::Collapse);
+        let expand = kit::interact::accesskit_requested(&ctx, r.id, Action::Expand);
+        let collapse = kit::interact::accesskit_requested(&ctx, r.id, Action::Collapse);
         let activated = !self.item.disabled && (r.clicked() || (expand && !self.open) || (collapse && self.open));
         WidgetResponse::new(r.clone(), ()).with_changed(activated)
     }
@@ -321,7 +322,7 @@ pub struct Accordion<'a, K> {
     navigation: Option<AccordionNavigation>,
 }
 
-impl<'a, K: Ord + Clone + egui::AsIdSalt> Accordion<'a, K> {
+impl<'a, K: ItemKey> Accordion<'a, K> {
     /// `expansion` is the bound set of open item keys; medium, expand icons at the start, not collapsible; agent
     /// key `<id_salt>-accordion`.
     pub fn new(id_salt: impl Into<KeyedSalt>, expansion: &'a mut Expansion<K>) -> Self {
@@ -394,7 +395,6 @@ impl<'a, K: Ord + Clone + egui::AsIdSalt> Accordion<'a, K> {
                 size: self.size,
                 position: self.position,
                 inline: self.inline,
-                index: 0,
                 headers: Vec::new(),
                 enabled: Vec::new(),
                 toggled: None,
@@ -432,7 +432,6 @@ pub struct AccordionUi<'u, 'e, K> {
     size: AccordionSize,
     position: ExpandIconPosition,
     inline: bool,
-    index: usize,
     headers: Vec<Id>,
     enabled: Vec<bool>,
     toggled: Option<K>,
@@ -440,7 +439,7 @@ pub struct AccordionUi<'u, 'e, K> {
 
 kit::opaque_debug!(AccordionUi<'_, '_, K>);
 
-impl<K: Ord + Clone + egui::AsIdSalt> AccordionUi<'_, '_, K> {
+impl<K: ItemKey> AccordionUi<'_, '_, K> {
     /// One item, open while `key` is in the bound [`Expansion`]: its header, then `add` as the panel while open
     /// (animated by `Collapse`). Agent keys follow the call order unless the item has a `salt(..)`.
     pub fn item<R>(
@@ -450,8 +449,6 @@ impl<K: Ord + Clone + egui::AsIdSalt> AccordionUi<'_, '_, K> {
         add: impl FnOnce(&mut MineralUi<'_, Fluent>) -> R,
     ) -> AccordionItemResponse<R> {
         let item = item.into();
-        let i = self.index;
-        self.index += 1;
         let rt = self.rt;
         let ctx = self.ui.ctx().clone();
         let open = self.expansion.is_expanded(&key);
@@ -461,7 +458,7 @@ impl<K: Ord + Clone + egui::AsIdSalt> AccordionUi<'_, '_, K> {
             self.id.with(("panel", &key)),
         );
         let locked = open && !self.collapsible && self.expansion.expanded().count() <= 1;
-        let item_salt = item.salt.clone().unwrap_or_else(|| self.salt.child(("item", i)));
+        let item_salt = item.salt.clone().unwrap_or_else(|| self.salt.child(("item", &key)));
         let header = Header {
             salt: item_salt.clone(),
             item: &item,

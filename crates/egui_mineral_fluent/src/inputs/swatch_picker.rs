@@ -1,4 +1,5 @@
 use egui::{Color32, CornerRadius, ImageSource, Sense, Stroke, StrokeKind, Ui, vec2};
+use egui_mineral::select::ItemKey;
 use egui_mineral::{
     focus::{self, RovingFocus},
     i18n::I18n,
@@ -182,7 +183,7 @@ pub struct SwatchPicker<'a, K> {
     disabled: bool,
 }
 
-impl<'a, K: PartialEq + Clone> SwatchPicker<'a, K> {
+impl<'a, K: ItemKey> SwatchPicker<'a, K> {
     /// Selects the swatch whose value equals `selected`, none when no swatch matches; `label` names the group
     /// for assistive technology; node key `<id_salt>-swatch-picker`, swatches `<id_salt>-<index>-swatch`.
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selected: &'a mut K) -> Self {
@@ -288,7 +289,7 @@ impl<'a, K: PartialEq + Clone> SwatchPicker<'a, K> {
                     for (c, s) in row.iter().enumerate() {
                         let i = r * columns + c;
                         let out = rt.ui(ui).mineral(Cell {
-                            salt: s.salt.clone().unwrap_or_else(|| salt.child(i)),
+                            salt: s.salt.clone().unwrap_or_else(|| salt.child(choice.value(i))),
                             swatch: s,
                             size,
                             shape,
@@ -443,8 +444,8 @@ impl MineralWidget for Cell<'_> {
         let t = ui.tokens();
         let r = &frame.response;
         let availability = Availability::disabled_if(self.disabled);
-        kit::input::hover_cursor(ui.core(), r, availability);
-        kit::focus::follow_press(r);
+        kit::interact::hover_cursor(ui.core(), r, availability);
+        kit::interact::follow_press(r);
         let changed = r.clicked() && !self.disabled && !self.selected;
         let selected = self.selected || changed;
         let i = Interaction::of(r, availability);

@@ -28,7 +28,7 @@ use crate::{
     tokens::Tokens,
 };
 
-// `area` comes from `kit::overlay::modal_area`.
+// `area` comes from `kit::layer::modal_area`.
 pub(crate) fn surface_modal(
     area: egui::Area,
     t: &Tokens,
@@ -45,7 +45,7 @@ pub(crate) fn surface_modal(
 
 pub(crate) fn dialog_modal(rt: &crate::Rt, id: Id, t: &Tokens, margin: f32) -> egui::Modal {
     surface_modal(
-        kit::overlay::modal_area(rt.core(), id),
+        kit::layer::modal_area(rt.core(), id),
         t,
         t.role(dialog::CONTAINER_COLOR),
         dialog::CONTAINER_SHAPE.corner_radius(&t.shape, Direction::Ltr),
@@ -353,7 +353,7 @@ impl<W: Clone + Send + Sync + 'static> PickerModal<'_, W> {
                 semantic::emit(ui.ctx(), None, ui.min_rect(), || {
                     SemanticNode::new(StableId::of(self.salt, "dialog"), Role::Dialog, name)
                 });
-                action.or_else(|| kit::overlay::default_action_pressed(ui).then_some(Choice::Confirm))
+                action.or_else(|| kit::layer::default_action_pressed(ui).then_some(Choice::Confirm))
             });
             let dismissed = if r.inner == Some(Choice::Cancel) {
                 Some(Dismiss::Close)
@@ -620,15 +620,13 @@ impl Dialog {
         let rect = Rect::from_x_y_ranges(edge - hit / 2.0..=edge + hit / 2.0, frame.y_range());
         let range = RangeModel::new(f64::from(self.width.min), f64::from(self.width.max));
         let width = frame.width();
-        let (handle, v) = egui_mineral::splitter::size_handle(
-            ui,
-            self.id.with("resize"),
-            rect,
-            Track::horizontal(dir),
-            &range,
-            f64::from(width),
-            2.0,
-        );
+        let egui_mineral::splitter::SizeHandleResponse {
+            response: handle,
+            size: v,
+            ..
+        } = egui_mineral::splitter::SizeHandle::new(self.id.with("resize"), rect, Track::horizontal(dir), range)
+            .centered(true)
+            .show(ui, f64::from(width));
         let i = common::Interaction::of(&handle, egui_mineral::widget::Availability::Enabled);
         if i.hovered || i.focused || i.dragged {
             let center = pos2(edge, frame.center().y);
@@ -678,7 +676,7 @@ impl Dialog {
 
     fn default_on_enter(&self, ui: &Ui) -> Option<usize> {
         let i = self.default_action?;
-        (self.actions.get(i).is_some_and(|a| !a.disabled) && kit::overlay::default_action_pressed(ui)).then_some(i)
+        (self.actions.get(i).is_some_and(|a| !a.disabled) && kit::layer::default_action_pressed(ui)).then_some(i)
     }
 }
 
@@ -746,7 +744,7 @@ impl FullScreenDialog {
 
     fn confirm_on_enter(&self, ui: &Ui) -> Option<usize> {
         let enabled = self.confirm.as_ref().is_some_and(|a| !a.disabled);
-        (self.enter_confirms && enabled && kit::overlay::default_action_pressed(ui)).then_some(0)
+        (self.enter_confirms && enabled && kit::layer::default_action_pressed(ui)).then_some(0)
     }
 
     fn run<R>(
@@ -762,9 +760,9 @@ impl FullScreenDialog {
         let mut action = None;
         let mut closed = false;
         // Compose TopAppBar in a Dialog (MD3 full-screen dialog)
-        let r = egui_mineral::kit::overlay::modal(rt.core(), self.id)
+        let r = egui_mineral::kit::layer::modal(rt.core(), self.id)
             .area(
-                egui_mineral::kit::overlay::modal_area(rt.core(), self.id)
+                egui_mineral::kit::layer::modal_area(rt.core(), self.id)
                     .anchor(egui::Align2::LEFT_TOP, egui::Vec2::ZERO),
             )
             .frame(Frame::new().fill(t.role(app_bar::CONTAINER_COLOR)))

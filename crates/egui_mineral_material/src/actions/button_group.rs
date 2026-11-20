@@ -2,6 +2,7 @@ use crate::Material;
 use crate::MaterialUiExt as _;
 use egui::{Id, Response, Sense, Vec2, vec2};
 use egui_mineral::kit::state::TempState;
+use egui_mineral::select::ItemKey;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::MineralUi;
 use egui_mineral::{
@@ -114,7 +115,7 @@ pub struct ButtonGroup<'a, K> {
     disabled: bool,
 }
 
-impl ButtonGroup<'_, ()> {
+impl ButtonGroup<'_, core::convert::Infallible> {
     /// Click-only buttons; `label` is the group's accessible name; item agent keys are `<id_salt>-<item>-button`,
     /// `<item>` the item's `salt(..)`, else its index.
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>) -> Self {
@@ -134,7 +135,7 @@ impl ButtonGroup<'_, ()> {
     }
 }
 
-impl<'a, K: Ord + Clone> ButtonGroup<'a, K> {
+impl<'a, K: ItemKey> ButtonGroup<'a, K> {
     /// Toggle buttons whose values `selection` holds; a [`Selection::single`] makes a radio group. Add the
     /// buttons with [`Self::toggle`].
     pub fn multi(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selection: &'a mut Selection<K>) -> Self {
@@ -159,7 +160,7 @@ impl<'a, K: Ord + Clone> ButtonGroup<'a, K> {
     }
 }
 
-impl<'a, K: PartialEq + Clone> ButtonGroup<'a, K> {
+impl<'a, K: ItemKey> ButtonGroup<'a, K> {
     fn with(id_salt: KeyedSalt, label: impl Into<String>, choice: Option<Choice<'a, K>>) -> Self {
         Self {
             salt: id_salt,
@@ -210,7 +211,11 @@ impl<'a, K: PartialEq + Clone> ButtonGroup<'a, K> {
     }
 
     fn button(&self, i: usize, item: &ButtonGroupItem) -> PushButton<'static> {
-        let own = crate::widget::item_salt(&self.salt, item.salt.as_ref(), None, i);
+        // Toggle items are keyed by value, click-only items by position.
+        let own = match self.choice.as_ref().and_then(|c| c.value(i)) {
+            Some(value) => crate::widget::item_salt(&self.salt, item.salt.as_ref(), None, value),
+            None => crate::widget::item_salt(&self.salt, item.salt.as_ref(), None, i),
+        };
         let key = StableId::of(&own, "button");
         let mut b = PushButton::new(own, item.label.clone())
             .agent_key(key)

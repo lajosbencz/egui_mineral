@@ -5,6 +5,7 @@ use crate::adaptive::Density;
 use egui_mineral::i18n::I18n;
 use egui_mineral::i18n::Sides;
 use egui_mineral::kit::state::TempState;
+use egui_mineral::select::ItemKey;
 use egui_mineral::semantic::AgentKey;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::MineralUi;
@@ -865,7 +866,7 @@ impl MineralWidget for Radio {
 
     fn update(&mut self, ui: &mut MineralUi<'_, Material>, frame: &WidgetFrame<'_>, (): &mut ()) -> WidgetResponse {
         let t = ui.tokens();
-        kit::focus::follow_press(&frame.response);
+        kit::interact::follow_press(&frame.response);
         let changed = parts::press(ui, frame, Availability::disabled_if(self.disabled)).clicked && !self.selected;
         let row = self.row(ui, &t, frame.zones.visual.width() + WRAP_SLACK);
         let center = row.canvas(frame.zones.visual).center();
@@ -938,7 +939,7 @@ pub struct RadioGroup<'a, K> {
     disabled: bool,
 }
 
-impl<'a, K: PartialEq + Clone> RadioGroup<'a, K> {
+impl<'a, K: ItemKey> RadioGroup<'a, K> {
     /// Checks the option whose value equals `selected`, none when no option matches; `label` names the group
     /// for assistive technology.
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selected: &'a mut K) -> Self {
@@ -1011,10 +1012,13 @@ impl<'a, K: PartialEq + Clone> RadioGroup<'a, K> {
         let mut body = |ui: &mut Ui| {
             for (i, o) in options.iter().enumerate() {
                 let r = rt.ui(ui).mineral(
-                    Radio::new(crate::widget::item_salt(&salt, o.salt.as_ref(), None, i), &o.label)
-                        .selected(choice.is_selected(i))
-                        .tab_stop(i == tab_stop)
-                        .disabled(!enabled(i)),
+                    Radio::new(
+                        crate::widget::item_salt(&salt, o.salt.as_ref(), None, choice.value(i)),
+                        &o.label,
+                    )
+                    .selected(choice.is_selected(i))
+                    .tab_stop(i == tab_stop)
+                    .disabled(!enabled(i)),
                 );
                 if r.changed() {
                     picked = Some(i);

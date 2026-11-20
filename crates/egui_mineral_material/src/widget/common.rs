@@ -164,7 +164,9 @@ pub(crate) fn icon(p: &Painter, center: Pos2, icon: Icon, size: f32, color: Colo
 }
 
 pub(crate) fn icon_shape(p: &Painter, center: Pos2, icon: Icon, size: f32, color: Color32, angle: f32) -> TextShape {
-    egui_mineral::kit::icon::shape(p.ctx(), center, icon.filled(), size, color, angle)
+    egui_mineral::kit::paint::GlyphShape::new(icon.filled(), size, color)
+        .angle(angle)
+        .shape(p.ctx(), center)
 }
 
 const FOCUS_RING_OFFSET: f32 = 2.0;

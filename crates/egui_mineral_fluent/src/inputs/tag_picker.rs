@@ -1,4 +1,5 @@
 use crate::msg;
+use egui_mineral::select::ItemKey;
 use std::{collections::HashSet, sync::Arc};
 
 use egui::{CornerRadius, Key, Modifiers, Pos2, Rangef, Rect, Sense, Stroke, StrokeKind, TextFormat, vec2};
@@ -189,7 +190,7 @@ pub struct TagPicker<'a, K> {
     disabled: bool,
 }
 
-impl<'a, K: Ord + Clone> TagPicker<'a, K> {
+impl<'a, K: ItemKey> TagPicker<'a, K> {
     /// `selection` holds the values of the tags; `label` is the accessible name; `text` is the typed filter.
     /// Agent key `<id_salt>-tag-picker`.
     pub fn new(
@@ -401,12 +402,12 @@ impl Geometry {
     }
 }
 
-impl<K: Ord + Clone> TagPicker<'_, K> {
+impl<K: ItemKey> TagPicker<'_, K> {
     fn paint_tag(
         &self,
         ui: &mut MineralUi<'_, Fluent>,
         rect: Rect,
-        index: usize,
+        value: &K,
         (value_text, base): (&str, egui::Id),
         dir: egui_mineral::i18n::Direction,
     ) -> bool {
@@ -443,10 +444,10 @@ impl<K: Ord + Clone> TagPicker<'_, K> {
         let off = rect.width() - dismiss_w;
         let dx = dir.start_x(rect, Rangef::new(off, off + dismiss_w));
         let hit = Rect::from_min_size(Pos2::new(dx, rect.top()), vec2(dismiss_w, rect.height()));
-        let resp = kit::input::interact(
+        let resp = kit::interact::interact(
             ui,
             hit,
-            base.with(("dismiss", index)),
+            base.with(("dismiss", value)),
             Sense::click() - Sense::FOCUSABLE,
             Availability::disabled_if(self.disabled),
         );
@@ -477,7 +478,7 @@ impl<K: Ord + Clone> TagPicker<'_, K> {
             let name = rt.i18n().tr(msg::TagPickerRemove {
                 label: value_text.into(),
             });
-            let mut n = SemanticNode::new(self.key.id(&self.salt).sub((index, "dismiss")), Role::Button, &name)
+            let mut n = SemanticNode::new(self.key.id(&self.salt).sub((value, "dismiss")), Role::Button, &name)
                 .clickable(Availability::disabled_if(self.disabled));
             n.depth = 1;
             n
@@ -494,7 +495,7 @@ impl<K: Ord + Clone> TagPicker<'_, K> {
         let x = dir.start_x(inner, Rangef::new(inner.width() - pad - icon, inner.width() - pad));
         let center = Pos2::new(x + icon / 2.0, visual.top() + self.size.min_height() / 2.0);
         let hit = Rect::from_center_size(center, vec2(icon, self.size.min_height()));
-        let resp = kit::input::interact(
+        let resp = kit::interact::interact(
             ui,
             hit,
             base.with("chevron"),
@@ -521,7 +522,7 @@ impl<K: Ord + Clone> TagPicker<'_, K> {
     }
 }
 
-impl<K: Ord + Clone> MineralWidget for TagPicker<'_, K> {
+impl<K: ItemKey> MineralWidget for TagPicker<'_, K> {
     type Kit = Fluent;
     type State = ListState;
     type Output = ();
@@ -538,7 +539,7 @@ impl<K: Ord + Clone> MineralWidget for TagPicker<'_, K> {
         if self.button {
             Sense::click()
         } else {
-            kit::edit::frame_sense()
+            kit::interact::text_frame_sense()
         }
     }
 
@@ -645,7 +646,7 @@ impl<K: Ord + Clone> MineralWidget for TagPicker<'_, K> {
     }
 }
 
-impl<K: Ord + Clone> TagPicker<'_, K> {
+impl<K: ItemKey> TagPicker<'_, K> {
     // Backspace in the empty input (or the button) drops the last tag.
     fn backspace(&mut self, ctx: &egui::Context, focused: bool, tags: &[(K, String)]) -> bool {
         let typed = ctx.input(|i| {
@@ -688,9 +689,9 @@ impl<K: Ord + Clone> TagPicker<'_, K> {
         paint_frame(ui, base, visual, chrome, live, &t);
 
         let mut removed = None;
-        for (i, (((v, text), (row, x)), width)) in tags.iter().zip(&geo.flow.tags).zip(&widths).enumerate() {
+        for (((v, text), (row, x)), width) in tags.iter().zip(&geo.flow.tags).zip(&widths) {
             let rect = geo.rect(dir, *row, *x, *width);
-            if self.paint_tag(ui, rect, i, (text, base), dir) {
+            if self.paint_tag(ui, rect, v, (text, base), dir) {
                 removed = Some(v.clone());
             }
         }

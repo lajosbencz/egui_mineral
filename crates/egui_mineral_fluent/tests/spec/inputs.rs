@@ -190,7 +190,7 @@ fn listbox_options_are_a_text_line_with_snudge_padding() {
     h.run();
     h.click("d-dropdown");
     h.run();
-    let option = h.rect("d-dropdown-0-option");
+    let option = h.rect("d-dropdown-a-option");
     let line = egui_mineral_fluent::spec::tokens::typography::LINE_HEIGHT_BASE_300;
     assert_eq!(option.height(), line + 2.0 * geometry::SPACING_HORIZONTAL_S_NUDGE);
     let field = h.rect("d-dropdown");
@@ -214,7 +214,7 @@ fn swatches_are_squares_of_their_size_with_the_gap_between() {
                 .size(size)
                 .show(ui);
         });
-        let (a, b) = (h.rect("s-0-swatch"), h.rect("s-1-swatch"));
+        let (a, b) = (h.rect("s-a-swatch"), h.rect("s-b-swatch"));
         assert_eq!((a.width(), a.height()), (side, side), "{size:?}");
         assert_eq!(b.left() - a.right(), swatch_picker::SPACING_MEDIUM, "{size:?}");
     }
@@ -271,7 +271,7 @@ fn tag_dismiss_hit_target_is_the_tag_height() {
         },
     );
     assert_eq!(
-        h.rect("t-tag-picker-0-dismiss").height(),
+        h.rect("t-tag-picker-a-dismiss").height(),
         tag_picker::TAG_HEIGHT_EXTRA_SMALL
     );
 }

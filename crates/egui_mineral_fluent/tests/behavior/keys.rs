@@ -102,8 +102,8 @@ fn menu_grid_reports_the_key_and_position_of_the_cell() {
                     .cell(MenuGridAction::new("Pin", egui_mineral_fluent::icons::ICON_PIN).key("pin")),
             );
         });
-        *clicked = r.clicked.or(clicked.take());
-        *cell = r.activated.map(|c| (c.row, c.column)).or(*cell);
+        *cell = r.clicked.as_ref().map(|c| (c.row, c.cell.index())).or(*cell);
+        *clicked = r.clicked.map(|c| c.cell).or(clicked.take());
     });
     h.run();
     h.click("trig-button");
@@ -136,7 +136,7 @@ fn toolbar_and_breadcrumb_report_keys() {
     assert_eq!(key(crumb.as_ref()), Some("home"));
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, egui_mineral::semantic::KeySalt)]
 enum View {
     List,
     Grid,
@@ -151,8 +151,8 @@ fn tab_list_binds_the_value_of_the_selected_tab() {
         TabList::new("t", "Views", view).items(VIEWS).show(ui);
     });
     h.run();
-    assert_eq!(h.node("t-1-tab").state.selected, Some(true));
-    h.click("t-2-tab");
+    assert_eq!(h.node("t-grid-tab").state.selected, Some(true));
+    h.click("t-board-tab");
     assert_eq!(h.state().value, View::Board);
 }
 
@@ -164,9 +164,9 @@ fn a_value_matching_no_item_selects_none() {
             .show(ui);
     });
     h.run();
-    assert_eq!(h.node("t-0-tab").state.selected, Some(false));
-    assert_eq!(h.node("t-1-tab").state.selected, Some(false));
-    h.click("t-0-tab");
+    assert_eq!(h.node("t-list-tab").state.selected, Some(false));
+    assert_eq!(h.node("t-grid-tab").state.selected, Some(false));
+    h.click("t-list-tab");
     assert_eq!(h.state().value, Some(View::List));
 }
 
@@ -190,7 +190,7 @@ fn select_binds_a_value() {
     h.run();
     assert_eq!(h.node("s-select").value.as_deref(), Some("List"));
     h.click("s-select");
-    h.click("s-select-2-option");
+    h.click("s-select-board-option");
     assert_eq!(h.state().value, View::Board);
 }
 
@@ -201,6 +201,6 @@ fn swatch_picker_binds_a_value() {
         SwatchPicker::new("s", "Color", view).items(VIEWS.map(swatch)).show(ui);
     });
     h.run();
-    h.click("s-1-swatch");
+    h.click("s-grid-swatch");
     assert_eq!(h.state().value, View::Grid);
 }

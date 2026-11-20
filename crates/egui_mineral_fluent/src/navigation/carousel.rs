@@ -1,4 +1,5 @@
 use crate::msg;
+use egui_mineral::select::ItemKey;
 use std::time::Duration;
 
 use egui::{Color32, Id, Rect, Sense, Stroke, StrokeKind, Ui, UiBuilder, vec2};
@@ -131,8 +132,8 @@ impl MineralWidget for Dot {
     fn update(&mut self, ui: &mut MineralUi<'_, Fluent>, frame: &WidgetFrame<'_>, (): &mut ()) -> WidgetResponse {
         let t = ui.tokens();
         let r = &frame.response;
-        kit::input::hover_cursor(ui.core(), r, Availability::Enabled);
-        kit::focus::follow_press(r);
+        kit::interact::hover_cursor(ui.core(), r, Availability::Enabled);
+        kit::interact::follow_press(r);
         let i = Interaction::of(r, Availability::Enabled);
         let step = usize::from(i.hovered) + usize::from(i.pressed);
         let rect = frame.zones.visual;
@@ -184,24 +185,28 @@ impl MineralWidget for Dot {
 }
 
 /// Places the slides of a [`Carousel`].
-pub struct CarouselUi<'u, 's> {
+pub struct CarouselUi<'u, 's, K> {
     ui: &'u mut MineralUi<'s, Fluent>,
     salt: &'u KeyedSalt,
-    active: usize,
+    active: &'u K,
     appearance: CarouselAppearance,
+    keys: Vec<K>,
     labels: Vec<String>,
     height: f32,
 }
 
-kit::opaque_debug!(CarouselUi<'_, '_>);
+kit::opaque_debug!(CarouselUi<'_, '_, K>);
 
-impl CarouselUi<'_, '_> {
-    /// `CarouselCard`: `add` runs only while this is the active slide.
-    pub fn card<R>(&mut self, card: impl Into<CarouselCard>, add: impl FnOnce(&mut Ui) -> R) -> Option<R> {
+impl<K: ItemKey> CarouselUi<'_, '_, K> {
+    /// `CarouselCard` carrying `key`; `add` runs only while it is the active slide. Agent key
+    /// `<id_salt>-<key>-carouselcard`.
+    pub fn card<R>(&mut self, key: K, card: impl Into<CarouselCard>, add: impl FnOnce(&mut Ui) -> R) -> Option<R> {
         let card = card.into();
-        let index = self.labels.len();
         self.labels.push(card.label.clone());
-        if index != self.active {
+        let active = key == *self.active;
+        let own = self.salt.child(&key);
+        self.keys.push(key);
+        if !active {
             return None;
         }
         let elevated = self.appearance == CarouselAppearance::Elevated;
@@ -222,7 +227,7 @@ impl CarouselUi<'_, '_> {
             paint::shadow(self.ui.painter(), card_rect, radius, Elevation::E16, &t);
         }
         let (_, response) = self.ui.allocate_exact_size(rect.size(), Sense::hover());
-        let key = egui_mineral::agent_key!("carouselcard").id(&self.salt.child(index));
+        let key = egui_mineral::agent_key!("carouselcard").id(&own);
         semantic::emit(self.ui.ctx(), None, response.rect, || {
             SemanticNode::new(key, Role::Group, card.label)
         });
@@ -233,11 +238,13 @@ impl CarouselUi<'_, '_> {
 /// Result of showing a [`Carousel`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct CarouselResponse {
+pub struct CarouselResponse<K> {
     /// Spans the slide and the navigation; `mark_changed` when `changed`.
     pub response: egui::Response,
     /// Agrees with `response.changed()`; the active card moved this pass.
     pub changed: bool,
+    /// Key of the card made active this pass.
+    pub selected: Option<K>,
     /// Cards placed this pass.
     pub len: usize,
 }
@@ -247,11 +254,11 @@ pub struct CarouselResponse {
 /// [`Self::autoplay`] adds the play button, and it never advances while reduced motion is on.
 #[derive(Debug)]
 #[must_use = "call .show(..)"]
-pub struct Carousel<'a> {
+pub struct Carousel<'a, K> {
     salt: KeyedSalt,
     key: AgentKey,
     label: String,
-    active: &'a mut usize,
+    active: &'a mut K,
     appearance: CarouselAppearance,
     circular: bool,
     brand: bool,
@@ -260,10 +267,10 @@ pub struct Carousel<'a> {
     buttons: [Option<String>; 3],
 }
 
-impl<'a> Carousel<'a> {
-    /// `label` names the carousel for assistive technology; `active` is the index of the shown card. Agent key
-    /// `<id_salt>-carousel`.
-    pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, active: &'a mut usize) -> Self {
+impl<'a, K: ItemKey> Carousel<'a, K> {
+    /// `label` names the carousel for assistive technology; `active` is the key of the shown card, snapped to the
+    /// first card when no card carries it. Agent key `<id_salt>-carousel`, dots `<id_salt>-<key>-carouselnav`.
+    pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, active: &'a mut K) -> Self {
         Self {
             salt: id_salt.into(),
             key: egui_mineral::agent_key!("carousel"),
@@ -332,15 +339,19 @@ impl<'a> Carousel<'a> {
     }
 
     /// Shows the cards `add` places and the navigation below them.
-    pub fn show(self, ui: &mut MineralUi<'_, Fluent>, add: impl FnOnce(&mut CarouselUi<'_, '_>)) -> CarouselResponse {
+    pub fn show(
+        self,
+        ui: &mut MineralUi<'_, Fluent>,
+        add: impl FnOnce(&mut CarouselUi<'_, '_, K>),
+    ) -> CarouselResponse<K> {
         let rt = ui.rt();
         let ctx = rt.ctx();
         let id = ui.make_persistent_id(self.salt.id_salt());
         let memo_id = id.with("mineral::carousel-memo");
         let memo = Memo::load(ctx, memo_id);
-        let before = *self.active;
+        let mut keys = Vec::new();
         let mut labels = Vec::new();
-        let mut next = before;
+        let (mut before, mut next) = (None, 0);
         let width = ui.available_width();
         // The tallest slide seen at this width; a new width measures again.
         let reserved = if (memo.width - width).abs() > 0.5 {
@@ -357,17 +368,17 @@ impl<'a> Carousel<'a> {
                     let mut cards = CarouselUi {
                         ui: &mut rt.ui(ui),
                         salt: &self.salt,
-                        active: before,
+                        active: &*self.active,
                         appearance: self.appearance,
+                        keys: Vec::new(),
                         labels: Vec::new(),
                         height: reserved,
                     };
                     add(&mut cards);
-                    labels = cards.labels;
-                    height = cards.height;
-                    let len = labels.len();
-                    next = before.min(len.saturating_sub(1));
-                    nav_width = self.navigation(&mut rt.ui(ui), id, &labels, memo.nav_width, &mut next);
+                    (keys, labels, height) = (cards.keys, cards.labels, cards.height);
+                    before = keys.iter().position(|k| k == &*self.active);
+                    next = before.unwrap_or(0);
+                    nav_width = self.navigation(&mut rt.ui(ui), id, (&keys, &labels), memo.nav_width, &mut next);
                 })
             })
             .response;
@@ -380,8 +391,13 @@ impl<'a> Carousel<'a> {
         if seen.differs(&memo) && ctx.current_pass_index() == 0 {
             ctx.request_discard("mineral: carousel size");
         }
-        let changed = next != before;
-        *self.active = next;
+        let changed = before != Some(next) && !keys.is_empty();
+        if let Some(key) = keys.get(next).filter(|_| changed) {
+            self.active.clone_from(key);
+            if before.is_none() {
+                ctx.request_discard("mineral: carousel active card");
+            }
+        }
         let (key, label) = (self.key.id(&self.salt), self.label);
         semantic::emit(ctx, Some(group.id), group.rect, || {
             SemanticNode::new(key, Role::Group, label)
@@ -393,6 +409,7 @@ impl<'a> Carousel<'a> {
         CarouselResponse {
             response,
             changed,
+            selected: keys.get(next).filter(|_| changed).cloned(),
             len: labels.len(),
         }
     }
@@ -412,7 +429,7 @@ impl<'a> Carousel<'a> {
         &self,
         ui: &mut MineralUi<'_, Fluent>,
         id: Id,
-        labels: &[String],
+        (keys, labels): (&[K], &[String]),
         width: f32,
         next: &mut usize,
     ) -> f32 {
@@ -482,9 +499,9 @@ impl<'a> Carousel<'a> {
                 if button(ui, "previous", &label(0, msg::CAROUSEL_PREVIOUS), prev, at_start) {
                     picked = Some(self.step(*next, len, false));
                 }
-                for (i, label) in labels.iter().enumerate() {
+                for (i, (key, label)) in keys.iter().zip(labels).enumerate() {
                     let out = rt.ui(ui).mineral(Dot {
-                        salt: self.salt.child(i),
+                        salt: self.salt.child(key),
                         label: label.clone(),
                         selected: i == *next,
                         brand: self.brand,

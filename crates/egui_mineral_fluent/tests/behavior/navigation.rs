@@ -661,7 +661,7 @@ fn grid() -> Harness<'static, Grid> {
             );
             g.row(MenuGridRow::new().cell("Delete"));
         });
-        s.activated.extend(r.activated.map(|c| (c.row, c.column)));
+        s.activated.extend(r.clicked.map(|c| (c.row, c.cell.index())));
     })
 }
 
@@ -810,8 +810,8 @@ fn carousel(circular: bool, autoplay: bool) -> Harness<'static, usize> {
             c = c.autoplay(std::time::Duration::from_millis(50));
         }
         c.show(ui, |c| {
-            for name in ["One", "Two", "Three"] {
-                c.card(name, |ui| {
+            for (i, name) in ["One", "Two", "Three"].into_iter().enumerate() {
+                c.card(i, name, |ui| {
                     ui.label(name);
                 });
             }
@@ -850,6 +850,24 @@ fn carousel_buttons_and_dots_change_the_card() {
     assert!(h.node("c-next-button").state.disabled);
     h.click("c-previous-button");
     assert_eq!(h.state().value, 1);
+}
+
+#[test]
+fn carousel_active_key_follows_the_card_and_snaps_when_missing() {
+    let mut h = harness("gone", |ui, active| {
+        Carousel::new("c", "Gallery", active).show(ui, |c| {
+            for name in ["one", "two"] {
+                c.card(name, name, |ui| {
+                    ui.label(name);
+                });
+            }
+        });
+    });
+    h.run();
+    assert_eq!(h.state().value, "one", "no card carries the key");
+    h.node("c-one-carouselcard");
+    h.click("c-two-carouselnav");
+    assert_eq!(h.state().value, "two");
 }
 
 #[test]
@@ -954,11 +972,11 @@ fn nav_children_state_does_not_outlive_removed_categories() {
                     });
                 }
             });
-        *stored = ui.ctx().data(egui::util::IdTypeMap::count::<Vec<usize>>);
+        *stored = ui.ctx().data(egui::util::IdTypeMap::count::<Vec<egui::Id>>);
     });
     h.run();
     h.state_mut().value.0 = 1;
     h.run();
-    // The open set is the only Vec<usize> kept per nav.
+    // The open set is the only Vec<Id> kept per nav.
     assert_eq!(h.state().value.1, 1);
 }

@@ -3,13 +3,15 @@
 //!
 //! `#[derive(Route)]` implements `egui_mineral::nav::Route` for an enum whose variants carry
 //! `#[route("/user/{id}")]` patterns (`{param?}` for a trailing optional parameter). Use it through
-//! `egui_mineral::nav::Route`, which names both the trait and this derive. `#[route(crate = path)]` names the crate
-//! that hosts `nav` when it is reached through a re-export, e.g. `egui_mineral_material::egui_mineral`.
+//! `egui_mineral::nav::Route`, which names both the trait and this derive. The derives find `egui_mineral` from the
+//! calling crate's manifest: its own dependency, else the re-export of the stylekit it depends on
+//! (`egui_mineral_material::egui_mineral`); `#[route(crate = path)]` and `#[key_salt(crate = path)]` name it
+//! explicitly.
 //!
 //! `#[derive(KeySalt)]` implements `egui_mineral::semantic::KeySalt`: a unit variant or unit struct is keyed by its
 //! kebab-case name (`ListItem` -> `list-item`), fields append their own keys joined by `-`, a struct with fields is
 //! keyed by its fields alone. `#[key_salt(rename = "key")]` on a variant or the type fixes the name,
-//! `#[key_salt(crate = path)]` on the type names the crate that hosts `semantic`.
+//! `#[key_salt(crate = path)]` on the type overrides the found `egui_mineral`.
 //!
 //! `messages!(mod msg = "locales/en-US.ftl")` turns the Fluent catalog at that path (relative to the crate root)
 //! into a module of typed message ids. Use it through `egui_mineral::i18n::messages`, which documents it.
@@ -107,12 +109,35 @@ pub fn derive_key_salt(input: TokenStream) -> TokenStream {
 }
 
 /// Derives `Route` for an enum from `#[route("/path")]` attributes. The enum itself may carry
-/// `#[route(crate = path)]` naming the crate that hosts `nav` (default `::egui_mineral`), for apps that reach it
-/// through a re-export such as `egui_mineral_material::egui_mineral`.
+/// `#[route(crate = path)]` naming the crate that hosts `nav` (default: found in the calling crate's manifest, see
+/// the crate docs).
 #[proc_macro_derive(Route, attributes(route))]
 pub fn derive_route(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     expand(&input).unwrap_or_else(Error::into_compile_error).into()
+}
+
+// Path of `egui_mineral` from the calling crate: its own dependency, else the re-export of a stylekit it depends on.
+// `egui_mineral` itself declares `extern crate self as egui_mineral`; its doctests also report `Itself`.
+pub(crate) fn host() -> syn::Path {
+    use proc_macro_crate::{FoundCrate, crate_name};
+    let named = |name: &str| syn::Ident::new(name, proc_macro2::Span::call_site());
+    match crate_name("egui_mineral") {
+        Ok(FoundCrate::Itself) => return syn::parse_quote!(::egui_mineral),
+        Ok(FoundCrate::Name(n)) => {
+            let n = named(&n);
+            return syn::parse_quote!(::#n);
+        }
+        Err(_) => {}
+    }
+    // A stylekit depends on `egui_mineral` itself, so it never reaches here as `Itself`.
+    for kit in ["egui_mineral_material", "egui_mineral_fluent"] {
+        if let Ok(FoundCrate::Name(n)) = crate_name(kit) {
+            let n = named(&n);
+            return syn::parse_quote!(::#n::egui_mineral);
+        }
+    }
+    syn::parse_quote!(::egui_mineral)
 }
 
 fn crate_path(attrs: &[syn::Attribute]) -> syn::Result<syn::Path> {
@@ -126,7 +151,7 @@ fn crate_path(attrs: &[syn::Attribute]) -> syn::Result<syn::Path> {
             Ok(())
         })?;
     }
-    root.map_or_else(|| syn::parse_str("::egui_mineral"), Ok)
+    Ok(root.unwrap_or_else(host))
 }
 
 fn expand(input: &DeriveInput) -> syn::Result<TokenStream2> {

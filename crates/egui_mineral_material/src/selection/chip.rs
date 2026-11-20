@@ -637,7 +637,7 @@ impl MineralWidget for Core<'_> {
             egui::Vec2::splat(crate::adaptive::min_interactive(ui.density())),
         );
         let remove = self.has_remove().then(|| {
-            kit::input::interact(
+            kit::interact::interact(
                 ui,
                 remove_hit,
                 r.id.with("remove"),

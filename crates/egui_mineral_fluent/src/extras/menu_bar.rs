@@ -166,7 +166,7 @@ impl<'a> MenuBar<'a> {
             if (t.clicked() && bar.open != Some(i)) || switched {
                 bar.open = Some(i);
             } else if t.has_focus() && bar.open.is_none() {
-                for key in kit::input::plain_key_presses(&ctx) {
+                for key in kit::interact::plain_key_presses(&ctx) {
                     if matches!(key, Key::ArrowDown | Key::ArrowUp) {
                         bar.open = Some(i);
                     }

@@ -63,7 +63,7 @@ pub(crate) fn control_target(
     hit: Rect,
     disabled: bool,
 ) -> Response {
-    kit::input::interact(
+    kit::interact::interact(
         ui,
         hit,
         row.id.with(salt),
@@ -326,7 +326,7 @@ impl OptionRow<'_> {
         let rt = ui.rt();
         let availability = Availability::disabled_if(self.disabled);
         let (rect, _) = ui.allocate_exact_size(vec2(width, m.height), Sense::hover());
-        let response = kit::input::interact(ui, rect, id, Sense::click(), availability);
+        let response = kit::interact::interact(ui, rect, id, Sense::click(), availability);
         let dir = rt.i18n().direction();
         let state = RowState {
             disabled: self.disabled,
@@ -342,7 +342,7 @@ impl OptionRow<'_> {
         }
         let i = Interaction::of(&response, availability).with_focused(self.active);
         indication::paint(ui, &response, rect, state.shape(t, dir), col.label, i, t);
-        kit::input::hover_cursor(rt.core(), &response, availability);
+        kit::interact::hover_cursor(rt.core(), &response, availability);
         let mut cur = dir.cursor(rect);
         cur.skip(m.start);
         let icon = list::ITEM_LEADING_ICON_SIZE;

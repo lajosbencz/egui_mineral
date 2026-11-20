@@ -234,7 +234,7 @@ impl ComboState {
     /// Consumes this pass's combobox keys from `ctx` (so text fields and focus navigation do not
     /// see them) and applies them in order. Tab commits but still moves focus.
     pub fn update(&mut self, ctx: &Context, listbox: ComboList<'_>) -> Vec<ComboAction> {
-        let keys: Vec<(Key, Modifiers)> = crate::kit::input::key_presses(ctx)
+        let keys: Vec<(Key, Modifiers)> = crate::kit::interact::key_presses(ctx)
             .into_iter()
             .filter(|(_, m)| !m.command && !m.ctrl)
             .collect();

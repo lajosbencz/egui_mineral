@@ -264,8 +264,7 @@ impl<N: Numeric> Composite for NumberField<'_, N> {
         let fmt = |v: f64| self.text(rt.i18n(), v);
         let before = self.value.to_f64();
         let focused = edit_id.is_some_and(|id| ctx.memory(|m| m.has_focus(id)));
-        let escape =
-            !self.disabled && edit_id.is_some_and(|id| egui_mineral::kit::overlay::consume_escape_from(ctx, id));
+        let escape = !self.disabled && edit_id.is_some_and(|id| egui_mineral::kit::layer::consume_escape_from(ctx, id));
         let mut edit = NumberEdit::load_or(ctx, state_id, || NumberEdit::new(self.range, before, fmt));
         // An Escape pass keeps the edit open so it cancels instead of committing on blur.
         let focus = FieldFocus::of(focused || escape);

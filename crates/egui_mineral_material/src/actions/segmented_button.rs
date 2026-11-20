@@ -1,5 +1,6 @@
 use crate::MaterialUiExt as _;
 use egui_mineral::kit::choice::Choice;
+use egui_mineral::select::ItemKey;
 use std::sync::Arc;
 
 use egui::{Color32, Galley, Rangef, Rect, Sense, Stroke, StrokeKind, Vec2, pos2, vec2};
@@ -75,7 +76,7 @@ pub struct SegmentedButton<'a, K> {
     equal_width: bool,
 }
 
-impl<'a, K: PartialEq + Clone> SegmentedButton<'a, K> {
+impl<'a, K: ItemKey> SegmentedButton<'a, K> {
     fn with(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, choice: Choice<'a, K>) -> Self {
         Self {
             salt: id_salt.into(),
@@ -189,7 +190,7 @@ impl<'a, K: PartialEq + Clone> SegmentedButton<'a, K> {
                 for (i, (((segment, label), &selected), &width)) in
                     self.items.iter().zip(&labels).zip(&selected).zip(&widths).enumerate()
                 {
-                    let own = crate::widget::item_salt(&self.salt, segment.salt.as_ref(), None, i);
+                    let own = crate::widget::item_salt(&self.salt, segment.salt.as_ref(), None, self.choice.value(i));
                     let r = rt.ui(ui).mineral(SegmentItem {
                         salt: own.child("segment"),
                         key: StableId::of(&own, "segment"),
@@ -381,7 +382,7 @@ impl MineralWidget for SegmentItem<'_> {
     fn update(&mut self, ui: &mut MineralUi<'_, Material>, frame: &WidgetFrame<'_>, (): &mut ()) -> WidgetResponse {
         let t = ui.tokens();
         let response = &frame.response;
-        kit::focus::follow_press(response);
+        kit::interact::follow_press(response);
         let rect = frame.zones.visual;
         let press = parts::press(ui, frame, Availability::disabled_if(self.segment.disabled));
         let (container, content, outline) = self.colors(&t);

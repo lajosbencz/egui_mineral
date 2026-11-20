@@ -468,8 +468,8 @@ fn carousel_pass(active: usize) -> Pass {
     let mut active = active;
     render(move |ui| {
         Carousel::new("c", "Gallery", &mut active).show(ui, |c| {
-            for name in ["One", "Two", "Three"] {
-                c.card(name, |ui| {
+            for (i, name) in ["One", "Two", "Three"].into_iter().enumerate() {
+                c.card(i, name, |ui| {
                     ui.set_height(100.0);
                 });
             }

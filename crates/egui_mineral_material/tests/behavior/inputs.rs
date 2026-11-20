@@ -10,8 +10,8 @@ const FRUIT: [&str; 3] = ["Apple", "Apricot", "Banana"];
 
 #[test]
 fn combobox_filters_and_reports_the_picked_option() {
-    let mut h = harness(SCREEN, (String::new(), Vec::new()), |ui, (text, seen)| {
-        let r = ui.mineral(Combobox::new("fruit", "Fruit", text).items(FRUIT.into_iter().enumerate()));
+    let mut h = harness(SCREEN, (String::new(), Vec::new(), None), |ui, (text, seen, bound)| {
+        let r = ui.mineral(Combobox::optional("fruit", "Fruit", bound, text).items(FRUIT.into_iter().enumerate()));
         seen.push(r.output().clone());
     });
     h.press(Key::Tab);
@@ -21,17 +21,17 @@ fn combobox_filters_and_reports_the_picked_option() {
     h.press(Key::Enter);
     let picks: Vec<_> = h.state().value.1.iter().filter_map(|o| o.selected).collect();
     assert_eq!(picks, [1], "the only match is the option at index 1");
-    assert_eq!(h.state().value.0, "Apricot");
+    assert_eq!((h.state().value.0.as_str(), h.state().value.2), ("Apricot", Some(1)));
 }
 
 #[test]
 fn free_text_combobox_reports_a_created_entry() {
     let mut h = harness(
         SCREEN,
-        (String::new(), ComboboxOutput::default()),
-        |ui, (text, seen)| {
+        (String::new(), ComboboxOutput::default(), None),
+        |ui, (text, seen, bound)| {
             let r = ui.mineral(
-                Combobox::new("fruit", "Fruit", text)
+                Combobox::optional("fruit", "Fruit", bound, text)
                     .items(FRUIT.into_iter().enumerate())
                     .free_text(true),
             );
@@ -42,8 +42,11 @@ fn free_text_combobox_reports_a_created_entry() {
     h.press(Key::Tab);
     h.type_text("Kiwi");
     h.press(Key::Enter);
-    let seen = &h.state().value.1;
-    assert_eq!((seen.selected, seen.created.as_deref()), (None, Some("Kiwi")));
+    let (_, seen, bound) = &h.state().value;
+    assert_eq!(
+        (seen.selected, seen.created.as_deref(), *bound),
+        (None, Some("Kiwi"), None)
+    );
 }
 
 #[test]
@@ -152,11 +155,11 @@ fn search_bar_reports_submit_on_enter() {
 
 #[test]
 fn combobox_toggle_opens_every_option_from_cold() {
-    let mut h = harness(SCREEN, (String::new(), None), |ui, (text, picked)| {
-        let r = ui.mineral(Combobox::new("fruit", "Fruit", text).items(FRUIT.into_iter().enumerate()));
+    let mut h = harness(SCREEN, (String::new(), None, None), |ui, (text, picked, bound)| {
+        let r = ui.mineral(Combobox::optional("fruit", "Fruit", bound, text).items(FRUIT.into_iter().enumerate()));
         *picked = picked.or(r.output().selected);
     });
-    let key_of = |h: &Harness<'_, (String, Option<usize>)>, name: &str| {
+    let key_of = |h: &Harness<'_, (String, Option<usize>, Option<usize>)>, name: &str| {
         h.tree()
             .nodes
             .iter()
@@ -171,11 +174,45 @@ fn combobox_toggle_opens_every_option_from_cold() {
     }
     let banana = key_of(&h, "Banana").expect("an option row");
     h.click(&banana);
-    assert_eq!(h.state().value, ("Banana".to_owned(), Some(2)), "a row click picks");
+    assert_eq!(
+        h.state().value,
+        ("Banana".to_owned(), Some(2), Some(2)),
+        "a row click picks"
+    );
 
-    h.state_mut().value = (String::new(), None);
+    h.state_mut().value = (String::new(), None, None);
     h.run();
     h.click(&toggle);
     h.press(Key::Enter);
     assert_eq!(h.state().value.1, Some(0), "the toggle opens on the first row");
+}
+
+#[test]
+fn form_renders_typed_kinds_and_submits_their_values() {
+    use egui_mineral_material::{
+        egui_mineral::form::{FieldKind, Form, FormState},
+        text_inputs::FormExt,
+    };
+
+    let mut h = harness(SCREEN, (FormState::default(), None), |ui, (state, submitted)| {
+        let r = Form::new("signup", state)
+            .field("role", "Role", |f| {
+                f.kind(FieldKind::Select).options([("dev", "Developer"), ("pm", "PM")])
+            })
+            .field("terms", "Accept", |f| f.kind(FieldKind::Checkbox).required(true))
+            .show(ui);
+        if r.submitted.is_some() {
+            *submitted = r.submitted;
+        }
+    });
+    h.click("signup-submit-button");
+    assert!(h.state().value.1.is_none(), "the unchecked required box blocks");
+    h.click("signup-terms-checkbox");
+    h.click("signup-role-select");
+    h.run();
+    h.click("signup-role-select-dev-option");
+    h.run();
+    h.click("signup-submit-button");
+    let values = h.state().value.1.clone().expect("submitted");
+    assert_eq!((values.bool("terms"), values.choice("role")), (Some(true), Some("dev")));
 }

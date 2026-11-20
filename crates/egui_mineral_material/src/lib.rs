@@ -169,4 +169,4 @@ pub use widget::{
     vocab::{IconAction, SelectionResponse, Size, TextAction},
 };
 
-pub(crate) use egui_mineral::kit::i18n::{tr, tr_or};
+pub(crate) use egui_mineral::kit::{tr, tr_or};

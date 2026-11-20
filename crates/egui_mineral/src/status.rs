@@ -122,7 +122,7 @@ impl StatusItem {
         self
     }
 
-    /// Digits in cells as wide as the font's widest one ([`kit::text::tabular_figures`](crate::kit::text::tabular_figures)),
+    /// Digits in cells as wide as the font's widest one ([`kit::paint::tabular_figures`](crate::kit::paint::tabular_figures)),
     /// so a counter keeps its width as it changes; default `false`. A kit may show an item shrunk by
     /// [`Self::elide`] with its figures as shaped.
     pub fn tabular_figures(mut self, tabular_figures: bool) -> Self {

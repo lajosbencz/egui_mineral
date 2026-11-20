@@ -30,12 +30,12 @@ impl EdgeSurface<'_> {
     pub(crate) fn show<R>(self, rt: &Rt, body: impl FnOnce(&mut MineralUi<'_, Material>) -> R) -> EdgeShown<R> {
         let ctx = rt.ctx();
         // Motion is the caller's offset and scrim; egui's area fade would add an alpha ramp.
-        let area = kit::overlay::floating(rt.core(), self.id.with("area"), self.pos)
+        let area = kit::layer::floating(rt.core(), self.id.with("area"), self.pos)
             .fade_in(false)
             .role(Role::Dialog)
             .accessible_name(self.name);
         if let Some(scrim) = self.scrim {
-            let r = kit::overlay::modal_on(rt.core(), self.id, area)
+            let r = kit::layer::modal_on(rt.core(), self.id, area)
                 .frame(Frame::NONE)
                 .backdrop_color(scrim)
                 .show(ctx, |ui| body(&mut rt.ui(ui)));

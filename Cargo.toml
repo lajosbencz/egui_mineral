@@ -49,6 +49,7 @@ unic-langid = "0.9.6"
 syn = "3.0.10"
 quote = "1.0.47"
 proc-macro2 = "1.0.107"
+proc-macro-crate = "3.5.0"
 criterion = "0.8.2"
 futures-executor = "0.3.34"
 fluent-bundle = "0.16.0"
@@ -84,7 +85,7 @@ dirs = "7.0.0"
 percent-encoding = "2.3.2"
 unicode-segmentation = "1.13.3"
 # tz-system + tzdb: local "today"; bundle only where the OS lacks zoneinfo; js: wasm clock.
-jiff = { version = "0.2.45", default-features = false, features = ["std", "tz-system", "tzdb-zoneinfo", "tzdb-bundle-platform", "js"] }
+jiff = { version = "0.2.45", default-features = false, features = ["std", "serde", "tz-system", "tzdb-zoneinfo", "tzdb-bundle-platform", "js"] }
 egui_taffy = "0.16.0"
 web-sys = "0.3.107"
 wasm-bindgen = "0.2.130"

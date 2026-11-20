@@ -36,7 +36,7 @@ pub enum Origin {
 
 /// Component group of [m3.material.io](https://m3.material.io/components); `Extras` holds the
 /// [`Origin::Other`] components. Each variant is the public module of the same name.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, egui_mineral::semantic::KeySalt)]
 #[non_exhaustive]
 pub enum Category {
     /// Buttons, FABs, icon, segmented and split buttons.
@@ -603,7 +603,7 @@ mod extras {
     );
 
     meta!(
-        TransferList<'a>,
+        TransferList<'a, K>,
         Extras,
         Origin::Other(&[Kit::Mui, Kit::Ant]),
         "https://mui.com/material-ui/react-transfer-list/"
@@ -869,7 +869,7 @@ pub const CATALOG: &[ComponentMeta] = &[
     <DateRangePicker<'static>>::META,
     <TimePicker<'static>>::META,
     Carousel::META,
-    <ButtonGroup<'static, ()>>::META,
+    <ButtonGroup<'static, core::convert::Infallible>>::META,
     <SegmentedButton<'static, ()>>::META,
     SplitButton::META,
     FabMenu::META,
@@ -892,7 +892,7 @@ pub const CATALOG: &[ComponentMeta] = &[
     PullToRefresh::META,
     <Select<'static, ()>>::META,
     #[cfg(feature = "extras")]
-    <Combobox<'static, ()>>::META,
+    <Combobox<'static, usize>>::META,
     #[cfg(feature = "extras")]
     <NumberField<'static>>::META,
     #[cfg(feature = "extras")]
@@ -906,7 +906,7 @@ pub const CATALOG: &[ComponentMeta] = &[
     #[cfg(feature = "extras")]
     <ColorPicker<'static>>::META,
     #[cfg(feature = "extras")]
-    <TransferList<'static>>::META,
+    <TransferList<'static, usize>>::META,
     #[cfg(feature = "extras")]
     <InlineEdit<'static>>::META,
     #[cfg(feature = "extras")]

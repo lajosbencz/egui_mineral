@@ -155,7 +155,7 @@ impl FloatingPanel {
             .is_some_and(|f| f.layer_id == shown.response.layer_id);
         // egui drops focus on Escape before the pass runs, so the previous pass's focus decides.
         let was_inside = bool::load(ctx, inside_id);
-        if dismissed.is_none() && (focus_inside || was_inside) && kit::overlay::consume_escape(ctx) {
+        if dismissed.is_none() && (focus_inside || was_inside) && kit::layer::consume_escape(ctx) {
             dismissed = Some(Dismiss::Escape);
         }
         (focus_inside && dismissed.is_none()).store(ctx, inside_id);

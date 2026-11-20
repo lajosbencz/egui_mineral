@@ -84,12 +84,10 @@ impl CardHeader {
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub struct CardResponse<R> {
-    /// Whole card; hover only unless interactive or selectable.
+    /// Whole card; hover only unless interactive or selectable, then `clicked()` on a click, Space or Enter.
     pub response: Response,
     /// Value of the content closure.
     pub inner: R,
-    /// Clicked, or Space or Enter pressed on it, this pass.
-    pub clicked: bool,
     /// Selected state flipped this pass, by the card or its checkbox.
     pub changed: bool,
 }
@@ -151,7 +149,7 @@ impl<'a> Card<'a> {
         self
     }
 
-    /// Hover and press states; a click is reported in [`CardResponse::clicked`].
+    /// Hover and press states; a click, Space or Enter reports `clicked()` on [`CardResponse::response`].
     pub fn interactive(mut self, interactive: bool) -> Self {
         self.interactive = interactive;
         self
@@ -381,14 +379,13 @@ impl<'a> Card<'a> {
         let rect = response.rect;
         ui.ctx().data_mut(|d| d.insert_temp(height_id, rect.height()));
         let availability = Availability::disabled_if(self.disabled);
-        let mut clicked = false;
         let mut changed = false;
-        if activatable && response.clicked() {
-            clicked = true;
-            if let Some(sel) = self.selected.as_deref_mut() {
-                *sel = !*sel;
-                changed = true;
-            }
+        if activatable
+            && response.clicked()
+            && let Some(sel) = self.selected.as_deref_mut()
+        {
+            *sel = !*sel;
+            changed = true;
         }
         let selected = self.selected.as_deref().copied().unwrap_or(false);
         let i = Interaction::of(&response, availability);
@@ -397,7 +394,6 @@ impl<'a> Card<'a> {
         if self.checkbox {
             let flipped = self.select_checkbox(rt, ui, rect);
             changed |= flipped;
-            clicked |= flipped;
         }
         let label = self.label.take().unwrap_or_else(|| crate::tr(rt.i18n(), msg::CARD));
         let key = self.key.id(&self.salt);
@@ -417,7 +413,6 @@ impl<'a> Card<'a> {
         CardResponse {
             response,
             inner: scope.inner,
-            clicked,
             changed,
         }
     }

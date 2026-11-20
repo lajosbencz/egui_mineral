@@ -63,7 +63,7 @@ pub(crate) struct Press {
 }
 
 pub(crate) fn press(ui: &MineralUi<'_, Material>, frame: &WidgetFrame<'_>, availability: Availability) -> Press {
-    kit::input::hover_cursor(ui.core(), &frame.response, availability);
+    kit::interact::hover_cursor(ui.core(), &frame.response, availability);
     Press {
         clicked: frame.response.clicked(),
         interaction: Interaction::of(&frame.response, availability),
@@ -138,7 +138,7 @@ pub(crate) fn icon_part(
     part: &IconPart,
 ) -> Response {
     let rt = ui.rt();
-    let r = kit::input::interact(&rt.ui(ui), target, id, sense, part.availability);
+    let r = kit::interact::interact(&rt.ui(ui), target, id, sense, part.availability);
     paint_icon_part(ui, &r, target.center(), part, &rt.tokens());
     r
 }

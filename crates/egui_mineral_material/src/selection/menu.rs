@@ -734,7 +734,7 @@ impl Menu {
                 Self::open(&mut st, anchor.rect, open_focus(&ctx));
             }
         } else if anchor.has_focus() && !st.open && !this.disabled {
-            for key in kit::input::plain_key_presses(&ctx) {
+            for key in kit::interact::plain_key_presses(&ctx) {
                 match key {
                     Key::ArrowDown => Self::open(&mut st, anchor.rect, Some(FocusTarget::SelectedOrFirst)),
                     Key::ArrowUp => Self::open(&mut st, anchor.rect, Some(FocusTarget::Last)),
@@ -909,10 +909,10 @@ impl Menu {
                 rows: Vec::new(),
                 enabled: Vec::new(),
             };
-            let area = egui_mineral::kit::overlay::floating(rt.core(), id.with(("level", level)), rect.min)
+            let area = egui_mineral::kit::layer::floating(rt.core(), id.with(("level", level)), rect.min)
                 .show(ctx, |ui| self.paint_level(&mut lr, &mut rt.ui(ui), &geo, rect));
             let LevelRun { rows, enabled, .. } = lr;
-            egui_mineral::kit::overlay::keep_above(ctx, area.response.layer_id, parent);
+            egui_mineral::kit::layer::keep_above(ctx, area.response.layer_id, parent);
             parent = area.response.layer_id;
             let panel_id = area.response.id;
             semantic::emit(ctx, Some(panel_id), rect, || {
@@ -971,7 +971,7 @@ impl Menu {
         }
 
         // Outside press closes everything.
-        if st.open && egui_mineral::kit::overlay::outside_press_after_open(rt.core(), id, panels) {
+        if st.open && egui_mineral::kit::layer::outside_press_after_open(rt.core(), id, panels) {
             st.open = false;
             out.dismissed = Some(Dismiss::Outside);
         }
@@ -1179,22 +1179,22 @@ impl Menu {
         // Escape closes the level whose row held focus when the pass began, else the whole menu.
         let escape_level = level_ids.iter().enumerate().rev().find_map(|(l, rows)| {
             rows.iter()
-                .any(|r| egui_mineral::kit::overlay::consume_escape_from(ctx, r.1))
+                .any(|r| egui_mineral::kit::layer::consume_escape_from(ctx, r.1))
                 .then_some(l)
         });
         match escape_level {
             Some(l) if l > 0 => Self::close_level(ctx, st, level_ids, l),
             Some(_) => Self::dismiss(st, out),
-            None if st.open && egui_mineral::kit::overlay::consume_escape(ctx) => Self::dismiss(st, out),
+            None if st.open && egui_mineral::kit::layer::consume_escape(ctx) => Self::dismiss(st, out),
             None => {}
         }
         // <https://www.w3.org/WAI/ARIA/apg/patterns/menubar/>, on the level holding focus.
         if let Some((l, f, ids, entry_of)) = key_level {
             RovingFocus::new(Axis::Vertical).update(rt.core(), &ids, |_| true);
-            kit::focus::lock_arrows(ctx, ids[f], kit::focus::Arrows::Both);
+            kit::interact::lock_arrows(ctx, ids[f], kit::interact::Arrows::Both);
             let fwd = fr.dir.forward_key();
             let entries = self.level_entries(&st.path, l).unwrap_or(&[]);
-            for key in kit::input::plain_key_presses(ctx) {
+            for key in kit::interact::plain_key_presses(ctx) {
                 let is_parent = matches!(entries.get(entry_of[f]), Some(Entry::Item(i)) if i.has_submenu());
                 match key {
                     k if k == fwd && is_parent => {
@@ -1213,7 +1213,7 @@ impl Menu {
             }
         } else if st.open && st.focus.is_none() {
             // Opened by pointer, nothing focused yet.
-            for key in kit::input::plain_key_presses(ctx) {
+            for key in kit::interact::plain_key_presses(ctx) {
                 st.focus = match key {
                     Key::ArrowDown => Some((0, FocusTarget::SelectedOrFirst)),
                     Key::ArrowUp => Some((0, FocusTarget::Last)),
@@ -1254,7 +1254,7 @@ impl Menu {
             b.set_expanded(open);
             b.set_has_popup(HasPopup::Menu);
         });
-        if !self.emit_anchor || !kit::semantic::wanted(ctx, None) {
+        if !self.emit_anchor || !kit::nodes::wanted(ctx, None) {
             return;
         }
         let mut node = SemanticNode::new(StableId::of(&self.salt, kind), role, &self.label)
@@ -1263,7 +1263,7 @@ impl Menu {
         node.access_key = access_key;
         node.rect = anchor.rect;
         node.widget_id = Some(anchor.id);
-        kit::semantic::push(ctx, node);
+        kit::nodes::push(ctx, node);
     }
 }
 

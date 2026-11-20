@@ -212,14 +212,14 @@ impl<'a> Rating<'a> {
     }
 
     fn value_at(&self, rect: Rect, p: Pos2, dir: Direction) -> f64 {
-        kit::rating::value_at(
+        kit::rating::Stars {
             rect,
-            p,
             dir,
-            self.size.icon(),
-            self.max,
-            kit::rating::Step::half_if(self.half),
-        )
+            cell: self.size.icon(),
+            max: self.max,
+            step: kit::rating::Step::half_if(self.half),
+        }
+        .value_at(p)
     }
 }
 

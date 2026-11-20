@@ -88,6 +88,9 @@
     deny(clippy::panic, clippy::unwrap_used, clippy::expect_used, clippy::unreachable)
 )]
 
+// The derives and `messages!` name this crate `::egui_mineral`, also from inside it.
+extern crate self as egui_mineral;
+
 /// Public dependencies, re-exported so apps need not pin matching versions: `egui`, `jiff` for [`date`], `accesskit` for
 /// [`agent`] and [`semantic`] (via egui), `serde` for [`persist`] and `futures_util` for [`bus`]; `egui_taffy` is
 /// [`layout::flex`].
@@ -188,7 +191,7 @@ macro_rules! __widget_meta {
     };
     (frame_sense $(, $($rest:tt)*)?) => {
         fn sense(&self) -> $crate::egui::Sense {
-            $crate::kit::edit::frame_sense()
+            $crate::kit::interact::text_frame_sense()
         }
         $crate::__widget_meta!($($($rest)*)?);
     };
@@ -300,7 +303,7 @@ pub mod prelude {
         platform::{FileFilter, FileType, PlatformError},
         range::{RangeModel, Scale},
         runtime::{InitError, Runtime},
-        select::{Selection, SelectionResponse},
+        select::{ItemKey, Selection, SelectionResponse},
         semantic::{KeySalt, KeyedSalt},
         shortcut::ActionId,
         status::{StatusItem, StatusProgress, StatusTone},

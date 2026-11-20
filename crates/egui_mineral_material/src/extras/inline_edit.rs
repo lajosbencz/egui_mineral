@@ -247,7 +247,7 @@ impl Composite for InlineEdit<'_> {
         let width = constraints.constrain(vec2(tf::MIN_WIDTH, 0.0)).x;
 
         let response = if let Some(mut draft) = st.draft.take() {
-            let escape = egui_mineral::kit::overlay::consume_escape_from(&ctx, edit_id);
+            let escape = egui_mineral::kit::layer::consume_escape_from(&ctx, edit_id);
             let row = self.edit_row(ui, &mut draft, edit_id, vec2(width, h));
             let te = &row.field;
             if st.focus {

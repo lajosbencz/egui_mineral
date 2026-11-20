@@ -182,7 +182,7 @@ fn badges(ui: &mut FluentUi<'_>) {
     row(ui, |ui| {
         ui.mineral(CounterBadge::new("counter", 5));
         ui.mineral(CounterBadge::new("counter-overflow", 120));
-        ui.mineral(CounterBadge::new("counter-zero", 0).show_zero(true));
+        ui.mineral(CounterBadge::new("counter-zero", 0).zero_visible(true));
         ui.mineral(CounterBadge::new("counter-dot", 1).dot(true));
         for (i, color) in CounterBadgeColor::ALL.iter().copied().enumerate() {
             ui.mineral(CounterBadge::new(("counter-color", i), 7).color(color));

@@ -1478,6 +1478,7 @@ name = "egui_mineral_macros"
 version = "0.7.0"
 dependencies = [
  "fluent-syntax",
+ "proc-macro-crate",
  "proc-macro2",
  "quote",
  "syn 3.0.10",

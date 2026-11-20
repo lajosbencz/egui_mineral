@@ -156,17 +156,34 @@ impl State {
     }
 }
 
-/// Binds the toggle `shortcut` (also inside the modal at `modal`) and every enabled entry's shortcut at `scope`,
-/// toggling `open` on the former and closing it when a command fires.
-pub fn bind_shortcuts<E: Entry>(
-    ctx: &Context,
-    salt: &KeyedSalt,
-    toggle: Option<KeyboardShortcut>,
-    entries: &[E],
-    scope: Scope,
-    modal: Id,
-    open: &mut bool,
-) {
+/// Shortcut binding of a palette: its toggle and its entries' accelerators.
+#[derive(Clone, Copy, Debug)]
+pub struct Shortcuts<'a> {
+    /// Palette salt; keys the toggle's action.
+    pub salt: &'a KeyedSalt,
+    /// Shortcut opening and closing the palette, bound globally and inside the palette's modal.
+    pub toggle: Option<KeyboardShortcut>,
+    /// Scope of the entries' accelerators.
+    pub scope: Scope,
+    /// Layer id of the palette's modal.
+    pub modal: Id,
+}
+
+impl Shortcuts<'_> {
+    /// Binds the toggle and every enabled entry's shortcut, toggling `open` on the former and closing it when a
+    /// command fires.
+    pub fn bind<E: Entry>(&self, ctx: &Context, entries: &[E], open: &mut bool) {
+        bind_shortcuts(ctx, self, entries, open);
+    }
+}
+
+fn bind_shortcuts<E: Entry>(ctx: &Context, s: &Shortcuts<'_>, entries: &[E], open: &mut bool) {
+    let &Shortcuts {
+        salt,
+        toggle,
+        scope,
+        modal,
+    } = s;
     if let Some(k) = toggle {
         let action = ActionId::from(String::from(StableId::of(salt, "shortcut")));
         shortcut::bind(ctx, Scope::Global, k, action.clone());

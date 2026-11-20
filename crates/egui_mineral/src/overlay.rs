@@ -37,7 +37,7 @@ pub fn modal<T>(r: &ModalResponse<T>) -> Option<Dismiss> {
         Some(Dismiss::Outside)
     } else if r.response.should_close() {
         Some(Dismiss::Close)
-    } else if r.is_top_modal && !r.any_popup_open && crate::kit::overlay::consume_escape(&r.response.ctx) {
+    } else if r.is_top_modal && !r.any_popup_open && crate::kit::layer::consume_escape(&r.response.ctx) {
         Some(Dismiss::Escape)
     } else {
         None
@@ -270,7 +270,7 @@ impl Popup {
                 direction: rt.core().i18n().direction(),
             },
         );
-        let mut area = crate::kit::overlay::floating(rt.core(), id, placement.rect.min);
+        let mut area = crate::kit::layer::floating(rt.core(), id, placement.rect.min);
         if let Some(role) = self.role {
             area = area.role(role);
         }
@@ -279,7 +279,7 @@ impl Popup {
         }
         let InnerResponse { inner, response } = area.show(ctx, |ui| add(&mut rt.ui(ui), &placement));
         if let Some(parent) = parent {
-            crate::kit::overlay::keep_above(ctx, response.layer_id, parent);
+            crate::kit::layer::keep_above(ctx, response.layer_id, parent);
         }
         PopupArea {
             placement,
@@ -400,7 +400,7 @@ pub fn dismissal(core: &Core, layer: LayerId, inside: &[Rect], return_focus: Opt
     // egui clears focus on Escape before any widget runs.
     let last = Option::<Id>::load(ctx, last_key);
     let above_modal = ctx.memory(|m| m.is_above_modal_layer(layer));
-    let dismiss = if above_modal && crate::kit::overlay::consume_escape(ctx) {
+    let dismiss = if above_modal && crate::kit::layer::consume_escape(ctx) {
         let to = last
             .filter(|&f| ctx.read_response(f).is_some_and(|r| r.layer_id != layer))
             .or(return_focus);
@@ -574,7 +574,7 @@ mod tests {
                     return;
                 }
                 let rt = ui.rt();
-                let modal = crate::kit::overlay::modal(rt.core(), Id::unique("dialog")).show(rt.ctx(), |ui| {
+                let modal = crate::kit::layer::modal(rt.core(), Id::unique("dialog")).show(rt.ctx(), |ui| {
                     let (rect, trigger) = ui.allocate_exact_size(vec2(40.0, 20.0), Sense::click());
                     s.trigger = Some(rect);
                     s.open |= trigger.is_pointer_button_down_on();

@@ -7,9 +7,9 @@ use egui_mineral::{
     i18n::{Direction, I18n},
     kit::{self, state::TempState},
     layout::{Constraints, Measure},
-    select::{Selection, SelectionMode},
+    select::{ItemKey, Selection, SelectionMode},
     semantic::{self, AgentKey, KeyedSalt, Role, SemanticNode, StableId},
-    table::{ColumnWidths, ItemKey, Rows, SortOrder, SortState},
+    table::{ColumnWidths, Rows, SortOrder, SortState},
     widget::{Availability, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
 };
 
@@ -606,7 +606,7 @@ impl Order {
     }
 
     // Shown rows whose key is selected; stale keys in the selection do not count.
-    fn selected<K: Ord + Clone>(&self, selection: &Selection<K>, rows: &dyn Rows<K>) -> usize {
+    fn selected<K: ItemKey>(&self, selection: &Selection<K>, rows: &dyn Rows<K>) -> usize {
         if selection.selected().next().is_none() {
             return 0;
         }
@@ -624,7 +624,7 @@ struct Events<K> {
     activated: Option<K>,
 }
 
-fn single<K: Ord + Clone>(selection: Option<&Selection<K>>) -> bool {
+fn single<K: ItemKey>(selection: Option<&Selection<K>>) -> bool {
     selection.is_some_and(|s| s.mode() == SelectionMode::Single)
 }
 
@@ -685,7 +685,7 @@ fn run<K: ItemKey>(
         };
         body_row(ui, &mut tb, &pass, &mut grid, &mut ev, (r, data, key), &mut cell);
     }
-    if kit::semantic::wanted(ui.ctx(), None) {
+    if kit::nodes::wanted(ui.ctx(), None) {
         for r in (0..shown).filter(|r| !visible.contains(r) && stop != Some(*r)) {
             if let Some(key) = order.data(r).and_then(|d| keys.key(d)) {
                 culled_row(ui, &tb, &pass, r, &key);
@@ -906,7 +906,7 @@ fn body_row<K: ItemKey>(
 
 fn culled_row<K: ItemKey>(ui: &MineralUi<'_, Fluent>, tb: &Table<'_, K>, pass: &Pass<'_, K>, r: usize, key: &K) {
     let rid = pass.id.with(("row", key));
-    kit::semantic::emit_culled(ui, rid, pass.geo.row(r + 1), || row_node(tb, key));
+    kit::nodes::emit_culled(ui, rid, pass.geo.row(r + 1), || row_node(tb, key));
 }
 
 fn emit_row<K: ItemKey>(ui: &MineralUi<'_, Fluent>, tb: &Table<'_, K>, rid: Id, rect: Rect, key: &K) {

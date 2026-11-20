@@ -516,7 +516,7 @@ fn paint_toast(rt: &Rt, s: &Shown, at: &Placement<'_>) -> Painted {
     let pos = toast.position;
     let edge = d::EDGE_OFFSET + at.stack - (1.0 - at.eased) * d::SLIDE;
     let offset = vec2(0.0, if pos.bottom() { -edge } else { edge });
-    let area = egui_mineral::kit::overlay::area(rt.core(), at.key.with("area"))
+    let area = egui_mineral::kit::layer::area(rt.core(), at.key.with("area"))
         .order(Order::Middle)
         .anchor(pos.anchor(dir), offset)
         .interactable(at.interactive);

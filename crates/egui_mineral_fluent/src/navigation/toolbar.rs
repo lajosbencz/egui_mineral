@@ -1,5 +1,6 @@
 use egui::{Frame, Margin, UiBuilder, vec2};
 use egui_mineral::kit::choice::Choice;
+use egui_mineral::select::ItemKey;
 use egui_mineral::{
     action::Clicked,
     focus::{self as roving, RovingFocus},
@@ -196,7 +197,7 @@ pub struct ToolbarRadioGroup<'a, K> {
     buttons: Vec<ToolbarRadioButton>,
 }
 
-impl<'a, K: PartialEq + Clone> ToolbarRadioGroup<'a, K> {
+impl<'a, K: ItemKey> ToolbarRadioGroup<'a, K> {
     /// Checks the button whose value equals `selected`, none when no button matches.
     pub fn new(selected: &'a mut K) -> Self {
         Self {
@@ -227,7 +228,7 @@ trait Radios {
     fn select(&mut self, index: usize) -> bool;
 }
 
-impl<K: PartialEq + Clone> Radios for Choice<'_, K> {
+impl<K: ItemKey> Radios for Choice<'_, K> {
     fn selected(&self) -> Option<usize> {
         self.index()
     }
@@ -273,7 +274,7 @@ macro_rules! entries {
         }
 
         /// Appends radio buttons.
-        pub fn radio_group<K: PartialEq + Clone + 'a>(mut self, group: ToolbarRadioGroup<'a, K>) -> Self {
+        pub fn radio_group<K: ItemKey + 'a>(mut self, group: ToolbarRadioGroup<'a, K>) -> Self {
             self.$field.push(Entry::Radio(RadioEntry {
                 selected: Box::new(group.selected),
                 buttons: group.buttons,

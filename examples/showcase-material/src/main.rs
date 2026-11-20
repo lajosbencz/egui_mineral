@@ -446,7 +446,7 @@ mod tests {
         let session = std::thread::spawn(move || {
             futures_executor::block_on(async {
                 agent.snapshot().await?;
-                agent.act("rail-2-nav-item", AgentAction::Click).await
+                agent.act("rail-communication-nav-item", AgentAction::Click).await
             })
         });
         let deadline = Instant::now() + AGENT_DEADLINE;

@@ -1111,7 +1111,7 @@ mod tests {
         let modal = Id::unique("dialog");
         let scopes = std::cell::RefCell::new(Vec::new());
         let register = |ui: &mut egui::Ui| {
-            let area = crate::kit::overlay::modal_area(rt.core(), modal);
+            let area = crate::kit::layer::modal_area(rt.core(), modal);
             Modal {
                 area,
                 backdrop_color: egui::Color32::TRANSPARENT,

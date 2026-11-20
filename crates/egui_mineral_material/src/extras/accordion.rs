@@ -3,6 +3,7 @@ use crate::MaterialExt;
 use crate::MaterialUiExt as _;
 use crate::spec::TypeScale;
 use egui_mineral::i18n::I18n;
+use egui_mineral::select::ItemKey;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::MineralUi;
 use std::f32::consts::PI;
@@ -286,7 +287,7 @@ pub struct AccordionUi<'u, 'e, K> {
 
 egui_mineral::kit::opaque_debug!(AccordionUi<'_, '_, K>);
 
-impl<K: Ord + Clone + egui::AsIdSalt> AccordionUi<'_, '_, K> {
+impl<K: ItemKey> AccordionUi<'_, '_, K> {
     fn divider(&mut self) {
         let color = self.rt.tokens().role(divider::COLOR);
         let (r, _) = self
@@ -343,8 +344,8 @@ impl<K: Ord + Clone + egui::AsIdSalt> AccordionUi<'_, '_, K> {
         );
         let last = i + 1 == self.count && k <= 0.0;
         let header = Header {
-            salt: self.salt.child(("header", i)),
-            key: self.key.sub((i, "header")),
+            salt: self.salt.child(("header", &key)),
+            key: self.key.sub((&key, "header")),
             panel: &panel,
             expanded: open,
             turn: k,
@@ -353,8 +354,8 @@ impl<K: Ord + Clone + egui::AsIdSalt> AccordionUi<'_, '_, K> {
             flat,
         };
         let mut hr = rt.ui(self.ui).mineral(header);
-        let expand_req = egui_mineral::kit::input::accesskit_requested(&ctx, hr.id, Action::Expand);
-        let collapse_req = egui_mineral::kit::input::accesskit_requested(&ctx, hr.id, Action::Collapse);
+        let expand_req = egui_mineral::kit::interact::accesskit_requested(&ctx, hr.id, Action::Expand);
+        let collapse_req = egui_mineral::kit::interact::accesskit_requested(&ctx, hr.id, Action::Collapse);
         if !panel.disabled {
             self.headers.push(hr.id);
             if hr.changed() || (expand_req && !open) || (collapse_req && open) {
@@ -415,7 +416,7 @@ impl<K: Ord + Clone + egui::AsIdSalt> AccordionUi<'_, '_, K> {
     }
 }
 
-impl<'a, K: Ord + Clone + egui::AsIdSalt> Accordion<'a, K> {
+impl<'a, K: ItemKey> Accordion<'a, K> {
     /// `expansion` is the bound set of expanded panel keys. Agent key prefix `<id_salt>`.
     pub fn new(id_salt: impl Into<KeyedSalt>, expansion: &'a mut Expansion<K>) -> Self {
         let id_salt: KeyedSalt = id_salt.into();

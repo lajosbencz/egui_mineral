@@ -326,10 +326,13 @@ pub(crate) fn expand(input: &Input) -> syn::Result<TokenStream2> {
     if let (Some(inherit), None) = (&input.inherit, &input.inherited) {
         return Ok(forward(input, inherit));
     }
-    let root = input
-        .root
-        .as_ref()
-        .map_or_else(|| quote_spanned!(at=> ::egui_mineral), |root| quote!(#root));
+    let root = input.root.as_ref().map_or_else(
+        || {
+            let host = crate::host();
+            quote_spanned!(at=> #host)
+        },
+        |root| quote!(#root),
+    );
     let scope = Scope {
         at,
         relative: &relative,

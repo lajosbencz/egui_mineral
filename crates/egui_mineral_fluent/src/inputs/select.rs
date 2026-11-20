@@ -1,3 +1,4 @@
+use egui_mineral::select::ItemKey;
 use egui_mineral::{
     i18n::I18n,
     kit,
@@ -20,7 +21,7 @@ use egui_mineral::kit::choice::Choice;
 #[must_use = "show with ui.mineral(..)"]
 pub struct Select<'a, K>(Dropdown<'a, K>);
 
-impl<'a, K: PartialEq + Clone> Select<'a, K> {
+impl<'a, K: ItemKey> Select<'a, K> {
     /// Shows the option whose value equals `selected`; `label` is the accessible name. Agent key
     /// `<id_salt>-select`.
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selected: &'a mut K) -> Self {
@@ -58,7 +59,7 @@ impl<'a, K: PartialEq + Clone> Select<'a, K> {
     }
 }
 
-impl<K: PartialEq + Clone> Select<'_, K> {
+impl<K: ItemKey> Select<'_, K> {
     /// Default [`InputAppearance::Outline`].
     pub fn appearance(mut self, appearance: InputAppearance) -> Self {
         self.0 = self.0.appearance(appearance);
@@ -103,7 +104,7 @@ impl<K: PartialEq + Clone> Select<'_, K> {
     }
 }
 
-impl<K: PartialEq + Clone> MineralWidget for Select<'_, K> {
+impl<K: ItemKey> MineralWidget for Select<'_, K> {
     type Kit = Fluent;
     type State = ListState;
     type Output = ();

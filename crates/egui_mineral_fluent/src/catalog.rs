@@ -1,5 +1,5 @@
 /// Component group of the stylekit; each variant is the public module of the same name.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, egui_mineral::semantic::KeySalt)]
 #[non_exhaustive]
 pub enum Category {
     /// Buttons, links, toolbars.
@@ -671,7 +671,7 @@ meta!(
     "react-menu/library/src/components/MenuItem/useMenuItemStyles.styles.ts"
 );
 meta!(
-    Carousel<'a>,
+    Carousel<'a, K>,
     Navigation,
     "Carousel",
     "react-carousel/library/src/components/Carousel/useCarouselStyles.styles.ts"
@@ -845,7 +845,7 @@ pub const CATALOG: &[ComponentMeta] = &[
             styles: "react-menu/library/src/components/MenuSplitGroup/useMenuSplitGroupStyles.styles.ts",
         },
     },
-    <Carousel<'static>>::META,
+    <Carousel<'static, usize>>::META,
     CarouselCard::META,
     MenuGrid::META,
     MenuGridRow::META,

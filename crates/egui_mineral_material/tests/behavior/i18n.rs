@@ -158,7 +158,11 @@ mod mirror {
             });
         TreeView::new("tree", "Tree", &roots, &mut expansion).show(ui);
         // Wider than its content: the content hugs the reading start.
-        ui.mineral(TransferList::new("tl", ["Red", "Green", "Blue"], &mut chosen).preferred_width(600.0));
+        ui.mineral(
+            TransferList::new("tl", &mut chosen)
+                .items(["Red", "Green", "Blue"].into_iter().enumerate())
+                .preferred_width(600.0),
+        );
         SettingRow::new("row", "Label").supporting("Help").show_value(ui, "On");
         Stepper::new("flow", &mut steps)
             .step("Account")

@@ -361,11 +361,11 @@ impl ListItem {
         };
         for side in [Edge::Start, Edge::End] {
             let aid = swipe_action_id(r.id, side);
-            if self.swipe(side).is_some() && kit::input::accesskit_requested(ctx, aid, Action::Click) {
+            if self.swipe(side).is_some() && kit::interact::accesskit_requested(ctx, aid, Action::Click) {
                 *swiped = Some(side);
             }
         }
-        if r.has_focus() && kit::input::key_presses(ctx).contains(&(Key::Delete, egui::Modifiers::NONE)) {
+        if r.has_focus() && kit::interact::key_presses(ctx).contains(&(Key::Delete, egui::Modifiers::NONE)) {
             *swiped = [Edge::End, Edge::Start]
                 .into_iter()
                 .find(|s| self.swipe(*s).is_some_and(|a| a.removes_row));
@@ -571,7 +571,7 @@ impl MineralWidget for ListItem {
         }
         let row_target = self.clickable || self.toggles();
         if row_target {
-            kit::input::hover_cursor(ui.core(), response, Availability::disabled_if(self.disabled));
+            kit::interact::hover_cursor(ui.core(), response, Availability::disabled_if(self.disabled));
         }
         let dir = rt.i18n().direction();
         let row = RowState {

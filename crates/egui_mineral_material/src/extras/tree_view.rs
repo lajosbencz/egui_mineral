@@ -239,7 +239,7 @@ impl RowWidget<'_> {
                 let left = dir.reversed().start_x(rect, Rangef::new(from_end - slot, from_end));
                 let hit = Rect::from_min_size(pos2(left, rect.center().y - target / 2.0), vec2(slot, target));
                 let enabled = !self.disabled && !a.disabled;
-                kit::input::interact(
+                kit::interact::interact(
                     ui,
                     hit,
                     r.id.with(("mineral::tree_action", i)),
@@ -353,7 +353,7 @@ impl MineralWidget for RowWidget<'_> {
     ) -> WidgetResponse<RowOut> {
         let t = ui.tokens();
         let r = &frame.response;
-        kit::focus::follow_press(r);
+        kit::interact::follow_press(r);
         let rect = frame.zones.visual;
         let dir = ui.i18n().direction();
         let mut out = RowOut::default();
@@ -398,7 +398,7 @@ impl MineralWidget for RowWidget<'_> {
                 out.toggle = true;
             }
         }
-        let ak = |a| kit::input::accesskit_requested(ui.ctx(), r.id, a);
+        let ak = |a| kit::interact::accesskit_requested(ui.ctx(), r.id, a);
         if self.has_children && ((ak(Action::Expand) && !self.expanded) || (ak(Action::Collapse) && self.expanded)) {
             out.toggle = true;
         }
@@ -642,7 +642,7 @@ impl<'a, N: TreeData> TreeView<'a, N> {
         let Some(row) = rows.get(i) else { return };
         let widget = self.row_widget(row, look, focus::TabStop::Skip);
         let rid = ui.scope_id().with(widget.id_salt());
-        kit::semantic::emit_culled(ui, rid, rect, || widget.node(i18n));
+        kit::nodes::emit_culled(ui, rid, rect, || widget.node(i18n));
     }
 
     fn row_widget(&self, row: &TreeRow<'a, N>, look: RowLook, tab_stop: focus::TabStop) -> RowWidget<'a> {
@@ -838,7 +838,7 @@ impl<'a, N: TreeData> TreeView<'a, N> {
     ) {
         let ctx = rt.ctx();
         let dir = rt.i18n().direction();
-        for (k, m) in kit::input::key_presses(ctx) {
+        for (k, m) in kit::interact::key_presses(ctx) {
             if m.alt && self.can_reorder() {
                 if let Some(mv) = tree::move_key(self.roots, rows, cur, k, dir) {
                     state.pending = Some(mv.node.clone());
@@ -989,7 +989,7 @@ impl<'a, N: TreeData> TreeView<'a, N> {
 
         self.apply_events(&rows, events, &mut out);
         if let Some((cur, fid)) = focused {
-            kit::focus::lock_arrows(ctx, fid, kit::focus::Arrows::Both);
+            kit::interact::lock_arrows(ctx, fid, kit::interact::Arrows::Both);
             self.navigate(rt, &rows, cur, &mut state, &mut out);
         }
         self.expand_drop_target(&mut out);

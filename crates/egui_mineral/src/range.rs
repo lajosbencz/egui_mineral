@@ -619,8 +619,8 @@ impl RangeModel {
         let ctx = core.ctx();
         let mut v = v;
         if ctx.memory(|m| m.has_focus(id)) {
-            crate::kit::focus::lock_arrows(ctx, id, crate::kit::focus::Arrows::Both);
-            for k in crate::kit::input::plain_key_presses(ctx) {
+            crate::kit::interact::lock_arrows(ctx, id, crate::kit::interact::Arrows::Both);
+            for k in crate::kit::interact::plain_key_presses(ctx) {
                 v = self.on_key(v, k, track).unwrap_or(v);
             }
         }

@@ -7,7 +7,7 @@ use egui::KeyboardShortcut;
 use crate::{
     action::{ActionKey, Clicked},
     icon::Icon,
-    kit::palette::Entry,
+    kit::command_palette::Entry,
     overlay::Dismiss,
     semantic::KeyedSalt,
     shortcut::ActionId,

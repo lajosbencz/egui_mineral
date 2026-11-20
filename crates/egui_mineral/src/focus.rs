@@ -6,10 +6,7 @@ use egui::{Context, Event, Id, Key, Modifiers, Sense, TouchPhase};
 
 use crate::{
     i18n::Direction,
-    kit::{
-        focus::{Arrows, lock_arrows, remember},
-        input::plain_key_presses,
-    },
+    kit::interact::{Arrows, lock_arrows, plain_key_presses, remember},
     layout::Axis,
 };
 
@@ -461,7 +458,7 @@ mod tests {
         let rect = egui::Rect::from_min_size(egui::pos2(10.0, 10.0), egui::vec2(40.0, 20.0));
         let mut h = harness(
             |ui, s: &mut (bool, bool)| {
-                let r = crate::kit::input::interact(
+                let r = crate::kit::interact::interact(
                     ui,
                     rect,
                     Id::unique("pressable"),

@@ -9,7 +9,7 @@ pub use egui_mineral_macros::KeySalt;
 pub use key::{AgentKey, KeyKind, KeyParts, KeySalt, KeyedSalt, StableId};
 
 use crate::{
-    kit::semantic::{RECT_KEY, push, wanted},
+    kit::nodes::{RECT_KEY, push, wanted},
     select::Check,
     shortcut::Mnemonic,
     widget::Availability,
@@ -236,7 +236,7 @@ fn write(ctx: &Context, id: Option<Id>, rect: Rect, node: impl FnOnce() -> Seman
     push(ctx, node);
 }
 
-/// [`emit`] over the rect [`remember_rect`](crate::kit::semantic::remember_rect) stored for `id`: parents emit
+/// [`emit`] over the rect [`remember_rect`](crate::kit::nodes::remember_rect) stored for `id`: parents emit
 /// after their children.
 pub fn emit_parent(ctx: &Context, id: Id, node: impl FnOnce() -> SemanticNode) {
     if wanted(ctx, Some(id)) {
