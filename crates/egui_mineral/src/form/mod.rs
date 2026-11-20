@@ -621,8 +621,8 @@ impl<'a, T> Form<'a, T> {
         self
     }
 
-    /// Cross-field rule over the whole value, run on submit; the error shows on its [`CheckError::field`], or on
-    /// the form.
+    /// Cross-field rule over the whole value, run on submit; the error shows on its field
+    /// ([`CheckError::on_field`]), or on the form.
     pub fn rule(mut self, rule: impl Fn(&T) -> Result<(), CheckError> + Send + Sync + 'static) -> Self {
         self.rules.push(Box::new(rule));
         self
