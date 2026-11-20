@@ -293,9 +293,8 @@ pub(crate) fn choice(ui: &mut Mui<'_>, id: &'static str, label: &str, labels: &[
 }
 
 pub(crate) fn count(ui: &mut Mui<'_>, id: &'static str, label: &str, value: &mut usize, max: usize) {
-    let rt = ui.rt();
     let mut v = *value as f64;
-    rt.ui(ui).mineral(
+    ui.mineral(
         NumberField::new(id, label, RangeModel::new(0.0, max as f64).step(1.0), &mut v).preferred_width(140.0),
     );
     #[expect(clippy::cast_sign_loss, reason = "the range starts at 0")]
@@ -309,8 +308,7 @@ pub(crate) fn section(
     meta: Option<ComponentMeta>,
     add: impl FnOnce(&mut Mui<'_>),
 ) {
-    let rt = ui.rt();
-    ui.push_id(title, |ui| section_body(&mut rt.ui(ui), title, meta, add));
+    ui.push_id(title, |ui| section_body(ui, title, meta, add));
 }
 
 fn section_body(ui: &mut Mui<'_>, title: &'static str, meta: Option<ComponentMeta>, add: impl FnOnce(&mut Mui<'_>)) {
@@ -344,5 +342,5 @@ fn section_body(ui: &mut Mui<'_>, title: &'static str, meta: Option<ComponentMet
     ui.add_space(adaptive::grid(2));
     add(ui);
     ui.add_space(adaptive::grid(2));
-    rt.ui(ui).mineral(Divider::new("section-divider"));
+    ui.mineral(Divider::new("section-divider"));
 }

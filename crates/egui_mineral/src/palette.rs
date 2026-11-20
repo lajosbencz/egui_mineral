@@ -2,7 +2,9 @@
 
 use egui::KeyboardShortcut;
 
-use crate::{icon::Icon, kit::palette::Entry, overlay::Dismiss, semantic::KeyedSalt, shortcut::ActionId};
+use crate::{
+    action::Clicked, icon::Icon, kit::palette::Entry, overlay::Dismiss, semantic::KeyedSalt, shortcut::ActionId,
+};
 
 /// Entry of a stylekit's command palette.
 #[derive(Clone, Debug)]
@@ -11,6 +13,7 @@ pub struct PaletteCommand {
     label: String,
     group: Option<String>,
     id: Option<ActionId>,
+    key: Option<ActionId>,
     shortcut: Option<KeyboardShortcut>,
     icon: Option<Icon>,
     disabled: bool,
@@ -24,6 +27,7 @@ impl PaletteCommand {
             label: label.into(),
             group: None,
             id: None,
+            key: None,
             shortcut: None,
             icon: None,
             disabled: false,
@@ -41,6 +45,13 @@ impl PaletteCommand {
     /// Header the entry is listed under.
     pub fn group(mut self, group: impl Into<String>) -> Self {
         self.group = Some(group.into());
+        self
+    }
+
+    /// App key reported as [`Clicked::key`] in [`CommandPaletteResponse::clicked`] when the entry runs; several
+    /// entries may share one (a page and its topics). See [`action`](crate::action).
+    pub fn key(mut self, key: impl Into<ActionId>) -> Self {
+        self.key = Some(key.into());
         self
     }
 
@@ -96,6 +107,10 @@ impl Entry for PaletteCommand {
     fn accelerator(&self) -> Option<KeyboardShortcut> {
         self.shortcut
     }
+
+    fn key(&self) -> Option<&ActionId> {
+        self.key.as_ref()
+    }
 }
 
 impl From<&str> for PaletteCommand {
@@ -116,15 +131,16 @@ impl From<String> for PaletteCommand {
 pub struct CommandPaletteResponse {
     /// Palette surface; `None` while closed.
     pub response: Option<egui::Response>,
-    /// Run entry without a [`PaletteCommand::command`]; command entries fire their command instead.
-    pub clicked: Option<usize>,
+    /// Run entry without a [`PaletteCommand::command`], with its [`PaletteCommand::key`]; command entries fire
+    /// their command instead.
+    pub clicked: Option<Clicked>,
     /// Why it closed without running an entry.
     pub dismissed: Option<Dismiss>,
 }
 
 impl CommandPaletteResponse {
     /// Shown surface `response` with the entry run and the dismissal of this pass.
-    pub fn new(response: egui::Response, clicked: Option<usize>, dismissed: Option<Dismiss>) -> Self {
+    pub fn new(response: egui::Response, clicked: Option<Clicked>, dismissed: Option<Dismiss>) -> Self {
         Self {
             response: Some(response),
             clicked,

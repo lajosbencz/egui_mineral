@@ -189,6 +189,7 @@ macro_rules! __widget_meta {
     };
 }
 
+pub mod action;
 /// Agent API: snapshots and actions over raw egui input.
 pub mod agent;
 /// Anchored popup placement: side, alignment, flip and shift.
@@ -267,6 +268,7 @@ pub mod window;
 /// Common imports for apps; widget authors add [`kit::prelude`].
 pub mod prelude {
     pub use crate::{
+        action::Clicked,
         anchor::Side,
         bus::{Bus, Spawner, SpawnerExt},
         date::{Date, DateBounds, DateRange, Time},
@@ -283,7 +285,7 @@ pub mod prelude {
         palette::{CommandPaletteResponse, PaletteCommand},
         platform::{FileFilter, FileType},
         range::{RangeModel, Scale},
-        runtime::Runtime,
+        runtime::{InitError, Runtime},
         select::{Selection, SelectionResponse},
         semantic::{KeySalt, KeyedSalt},
         shortcut::ActionId,

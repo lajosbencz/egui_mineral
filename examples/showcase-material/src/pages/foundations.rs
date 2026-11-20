@@ -133,11 +133,9 @@ fn contrast(bg: Color32) -> Color32 {
 }
 
 fn theme(ui: &mut Mui<'_>, shared: &mut Shared) {
-    let rt = ui.rt();
     let s = &mut shared.settings;
     let mut theme = Some(s.theme);
-    rt.ui(ui)
-        .mineral(Select::new("set-theme", "Theme", THEMES.map(|(_, n)| n), &mut theme).preferred_width(240.0));
+    ui.mineral(Select::new("set-theme", "Theme", THEMES.map(|(_, n)| n), &mut theme).preferred_width(240.0));
     if let Some(t) = theme {
         s.theme = t;
     }
@@ -155,11 +153,11 @@ fn theme(ui: &mut Mui<'_>, shared: &mut Shared) {
         });
     ui.add_space(8.0);
     let mut seed = Color32::from_rgb(s.seed[0], s.seed[1], s.seed[2]);
-    rt.ui(ui).mineral(ColorPicker::new("set-seed", "Seed color", &mut seed));
+    ui.mineral(ColorPicker::new("set-seed", "Seed color", &mut seed));
     s.seed = [seed.r(), seed.g(), seed.b()];
     ui.add_space(8.0);
     let mut variant = Some(s.variant);
-    rt.ui(ui).mineral(
+    ui.mineral(
         Select::new("set-variant", "Scheme variant", VARIANTS.map(|(_, n)| n), &mut variant).preferred_width(240.0),
     );
     if let Some(v) = variant {
@@ -167,14 +165,13 @@ fn theme(ui: &mut Mui<'_>, shared: &mut Shared) {
     }
     ui.add_space(8.0);
     let mut locale = Some(s.locale);
-    rt.ui(ui)
-        .mineral(Select::new("set-locale", "Locale", LOCALES, &mut locale).preferred_width(240.0));
+    ui.mineral(Select::new("set-locale", "Locale", LOCALES, &mut locale).preferred_width(240.0));
     if let Some(l) = locale {
         s.locale = l;
     }
     ui.add_space(8.0);
     let mut density = f64::from(s.density);
-    rt.ui(ui).mineral(
+    ui.mineral(
         ValueSlider::new(
             "set-density",
             "Density",
@@ -334,9 +331,9 @@ fn shapes(ui: &mut Mui<'_>) {
                     let (rect, _) = ui.allocate_exact_size(vec2(96.0, 72.0), Sense::hover());
                     ui.painter()
                         .rect_filled(rect, CornerRadius::same(r), t.color.primary_container);
-                    caption(&mut rt.ui(ui), TypeScale::BodySmall, name);
+                    caption(ui, TypeScale::BodySmall, name);
                     caption(
-                        &mut rt.ui(ui),
+                        ui,
                         TypeScale::BodySmall,
                         &if r == u8::MAX {
                             "full".to_owned()
@@ -368,7 +365,7 @@ fn elevation(ui: &mut Mui<'_>) {
                             ui.label(format!("Level {i}"));
                         });
                     ui.add_space(12.0);
-                    caption(&mut rt.ui(ui), TypeScale::BodySmall, &format!("{} dp", level.dp()));
+                    caption(ui, TypeScale::BodySmall, &format!("{} dp", level.dp()));
                 })
             });
         }
@@ -405,7 +402,7 @@ fn motion_demo(ui: &mut Mui<'_>, s: &mut State) {
     }
     ui.add_space(8.0);
     ui.label("Duration token");
-    rt.ui(ui).mineral(
+    ui.mineral(
         ValueSlider::new(
             "motion-step",
             "Duration step",

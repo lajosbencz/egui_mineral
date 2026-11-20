@@ -24,9 +24,7 @@ pub(crate) fn show(ui: &mut Fui<'_>) {
         );
     }
     heading(ui, "h-shadows", "Shadows");
-    let rt = ui.rt();
     ui.horizontal_wrapped(|ui| {
-        let ui = &mut rt.ui(ui);
         ui.spacing_mut().item_spacing = vec2(24.0, 24.0);
         for &level in Elevation::ALL {
             let (rect, _) = ui.allocate_exact_size(TILE, Sense::hover());
@@ -45,9 +43,7 @@ pub(crate) fn show(ui: &mut Fui<'_>) {
         }
     });
     heading(ui, "h-radii", "Corner radii");
-    let rt = ui.rt();
     ui.horizontal_wrapped(|ui| {
-        let ui = &mut rt.ui(ui);
         for &radius in Radius::ALL {
             let (rect, _) = ui.allocate_exact_size(TILE, Sense::hover());
             ui.painter().rect(
@@ -66,9 +62,7 @@ pub(crate) fn show(ui: &mut Fui<'_>) {
         }
     });
     heading(ui, "h-colors", "Alias colors");
-    let rt = ui.rt();
     ui.horizontal_wrapped(|ui| {
-        let ui = &mut rt.ui(ui);
         ui.spacing_mut().item_spacing = vec2(4.0, 4.0);
         for &token in ColorToken::ALL {
             let (rect, _) = ui.allocate_exact_size(SWATCH, Sense::hover());

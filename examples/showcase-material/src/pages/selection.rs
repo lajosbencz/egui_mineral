@@ -195,30 +195,23 @@ pub(crate) fn show(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
 }
 
 fn checkbox(ui: &mut Mui<'_>, s: &mut State) {
-    let rt = ui.rt();
     super::section(ui, TOPICS[0], Some(<CheckButton<'static>>::META), |ui| {
         // Top-aligned: the error line makes one item taller.
         ui.with_layout(Layout::left_to_right(Align::Min).with_main_wrap(true), |ui| {
-            rt.ui(ui)
-                .mineral(CheckButton::new("sel-check", "Checked", &mut s.check));
-            rt.ui(ui)
-                .mineral(CheckButton::new("sel-check-off", "Unchecked", &mut s.check_off));
-            rt.ui(ui)
-                .mineral(CheckButton::new("sel-check-err", "Error", &mut s.check_err).error("Required"));
+            ui.mineral(CheckButton::new("sel-check", "Checked", &mut s.check));
+            ui.mineral(CheckButton::new("sel-check-off", "Unchecked", &mut s.check_off));
+            ui.mineral(CheckButton::new("sel-check-err", "Error", &mut s.check_err).error("Required"));
             let mut on = true;
-            rt.ui(ui)
-                .mineral(CheckButton::new("sel-check-dis-on", "Disabled on", &mut on).disabled(true));
+            ui.mineral(CheckButton::new("sel-check-dis-on", "Disabled on", &mut on).disabled(true));
             let mut off = false;
-            rt.ui(ui)
-                .mineral(CheckButton::new("sel-check-dis-off", "Disabled off", &mut off).disabled(true));
+            ui.mineral(CheckButton::new("sel-check-dis-off", "Disabled off", &mut off).disabled(true));
             let mut ind = false;
-            rt.ui(ui)
-                .mineral(CheckButton::new("sel-check-ind", "Indeterminate", &mut ind).indeterminate(true));
+            ui.mineral(CheckButton::new("sel-check-ind", "Indeterminate", &mut ind).indeterminate(true));
         });
         caption(ui, TypeScale::LabelMedium, "Long label wraps at the available width");
         ui.scope(|ui| {
             ui.set_max_width(280.0);
-            rt.ui(ui).mineral(CheckButton::new(
+            ui.mineral(CheckButton::new(
                 "sel-check-long",
                 "Export every selected layer, including hidden ones, as separate files",
                 &mut s.check_long,
@@ -228,17 +221,14 @@ fn checkbox(ui: &mut Mui<'_>, s: &mut State) {
         let all = s.children.iter().all(|c| *c);
         let any = s.children.iter().any(|c| *c);
         let mut parent = all;
-        if rt
-            .ui(ui)
-            .mineral(CheckButton::new("sel-check-parent", "Select all", &mut parent).indeterminate(any && !all))
+        if ui.mineral(CheckButton::new("sel-check-parent", "Select all", &mut parent).indeterminate(any && !all))
             .changed()
         {
             s.children = [parent; 3];
         }
         ui.indent("sel-check-children", |ui| {
             for (i, c) in s.children.iter_mut().enumerate() {
-                rt.ui(ui)
-                    .mineral(CheckButton::new(("sel-check-child", i), format!("Option {}", i + 1), c));
+                ui.mineral(CheckButton::new(("sel-check-child", i), format!("Option {}", i + 1), c));
             }
         });
     });
@@ -304,30 +294,28 @@ fn switch(ui: &mut Mui<'_>, s: &mut State) {
 }
 
 fn slider(ui: &mut Mui<'_>, s: &mut State) {
-    let rt = ui.rt();
     super::section(ui, TOPICS[3], Some(<ValueSlider<'static>>::META), |ui| {
         let r100 = || RangeModel::new(0.0, 100.0);
         caption(ui, TypeScale::LabelMedium, "Continuous");
-        rt.ui(ui)
-            .mineral(ValueSlider::new("sel-slider", "Continuous", r100(), &mut s.slider).preferred_width(360.0));
+        ui.mineral(ValueSlider::new("sel-slider", "Continuous", r100(), &mut s.slider).preferred_width(360.0));
         caption(ui, TypeScale::LabelMedium, "Stepped (10)");
-        rt.ui(ui).mineral(
+        ui.mineral(
             ValueSlider::new("sel-slider-step", "Stepped", r100().step(10.0), &mut s.slider_step)
                 .preferred_width(360.0),
         );
         caption(ui, TypeScale::LabelMedium, "Stepped with ticks, formatted");
-        rt.ui(ui).mineral(
+        ui.mineral(
             ValueSlider::new("sel-slider-ticks", "Ticks", r100().step(10.0), &mut s.slider_ticks)
                 .ticks(true)
                 .format(|v| format!("{v:.0}%"))
                 .preferred_width(360.0),
         );
         caption(ui, TypeScale::LabelMedium, "Range");
-        rt.ui(ui).mineral(
+        ui.mineral(
             ValueSlider::range("sel-slider-range", "Range", r100(), &mut s.slider_range).preferred_width(360.0),
         );
         caption(ui, TypeScale::LabelMedium, "Range, stepped with ticks");
-        rt.ui(ui).mineral(
+        ui.mineral(
             ValueSlider::range(
                 "sel-slider-range-step",
                 "Stepped range",
@@ -338,7 +326,7 @@ fn slider(ui: &mut Mui<'_>, s: &mut State) {
             .preferred_width(360.0),
         );
         caption(ui, TypeScale::LabelMedium, "Centered (-50..50)");
-        rt.ui(ui).mineral(
+        ui.mineral(
             ValueSlider::new("sel-slider-center", "Centered", -50.0..=50.0, &mut s.slider_center)
                 .centered(true)
                 .preferred_width(360.0),
@@ -348,7 +336,7 @@ fn slider(ui: &mut Mui<'_>, s: &mut State) {
             TypeScale::LabelMedium,
             "Log scale (20 Hz..20 kHz), 3 significant digits",
         );
-        rt.ui(ui).mineral(
+        ui.mineral(
             ValueSlider::new(
                 "sel-slider-log",
                 "Frequency",
@@ -359,7 +347,7 @@ fn slider(ui: &mut Mui<'_>, s: &mut State) {
             .preferred_width(360.0),
         );
         caption(ui, TypeScale::LabelMedium, "End icons");
-        rt.ui(ui).mineral(
+        ui.mineral(
             ValueSlider::new("sel-slider-icons", "Volume", r100(), &mut s.slider_icons)
                 .min_icon(ICON_VOLUME_DOWN)
                 .max_icon(ICON_VOLUME_UP)
@@ -367,13 +355,13 @@ fn slider(ui: &mut Mui<'_>, s: &mut State) {
         );
         caption(ui, TypeScale::LabelMedium, "Disabled");
         let mut dis = 50.0;
-        rt.ui(ui).mineral(
+        ui.mineral(
             ValueSlider::new("sel-slider-dis", "Disabled", r100(), &mut dis)
                 .disabled(true)
                 .preferred_width(360.0),
         );
         caption(ui, TypeScale::LabelMedium, "No value indicator");
-        rt.ui(ui).mineral(
+        ui.mineral(
             ValueSlider::new("sel-slider-quiet", "Quiet", r100(), &mut s.slider_quiet)
                 .indicator(false)
                 .preferred_width(360.0),
@@ -381,7 +369,7 @@ fn slider(ui: &mut Mui<'_>, s: &mut State) {
         caption(ui, TypeScale::LabelMedium, "Expressive sizes XS, S, M, L, XL");
         let sizes = [Size::XSmall, Size::Small, Size::Medium, Size::Large, Size::XLarge];
         for (i, (size, v)) in sizes.into_iter().zip(s.slider_sizes.iter_mut()).enumerate() {
-            rt.ui(ui).mineral(
+            ui.mineral(
                 ValueSlider::new(("sel-slider-size", i), "Sized", r100(), v)
                     .size(size)
                     .min_icon(ICON_VOLUME_DOWN)
@@ -390,7 +378,7 @@ fn slider(ui: &mut Mui<'_>, s: &mut State) {
             );
         }
         caption(ui, TypeScale::LabelMedium, "Vertical");
-        rt.ui(ui).mineral(
+        ui.mineral(
             ValueSlider::new("sel-slider-vert", "Vertical", r100(), &mut s.slider_vert)
                 .axis(Axis::Vertical)
                 .preferred_height(180.0),
@@ -485,37 +473,35 @@ fn suggestion_chips(ui: &mut Mui<'_>, shared: &mut Shared) {
 }
 
 fn rating(ui: &mut Mui<'_>, s: &mut State) {
-    let rt = ui.rt();
     super::section(ui, TOPICS[5], Some(<Rating<'static>>::META), |ui| {
         caption(ui, TypeScale::LabelMedium, "Whole stars");
-        rt.ui(ui).mineral(Rating::new("sel-rate", "Rating", &mut s.rating));
+        ui.mineral(Rating::new("sel-rate", "Rating", &mut s.rating));
         caption(ui, TypeScale::LabelMedium, "Half precision, 10 stars");
-        rt.ui(ui).mineral(
+        ui.mineral(
             Rating::new("sel-rate-half", "Half rating", &mut s.rating_half)
                 .half(true)
                 .count(NonZero::new(10).expect("non-zero")),
         );
         caption(ui, TypeScale::LabelMedium, "Custom icon, medium icon button size");
-        rt.ui(ui).mineral(
+        ui.mineral(
             Rating::new("sel-rate-heart", "Hearts", &mut s.rating_hearts)
                 .icon(ICON_FAVORITE)
                 .size(Size::Medium),
         );
         caption(ui, TypeScale::LabelMedium, "Clearable (click the value again)");
-        rt.ui(ui).mineral(
+        ui.mineral(
             Rating::new("sel-rate-clear", "Clearable", &mut s.rating_clear)
                 .clearable(true)
                 .icon(ICON_STAR),
         );
         caption(ui, TypeScale::LabelMedium, "Read only and disabled");
-        rt.ui(ui).mineral(
+        ui.mineral(
             Rating::new("sel-rate-ro", "Read only", &mut s.rating_ro)
                 .half(true)
                 .read_only(true),
         );
         let mut dis = 3.0;
-        rt.ui(ui)
-            .mineral(Rating::new("sel-rate-dis", "Disabled", &mut dis).disabled(true));
+        ui.mineral(Rating::new("sel-rate-dis", "Disabled", &mut dis).disabled(true));
         ui.label(format!(
             "Values: {} / {} / {} / {}",
             s.rating, s.rating_half, s.rating_hearts, s.rating_clear
@@ -524,7 +510,6 @@ fn rating(ui: &mut Mui<'_>, s: &mut State) {
 }
 
 fn selects(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
-    let rt = ui.rt();
     super::section(ui, TOPICS[6], Some(<Select<'static>>::META), |ui| {
         // Rows by box top: outlined fields with a label reserve its overhang above the box.
         super::top_row(ui, |row| {
@@ -556,7 +541,7 @@ fn selects(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
             );
         });
         caption(ui, TypeScale::LabelMedium, "Multiple (input chips)");
-        rt.ui(ui).mineral(
+        ui.mineral(
             Select::multi("sel-select-multi", "Fruits", FRUITS, &mut s.select_multi)
                 .variant(TextFieldVariant::Outlined)
                 .supporting("Toggling keeps the menu open")
@@ -568,9 +553,7 @@ fn selects(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
             s.select_single.map_or("none", |i| FRUITS[i]),
             picked.join(", ")
         ));
-        if rt
-            .ui(ui)
-            .mineral(PushButton::new("sel-toast-selection", "Toast selection").variant(ButtonVariant::Tonal))
+        if ui.mineral(PushButton::new("sel-toast-selection", "Toast selection").variant(ButtonVariant::Tonal))
             .clicked()
         {
             shared.toast(format!("{} selected", picked.len()));
@@ -671,9 +654,8 @@ fn codec_select(ui: &mut Mui<'_>, s: &mut State) {
 }
 
 fn transfer(ui: &mut Mui<'_>, s: &mut State) {
-    let rt = ui.rt();
     super::section(ui, TOPICS[8], Some(<TransferList<'static>>::META), |ui| {
-        rt.ui(ui).mineral(
+        ui.mineral(
             TransferList::new("sel-transfer", FRUITS, &mut s.transfer)
                 .source_title("Available")
                 .target_title("Basket")
@@ -684,7 +666,7 @@ fn transfer(ui: &mut Mui<'_>, s: &mut State) {
         let mut fixed = vec![0];
         ui.add_space(8.0);
         caption(ui, TypeScale::LabelMedium, "Disabled");
-        rt.ui(ui).mineral(
+        ui.mineral(
             TransferList::new("sel-transfer-dis", FRUITS, &mut fixed)
                 .disabled(true)
                 .preferred_size(vec2(500.0, 200.0)),
@@ -693,7 +675,6 @@ fn transfer(ui: &mut Mui<'_>, s: &mut State) {
 }
 
 fn color(ui: &mut Mui<'_>, s: &mut State) {
-    let rt = ui.rt();
     super::section(ui, TOPICS[9], Some(<ColorPicker<'static>>::META), |ui| {
         let swatches = [
             Color32::from_rgb(244, 67, 54),
@@ -705,11 +686,11 @@ fn color(ui: &mut Mui<'_>, s: &mut State) {
         super::top_row(ui, |row| {
             row.add(|ui| {
                 caption(
-                    &mut rt.ui(ui),
+                    ui,
                     TypeScale::LabelMedium,
                     "HSV with swatches and RGB fields",
                 );
-                rt.ui(ui).mineral(
+                ui.mineral(
                     ColorPicker::new("sel-color", "Color", &mut s.color)
                         .space(ColorSpace::Hsv)
                         .swatches(swatches)
@@ -718,17 +699,17 @@ fn color(ui: &mut Mui<'_>, s: &mut State) {
                 );
             });
             row.add(|ui| {
-                caption(&mut rt.ui(ui), TypeScale::LabelMedium, "HCT (perceptual)");
-                rt.ui(ui).mineral(
+                caption(ui, TypeScale::LabelMedium, "HCT (perceptual)");
+                ui.mineral(
                     ColorPicker::new("sel-color-hct", "HCT color", &mut s.color_hct)
                         .space(ColorSpace::Hct)
                         .preferred_width(300.0),
                 );
             });
             row.add(|ui| {
-                caption(&mut rt.ui(ui), TypeScale::LabelMedium, "Disabled");
+                caption(ui, TypeScale::LabelMedium, "Disabled");
                 let mut c = Color32::from_rgb(0, 100, 200);
-                rt.ui(ui).mineral(
+                ui.mineral(
                     ColorPicker::new("sel-color-dis", "Disabled color", &mut c)
                         .disabled(true)
                         .preferred_width(300.0),
@@ -800,17 +781,17 @@ fn dates(ui: &mut Mui<'_>, s: &mut State) {
         ));
         super::top_row(ui, |row| {
             row.add(|ui| {
-                caption(&mut rt.ui(ui), TypeScale::LabelMedium, "Inline month grid");
-                DatePicker::new("sel-date-inline", "Date", &mut s.date_inline).show(&mut rt.ui(ui));
+                caption(ui, TypeScale::LabelMedium, "Inline month grid");
+                DatePicker::new("sel-date-inline", "Date", &mut s.date_inline).show(ui);
                 ui.label(fmt_date(s.date_inline));
             });
             row.add(|ui| {
                 caption(
-                    &mut rt.ui(ui),
+                    ui,
                     TypeScale::LabelMedium,
                     "Inline range (scrolling months)",
                 );
-                DateRangePicker::new("sel-date-inline-r", "Dates", &mut s.date_inline_range).show(&mut rt.ui(ui));
+                DateRangePicker::new("sel-date-inline-r", "Dates", &mut s.date_inline_range).show(ui);
                 ui.label(format!(
                     "{} .. {}",
                     fmt_date(s.date_inline_range.start()),
@@ -826,37 +807,35 @@ fn times(ui: &mut Mui<'_>, s: &mut State) {
     super::section(ui, TOPICS[11], Some(<TimePicker<'static>>::META), |ui| {
         super::top_row(ui, |row| {
             row.add(|ui| {
-                caption(&mut rt.ui(ui), TypeScale::LabelMedium, "Inline, locale clock");
-                TimePicker::new("sel-time", "Time", &mut s.time_inline).show(&mut rt.ui(ui));
+                caption(ui, TypeScale::LabelMedium, "Inline, locale clock");
+                TimePicker::new("sel-time", "Time", &mut s.time_inline).show(ui);
                 ui.label(s.time_inline.to_string());
             });
             row.add(|ui| {
-                caption(&mut rt.ui(ui), TypeScale::LabelMedium, "Inline, 24-hour");
+                caption(ui, TypeScale::LabelMedium, "Inline, 24-hour");
                 TimePicker::new("sel-time-24", "Time", &mut s.time_24)
                     .hour_cycle(HourCycle::H23)
-                    .show(&mut rt.ui(ui));
+                    .show(ui);
                 ui.label(s.time_24.to_string());
             });
         });
         super::top_row(ui, |row| {
             row.add(|ui| {
-                caption(&mut rt.ui(ui), TypeScale::LabelMedium, "Horizontal layout");
+                caption(ui, TypeScale::LabelMedium, "Horizontal layout");
                 TimePicker::new("sel-time-h", "Time", &mut s.time_h)
                     .axis(Axis::Horizontal)
-                    .show(&mut rt.ui(ui));
+                    .show(ui);
             });
             row.add(|ui| {
-                caption(&mut rt.ui(ui), TypeScale::LabelMedium, "Time input");
+                caption(ui, TypeScale::LabelMedium, "Time input");
                 TimePicker::new("sel-time-in", "Time", &mut s.time_input)
                     .input_mode(DisplayMode::Input)
-                    .show(&mut rt.ui(ui));
+                    .show(ui);
                 ui.label(s.time_input.to_string());
             });
         });
         caption(ui, TypeScale::LabelMedium, "Modal");
-        if rt
-            .ui(ui)
-            .mineral(PushButton::new("sel-time-modal-btn", "Time dialog"))
+        if ui.mineral(PushButton::new("sel-time-modal-btn", "Time dialog"))
             .clicked()
         {
             s.time_modal_open = true;

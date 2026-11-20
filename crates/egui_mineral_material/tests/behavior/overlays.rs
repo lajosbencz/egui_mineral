@@ -52,13 +52,14 @@ fn command_palette_returns_focus_and_reports_dismissal() {
 #[test]
 fn command_palette_reports_the_clicked_entry() {
     let mut h = still(WIDE, (true, String::new(), None), |ui, (open, query, clicked)| {
-        let commands = [PaletteCommand::new("Save"), PaletteCommand::new("Open")];
+        let commands = [PaletteCommand::new("Save"), PaletteCommand::new("Open").key("open")];
         let r = CommandPalette::new("pal", commands, query).show_modal(ui.rt(), open);
-        *clicked = clicked.or(r.clicked);
+        *clicked = clicked.take().or(r.clicked);
     });
     h.run();
     h.click("pal-1-command");
-    assert_eq!((h.state().value.0, h.state().value.2), (false, Some(1)));
+    let clicked = h.state().value.2.as_ref().map(|c| (c.index(), c.key_str()));
+    assert_eq!((h.state().value.0, clicked), (false, Some((1, Some("open")))));
 }
 
 #[test]
@@ -70,7 +71,7 @@ fn command_palette_applies_the_keys_of_a_pass_in_order_past_disabled_entries() {
             PaletteCommand::new("Open"),
         ];
         let r = CommandPalette::new("pal", commands, query).show_modal(ui.rt(), open);
-        *clicked = clicked.or(r.clicked);
+        *clicked = clicked.take().or(r.clicked);
     });
     h.run();
     // One pass: Up on the first entry stays there, then Down skips the disabled one.
@@ -78,7 +79,8 @@ fn command_palette_applies_the_keys_of_a_pass_in_order_past_disabled_entries() {
     h.input_mut().events.extend(keys.into_iter().flatten());
     h.run();
     h.press(Key::Enter);
-    assert_eq!((h.state().value.0, h.state().value.2), (false, Some(2)));
+    let clicked = h.state().value.2.as_ref().map(|c| (c.index(), c.key()));
+    assert_eq!((h.state().value.0, clicked), (false, Some((2, None))));
 }
 
 #[test]

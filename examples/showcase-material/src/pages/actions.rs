@@ -294,7 +294,6 @@ fn icon_button(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
 }
 
 fn fab(ui: &mut Mui<'_>, shared: &mut Shared) {
-    let rt = ui.rt();
     section(ui, TOPICS[2], Some(Fab::META), |ui| {
         sub(ui, "Colors (regular)");
         super::row(ui, |row| {
@@ -323,12 +322,11 @@ fn fab(ui: &mut Mui<'_>, shared: &mut Shared) {
             }
         });
         sub(ui, "Disabled");
-        rt.ui(ui).mineral(Fab::new("fab-dis", ICON_ADD, "Add").disabled(true));
+        ui.mineral(Fab::new("fab-dis", ICON_ADD, "Add").disabled(true));
     });
 }
 
 fn extended_fab(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
-    let rt = ui.rt();
     section(ui, TOPICS[3], Some(ExtendedFab::META), |ui| {
         sub(ui, "Sizes and colors");
         super::row(ui, |row| {
@@ -368,8 +366,7 @@ fn extended_fab(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
             s.ext_expanded ^= r.clicked();
         });
         sub(ui, "Disabled");
-        rt.ui(ui)
-            .mineral(ExtendedFab::new("efab-dis", ICON_ADD, "Create").disabled(true));
+        ui.mineral(ExtendedFab::new("efab-dis", ICON_ADD, "Create").disabled(true));
     });
 }
 

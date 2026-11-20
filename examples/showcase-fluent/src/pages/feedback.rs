@@ -77,8 +77,7 @@ fn spinners(ui: &mut Fui<'_>) {
         .fill(egui::Color32::from_rgb(0x0f, 0x6c, 0xbd))
         .inner_margin(8)
         .show(ui, |ui| {
-            let ui = &mut rt.ui(ui);
-            ui.mineral(
+            rt.ui(ui).mineral(
                 Spinner::new("spinner-inverted")
                     .label("Inverted")
                     .appearance(SpinnerAppearance::Inverted),

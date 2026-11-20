@@ -209,9 +209,7 @@ fn button(ui: &mut Mui<'_>, id: &str, label: &str) -> bool {
 }
 
 fn button_if(ui: &mut Mui<'_>, id: &str, label: &str, enabled: bool) -> bool {
-    let rt = ui.rt();
-    rt.ui(ui)
-        .mineral(
+    ui.mineral(
             PushButton::new(id.to_owned(), label)
                 .variant(ButtonVariant::Tonal)
                 .disabled(!enabled),
@@ -361,9 +359,10 @@ fn drag_drop(ui: &mut Mui<'_>, s: &mut State) {
                     .corner_radius(8);
                 let (_, dropped) = ui.dnd_drop_zone::<Carry, _>(frame, |ui| {
                     ui.set_min_size(vec2(180.0, 160.0));
+                    let ui = &mut rt.ui(ui);
                     for (i, name) in items.iter().enumerate() {
                         dnd::drag_source(
-                            &mut rt.ui(ui),
+                            ui,
                             ("dnd-item", left, name),
                             || Carry {
                                 from_left: left,
@@ -654,7 +653,6 @@ fn native_platform(_: &Shared) -> Result<NativePlatform, String> {
 }
 
 fn platform(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
-    let rt = ui.rt();
     for r in shared.platform.drain(..) {
         match r {
             Ok(line) => s.platform_log.push(line),
@@ -663,7 +661,7 @@ fn platform(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     }
     let excess = s.platform_log.len().saturating_sub(32);
     s.platform_log.drain(..excess);
-    rt.ui(ui).mineral(Switch::new(
+    ui.mineral(Switch::new(
         "plat-fake",
         "Fake platform (MemoryPlatform)",
         &mut s.use_fake,

@@ -962,7 +962,7 @@ impl<'a, T: PartialEq + Clone> RadioGroup<'a, T> {
         let enabled = |i: usize| !disabled && options.get(i).is_some_and(|o| !o.disabled);
         let selected = options.iter().position(|o| o.value == *value);
         let tab_stop = focus::tab_stop(ui.ctx(), group_id, selected, options.len(), enabled);
-        let body = |ui: &mut Ui| {
+        let mut body = |ui: &mut Ui| {
             for (i, o) in options.iter().enumerate() {
                 let r = rt.ui(ui).mineral(
                     Radio::new(crate::widget::item_salt(&salt, o.salt.as_ref(), None, i), &o.label)
@@ -980,8 +980,8 @@ impl<'a, T: PartialEq + Clone> RadioGroup<'a, T> {
         };
         let group = ui
             .push_id(salt.id_salt(), |ui| match axis {
-                Axis::Horizontal => ui.horizontal_wrapped(body).response,
-                Axis::Vertical => ui.vertical(body).response,
+                Axis::Horizontal => ui.horizontal_wrapped(|ui| body(ui)).response,
+                Axis::Vertical => ui.vertical(|ui| body(ui)).response,
             })
             .inner;
         if let Some((i, o)) = RovingFocus::new(axis)

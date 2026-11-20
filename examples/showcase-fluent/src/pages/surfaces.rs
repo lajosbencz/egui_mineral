@@ -161,9 +161,7 @@ fn drawers(ui: &mut Fui<'_>, s: &mut State) {
     });
     if s.inline {
         let width = ui.available_width();
-        let rt = ui.rt();
         ui.allocate_ui(egui::vec2(width, 200.0), |ui| {
-            let ui = &mut rt.ui(ui);
             Drawer::new("inline-drawer", "Inline")
                 .title("Inline")
                 .close_button(true)

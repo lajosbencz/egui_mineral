@@ -263,7 +263,7 @@ impl<'a> SwatchPicker<'a> {
         let enabled = |i: usize| !disabled && swatches.get(i).is_some_and(|s| !s.disabled);
         let selected = swatches.iter().position(|s| value.as_deref() == Some(s.value.as_str()));
         let tab_stop = focus::tab_stop(ui.ctx(), group_id, selected, swatches.len(), enabled);
-        let body = |ui: &mut Ui| {
+        let mut body = |ui: &mut Ui| {
             ui.spacing_mut().item_spacing = vec2(gap, gap);
             for (r, row) in swatches.chunks(columns).enumerate() {
                 ui.horizontal(|ui| {
@@ -287,7 +287,7 @@ impl<'a> SwatchPicker<'a> {
                 });
             }
         };
-        let group = ui.push_id(salt.id_salt(), |ui| ui.vertical(body).response).inner;
+        let group = ui.push_id(salt.id_salt(), |ui| ui.vertical(|ui| body(ui)).response).inner;
         let roving = match layout {
             SwatchLayout::Row => RovingFocus::new(Axis::Horizontal),
             SwatchLayout::Grid { .. } => RovingFocus::grid(columns),

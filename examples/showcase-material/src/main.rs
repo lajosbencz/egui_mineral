@@ -43,7 +43,6 @@ struct App {
     palette_open: bool,
     palette_query: String,
     commands: Vec<PaletteCommand>,
-    targets: Vec<Page>,
     spawner: Arc<AppSpawner>,
 }
 
@@ -69,17 +68,16 @@ impl App {
                 }
             }
         });
-        let (mut commands, targets): (Vec<PaletteCommand>, Vec<Page>) = Page::ALL
+        // Keyed by the page route; a page's topics share its key.
+        let mut commands: Vec<PaletteCommand> = Page::ALL
             .iter()
             .flat_map(|&p| {
-                std::iter::once((PaletteCommand::new(p.title()).icon(p.icon()).group("Pages"), p)).chain(
-                    p.topics()
-                        .iter()
-                        .map(move |t| (PaletteCommand::new(*t).group(p.title()), p)),
-                )
+                std::iter::once(PaletteCommand::new(p.title()).icon(p.icon()).group("Pages"))
+                    .chain(p.topics().iter().map(move |t| PaletteCommand::new(*t).group(p.title())))
+                    .map(move |c| c.key(p.to_string()))
             })
-            .unzip();
-        // Same commands and shortcuts as the View menu on the navigation page; entries past `targets` never click.
+            .collect();
+        // Same commands and shortcuts as the View menu on the navigation page.
         for i in [pages::navigation::ZOOM_IN, pages::navigation::ZOOM_OUT] {
             let (id, key, label) = &pages::navigation::COMMANDS[i];
             commands.push(PaletteCommand::new(*label).group("View").command(id, *key));
@@ -103,7 +101,6 @@ impl App {
             palette_open: false,
             palette_query: String::new(),
             commands,
-            targets,
             spawner,
         })
     }
@@ -278,8 +275,8 @@ impl App {
             .shortcut(PALETTE)
             .show_modal(rt, &mut self.palette_open)
             .clicked;
-        if let Some(i) = picked {
-            self.navigate(self.targets[i]);
+        if let Some(page) = picked.as_ref().and_then(Clicked::key_str).and_then(|k| k.parse().ok()) {
+            self.navigate(page);
         }
         SnackbarHost::new(&mut self.shared.toasts).show(rt);
         let ctx = rt.ctx();
