@@ -75,7 +75,7 @@ impl Policies {
             breakpoints: [600.0, 840.0].into(),
             fling: Fling {
                 deceleration: 0.998,
-                dismiss_fraction: 0.5,
+                dismiss_fraction: crate::layout::Fraction::HALF,
                 dismiss_velocity: 1000.0,
             },
             repeat: Repeat {
@@ -109,7 +109,6 @@ impl Policies {
             0.0..=crate::motion::MAX_DECELERATION,
             "fling.deceleration",
         );
-        p.fling.dismiss_fraction = at_least(p.fling.dismiss_fraction, 0.0.., "fling.dismiss_fraction");
         p.fling.dismiss_velocity = at_least(p.fling.dismiss_velocity, 0.0.., "fling.dismiss_velocity");
         p.repeat.interval = nonzero_duration(p.repeat.interval, "repeat.interval");
         p.gestures.slop = at_least(p.gestures.slop, 0.0.., "gestures.slop");
@@ -131,14 +130,12 @@ mod tests {
         p.target.touch = -4.0;
         p.breakpoints = Arc::from([840.0, f32::NAN, 600.0, 600.0]);
         p.fling.deceleration = 1.5;
-        p.fling.dismiss_fraction = -1.0;
         p.repeat.interval = Duration::ZERO;
         p.gestures.slop = f32::INFINITY;
         let got = p.sanitized();
         assert_eq!((got.target.mouse, got.target.touch), (0.0, 0.0));
         assert_eq!(&*got.breakpoints, &[600.0, 840.0]);
         assert_eq!(got.fling.deceleration, crate::motion::MAX_DECELERATION);
-        assert_eq!(got.fling.dismiss_fraction, 0.0);
         assert_eq!(got.repeat.interval, Duration::from_millis(1));
         assert_eq!(got.gestures.slop, 0.0);
     }

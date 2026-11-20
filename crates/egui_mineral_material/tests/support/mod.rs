@@ -316,7 +316,7 @@ impl Pass {
     }
 
     pub(crate) fn color(&self, role: ColorRole) -> egui::Color32 {
-        role.resolve(&self.tokens.color)
+        self.tokens.role(role)
     }
 
     pub(crate) fn filled(&self, role: ColorRole) -> Vec<Rect> {

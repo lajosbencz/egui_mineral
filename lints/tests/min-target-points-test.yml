@@ -1,7 +1,0 @@
-id: min-target-points
-valid:
-  - let slot = ui.target(MIN_INTERACTIVE);
-  - let slot = crate::adaptive::min_interactive(ui.density());
-invalid:
-  - let slot = MIN_INTERACTIVE.points(rt.core());
-  - let slot = target.points_for(core, modality);

@@ -1,9 +1,9 @@
 use egui::{Context, FontData, FontFamily, FontInsert, FontPriority, InsertFontFamily};
-use egui_mineral::icon::IconFont;
+use egui_mineral::icon::{IconFamily, IconFont};
 
 // `egui_material_icons` family names, which `Fonts::Bundled` registers
-pub(crate) const FONT_FAMILY_FILLED: &str = "material-icons";
-pub(crate) const FONT_FAMILY_OUTLINED: &str = "material-icons-outlined";
+pub(crate) const FONT_FAMILY_FILLED: IconFamily = IconFamily::new("material-icons");
+pub(crate) const FONT_FAMILY_OUTLINED: IconFamily = IconFamily::new("material-icons-outlined");
 pub(crate) const MEDIUM: &str = "mineral::medium";
 
 pub(crate) fn has_medium(ctx: &Context) -> bool {
@@ -50,8 +50,8 @@ impl IconFonts {
         // egui_material_icons' baseline tweak
         const Y_OFFSET: f32 = 0.05;
         [
-            IconFont::new(FONT_FAMILY_FILLED, self.filled).y_offset_factor(Y_OFFSET),
-            IconFont::new(FONT_FAMILY_OUTLINED, self.outlined).y_offset_factor(Y_OFFSET),
+            FONT_FAMILY_FILLED.font(self.filled).y_offset_factor(Y_OFFSET),
+            FONT_FAMILY_OUTLINED.font(self.outlined).y_offset_factor(Y_OFFSET),
         ]
     }
 }

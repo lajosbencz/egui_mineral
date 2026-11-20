@@ -234,7 +234,7 @@ pub struct Tokens {
 impl Tokens {
     /// `role` in this scheme.
     pub fn role(&self, role: crate::spec::ColorRole) -> egui::Color32 {
-        role.resolve(&self.color)
+        self.color.role(role)
     }
 
     /// `role` at `alpha` in 0..=1.

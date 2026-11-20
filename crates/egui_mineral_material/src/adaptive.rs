@@ -1,3 +1,4 @@
+use egui_mineral::layout::Fraction;
 use std::time::Duration;
 
 use crate::Material;
@@ -34,7 +35,7 @@ pub const fn grid(steps: u8) -> f32 {
 // Compose exponentialDecay friction, 4.2 /s
 const FLING_DECELERATION: f32 = 0.995_809;
 // Compose SwipeToDismissBox positional threshold, 56dp
-const DISMISS_FRACTION: f32 = 0.5;
+const DISMISS_FRACTION: Fraction = Fraction::HALF;
 // Compose DismissVelocityThreshold, 125dp/s
 const DISMISS_VELOCITY: f32 = 125.0;
 const REPEAT: Repeat = Repeat {

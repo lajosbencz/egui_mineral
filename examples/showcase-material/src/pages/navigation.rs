@@ -204,7 +204,7 @@ fn status_bar(ui: &mut MaterialUi<'_>, s: &mut State) {
                     .tooltip("Background task"),
             )
             .trailing(StatusItem::new(format!("Zoom {}%", s.zoom)).key(StatusAction::ResetZoom))
-            .item(StatusItem::new("Uploading").progress(StatusProgress::Linear(Some(0.4))))
+            .item(StatusItem::new("Uploading").progress(StatusProgress::Linear(Some(0.4.into()))))
             .item(StatusItem::new("Syncing").progress(StatusProgress::Linear(None)))
             .item(
                 StatusItem::new("Build failed: a long message that elides when the window narrows")

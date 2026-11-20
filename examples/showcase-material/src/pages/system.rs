@@ -1,5 +1,4 @@
 use egui_mineral_material::MaterialExt;
-use std::any::Any;
 
 use egui::{Frame, Key, KeyboardShortcut, Modifiers, Rect, RichText, Sense, Stroke, StrokeKind, vec2};
 use egui_mineral::{
@@ -8,7 +7,7 @@ use egui_mineral::{
     input::{Gesture, PointerKind, UnifiedInputEvent},
     nav::{Route, Router},
     perf::{self, Eviction, ShapeCache, ShapeKey},
-    persist::{self, Json, MemoryStorage, PersistError, Storage, Toml},
+    persist::{self, Json, MemoryStorage, PersistError, PersistKey, Storage, Toml},
     platform::{
         MemoryPlatform, NativePlatform, Notification, PickedFile, PlatformError, PlatformService, SaveOutcome,
         SaveRequest,
@@ -59,7 +58,7 @@ pub(crate) const TOPICS: &[&str] = &[
 ];
 
 const JOB_BASE: u32 = 2_000_000;
-const PERSIST_KEY: &str = "profile";
+const PERSIST_KEY: PersistKey<Profile> = PersistKey::new("profile");
 const LOG_LINES: usize = 8;
 
 struct Doc {
@@ -98,11 +97,9 @@ impl UndoCommand<Doc> for Bump {
         "Bump counter"
     }
 
-    fn merge(&mut self, next: &dyn Any) -> bool {
-        next.downcast_ref::<Self>().is_some_and(|n| {
-            self.0 += n.0;
-            true
-        })
+    fn merge(&mut self, next: &Self) -> bool {
+        self.0 += next.0;
+        true
     }
 }
 
@@ -443,17 +440,17 @@ fn deep_links(ui: &mut MaterialUi<'_>, s: &mut State) {
     );
 }
 
-fn save_with<S: Storage>(st: &mut S, fmt: Format, key: &str, p: &Profile) -> Result<(), PersistError> {
+fn save_with<S: Storage>(st: &mut S, fmt: Format, key: PersistKey<Profile>, p: &Profile) -> Result<(), PersistError> {
     match fmt {
         Format::Json => persist::save::<Json, _>(st, key, p),
         Format::Toml => persist::save::<Toml, _>(st, key, p),
     }
 }
 
-fn load_with<S: Storage>(st: &S, fmt: Format, key: &str) -> Result<Option<Profile>, PersistError> {
+fn load_with<S: Storage>(st: &S, fmt: Format) -> Result<Option<Profile>, PersistError> {
     match fmt {
-        Format::Json => persist::load::<Json, Profile>(st, key),
-        Format::Toml => persist::load::<Toml, Profile>(st, key),
+        Format::Json => persist::load::<Json, _>(st, PERSIST_KEY),
+        Format::Toml => persist::load::<Toml, _>(st, PERSIST_KEY),
     }
 }
 
@@ -473,16 +470,16 @@ fn run_persist(s: &mut State, op: &PersistOp) -> Result<String, PersistError> {
             let st = $st;
             match op {
                 PersistOp::Save => save_with(st, fmt, PERSIST_KEY, &profile).map(|()| "Saved".to_owned()),
-                PersistOp::Load => load_with(st, fmt, PERSIST_KEY).map(|p| {
+                PersistOp::Load => load_with(st, fmt).map(|p| {
                     let note = if p.is_some() { "Loaded" } else { "Nothing stored" };
                     s.loaded = p;
                     note.to_owned()
                 }),
-                PersistOp::Remove => st.remove(PERSIST_KEY).map(|()| "Removed".to_owned()),
+                PersistOp::Remove => persist::remove(st, PERSIST_KEY).map(|()| "Removed".to_owned()),
                 PersistOp::Corrupt => st
-                    .set(PERSIST_KEY, "{ not valid ::".to_owned())
+                    .set(PERSIST_KEY.name(), "{ not valid ::".to_owned())
                     .map(|()| "Wrote garbage".to_owned()),
-                PersistOp::BadKey => save_with(st, fmt, "", &profile).map(|()| "Saved".to_owned()),
+                PersistOp::BadKey => save_with(st, fmt, PersistKey::new(""), &profile).map(|()| "Saved".to_owned()),
             }
         }};
     }

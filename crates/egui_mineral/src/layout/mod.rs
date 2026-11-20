@@ -5,12 +5,14 @@ mod axis;
 mod child;
 mod constraints;
 mod flow;
+mod fraction;
 mod zones;
 
 pub use axis::{Axis, Edge};
 pub use child::child;
 pub use constraints::Constraints;
 pub use flow::{Flow, FlowItems};
+pub use fraction::Fraction;
 pub use zones::{Measure, MinTarget, TargetPolicy, Zones, breakpoint, safe_area};
 
 pub use egui_taffy as flex;

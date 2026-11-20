@@ -226,8 +226,6 @@ impl MaterialExt for MineralUi<'_, Material> {
     }
 }
 
-const DENSITY_TAG: &str = "mineral::density";
-
 /// Density of a Material [`MineralUi`] subtree; sealed.
 pub trait MaterialUiExt: sealed::Sealed {
     /// Density here: the nearest [`Self::with_density`] scope, else [`Material::density`].
@@ -243,17 +241,12 @@ pub trait MaterialUiExt: sealed::Sealed {
 
 impl MaterialUiExt for MineralUi<'_, Material> {
     fn density(&self) -> Density {
-        self.stack()
-            .iter()
-            .find_map(|s| s.info.tags.get_downcast::<Density>(DENSITY_TAG).copied())
+        self.scoped::<Density>()
+            .copied()
             .unwrap_or_else(|| self.kit().density())
     }
 
     fn with_density<R>(&mut self, density: Density, add: impl FnOnce(&mut MineralUi<'_, Material>) -> R) -> R {
-        let rt = self.rt();
-        let mut info = egui::UiStackInfo::default();
-        info.tags.insert(DENSITY_TAG, Some(Arc::new(density)));
-        self.scope_builder(egui::UiBuilder::new().ui_stack_info(info), |ui| add(&mut rt.ui(ui)))
-            .inner
+        self.with_scoped(density, add)
     }
 }

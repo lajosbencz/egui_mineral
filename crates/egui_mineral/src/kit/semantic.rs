@@ -2,7 +2,7 @@
 
 use egui::{Context, Id, Rect, Sense, Ui, accesskit::Action as AccessAction};
 
-use crate::semantic::{self, Action, Collector, SemanticNode, collecting, collector_id};
+use crate::semantic::{self, Action, Pass, SemanticNode, collecting};
 
 /// True when this pass collects a tree or AccessKit has a node for `id`.
 pub fn wanted(ctx: &Context, id: Option<Id>) -> bool {
@@ -20,9 +20,7 @@ pub(crate) const RECT_KEY: &str = "mineral::rect";
 
 /// Adds `node` to the pass's tree when one is wanted.
 pub fn push(ctx: &Context, node: SemanticNode) {
-    let id = collector_id(ctx);
-    ctx.data_mut(|d| {
-        let c = d.get_temp_mut_or_default::<Collector>(id);
+    Pass::with(ctx, |c| {
         if c.wanted {
             c.tree.nodes.push(node);
         }

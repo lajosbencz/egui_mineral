@@ -8,13 +8,16 @@
 //! outermost runtime.
 
 use std::{
+    any::TypeId,
     collections::VecDeque,
+    marker::PhantomData,
     sync::{
         Arc, Weak,
         atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
     },
 };
 
+use egui::util::{IdTypeMap, id_type_map::RawKey};
 use egui::{
     Context, Id, Pos2, RawInput, Rect, Response, Style, Theme, ThemePreference, Ui, Vec2, ViewportId, ViewportIdMap,
 };
@@ -215,17 +218,53 @@ fn owner_id(viewport: ViewportId) -> Id {
     Id::unique(("mineral::pass_owner", viewport))
 }
 
-pub(crate) fn pass_scoped(ctx: &Context, name: &'static str) -> Id {
-    let viewport = ctx.viewport_id();
-    ctx.data(|d| pass_scoped_in(d, viewport, name))
-}
+// State of type `T` of the current pass: one value per viewport and owning runtime.
+pub(crate) struct PassScope<T>(PhantomData<fn() -> T>);
 
-// For callers already inside a `ctx.data` read, with the viewport read beforehand.
-pub(crate) fn pass_scoped_in(d: &egui::util::IdTypeMap, viewport: ViewportId, name: &'static str) -> Id {
-    let owner = d
-        .get_temp::<Owner>(owner_id(viewport))
-        .map(|o| o.current.unwrap_or(o.outermost));
-    Id::unique((name, viewport, owner))
+impl<T: Clone + Default + Send + Sync + 'static> PassScope<T> {
+    fn id_in(d: &IdTypeMap, viewport: ViewportId) -> Id {
+        let owner = d
+            .get_temp::<Owner>(owner_id(viewport))
+            .map(|o| o.current.unwrap_or(o.outermost));
+        Id::unique((TypeId::of::<T>(), viewport, owner))
+    }
+
+    fn id(ctx: &Context) -> Id {
+        let viewport = ctx.viewport_id();
+        ctx.data(|d| Self::id_in(d, viewport))
+    }
+
+    pub(crate) fn read<R>(ctx: &Context, f: impl FnOnce(Option<&T>) -> R) -> R {
+        let viewport = ctx.viewport_id();
+        ctx.data(|d| {
+            let key = RawKey::new::<T>(Self::id_in(d, viewport));
+            f(d.get_temp_raw(key).and_then(|v| v.downcast_ref::<T>()))
+        })
+    }
+
+    pub(crate) fn with<R>(ctx: &Context, f: impl FnOnce(&mut T) -> R) -> R {
+        let id = Self::id(ctx);
+        ctx.data_mut(|d| f(d.get_temp_mut_or_default::<T>(id)))
+    }
+
+    pub(crate) fn set(ctx: &Context, value: T) {
+        let id = Self::id(ctx);
+        ctx.data_mut(|d| d.insert_temp(id, value));
+    }
+
+    pub(crate) fn take(ctx: &Context) -> Option<T> {
+        let id = Self::id(ctx);
+        ctx.data_mut(|d| d.remove_temp::<T>(id))
+    }
+
+    // `f` gets the value stored meanwhile and returns the one to store, under one lock.
+    pub(crate) fn replace(ctx: &Context, f: impl FnOnce(Option<T>) -> T) {
+        let id = Self::id(ctx);
+        ctx.data_mut(|d| {
+            let value = f(d.remove_temp::<T>(id));
+            d.insert_temp(id, value);
+        });
+    }
 }
 
 /// Kit-independent configuration and per-viewport pass state; what core models read instead of the egui
