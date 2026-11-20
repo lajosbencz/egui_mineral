@@ -17,8 +17,8 @@ use egui_mineral_fluent::{
     icons::ICON_ADD,
     inputs::{
         Checkbox, Combobox, DatePicker, Dropdown, FieldLabel, InfoLabel, Input, ListOption, Radio, RadioGroup,
-        RadioLayout, RadioOption, RangeSlider, RangeValue, Rating, RatingDisplay, RatingSize, SearchBox, Select,
-        Slider, SpinButton, Swatch, SwatchPicker, SwatchSize, Switch, TagPicker, TagPickerSize, Textarea, TimePicker,
+        RadioLayout, RadioOption, RangeSlider, Rating, RatingDisplay, RatingSize, SearchBox, Select, Slider,
+        SpinButton, Swatch, SwatchPicker, SwatchSize, Switch, TagPicker, TagPickerSize, Textarea, TimePicker,
     },
     navigation::{Breadcrumb, BreadcrumbItem, Tab, TabList, Toolbar, ToolbarButton},
     surfaces::Divider,
@@ -109,7 +109,7 @@ fn choices(size: Size) -> Vec<(String, Add)> {
             ui.mineral(slider.size(size).axis(Axis::Vertical)).zones()
         }),
         leaf(n("RangeSlider"), move |ui| {
-            let mut value = RangeValue::new(2.0, 6.0);
+            let mut value = [2.0, 6.0];
             let slider = RangeSlider::new("c", "Price", RangeModel::new(0.0, 10.0), &mut value);
             ui.mineral(slider.size(size)).zones()
         }),

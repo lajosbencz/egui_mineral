@@ -42,7 +42,7 @@ pub use input::Input;
 pub use label::FieldLabel;
 pub use listbox::{ListEntry, ListOption, OptionGroup};
 pub use radio::{Radio, RadioGroup, RadioLabelPosition, RadioLayout, RadioOption};
-pub use range_slider::{RangeSlider, RangeValue};
+pub use range_slider::RangeSlider;
 pub use rating::{Rating, RatingAppearance, RatingColor, RatingDisplay, RatingSize};
 pub use search_box::SearchBox;
 pub use select::Select;

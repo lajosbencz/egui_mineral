@@ -6,8 +6,7 @@ use egui_mineral_fluent::{
     egui_mineral::range::RangeModel,
     inputs::{
         Checkbox, Combobox, Dropdown, Field, InfoLabel, Input, ListEntry, ListOption, OptionGroup, RadioGroup,
-        RadioOption, RangeSlider, RangeValue, Rating, SearchBox, Select, Slider, SpinButton, Switch, TimePicker,
-        Validation,
+        RadioOption, RangeSlider, Rating, SearchBox, Select, Slider, SpinButton, Switch, TimePicker, Validation,
     },
 };
 
@@ -101,7 +100,7 @@ fn slider_steps_by_keyboard() {
 
 #[test]
 fn range_slider_exposes_a_node_per_thumb_and_keeps_them_ordered() {
-    let mut h = harness(RangeValue::new(20.0, 30.0), |ui, v| {
+    let mut h = harness([20.0, 30.0], |ui, v| {
         ui.mineral(RangeSlider::new(
             "r",
             "Price",
@@ -115,7 +114,18 @@ fn range_slider_exposes_a_node_per_thumb_and_keeps_them_ordered() {
     h.press(Key::Tab);
     h.press(Key::End);
     let v = h.state().value;
-    assert!(v.start <= v.end, "{v:?}");
+    assert!(v[0] <= v[1], "{v:?}");
+}
+
+#[test]
+fn range_slider_binds_integers_in_whole_steps() {
+    let mut h = harness([2u8, 5], |ui, v| {
+        ui.mineral(RangeSlider::new("r", "Count", RangeModel::new(0.0, 10.0).step(0.5), v));
+    });
+    h.run();
+    let track = h.rect("r-range-slider");
+    h.click_at(track.lerp_inside(egui::vec2(0.3, 0.5)));
+    assert_eq!(h.state().value, [3, 5], "the nearer thumb lands on a whole value");
 }
 
 #[test]

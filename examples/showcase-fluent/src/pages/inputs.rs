@@ -7,8 +7,8 @@ use egui_mineral_fluent::{
     inputs::{
         Calendar, Checkbox, CheckboxLabelPosition, CheckboxShape, ColorPicker, Combobox, DatePicker, Dropdown, Field,
         InfoLabel, Input, InputAppearance, ListEntry, ListOption, OptionGroup, RadioGroup, RadioLayout, RadioOption,
-        RangeSlider, RangeValue, Rating, RatingAppearance, RatingColor, RatingDisplay, RatingSize, SearchBox, Select,
-        Slider, SpinButton, Swatch, SwatchLayout, SwatchPicker, SwatchShape, SwatchSize, Switch, SwitchLabelPosition,
+        RangeSlider, Rating, RatingAppearance, RatingColor, RatingDisplay, RatingSize, SearchBox, Select, Slider,
+        SpinButton, Swatch, SwatchLayout, SwatchPicker, SwatchShape, SwatchSize, Switch, SwitchLabelPosition,
         TagPicker, TagPickerControl, TagPickerSize, Textarea, TimePicker, Validation,
     },
 };
@@ -142,9 +142,7 @@ fn sliders(ui: &mut FluentUi<'_>, s: &mut State) {
     let mut off = 30.0;
     ui.mineral(Slider::new("sl-3", "Disabled", RangeModel::new(0.0, 100.0), &mut off).disabled(true));
     ui.mineral(Slider::new("sl-4", "Vertical", RangeModel::new(0.0, 100.0), &mut s.vertical).axis(Axis::Vertical));
-    let mut value = RangeValue::new(s.range[0], s.range[1]);
-    ui.mineral(RangeSlider::new("rs-1", "Price", range, &mut value));
-    s.range = [value.start, value.end];
+    ui.mineral(RangeSlider::new("rs-1", "Price", range, &mut s.range));
     heading(ui, "h-spin", "SpinButton");
     ui.mineral(SpinButton::new(
         "sp-1",
