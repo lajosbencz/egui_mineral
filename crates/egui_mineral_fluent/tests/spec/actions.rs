@@ -1,7 +1,8 @@
 use egui_mineral_fluent::{
-    ColorToken, FluentExt, Size,
+    FluentExt, Size,
     actions::{ButtonAppearance, CompoundButton, MenuButton, PushButton, SplitButton},
     icons::ICON_ADD,
+    spec::ColorToken,
     spec::{
         defaults::{button, compound_button, split_button},
         tokens::{geometry, typography},

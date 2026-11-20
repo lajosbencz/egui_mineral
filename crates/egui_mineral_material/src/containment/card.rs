@@ -130,7 +130,7 @@ impl Card {
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
-            key: AgentKey::Kind("card"),
+            key: egui_mineral::agent_key!("card"),
             salt: id_salt,
             label: label.into(),
             variant: CardVariant::default(),

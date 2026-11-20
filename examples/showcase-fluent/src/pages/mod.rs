@@ -40,13 +40,7 @@ impl Page {
     pub(crate) fn key(self) -> &'static str {
         match self {
             Self::Foundations => "foundations",
-            Self::Category(Category::Actions) => "actions",
-            Self::Category(Category::Inputs) => "inputs",
-            Self::Category(Category::Feedback) => "feedback",
-            Self::Category(Category::Surfaces) => "surfaces",
-            Self::Category(Category::Navigation) => "navigation",
-            Self::Category(Category::Data) => "data",
-            Self::Category(Category::Extras) => "extras",
+            Self::Category(c) => c.module(),
         }
     }
 
@@ -88,6 +82,8 @@ pub(crate) fn show(page: Page, ui: &mut FluentUi<'_>, state: &mut components::St
         Page::Category(Category::Feedback) => components::feedback(ui, state),
         Page::Category(Category::Navigation) => components::navigation(ui, state),
         Page::Category(Category::Extras) => components::extras(ui, state),
+        // A category added upstream has no showcase page yet.
+        Page::Category(_) => {}
     }
 }
 

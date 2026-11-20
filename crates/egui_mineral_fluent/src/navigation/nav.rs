@@ -10,12 +10,12 @@ use egui_mineral::{
 };
 
 use crate::{
-    ColorToken::{
+    Fluent, FluentExt, Icon,
+    spec::ColorToken::{
         ColorCompoundBrandForeground1, ColorNeutralBackground4, ColorNeutralBackground4Hover,
         ColorNeutralBackground4Pressed, ColorNeutralForeground1, ColorNeutralForeground2,
         ColorNeutralForeground2BrandSelected, ColorStrokeFocus2,
     },
-    Fluent, FluentExt, Icon,
     spec::{defaults::nav as d, tokens::geometry as g},
     surfaces::Divider,
     theme::Radius,
@@ -297,12 +297,11 @@ impl MineralWidget for Row {
 
     fn semantics(&self, _: &I18n, _: &WidgetResponse, (): &()) -> Option<SemanticNode> {
         let (kind, role) = match self.kind {
-            Kind::Item => ("navitem", Role::Link),
-            Kind::Sub => ("navsubitem", Role::Link),
-            Kind::Category { .. } => ("navcategory", Role::Button),
+            Kind::Item => (egui_mineral::agent_key!("navitem"), Role::Link),
+            Kind::Sub => (egui_mineral::agent_key!("navsubitem"), Role::Link),
+            Kind::Category { .. } => (egui_mineral::agent_key!("navcategory"), Role::Button),
         };
-        let mut n =
-            SemanticNode::new(AgentKey::Kind(kind).id(&self.salt), role, &self.label).clickable(Availability::Enabled);
+        let mut n = SemanticNode::new(kind.id(&self.salt), role, &self.label).clickable(Availability::Enabled);
         n.state.selected = Some(self.selected);
         if let Kind::Category { open } = self.kind {
             n.state.expanded = Some(open);
@@ -512,7 +511,7 @@ impl<'a> Nav<'a> {
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, selected: &'a mut Option<usize>) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("nav"),
+            key: egui_mineral::agent_key!("nav"),
             label: label.into(),
             selected,
             density: NavDensity::Medium,

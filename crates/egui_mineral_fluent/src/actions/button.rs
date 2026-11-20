@@ -12,7 +12,8 @@ use egui_mineral::{
 };
 
 use crate::{
-    ColorToken, Fluent, FluentExt, Icon, IconPosition, Size,
+    Fluent, FluentExt, Icon, IconPosition, Size,
+    spec::ColorToken,
     spec::{
         defaults::{button as d, compound_button as cd, menu_button as md},
         tokens::{geometry as g, typography as ty},
@@ -515,7 +516,7 @@ impl<'a> PushButton<'a> {
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("button"),
+            key: egui_mineral::agent_key!("button"),
             label: label.into(),
             icon: None,
             icon_position: IconPosition::Before,

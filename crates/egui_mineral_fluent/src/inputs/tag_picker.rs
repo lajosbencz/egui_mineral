@@ -17,7 +17,7 @@ use super::field::Validation;
 use super::listbox::{self, Flat, ListEntry, ListOption, View};
 use super::textbox::{Chrome, Edit, InputAppearance, Live, paint_frame};
 use super::value::{self, ListState, Pick};
-use crate::ColorToken::{
+use crate::spec::ColorToken::{
     ColorCompoundBrandForeground1Hover, ColorCompoundBrandForeground1Pressed, ColorNeutralBackground3,
     ColorNeutralBackgroundDisabled, ColorNeutralForeground2, ColorNeutralForegroundDisabled,
     ColorNeutralStrokeAccessible, ColorTransparentStroke, ColorTransparentStrokeDisabled,
@@ -200,7 +200,7 @@ impl<'a, K: Ord + Clone> TagPicker<'a, K> {
     ) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("tag-picker"),
+            key: egui_mineral::agent_key!("tag-picker"),
             label: label.into(),
             entries: listbox::entries(entries).into(),
             selection,

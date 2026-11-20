@@ -12,7 +12,7 @@ use egui_mineral::{
     widget::{Availability, Interaction, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
 };
 
-use crate::ColorToken::{
+use crate::spec::ColorToken::{
     ColorBrandBackground, ColorBrandBackground2, ColorBrandBackground2Hover, ColorBrandBackground2Pressed,
     ColorBrandBackgroundHover, ColorBrandBackgroundPressed, ColorBrandForeground2, ColorBrandStroke1,
     ColorBrandStroke2, ColorCompoundBrandForeground1Hover, ColorCompoundBrandForeground1Pressed,
@@ -24,7 +24,8 @@ use crate::ColorToken::{
     ColorSubtleBackgroundPressed, ColorTransparentStrokeDisabled,
 };
 use crate::{
-    ColorToken, Fluent, FluentExt, Icon, Rt,
+    Fluent, FluentExt, Icon, Rt,
+    spec::ColorToken,
     spec::{
         defaults::tag as d,
         tokens::geometry::{BORDER_RADIUS_MEDIUM, STROKE_WIDTH_THICK, STROKE_WIDTH_THIN},
@@ -593,7 +594,7 @@ impl<'a> Tag<'a> {
             dismissible: None,
             selected: false,
             disabled: false,
-            key: AgentKey::Kind("tag"),
+            key: egui_mineral::agent_key!("tag"),
         }
     }
 
@@ -714,7 +715,7 @@ impl<'a> InteractionTag<'a> {
             secondary: None,
             dismissible: None,
             disabled: false,
-            key: AgentKey::Kind("interaction-tag"),
+            key: egui_mineral::agent_key!("interaction-tag"),
         }
     }
 
@@ -941,7 +942,7 @@ impl<'a, K: Ord + Clone> TagGroup<'a, K> {
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("tag-group"),
+            key: egui_mineral::agent_key!("tag-group"),
             label: label.into(),
             defaults: Defaults::default(),
             selection: None,

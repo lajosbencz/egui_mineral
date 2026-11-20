@@ -436,7 +436,7 @@ impl<'a> Select<'a> {
     ) -> Self {
         Self {
             chrome: FieldChrome::default(),
-            key: AgentKey::Kind("select"),
+            key: egui_mineral::agent_key!("select"),
             salt: id_salt,
             label: label.into(),
             options: options.into_iter().map(Into::into).collect(),

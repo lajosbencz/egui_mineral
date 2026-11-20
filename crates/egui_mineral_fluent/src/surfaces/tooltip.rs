@@ -10,7 +10,7 @@ use egui_mineral::{
 };
 
 use super::overlay::{CAPTION1, Look, arrow, framed, text};
-use crate::ColorToken::{
+use crate::spec::ColorToken::{
     ColorNeutralBackground1, ColorNeutralBackgroundStatic, ColorNeutralForeground1,
     ColorNeutralForegroundStaticInverted,
 };
@@ -87,7 +87,7 @@ impl Tooltip {
     pub fn new(id_salt: impl Into<KeyedSalt>, content: impl Into<String>) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("tooltip"),
+            key: egui_mineral::agent_key!("tooltip"),
             content: content.into(),
             relationship: TooltipRelationship::Description,
             appearance: TooltipAppearance::Normal,

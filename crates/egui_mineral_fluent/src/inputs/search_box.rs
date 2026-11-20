@@ -38,7 +38,7 @@ impl<'a> SearchBox<'a> {
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, value: &'a mut String) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("search-box"),
+            key: egui_mineral::agent_key!("search-box"),
             label: label.into(),
             value,
             appearance: InputAppearance::Outline,
@@ -192,7 +192,7 @@ impl MineralWidget for SearchBox<'_> {
                 base.with("dismiss"),
                 Sense::click() - Sense::FOCUSABLE,
             );
-            let color = t.color(crate::ColorToken::ColorNeutralForeground3);
+            let color = t.color(crate::spec::ColorToken::ColorNeutralForeground3);
             paint::icon(ui.painter(), slot.center(), ui.icons().dismiss, false, icon, color);
             if r.clicked() {
                 self.value.clear();

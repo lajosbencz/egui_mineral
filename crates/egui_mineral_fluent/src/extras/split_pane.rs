@@ -7,7 +7,7 @@ use egui_mineral::{
     widget::{Availability, Interaction, MineralUi},
 };
 
-use crate::ColorToken::{ColorCompoundBrandStrokePressed, ColorNeutralStroke1Hover, ColorNeutralStroke2};
+use crate::spec::ColorToken::{ColorCompoundBrandStrokePressed, ColorNeutralStroke1Hover, ColorNeutralStroke2};
 use crate::{Fluent, FluentExt, spec::tokens::geometry as g, widget::focus as ring};
 
 // Not in Fluent UI React v9; the divider is the Table column resize line (`colorNeutralStroke1` on hover).

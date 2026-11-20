@@ -5,7 +5,7 @@ use egui_mineral_material::{
     containment::{Dialog, DialogAction, SideSheet},
     extras::SettingRow,
     icons::ICON_STAR,
-    navigation::{Toolbar, TopAppBar},
+    navigation::{DockedToolbar, TopAppBar},
     selection::Switch,
 };
 
@@ -324,7 +324,7 @@ fn side_sheet_without_scroll_gives_content_the_full_height_and_padding() {
 #[test]
 fn toolbar_custom_items_share_the_row_height_and_the_roving_order() {
     let mut h = still(WIDE, 0usize, |ui, seg| {
-        Toolbar::docked("t", "Edit")
+        DockedToolbar::new("t", "Edit")
             .action(IconAction::new(ICON_STAR, "A"))
             .action(IconAction::new(ICON_STAR, "B"))
             .custom("seg", |ui| {
@@ -363,7 +363,7 @@ fn toolbar_custom_items_share_the_row_height_and_the_roving_order() {
 #[test]
 fn docked_toolbar_hides_custom_items_that_do_not_fit() {
     let mut h = still(vec2(200.0, 200.0), (), |ui, ()| {
-        Toolbar::docked("t", "Edit")
+        DockedToolbar::new("t", "Edit")
             .action(IconAction::new(ICON_STAR, "A"))
             .custom("go", |ui| ui.mineral(PushButton::new("go", "Go")).response().clone())
             .custom("wide", |ui| {

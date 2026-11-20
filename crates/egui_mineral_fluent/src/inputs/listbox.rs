@@ -9,7 +9,7 @@ use egui_mineral::{
     widget::{Availability, MineralUi},
 };
 
-use crate::ColorToken::{
+use crate::spec::ColorToken::{
     ColorCompoundBrandBackground, ColorNeutralBackground1, ColorNeutralBackground1Hover,
     ColorNeutralBackground1Pressed, ColorNeutralForeground1, ColorNeutralForeground1Hover,
     ColorNeutralForeground1Pressed, ColorNeutralForeground3, ColorNeutralForegroundDisabled,
@@ -514,7 +514,7 @@ fn paint_check(
     check: Rect,
     disabled: bool,
     look: OptionLook,
-    fore: crate::ColorToken,
+    fore: crate::spec::ColorToken,
     t: &crate::theme::Tokens,
 ) {
     if look.multiselect {

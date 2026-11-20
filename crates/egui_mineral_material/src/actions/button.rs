@@ -574,7 +574,7 @@ impl PushButton<'_> {
         let label = label.into();
         Self {
             salt: id_salt,
-            key: AgentKey::Kind("button"),
+            key: egui_mineral::agent_key!("button"),
             label,
             icon: None,
             variant: ButtonVariant::default(),

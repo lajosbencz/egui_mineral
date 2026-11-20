@@ -53,7 +53,7 @@ impl Splitter {
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("splitter"),
+            key: crate::agent_key!("splitter"),
             label: label.into(),
             axis: Axis::Horizontal,
             default_fraction: Fraction::HALF,

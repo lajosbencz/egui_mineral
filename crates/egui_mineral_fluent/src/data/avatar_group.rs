@@ -7,7 +7,7 @@ use egui_mineral::{
     widget::{Availability, Interaction, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
 };
 
-use crate::ColorToken::{
+use crate::spec::ColorToken::{
     ColorNeutralBackground1, ColorNeutralBackground1Hover, ColorNeutralBackground1Pressed,
     ColorNeutralBackground1Selected, ColorNeutralBackground2, ColorNeutralForeground1, ColorNeutralForeground1Hover,
     ColorNeutralForeground1Pressed, ColorNeutralForeground1Selected, ColorNeutralStroke1, ColorNeutralStroke1Hover,
@@ -249,8 +249,12 @@ impl MineralWidget for Trigger {
     }
 
     fn semantics(&self, _: &egui_mineral::i18n::I18n, _: &WidgetResponse, (): &()) -> Option<SemanticNode> {
-        let mut n = SemanticNode::new(AgentKey::Kind("overflow").id(&self.salt), Role::Button, &self.label)
-            .clickable(Availability::Enabled);
+        let mut n = SemanticNode::new(
+            egui_mineral::agent_key!("overflow").id(&self.salt),
+            Role::Button,
+            &self.label,
+        )
+        .clickable(Availability::Enabled);
         n.state.expanded = Some(self.open);
         Some(n)
     }
@@ -275,7 +279,7 @@ impl<'a> AvatarGroup<'a> {
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("avatar-group"),
+            key: egui_mineral::agent_key!("avatar-group"),
             label: label.into(),
             layout: AvatarGroupLayout::Spread,
             size: AvatarSize::S32,

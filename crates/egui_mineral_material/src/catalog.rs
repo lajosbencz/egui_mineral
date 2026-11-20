@@ -80,6 +80,20 @@ impl Category {
         Self::TextInputs,
     ];
 
+    /// Name of the public module holding the category's components.
+    pub const fn module(self) -> &'static str {
+        match self {
+            Self::Actions => "actions",
+            Self::Communication => "communication",
+            Self::Containment => "containment",
+            Self::Navigation => "navigation",
+            Self::Selection => "selection",
+            Self::TextInputs => "text_inputs",
+            #[cfg(feature = "extras")]
+            Self::Extras => "extras",
+        }
+    }
+
     /// Display name in the context's locale.
     pub fn title(self, i18n: &egui_mineral::i18n::I18n) -> String {
         crate::tr(
@@ -100,6 +114,7 @@ impl Category {
 
 /// Provenance record of one component, listed in [`CATALOG`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub struct ComponentMeta {
     /// Rust type name.
     pub name: &'static str,
@@ -415,7 +430,14 @@ meta!(
 );
 
 meta!(
-    Toolbar,
+    DockedToolbar<'a>,
+    Navigation,
+    Origin::Md3Expressive,
+    "https://m3.material.io/components/toolbars/specs"
+);
+
+meta!(
+    FloatingToolbar<'a>,
     Navigation,
     Origin::Md3Expressive,
     "https://m3.material.io/components/toolbars/specs"
@@ -851,7 +873,8 @@ pub const CATALOG: &[ComponentMeta] = &[
     <SegmentedButton<'static>>::META,
     SplitButton::META,
     FabMenu::META,
-    Toolbar::META,
+    <DockedToolbar<'static>>::META,
+    <FloatingToolbar<'static>>::META,
     LoadingIndicator::META,
     <SearchView<'static>>::META,
     #[cfg(feature = "extras")]

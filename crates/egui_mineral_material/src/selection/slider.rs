@@ -210,7 +210,7 @@ impl<'a> ValueSlider<'a> {
         let id_salt: KeyedSalt = id_salt.into();
         let label = label.into();
         Self {
-            key: AgentKey::Kind("slider"),
+            key: egui_mineral::agent_key!("slider"),
             salt: id_salt,
             label,
             values,

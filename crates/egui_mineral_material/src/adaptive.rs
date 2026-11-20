@@ -6,7 +6,6 @@ use egui::{Align, CursorIcon, vec2};
 use egui_mineral::{
     input::{GestureConfig, Repeat},
     layout::{self, Flow, FlowItems, MinTarget, TargetPolicy},
-    motion::Fling,
     policy::{Cursors, Policies},
     runtime::Core,
     widget::MineralUi,
@@ -82,11 +81,9 @@ pub(crate) fn policies(os: egui::os::OperatingSystem) -> Policies {
     let mut p = Policies::baseline();
     p.target = TARGETS;
     p.breakpoints = WINDOW_CLASS_BREAKPOINTS.into();
-    p.fling = Fling {
-        deceleration: FLING_DECELERATION,
-        dismiss_fraction: DISMISS_FRACTION,
-        dismiss_velocity: DISMISS_VELOCITY,
-    };
+    p.fling.deceleration = FLING_DECELERATION;
+    p.fling.dismiss_fraction = DISMISS_FRACTION;
+    p.fling.dismiss_velocity = DISMISS_VELOCITY;
     p.repeat = REPEAT;
     p.gestures = GESTURES;
     p.typeahead = TYPEAHEAD_TIMEOUT;

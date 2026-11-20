@@ -11,7 +11,7 @@ use egui_mineral::{
     widget::{Availability, Interaction, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
 };
 
-use crate::ColorToken::{
+use crate::spec::ColorToken::{
     ColorNeutralBackground1, ColorNeutralBackground1Hover, ColorNeutralBackground1Pressed, ColorNeutralForeground2,
     ColorNeutralForeground2BrandSelected, ColorNeutralForeground2Hover, ColorNeutralForeground2Pressed,
     ColorNeutralForeground3, ColorNeutralForeground3Hover, ColorNeutralForeground3Pressed,
@@ -344,8 +344,12 @@ impl MineralWidget for Row<'_> {
             Kind::Radio(_) => Role::MenuItemRadio,
             _ => Role::MenuItem,
         };
-        let mut n = SemanticNode::new(AgentKey::Kind("menuitem").id(&self.salt), role, &self.item.label)
-            .clickable(Availability::disabled_if(self.item.disabled));
+        let mut n = SemanticNode::new(
+            egui_mineral::agent_key!("menuitem").id(&self.salt),
+            role,
+            &self.item.label,
+        )
+        .clickable(Availability::disabled_if(self.item.disabled));
         if self.kind.checkmark() {
             n.state.checked = Some(self.kind.checked().into());
         }
@@ -439,8 +443,12 @@ impl MineralWidget for SplitTrigger<'_> {
     }
 
     fn semantics(&self, _: &I18n, response: &WidgetResponse, (): &()) -> Option<SemanticNode> {
-        let mut n = SemanticNode::new(AgentKey::Kind("menusplit").id(&self.salt), Role::MenuItem, self.label)
-            .clickable(Availability::disabled_if(self.disabled));
+        let mut n = SemanticNode::new(
+            egui_mineral::agent_key!("menusplit").id(&self.salt),
+            Role::MenuItem,
+            self.label,
+        )
+        .clickable(Availability::disabled_if(self.disabled));
         n.state.expanded = Some(self.open);
         n.state.focused = response.has_focus();
         Some(n)
@@ -751,7 +759,7 @@ impl MenuUi<'_, '_> {
         self.ui
             .painter()
             .galley(pos2(x, rect.center().y - galley.size().y / 2.0), galley, color);
-        let key = AgentKey::Kind("menugroup").id(&self.salt.child(("group", self.index)));
+        let key = egui_mineral::agent_key!("menugroup").id(&self.salt.child(("group", self.index)));
         semantic::emit(self.ui.ctx(), None, rect, || {
             SemanticNode::new(key, Role::Group, &header)
         });
@@ -1007,7 +1015,7 @@ impl Menu {
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("menu"),
+            key: egui_mineral::agent_key!("menu"),
             label: label.into(),
             side: Side::Bottom,
             align: Align::Start,

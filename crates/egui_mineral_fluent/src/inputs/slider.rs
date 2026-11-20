@@ -32,7 +32,7 @@ impl<'a> Slider<'a> {
     ) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("slider"),
+            key: egui_mineral::agent_key!("slider"),
             label: label.into(),
             value,
             bar: Bar {

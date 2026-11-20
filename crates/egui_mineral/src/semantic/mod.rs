@@ -5,7 +5,7 @@ mod key;
 
 pub use egui::accesskit::{Action, Live, Role};
 use egui::{Context, Id, KeyboardShortcut, Rect};
-pub use key::{AgentKey, KeyParts, KeySalt, KeyedSalt, StableId};
+pub use key::{AgentKey, KeyKind, KeyParts, KeySalt, KeyedSalt, StableId};
 
 use crate::{
     kit::semantic::{RECT_KEY, push, wanted},

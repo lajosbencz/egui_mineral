@@ -53,7 +53,7 @@ impl<'a> DateField<'a> {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
             chrome: FieldChrome::default(),
-            key: AgentKey::Kind("date"),
+            key: egui_mineral::agent_key!("date"),
             salt: id_salt,
             label: label.into(),
             value,

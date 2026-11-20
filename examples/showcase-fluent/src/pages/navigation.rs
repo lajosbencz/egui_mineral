@@ -1,5 +1,5 @@
 use egui_mineral_fluent::{
-    ColorToken, FluentExt, Size,
+    FluentExt, Size,
     actions::PushButton,
     data::{Avatar, AvatarColor},
     egui_mineral::{
@@ -19,6 +19,7 @@ use egui_mineral_fluent::{
         OverflowDirection, Tab, TabAppearance, TabList, Toolbar, ToolbarButton, ToolbarRadioButton, ToolbarRadioGroup,
         ToolbarToggleButton, Tree, TreeAppearance, TreeItem, TreeItemLayout, TreeItemPersonaLayout,
     },
+    spec::ColorToken,
 };
 
 use super::heading;

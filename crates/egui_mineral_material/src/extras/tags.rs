@@ -57,7 +57,7 @@ impl<'a> TagsField<'a> {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
             chrome: FieldChrome::default(),
-            key: AgentKey::Kind("tags"),
+            key: egui_mineral::agent_key!("tags"),
             salt: id_salt,
             label: label.into(),
             tags,

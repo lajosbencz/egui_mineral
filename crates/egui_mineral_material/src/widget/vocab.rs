@@ -25,7 +25,7 @@ pub enum Size {
 }
 
 /// Icon action item of a [`TopAppBar`](crate::navigation::TopAppBar), toolbar
-/// ([`Toolbar`](crate::navigation::Toolbar)) or `TreeView` row.
+/// ([`DockedToolbar`](crate::navigation::DockedToolbar)) or `TreeView` row.
 #[derive(Clone, Debug)]
 #[must_use]
 pub struct IconAction {

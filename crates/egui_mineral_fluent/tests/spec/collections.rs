@@ -1,6 +1,7 @@
 use egui_mineral::expand::Expansion;
 use egui_mineral_fluent::{
-    ColorToken, FluentExt, Size,
+    FluentExt, Size,
+    spec::ColorToken,
     spec::defaults::{accordion, card},
     surfaces::{Accordion, AccordionItem, AccordionSize, Card, CardAppearance},
 };

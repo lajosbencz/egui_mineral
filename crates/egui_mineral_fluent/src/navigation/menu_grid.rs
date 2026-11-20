@@ -12,7 +12,7 @@ use egui_mineral::{
 };
 
 use super::menu::text_width;
-use crate::ColorToken::{
+use crate::spec::ColorToken::{
     ColorNeutralBackground1, ColorNeutralBackground1Hover, ColorNeutralBackground1Pressed, ColorNeutralForeground2,
     ColorNeutralForeground2BrandSelected, ColorNeutralForeground2Hover, ColorNeutralForeground2Pressed,
     ColorNeutralForeground3, ColorNeutralForeground3Hover, ColorNeutralForeground3Pressed,
@@ -336,7 +336,7 @@ impl MineralWidget for GridCell<'_> {
 
     fn semantics(&self, _: &I18n, response: &WidgetResponse, (): &()) -> Option<SemanticNode> {
         let mut n = SemanticNode::new(
-            AgentKey::Kind("gridcell").id(&self.salt),
+            egui_mineral::agent_key!("gridcell").id(&self.salt),
             Role::GridCell,
             self.cell.label(),
         )
@@ -511,7 +511,7 @@ impl MenuGridUi<'_, '_> {
             self.clicked.clone_from(&clicked);
         }
         let name = cells_in.first().map_or("", MenuGridCell::label).to_owned();
-        let key = AgentKey::Kind("gridrow").id(&salt);
+        let key = egui_mineral::agent_key!("gridrow").id(&salt);
         semantic::emit(self.ui.ctx(), None, rect, || SemanticNode::new(key, Role::Row, name));
         MenuGridRowResponse {
             response,
@@ -566,7 +566,7 @@ impl MenuGrid {
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("menugrid"),
+            key: egui_mineral::agent_key!("menugrid"),
             label: label.into(),
         }
     }

@@ -481,7 +481,7 @@ impl<'a> Toolbar<'a> {
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("toolbar"),
+            key: egui_mineral::agent_key!("toolbar"),
             label: label.into(),
             size: Size::Medium,
             vertical: false,

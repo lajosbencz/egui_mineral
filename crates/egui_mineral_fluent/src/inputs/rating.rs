@@ -9,7 +9,7 @@ use egui_mineral::{
     widget::{Availability, Interaction, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
 };
 
-use crate::ColorToken::{
+use crate::spec::ColorToken::{
     ColorBrandBackground2, ColorBrandForeground1, ColorNeutralBackground6, ColorNeutralForeground1,
     ColorPaletteMarigoldBackground2, ColorPaletteMarigoldBorderActive,
 };
@@ -152,7 +152,7 @@ impl<'a> Rating<'a> {
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, value: &'a mut f64) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("rating"),
+            key: egui_mineral::agent_key!("rating"),
             label: label.into(),
             value,
             max: 5,
@@ -315,7 +315,7 @@ impl RatingDisplay {
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, value: f64) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("rating-display"),
+            key: egui_mineral::agent_key!("rating-display"),
             label: label.into(),
             value,
             max: 5,

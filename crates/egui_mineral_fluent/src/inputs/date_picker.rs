@@ -15,7 +15,7 @@ use super::calendar::Calendar;
 use super::field::Validation;
 use super::input::Input;
 use super::textbox::{FieldOutput, InputAppearance};
-use crate::ColorToken::{ColorNeutralBackground1, ColorTransparentStroke};
+use crate::spec::ColorToken::{ColorNeutralBackground1, ColorTransparentStroke};
 use crate::{
     Fluent, FluentExt, Size,
     spec::{defaults::date_picker as dp, tokens::geometry as g},
@@ -59,7 +59,7 @@ impl<'a> DatePicker<'a> {
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, value: &'a mut Option<Date>) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("date-picker"),
+            key: egui_mineral::agent_key!("date-picker"),
             label: label.into(),
             value,
             bounds: DateBounds::default(),

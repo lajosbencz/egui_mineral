@@ -11,7 +11,7 @@ use egui_mineral::{
 };
 
 use super::choice::{Position, Spec, WRAP_SLACK};
-use crate::ColorToken::{
+use crate::spec::ColorToken::{
     ColorCompoundBrandBackground, ColorCompoundBrandBackgroundHover, ColorCompoundBrandBackgroundPressed,
     ColorCompoundBrandForeground1, ColorCompoundBrandForeground1Hover, ColorCompoundBrandForeground1Pressed,
     ColorCompoundBrandStroke, ColorCompoundBrandStrokeHover, ColorCompoundBrandStrokePressed, ColorNeutralForeground1,
@@ -77,7 +77,7 @@ impl<'a> Checkbox<'a> {
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, checked: &'a mut bool) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("checkbox"),
+            key: egui_mineral::agent_key!("checkbox"),
             label: label.into(),
             checked,
             mixed: false,

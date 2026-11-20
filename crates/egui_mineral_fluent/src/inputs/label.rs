@@ -8,7 +8,7 @@ use egui_mineral::{
     widget::{MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
 };
 
-use crate::ColorToken::{ColorNeutralForeground1, ColorNeutralForegroundDisabled, ColorPaletteRedForeground3};
+use crate::spec::ColorToken::{ColorNeutralForeground1, ColorNeutralForegroundDisabled, ColorPaletteRedForeground3};
 use crate::{
     Fluent, FluentExt, Size,
     spec::tokens::{geometry, typography as ty},
@@ -32,7 +32,7 @@ impl FieldLabel {
     pub fn new(id_salt: impl Into<KeyedSalt>, text: impl Into<String>) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("label"),
+            key: egui_mineral::agent_key!("label"),
             text: text.into(),
             size: Size::Medium,
             semibold: false,

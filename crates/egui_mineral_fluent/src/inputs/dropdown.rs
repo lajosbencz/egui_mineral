@@ -13,7 +13,7 @@ use super::field::Validation;
 use super::listbox::{self, Flat, ListEntry, View};
 use super::textbox::{self, Chrome, InputAppearance, Live};
 use super::value::{self, ListState, Value};
-use crate::ColorToken::{ColorNeutralForegroundDisabled, ColorNeutralStrokeAccessible};
+use crate::spec::ColorToken::{ColorNeutralForegroundDisabled, ColorNeutralStrokeAccessible};
 use crate::{
     Fluent, FluentExt, Size,
     spec::{
@@ -76,10 +76,10 @@ impl<'a, K> Dropdown<'a, K> {
         Self {
             kind,
             salt,
-            key: AgentKey::Kind(match kind {
-                Kind::Dropdown => "dropdown",
-                Kind::Select => "select",
-            }),
+            key: match kind {
+                Kind::Dropdown => egui_mineral::agent_key!("dropdown"),
+                Kind::Select => egui_mineral::agent_key!("select"),
+            },
             label,
             entries,
             value,

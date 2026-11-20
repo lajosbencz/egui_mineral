@@ -15,6 +15,7 @@ use crate::{
 
 /// Input that last moved or could move focus; drives [`visible`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum Modality {
     /// Key press without Ctrl, Alt or Command; also the state before any input.
     #[default]

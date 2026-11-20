@@ -6,7 +6,9 @@ use egui_mineral::{
 use egui_mineral_material::{
     IconAction,
     icons::{ICON_ADD, ICON_EDIT, ICON_HOME, ICON_SHARE},
-    navigation::{NavDestination, NavigationBar, Tab, Tabs, Toolbar, TopAppBar, TopAppBarVariant},
+    navigation::{
+        DockedToolbar, FloatingToolbar, NavDestination, NavigationBar, Tab, Tabs, TopAppBar, TopAppBarVariant,
+    },
     spec::{
         ColorRole,
         defaults::tab,
@@ -91,7 +93,7 @@ fn actions() -> [IconAction; 2] {
 #[test]
 fn floating_toolbar_pads_its_actions() {
     let p = render(|ui| {
-        Toolbar::floating("t", "Edit").actions(actions()).show(ui);
+        FloatingToolbar::new("t", "Edit").actions(actions()).show(ui);
     });
     let pad = floating_toolbar::CONTAINER_LEADING_SPACE + floating_toolbar::CONTAINER_TRAILING_SPACE;
     assert_eq!(
@@ -104,7 +106,7 @@ fn floating_toolbar_pads_its_actions() {
     );
     for direction in [Direction::Ltr, Direction::Rtl] {
         let p = render_directed(direction, SCREEN, |ui| {
-            Toolbar::floating("t", "Edit").actions(actions()).show(ui);
+            FloatingToolbar::new("t", "Edit").actions(actions()).show(ui);
         });
         let bar = p.one(ColorRole::SurfaceContainer);
         let (a, b) = (p.rect("t-0-button"), p.rect("t-1-button"));
@@ -125,7 +127,7 @@ fn floating_toolbar_pads_its_actions() {
 #[test]
 fn docked_toolbar_spans_the_width() {
     let p = render(|ui| {
-        Toolbar::docked("t", "Edit").actions(actions()).show(ui);
+        DockedToolbar::new("t", "Edit").actions(actions()).show(ui);
     });
     let bar = p.one(ColorRole::SurfaceContainer);
     assert_eq!(bar.height(), docked_toolbar::CONTAINER_HEIGHT);
@@ -139,7 +141,7 @@ fn paired_fab_grows_as_the_toolbar_collapses() {
         (false, fab_medium::CONTAINER_WIDTH),
     ] {
         let p = render(|ui| {
-            Toolbar::floating("t", "Edit")
+            FloatingToolbar::new("t", "Edit")
                 .actions(actions())
                 .fab(ICON_ADD, "Add", Edge::End)
                 .expanded(expanded)

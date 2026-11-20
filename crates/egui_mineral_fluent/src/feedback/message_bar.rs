@@ -10,15 +10,16 @@ use egui_mineral::{
     widget::MineralUi,
 };
 
-use crate::ColorToken::{
+use crate::spec::ColorToken::{
     ColorNeutralBackground3, ColorNeutralForeground1, ColorNeutralForeground3, ColorNeutralStroke1,
     ColorStatusDangerBackground1, ColorStatusDangerBorder1, ColorStatusDangerForeground1,
     ColorStatusSuccessBackground1, ColorStatusSuccessBorder1, ColorStatusSuccessForeground1,
     ColorStatusWarningBackground1, ColorStatusWarningBorder1, ColorStatusWarningForeground3,
 };
 use crate::{
-    ColorToken, Fluent, FluentExt, Icon,
+    Fluent, FluentExt, Icon,
     actions::{ButtonAppearance, PushButton},
+    spec::ColorToken,
     spec::{
         defaults::message_bar as d,
         tokens::{geometry as g, typography as ty},
@@ -140,7 +141,7 @@ impl MessageBar {
     pub fn new(id_salt: impl Into<KeyedSalt>, body: impl Into<String>) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("message-bar"),
+            key: egui_mineral::agent_key!("message-bar"),
             body: body.into(),
             title: None,
             intent: MessageBarIntent::Info,

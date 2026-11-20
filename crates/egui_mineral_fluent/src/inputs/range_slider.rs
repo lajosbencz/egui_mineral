@@ -50,7 +50,7 @@ impl<'a> RangeSlider<'a> {
     ) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("range-slider"),
+            key: egui_mineral::agent_key!("range-slider"),
             label: label.into(),
             value,
             bar: Bar {

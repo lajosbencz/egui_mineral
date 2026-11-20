@@ -1,6 +1,6 @@
 use egui::{CornerRadius, Painter, Rect, Stroke, StrokeKind};
 
-use crate::{ColorToken, spec::tokens::geometry, theme::Tokens};
+use crate::{spec::ColorToken, spec::tokens::geometry, theme::Tokens};
 
 // react-tabster createFocusOutlineStyle: `strokeWidthThick` `colorStrokeFocus2` outside, `strokeWidthThin`
 // `colorStrokeFocus1` inside.

@@ -1,7 +1,8 @@
 use egui::{Align2, FontId, Sense, Stroke, StrokeKind, vec2};
 use egui_mineral_fluent::{
-    ColorToken, FluentExt,
+    FluentExt,
     data::Text,
+    spec::ColorToken,
     theme::{Elevation, Radius, ShadowTint},
     typography::TypeRamp,
 };

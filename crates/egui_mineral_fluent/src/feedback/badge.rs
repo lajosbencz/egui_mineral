@@ -9,7 +9,7 @@ use egui_mineral::{
     widget::{MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
 };
 
-use crate::ColorToken::{
+use crate::spec::ColorToken::{
     ColorBrandBackground, ColorBrandBackground2, ColorBrandForeground1, ColorBrandForeground2, ColorBrandStroke2,
     ColorNeutralBackground1, ColorNeutralBackground4, ColorNeutralBackground5, ColorNeutralForeground1,
     ColorNeutralForeground1Static, ColorNeutralForeground3, ColorNeutralForegroundOnBrand,
@@ -23,7 +23,8 @@ use crate::ColorToken::{
     ColorPaletteYellowForeground2,
 };
 use crate::{
-    ColorToken, Fluent, FluentExt, Icon, IconPosition,
+    Fluent, FluentExt, Icon, IconPosition,
+    spec::ColorToken,
     spec::{
         defaults::{badge as d, counter_badge as cd},
         tokens::geometry,
@@ -303,7 +304,7 @@ impl Badge {
     pub fn new(id_salt: impl Into<KeyedSalt>, text: impl Into<String>) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("badge"),
+            key: egui_mineral::agent_key!("badge"),
             text: text.into(),
             icon: None,
             icon_position: IconPosition::Before,
@@ -538,7 +539,7 @@ impl CounterBadge {
     pub fn new(id_salt: impl Into<KeyedSalt>, count: u32) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("counter-badge"),
+            key: egui_mineral::agent_key!("counter-badge"),
             count,
             overflow: cd::OVERFLOW_COUNT,
             show_zero: false,

@@ -7,12 +7,13 @@ use egui_mineral::{
     widget::{MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
 };
 
-use crate::ColorToken::{
+use crate::spec::ColorToken::{
     ColorBrandForeground1, ColorBrandStroke1, ColorNeutralForeground1, ColorNeutralForeground2,
     ColorNeutralForeground3, ColorNeutralStroke1, ColorNeutralStroke2, ColorNeutralStroke3,
 };
 use crate::{
-    ColorToken, Fluent, FluentExt,
+    Fluent, FluentExt,
+    spec::ColorToken,
     spec::{defaults::divider as d, tokens::geometry},
     typography::TypeRamp,
 };
@@ -63,7 +64,7 @@ impl Divider {
     pub fn new(id_salt: impl Into<KeyedSalt>) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("divider"),
+            key: egui_mineral::agent_key!("divider"),
             content: None,
             axis: Axis::Horizontal,
             appearance: DividerAppearance::Default,

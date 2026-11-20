@@ -1,5 +1,6 @@
 /// Component group of the stylekit; each variant is the public module of the same name.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum Category {
     /// Buttons, links, toolbars.
     Actions,
@@ -42,6 +43,20 @@ impl Category {
         Self::Data,
     ];
 
+    /// Name of the public module holding the category's components.
+    pub const fn module(self) -> &'static str {
+        match self {
+            Self::Actions => "actions",
+            Self::Inputs => "inputs",
+            Self::Feedback => "feedback",
+            Self::Surfaces => "surfaces",
+            Self::Navigation => "navigation",
+            Self::Data => "data",
+            #[cfg(feature = "extras")]
+            Self::Extras => "extras",
+        }
+    }
+
     /// Display name in the context's locale.
     pub fn title(self, i18n: &egui_mineral::i18n::I18n) -> String {
         crate::tr(
@@ -62,6 +77,7 @@ impl Category {
 
 /// Provenance record of one component, listed in [`CATALOG`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub struct ComponentMeta {
     /// Rust type name.
     pub name: &'static str,
@@ -73,6 +89,7 @@ pub struct ComponentMeta {
 
 /// Provenance of a component.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum Origin {
     /// Ports a Fluent UI React v9 component.
     ReactV9 {

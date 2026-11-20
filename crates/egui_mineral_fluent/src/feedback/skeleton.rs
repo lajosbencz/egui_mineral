@@ -8,7 +8,7 @@ use egui_mineral::{
     widget::{MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
 };
 
-use crate::ColorToken::{ColorNeutralStencil1, ColorNeutralStencil1Alpha, ColorNeutralStencil2};
+use crate::spec::ColorToken::{ColorNeutralStencil1, ColorNeutralStencil1Alpha, ColorNeutralStencil2};
 use crate::{Fluent, FluentExt, spec::defaults::skeleton as d, widget::paint};
 
 /// Skeleton `animation`.
@@ -92,7 +92,7 @@ impl Skeleton {
     pub fn new(id_salt: impl Into<KeyedSalt>) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("skeleton"),
+            key: egui_mineral::agent_key!("skeleton"),
             label: None,
             context: SkeletonContext::default(),
         }

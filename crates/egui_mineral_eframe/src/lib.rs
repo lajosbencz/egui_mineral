@@ -99,19 +99,13 @@ impl<K: Stylekit, A: MineralApp<K>> EframeApp<K, A> {
     pub const fn app_mut(&mut self) -> &mut A {
         &mut self.app
     }
-
-    /// One frame on `ui`: the pass, then [`MineralApp::after_pass`]. Headless runs call it on the root `Ui`
-    /// of `Context::run_ui`.
-    pub fn show(&mut self, ui: &mut Ui, frame: &mut eframe::Frame) {
-        let Self { rt, app } = self;
-        rt.pass(ui, |ui| app.ui(ui, frame));
-        app.after_pass(rt);
-    }
 }
 
 impl<K: Stylekit, A: MineralApp<K>> eframe::App for EframeApp<K, A> {
     fn ui(&mut self, ui: &mut Ui, frame: &mut eframe::Frame) {
-        self.show(ui, frame);
+        let Self { rt, app } = self;
+        rt.pass(ui, |ui| app.ui(ui, frame));
+        app.after_pass(rt);
     }
 
     fn save(&mut self, storage: &mut dyn eframe::Storage) {

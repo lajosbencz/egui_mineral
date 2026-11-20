@@ -5,11 +5,11 @@ use egui_mineral::{
     i18n::I18n,
     kit,
     layout::{Axis, Constraints, Measure, MinTarget},
-    semantic::{AgentKey, KeyedSalt, NumericRange, Role, SemanticNode},
+    semantic::{AgentKey, KeyKind, KeyedSalt, NumericRange, Role, SemanticNode},
     widget::{Availability, Composite, Interaction, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
 };
 
-use crate::ColorToken::{
+use crate::spec::ColorToken::{
     ColorNeutralBackground1, ColorNeutralForeground4, ColorNeutralStroke1, ColorStrokeFocus2, ColorTransparentStroke,
 };
 use crate::{
@@ -101,19 +101,19 @@ impl Composite for ColorPicker<'_> {
     fn compose(&mut self, ui: &mut MineralUi<'_, Fluent>, _: Constraints) -> WidgetResponse<()> {
         ui.spacing_mut().item_spacing.y = SPACING_VERTICAL_XS;
         let mut v = *self.value;
-        let part = |kind, name: &str| Part {
-            salt: self.salt.child(kind),
+        let part = |kind: KeyKind, name: &str| Part {
+            salt: self.salt.child(kind.as_str()),
             picker: self.salt.clone(),
             kind,
             name: format!("{} {name}", self.label),
             shape: self.shape,
             disabled: self.disabled,
         };
-        let area = ui.mineral(part("color-area", "saturation and value").area(&mut v));
-        let hue = ui.mineral(part("hue-slider", "hue").channel(&mut v, Channel::Hue));
-        let alpha = self
-            .alpha
-            .then(|| ui.mineral(part("alpha-slider", "alpha").channel(&mut v, Channel::Alpha)));
+        let area = ui.mineral(part(egui_mineral::agent_kind!("color-area"), "saturation and value").area(&mut v));
+        let hue = ui.mineral(part(egui_mineral::agent_kind!("hue-slider"), "hue").channel(&mut v, Channel::Hue));
+        let alpha = self.alpha.then(|| {
+            ui.mineral(part(egui_mineral::agent_kind!("alpha-slider"), "alpha").channel(&mut v, Channel::Alpha))
+        });
         let changed = area.changed() || hue.changed() || alpha.as_ref().is_some_and(WidgetResponse::changed);
         if changed {
             *self.value = v;
@@ -131,7 +131,7 @@ enum Channel {
 struct Part {
     salt: KeyedSalt,
     picker: KeyedSalt,
-    kind: &'static str,
+    kind: KeyKind,
     name: String,
     shape: ColorShape,
     disabled: bool,

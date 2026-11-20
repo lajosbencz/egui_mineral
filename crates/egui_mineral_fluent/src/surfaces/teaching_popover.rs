@@ -10,7 +10,7 @@ use egui_mineral::{
 
 use super::overlay::{BODY1, text};
 use super::popover::{PopoverAppearance, Surface, show_anchored};
-use crate::ColorToken::{
+use crate::spec::ColorToken::{
     ColorBrandBackground, ColorNeutralForeground1, ColorNeutralForeground3, ColorNeutralForegroundOnBrand,
 };
 use crate::{
@@ -107,7 +107,7 @@ impl TeachingPopover {
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("teaching-popover"),
+            key: egui_mineral::agent_key!("teaching-popover"),
             label: label.into(),
             steps: Vec::new(),
             brand: false,

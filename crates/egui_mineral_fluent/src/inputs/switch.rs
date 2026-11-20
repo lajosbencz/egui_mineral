@@ -10,7 +10,7 @@ use egui_mineral::{
 };
 
 use super::choice::{Position, Spec, WRAP_SLACK};
-use crate::ColorToken::{
+use crate::spec::ColorToken::{
     ColorCompoundBrandBackground, ColorCompoundBrandBackgroundHover, ColorCompoundBrandBackgroundPressed,
     ColorNeutralBackgroundDisabled, ColorNeutralForeground1, ColorNeutralForegroundDisabled,
     ColorNeutralForegroundInverted, ColorNeutralStrokeAccessible, ColorNeutralStrokeAccessibleHover,
@@ -63,7 +63,7 @@ impl<'a> Switch<'a> {
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, checked: &'a mut bool) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("switch"),
+            key: egui_mineral::agent_key!("switch"),
             label: label.into(),
             checked,
             size: Size::Medium,

@@ -5,16 +5,17 @@ use egui_mineral::{
     kit,
     layout::{Axis, Constraints, Measure, MinTarget},
     select::SelectionResponse,
-    semantic::{self, AgentKey, KeyedSalt, Role, SemanticNode, StableId},
+    semantic::{self, KeyedSalt, Role, SemanticNode, StableId},
     widget::{Availability, Interaction, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
 };
 
-use crate::ColorToken::{
+use crate::spec::ColorToken::{
     ColorBrandStroke1, ColorCompoundBrandStrokeHover, ColorCompoundBrandStrokePressed, ColorNeutralForegroundInverted,
     ColorStrokeFocus1, ColorStrokeFocus2, ColorTransparentStroke,
 };
 use crate::{
-    ColorToken, Fluent, FluentExt,
+    Fluent, FluentExt,
+    spec::ColorToken,
     spec::{
         defaults::swatch_picker as sp,
         tokens::geometry::{
@@ -489,7 +490,7 @@ impl MineralWidget for Cell<'_> {
 
     fn semantics(&self, _: &I18n, _: &WidgetResponse, (): &()) -> Option<SemanticNode> {
         let mut n = SemanticNode::new(
-            AgentKey::Kind("swatch").id(&self.salt),
+            egui_mineral::agent_key!("swatch").id(&self.salt),
             Role::RadioButton,
             &self.swatch.label,
         )

@@ -12,7 +12,7 @@ use egui_mineral::{
 };
 
 use super::label::FieldLabel;
-use crate::ColorToken::{
+use crate::spec::ColorToken::{
     ColorNeutralBackground1, ColorNeutralForeground1, ColorNeutralForeground2, ColorNeutralForeground2BrandHover,
     ColorNeutralForeground2BrandPressed, ColorNeutralForeground2BrandSelected, ColorNeutralStroke1,
     ColorTransparentBackgroundHover, ColorTransparentBackgroundPressed, ColorTransparentBackgroundSelected,

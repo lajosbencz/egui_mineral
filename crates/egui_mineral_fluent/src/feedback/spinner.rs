@@ -10,7 +10,7 @@ use egui_mineral::{
     widget::{MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
 };
 
-use crate::ColorToken::{
+use crate::spec::ColorToken::{
     ColorBrandStroke1, ColorBrandStroke2Contrast, ColorNeutralForeground1, ColorNeutralForegroundStaticInverted,
     ColorNeutralStrokeAlpha2, ColorNeutralStrokeOnBrand2,
 };
@@ -145,7 +145,7 @@ impl Spinner {
     pub fn new(id_salt: impl Into<KeyedSalt>) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("spinner"),
+            key: egui_mineral::agent_key!("spinner"),
             label: None,
             label_visible: true,
             size: SpinnerSize::Medium,

@@ -12,15 +12,16 @@ use egui_mineral::{
     toast::{ToastId, ToastQueue},
 };
 
-use crate::ColorToken::{
+use crate::spec::ColorToken::{
     ColorNeutralBackground1, ColorNeutralBackgroundInverted, ColorNeutralForeground1, ColorNeutralForeground2,
     ColorNeutralForegroundInverted2, ColorStatusDangerForeground1, ColorStatusDangerForegroundInverted,
     ColorStatusSuccessForeground1, ColorStatusSuccessForegroundInverted, ColorStatusWarningForeground1,
     ColorStatusWarningForegroundInverted, ColorTransparentStroke,
 };
 use crate::{
-    ColorToken, FluentExt, Icon, Rt,
+    FluentExt, Icon, Rt,
     actions::TextLink,
+    spec::ColorToken,
     spec::{
         defaults::toast as d,
         tokens::{geometry as g, typography as ty},

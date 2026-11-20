@@ -224,30 +224,6 @@ pub enum ToolbarColors {
     Vibrant,
 }
 
-/// MD3 toolbar (Compose `DockedToolbar`, `HorizontalFloatingToolbar`); the constructors pick the
-/// kind: [`Toolbar::docked`] or [`Toolbar::floating`].
-#[derive(Clone, Copy, Debug)]
-pub enum Toolbar {}
-
-impl Toolbar {
-    /// `FlexibleBottomAppBar`; `label` names the toolbar for assistive technology.
-    pub fn docked<'a>(id_salt: impl Into<KeyedSalt>, label: impl Into<String>) -> DockedToolbar<'a> {
-        let id_salt: KeyedSalt = id_salt.into();
-        DockedToolbar(Core::new(id_salt, label))
-    }
-
-    /// `HorizontalFloatingToolbar`; `label` names the toolbar for assistive technology.
-    pub fn floating<'a>(id_salt: impl Into<KeyedSalt>, label: impl Into<String>) -> FloatingToolbar<'a> {
-        let id_salt: KeyedSalt = id_salt.into();
-        FloatingToolbar {
-            core: Core::new(id_salt, label),
-            axis: Axis::Horizontal,
-            fab: None,
-            expanded: true,
-        }
-    }
-}
-
 struct Core<'a> {
     salt: KeyedSalt,
     label: String,
@@ -339,13 +315,18 @@ macro_rules! core_setters {
     };
 }
 
-/// Docked toolbar (`FlexibleBottomAppBar`), built by [`Toolbar::docked`]; always horizontal.
+/// MD3 docked toolbar (Compose `FlexibleBottomAppBar`); always horizontal.
 #[must_use = "call .show(..)"]
 pub struct DockedToolbar<'a>(Core<'a>);
 
 egui_mineral::kit::opaque_debug!(DockedToolbar<'_>);
 
 impl<'a> DockedToolbar<'a> {
+    /// `FlexibleBottomAppBar`; `label` names the toolbar for assistive technology.
+    pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>) -> Self {
+        Self(Core::new(id_salt, label))
+    }
+
     fn core(&mut self) -> &mut Core<'a> {
         &mut self.0
     }
@@ -413,8 +394,8 @@ impl<'a> DockedToolbar<'a> {
     }
 }
 
-/// Floating toolbar (`HorizontalFloatingToolbar`, `VerticalFloatingToolbar`), built by
-/// [`Toolbar::floating`]; can stack vertically and pair with a FAB.
+/// MD3 floating toolbar (Compose `HorizontalFloatingToolbar`, `VerticalFloatingToolbar`); can stack vertically
+/// and pair with a FAB.
 #[must_use = "call .show(..)"]
 pub struct FloatingToolbar<'a> {
     core: Core<'a>,
@@ -426,6 +407,16 @@ pub struct FloatingToolbar<'a> {
 egui_mineral::kit::opaque_debug!(FloatingToolbar<'_>);
 
 impl<'a> FloatingToolbar<'a> {
+    /// `HorizontalFloatingToolbar`; `label` names the toolbar for assistive technology.
+    pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>) -> Self {
+        Self {
+            core: Core::new(id_salt, label),
+            axis: Axis::Horizontal,
+            fab: None,
+            expanded: true,
+        }
+    }
+
     fn core(&mut self) -> &mut Core<'a> {
         &mut self.core
     }

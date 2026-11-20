@@ -871,7 +871,7 @@ impl<'a> TextField<'a> {
         let label = label.into();
         Self {
             chrome: FieldChrome::default(),
-            key: AgentKey::Kind("field"),
+            key: egui_mineral::agent_key!("field"),
             salt: id_salt,
             label,
             value,

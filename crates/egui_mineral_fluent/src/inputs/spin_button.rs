@@ -16,7 +16,7 @@ use super::{
     bar::digits,
     textbox::{self, Chrome, Edit, InputAppearance, Live},
 };
-use crate::ColorToken::{
+use crate::spec::ColorToken::{
     ColorNeutralBackground1Hover, ColorNeutralBackground1Pressed, ColorNeutralBackground3Hover,
     ColorNeutralBackground3Pressed, ColorNeutralForeground3, ColorNeutralForeground3Hover,
     ColorNeutralForeground3Pressed, ColorNeutralForegroundDisabled, ColorSubtleBackgroundHover,
@@ -65,7 +65,7 @@ impl<'a> SpinButton<'a> {
     ) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("spin-button"),
+            key: egui_mineral::agent_key!("spin-button"),
             label: label.into(),
             value,
             range: range.into(),

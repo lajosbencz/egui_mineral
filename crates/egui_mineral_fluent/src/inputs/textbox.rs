@@ -9,7 +9,7 @@ use egui_mineral::{
     widget::MineralUi,
 };
 
-use crate::ColorToken::{
+use crate::spec::ColorToken::{
     ColorCompoundBrandStroke, ColorCompoundBrandStrokePressed, ColorNeutralBackground1, ColorNeutralBackground3,
     ColorNeutralForeground1, ColorNeutralForeground3, ColorNeutralForeground4, ColorNeutralForegroundDisabled,
     ColorNeutralStroke1, ColorNeutralStroke1Hover, ColorNeutralStroke1Pressed, ColorNeutralStrokeAccessible,

@@ -88,7 +88,7 @@ impl Avatar {
     pub fn new(id_salt: impl Into<KeyedSalt>, name: impl Into<String>) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
-            key: AgentKey::Kind("avatar"),
+            key: egui_mineral::agent_key!("avatar"),
             salt: id_salt,
             name: name.into(),
             image: None,
@@ -190,7 +190,7 @@ impl AvatarGroup {
     pub fn new(id_salt: impl Into<KeyedSalt>) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
-            key: AgentKey::Kind("avatar-group"),
+            key: egui_mineral::agent_key!("avatar-group"),
             salt: id_salt,
             avatars: Vec::new(),
             max: 5,

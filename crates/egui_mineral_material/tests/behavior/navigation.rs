@@ -6,7 +6,8 @@ use egui_mineral_material::{
     adaptive::Density,
     icons,
     navigation::{
-        NavDestination, NavigationBar, NavigationDrawer, NavigationRail, SearchBar, SearchView, Tab, Tabs, Toolbar,
+        DockedToolbar, FloatingToolbar, NavDestination, NavigationBar, NavigationDrawer, NavigationRail, SearchBar,
+        SearchView, Tab, Tabs,
     },
     selection::{RadioGroup, RadioOption},
 };
@@ -419,8 +420,8 @@ fn toolbars_shrink_with_density() {
         let mut h = still(SCREEN, [0.0; 2], move |ui, heights| {
             ui.with_density(Density::new(step), |ui| {
                 let action = || IconAction::new(icons::ICON_HOME, "Home");
-                let docked = Toolbar::docked("dock", "Tools").action(action()).show(ui);
-                let floating = Toolbar::floating("float", "Tools").action(action()).show(ui);
+                let docked = DockedToolbar::new("dock", "Tools").action(action()).show(ui);
+                let floating = FloatingToolbar::new("float", "Tools").action(action()).show(ui);
                 *heights = [docked.response.rect.height(), floating.response.rect.height()];
             });
         });

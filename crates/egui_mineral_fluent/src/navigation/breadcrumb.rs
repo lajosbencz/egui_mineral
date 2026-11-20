@@ -13,9 +13,9 @@ use super::{
     overflow::{self, Overflow, OverflowItem, OverflowSpace},
 };
 use crate::{
-    ColorToken::ColorNeutralForeground1,
     Fluent, FluentExt, Icon, Rt, Size,
     actions::{ButtonAppearance, PushButton, button::Metrics},
+    spec::ColorToken::ColorNeutralForeground1,
     spec::{defaults::breadcrumb as d, tokens::geometry as g},
     typography::TypeRamp,
     widget::paint,
@@ -222,7 +222,7 @@ impl Breadcrumb {
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("breadcrumb"),
+            key: egui_mineral::agent_key!("breadcrumb"),
             label: label.into(),
             size: Size::Medium,
             focus: if d::ARROW_FOCUS {

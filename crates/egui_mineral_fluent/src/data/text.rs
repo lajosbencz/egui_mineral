@@ -10,7 +10,8 @@ use egui_mineral::{
 };
 
 use crate::{
-    ColorToken, Fluent, FluentExt,
+    Fluent, FluentExt,
+    spec::ColorToken,
     spec::tokens::{geometry, typography as ty},
     typography::TypeRamp,
 };
@@ -149,7 +150,7 @@ impl Text {
     pub fn new(id_salt: impl Into<KeyedSalt>, text: impl Into<String>) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("text"),
+            key: egui_mineral::agent_key!("text"),
             content: text.into(),
             size: TextSize::S300,
             weight: TextWeight::Regular,

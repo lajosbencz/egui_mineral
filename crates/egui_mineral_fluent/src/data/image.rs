@@ -9,7 +9,7 @@ use egui_mineral::{
     widget::{MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
 };
 
-use crate::ColorToken::{ColorNeutralBackground3, ColorNeutralForeground3, ColorNeutralStroke1};
+use crate::spec::ColorToken::{ColorNeutralBackground3, ColorNeutralForeground3, ColorNeutralStroke1};
 use crate::{
     Fluent, FluentExt,
     spec::tokens::geometry,
@@ -105,7 +105,7 @@ impl<'a> Image<'a> {
     pub fn new(id_salt: impl Into<KeyedSalt>, source: impl Into<ImageSource<'a>>) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("image"),
+            key: egui_mineral::agent_key!("image"),
             source: source.into(),
             alt: None,
             fit: ImageFit::Default,

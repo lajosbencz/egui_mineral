@@ -15,7 +15,7 @@ use super::field::Validation;
 use super::listbox::{self, Flat, ListEntry, ListOption, View};
 use super::textbox::{self, Chrome, Content, FieldOutput, Fill, InputAppearance};
 use super::value::{self, ListState, Value, selected_text};
-use crate::ColorToken::{ColorNeutralForegroundDisabled, ColorNeutralStrokeAccessible};
+use crate::spec::ColorToken::{ColorNeutralForegroundDisabled, ColorNeutralStrokeAccessible};
 use crate::{
     Fluent, FluentExt, Size,
     spec::{defaults::combobox as cb, tokens::geometry as g},
@@ -55,7 +55,7 @@ impl<'a, K: Ord + Clone + 'a> Combobox<'a, K> {
     ) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("combobox"),
+            key: egui_mineral::agent_key!("combobox"),
             label: label.into(),
             entries: listbox::entries(entries),
             value: Value::new(selection),

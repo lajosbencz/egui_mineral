@@ -86,7 +86,7 @@ impl<'a> OtpField<'a> {
         let id_salt: KeyedSalt = id_salt.into();
         let len = egui_mineral::kit::sanitize::at_least(len, 1.., "OtpField len");
         Self {
-            key: AgentKey::Kind("otp"),
+            key: egui_mineral::agent_key!("otp"),
             salt: id_salt,
             label: label.into(),
             label_visible: true,

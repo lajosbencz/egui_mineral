@@ -66,7 +66,7 @@ struct Spec {
 impl Spec {
     fn new(value: Option<Fraction>) -> Self {
         Self {
-            key: AgentKey::Kind("progress"),
+            key: egui_mineral::agent_key!("progress"),
             label: None,
             value: value.map(Fraction::get),
             wavy: false,

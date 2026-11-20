@@ -143,7 +143,7 @@ impl LoadingIndicator {
     pub fn new(id_salt: impl Into<KeyedSalt>) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
-            key: AgentKey::Kind("loading"),
+            key: egui_mineral::agent_key!("loading"),
             salt: id_salt,
             label: None,
             variant: LoadingIndicatorVariant::Standard,

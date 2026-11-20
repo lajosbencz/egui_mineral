@@ -52,6 +52,7 @@ use crate::tokens::Shape;
 
 /// Corners a [`ShapeRole`] rounds; `Start` and `End` follow the layout direction.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum Corners {
     /// Every corner.
     All,

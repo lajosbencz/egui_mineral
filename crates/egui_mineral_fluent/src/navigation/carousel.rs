@@ -11,7 +11,7 @@ use egui_mineral::{
     widget::{Availability, Interaction, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
 };
 
-use crate::ColorToken::{
+use crate::spec::ColorToken::{
     ColorCompoundBrandBackground, ColorCompoundBrandBackgroundHover, ColorCompoundBrandBackgroundPressed,
     ColorNeutralForeground1, ColorStrokeFocus2,
 };
@@ -171,8 +171,12 @@ impl MineralWidget for Dot {
     }
 
     fn semantics(&self, _: &I18n, response: &WidgetResponse, (): &()) -> Option<SemanticNode> {
-        let mut n = SemanticNode::new(AgentKey::Kind("carouselnav").id(&self.salt), Role::Tab, &self.label)
-            .clickable(Availability::Enabled);
+        let mut n = SemanticNode::new(
+            egui_mineral::agent_key!("carouselnav").id(&self.salt),
+            Role::Tab,
+            &self.label,
+        )
+        .clickable(Availability::Enabled);
         n.state.selected = Some(self.selected);
         n.state.focused = response.has_focus();
         Some(n)
@@ -218,7 +222,7 @@ impl CarouselUi<'_, '_> {
             paint::shadow(self.ui.painter(), card_rect, radius, Elevation::E16, &t);
         }
         let (_, response) = self.ui.allocate_exact_size(rect.size(), Sense::hover());
-        let key = AgentKey::Kind("carouselcard").id(&self.salt.child(index));
+        let key = egui_mineral::agent_key!("carouselcard").id(&self.salt.child(index));
         semantic::emit(self.ui.ctx(), None, response.rect, || {
             SemanticNode::new(key, Role::Group, card.label)
         });
@@ -262,7 +266,7 @@ impl<'a> Carousel<'a> {
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, active: &'a mut usize) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("carousel"),
+            key: egui_mineral::agent_key!("carousel"),
             label: label.into(),
             active,
             appearance: CarouselAppearance::default(),

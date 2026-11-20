@@ -53,7 +53,8 @@ pub use crate::surfaces::{
     TeachingStep, Tooltip, TooltipAppearance, TooltipRelationship, TooltipResponse,
 };
 pub use crate::{
-    BrandRamp, ColorToken, Fluent, FluentExt, FluentIcon, FluentUi, IconPosition, IconSet, Rt, Size, icons,
+    Fluent, FluentExt, FluentIcon, FluentUi, IconPosition, IconSet, Rt, Size, icons,
+    spec::{BrandRamp, ColorToken},
     typography::TypeRamp,
 };
 pub use egui_mineral::overlay::OverlayResponse;

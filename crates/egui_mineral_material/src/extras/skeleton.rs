@@ -95,7 +95,7 @@ impl Skeleton {
     pub fn new(id_salt: impl Into<KeyedSalt>, shape: SkeletonShape) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
-            key: AgentKey::Kind("skeleton"),
+            key: egui_mineral::agent_key!("skeleton"),
             salt: id_salt,
             shape,
         }

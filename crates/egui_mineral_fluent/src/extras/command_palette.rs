@@ -16,7 +16,7 @@ use egui_mineral::{
     widget::{Availability, MineralUi},
 };
 
-use crate::ColorToken::{
+use crate::spec::ColorToken::{
     ColorBackgroundOverlay, ColorNeutralBackground1, ColorNeutralBackground1Hover, ColorNeutralBackground1Pressed,
     ColorNeutralForeground1, ColorNeutralForeground3, ColorNeutralForegroundDisabled, ColorStrokeFocus2,
 };

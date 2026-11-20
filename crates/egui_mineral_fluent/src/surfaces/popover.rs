@@ -7,7 +7,7 @@ use egui_mineral::{
 };
 
 use super::overlay::{FocusTrap, Look, arrow, framed};
-use crate::ColorToken::{
+use crate::spec::ColorToken::{
     ColorBrandBackground, ColorNeutralBackground1, ColorNeutralBackgroundStatic, ColorNeutralForeground1,
     ColorNeutralForegroundOnBrand, ColorNeutralForegroundStaticInverted,
 };
@@ -67,7 +67,7 @@ impl PopoverAppearance {
     /// Every variant.
     pub const ALL: &'static [Self] = &[Self::Default, Self::Brand, Self::Inverted];
 
-    pub(super) const fn colors(self) -> (crate::ColorToken, crate::ColorToken) {
+    pub(super) const fn colors(self) -> (crate::spec::ColorToken, crate::spec::ColorToken) {
         match self {
             Self::Default => (ColorNeutralBackground1, ColorNeutralForeground1),
             Self::Brand => (ColorBrandBackground, ColorNeutralForegroundOnBrand),
@@ -174,7 +174,7 @@ impl Popover {
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("popover"),
+            key: egui_mineral::agent_key!("popover"),
             label: label.into(),
             size: PopoverSize::Medium,
             appearance: PopoverAppearance::Default,

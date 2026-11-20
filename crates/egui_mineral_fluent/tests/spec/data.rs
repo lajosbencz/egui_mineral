@@ -1,7 +1,8 @@
 use egui_mineral_fluent::{
-    ColorToken, FluentExt, Size,
+    FluentExt, Size,
     data::{Text, TextSize},
     inputs::FieldLabel,
+    spec::ColorToken,
     spec::tokens::typography,
     typography::TypeRamp,
 };
@@ -66,9 +67,10 @@ fn label_sizes_and_required_mark() {
 mod avatar {
     use egui::{Rect, pos2, vec2};
     use egui_mineral_fluent::{
-        ColorToken, FluentExt,
+        FluentExt,
         data::{Avatar, AvatarColor, AvatarGroup, AvatarGroupLayout, AvatarNamedColor, AvatarShape, AvatarSize},
         feedback::PresenceStatus,
+        spec::ColorToken,
         spec::defaults::avatar as d,
     };
 
@@ -260,8 +262,9 @@ mod persona {
 mod tag {
     use egui::vec2;
     use egui_mineral_fluent::{
-        ColorToken, FluentExt,
+        FluentExt,
         data::{InteractionTag, Tag, TagAppearance, TagShape, TagSize},
+        spec::ColorToken,
         spec::defaults::tag as d,
     };
 

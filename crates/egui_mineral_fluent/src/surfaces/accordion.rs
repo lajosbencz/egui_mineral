@@ -13,7 +13,7 @@ use egui_mineral::{
     widget::{Availability, Interaction, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
 };
 
-use crate::ColorToken::{ColorNeutralForeground1, ColorNeutralForegroundDisabled};
+use crate::spec::ColorToken::{ColorNeutralForeground1, ColorNeutralForegroundDisabled};
 use crate::{
     Fluent, FluentExt, Icon, Rt,
     spec::{
@@ -261,8 +261,12 @@ impl MineralWidget for Header<'_> {
     }
 
     fn semantics(&self, _: &I18n, _: &WidgetResponse, (): &()) -> Option<SemanticNode> {
-        let mut n = SemanticNode::new(AgentKey::Kind("header").id(&self.salt), Role::Button, &self.item.title)
-            .clickable(Availability::disabled_if(self.item.disabled));
+        let mut n = SemanticNode::new(
+            egui_mineral::agent_key!("header").id(&self.salt),
+            Role::Button,
+            &self.item.title,
+        )
+        .clickable(Availability::disabled_if(self.item.disabled));
         n.state.expanded = Some(self.open);
         n.state.disabled |= self.locked;
         if !self.item.disabled {
@@ -322,7 +326,7 @@ impl<'a> Accordion<'a> {
     pub fn new(id_salt: impl Into<KeyedSalt>, expansion: &'a mut Expansion<usize>) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("accordion"),
+            key: egui_mineral::agent_key!("accordion"),
             expansion,
             collapsible: false,
             size: AccordionSize::Medium,
@@ -508,7 +512,7 @@ impl AccordionUi<'_, '_> {
             ctx.data_mut(|d| d.insert_temp(height_id, measured));
         }
         let (rect, _) = self.ui.allocate_exact_size(vec2(w, measured * k), Sense::hover());
-        let key = AgentKey::Kind("panel").id(&item_salt);
+        let key = egui_mineral::agent_key!("panel").id(&item_salt);
         semantic::emit(&ctx, None, rect, || SemanticNode::new(key, Role::Region, &item.title));
         AccordionItemResponse {
             response,

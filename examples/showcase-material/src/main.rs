@@ -477,7 +477,7 @@ mod tests {
         let mut raw = screen();
         raw.events = events;
         let mut out = ctx.run_ui(raw, |ui| {
-            app.show(ui, &mut eframe::Frame::_new_kittest());
+            eframe::App::ui(app, ui, &mut eframe::Frame::_new_kittest());
         });
         out.textures_delta.clear();
         out.viewport_output

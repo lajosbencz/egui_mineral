@@ -70,7 +70,7 @@ impl<'a> Combobox<'a> {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
             chrome: FieldChrome::default(),
-            key: AgentKey::Kind("combobox"),
+            key: egui_mineral::agent_key!("combobox"),
             salt: id_salt,
             label: label.into(),
             text,

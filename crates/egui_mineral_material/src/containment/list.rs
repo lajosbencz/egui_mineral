@@ -146,7 +146,7 @@ impl ListItem {
     pub fn new(id_salt: impl Into<KeyedSalt>, headline: impl Into<String>) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
-            key: AgentKey::Kind("list-item"),
+            key: egui_mineral::agent_key!("list-item"),
             salt: id_salt,
             headline: headline.into(),
             supporting: None,

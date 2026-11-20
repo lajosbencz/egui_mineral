@@ -49,7 +49,7 @@ impl Kbd {
     pub fn new(id_salt: impl Into<KeyedSalt>, keys: impl IntoIterator<Item = impl Into<String>>) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
-            key: AgentKey::Kind("kbd"),
+            key: egui_mineral::agent_key!("kbd"),
             salt: id_salt,
             keys: keys.into_iter().map(Into::into).collect(),
         }
@@ -139,7 +139,7 @@ impl TextLink {
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
-            key: AgentKey::Kind("link"),
+            key: egui_mineral::agent_key!("link"),
             salt: id_salt,
             label: label.into(),
             url: None,

@@ -13,6 +13,7 @@ pub enum HourCycle {
 
 /// Width of month and weekday names.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum NameWidth {
     /// Shortest form, often one letter.
     Narrow,
@@ -58,6 +59,7 @@ pub enum DateFields {
 
 /// CLDR date length.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum DateLength {
     /// CLDR short; spells the full year so it parses back with [`LocaleFormat::parse_date`].
     Numeric,
@@ -69,6 +71,7 @@ pub enum DateLength {
 
 /// Conjunction of a formatted list.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum ListKind {
     /// Conjunction list, e.g. `a, b, and c`.
     And,

@@ -10,7 +10,7 @@ use egui_mineral::{
     widget::{Availability, Interaction, MineralUi, SizeExt as _},
 };
 
-use crate::ColorToken::{
+use crate::spec::ColorToken::{
     ColorNeutralBackground3, ColorNeutralForeground2, ColorNeutralStroke2, ColorPaletteRedBackground1,
     ColorPaletteRedForeground1, ColorSubtleBackgroundHover, ColorSubtleBackgroundPressed,
 };

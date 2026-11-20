@@ -8,11 +8,11 @@ use egui_mineral::{
     widget::{MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
 };
 
-use crate::ColorToken::{
+use crate::spec::ColorToken::{
     ColorNeutralBackground1, ColorNeutralForeground3, ColorPaletteBerryForeground3, ColorPaletteLightGreenForeground3,
     ColorPaletteMarigoldBackground3, ColorPaletteRedBackground3,
 };
-use crate::{ColorToken, Fluent, FluentExt, feedback::BadgeSize, spec::defaults::presence_badge as d};
+use crate::{Fluent, FluentExt, feedback::BadgeSize, spec::ColorToken, spec::defaults::presence_badge as d};
 
 /// Presence `status`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -97,7 +97,7 @@ impl PresenceBadge {
     pub fn new(id_salt: impl Into<KeyedSalt>, status: PresenceStatus) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("presence-badge"),
+            key: egui_mineral::agent_key!("presence-badge"),
             status,
             out_of_office: false,
             size: BadgeSize::Medium,

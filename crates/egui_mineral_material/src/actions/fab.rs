@@ -255,7 +255,7 @@ struct FabCore {
 impl FabCore {
     fn new(salt: KeyedSalt, icon: Icon, label: String) -> Self {
         Self {
-            key: AgentKey::Kind("fab"),
+            key: egui_mineral::agent_key!("fab"),
             salt,
             icon,
             label,

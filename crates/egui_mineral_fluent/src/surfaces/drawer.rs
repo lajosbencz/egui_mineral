@@ -14,7 +14,7 @@ use egui_mineral::{
 
 use super::dialog::DialogAction;
 use super::overlay::{Look, ModalFocus, framed, text};
-use crate::ColorToken::{
+use crate::spec::ColorToken::{
     ColorBackgroundOverlay, ColorNeutralBackground1, ColorNeutralBackground3, ColorNeutralForeground1,
 };
 use crate::{
@@ -151,7 +151,7 @@ impl Drawer {
         Self {
             id: Id::unique(("mineral::fluent-drawer", salt.id_salt())),
             salt,
-            key: AgentKey::Kind("drawer"),
+            key: egui_mineral::agent_key!("drawer"),
             label: label.into(),
             title: None,
             close_button: false,

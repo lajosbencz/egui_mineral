@@ -1,11 +1,12 @@
 use egui_mineral_fluent::{
-    ColorToken, FluentExt,
+    FluentExt,
     feedback::{
         Badge, BadgeSize, CounterBadge, MessageBar, MessageBarIntent, MessageBarLayout, PresenceBadge, PresenceStatus,
         ProgressBar, ProgressThickness, Skeleton, SkeletonItem, SkeletonShape, Spinner, SpinnerLabelPosition,
         SpinnerSize, Toast, Toaster, toast_queue,
     },
     inputs::Validation,
+    spec::ColorToken,
     spec::defaults::{badge, counter_badge, message_bar, presence_badge, progress_bar, skeleton, spinner, toast},
 };
 

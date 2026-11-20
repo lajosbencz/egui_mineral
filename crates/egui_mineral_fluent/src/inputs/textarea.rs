@@ -38,7 +38,7 @@ impl<'a> Textarea<'a> {
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, value: &'a mut String) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("textarea"),
+            key: egui_mineral::agent_key!("textarea"),
             label: label.into(),
             value,
             appearance: InputAppearance::Outline,

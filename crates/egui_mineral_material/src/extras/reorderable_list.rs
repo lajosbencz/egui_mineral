@@ -44,7 +44,7 @@ impl<'a, T: AsIdSalt> ReorderableList<'a, T> {
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, items: &'a [T]) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
-            key: AgentKey::Kind("reorderable-list"),
+            key: egui_mineral::agent_key!("reorderable-list"),
             salt: id_salt,
             label: label.into(),
             items,

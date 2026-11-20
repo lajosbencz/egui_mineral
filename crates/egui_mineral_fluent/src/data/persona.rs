@@ -7,10 +7,11 @@ use egui_mineral::{
     widget::{MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
 };
 
-use crate::ColorToken::{ColorNeutralForeground1, ColorNeutralForeground2};
+use crate::spec::ColorToken::{ColorNeutralForeground1, ColorNeutralForeground2};
 use crate::{
-    ColorToken, Fluent, FluentExt,
+    Fluent, FluentExt,
     feedback::{BadgeSize, PresenceBadge, PresenceStatus},
+    spec::ColorToken,
     spec::defaults::persona as d,
     typography::TypeRamp,
 };
@@ -213,7 +214,7 @@ impl<'a> Persona<'a> {
     pub fn new(id_salt: impl Into<KeyedSalt>, name: impl Into<String>) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("persona"),
+            key: egui_mineral::agent_key!("persona"),
             name: name.into(),
             size: PersonaSize::Medium,
             position: PersonaTextPosition::After,

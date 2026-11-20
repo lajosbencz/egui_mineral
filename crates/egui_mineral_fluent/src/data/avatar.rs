@@ -9,8 +9,9 @@ use egui_mineral::{
 };
 
 use crate::{
-    ColorToken, Fluent, FluentExt, Icon,
+    Fluent, FluentExt, Icon,
     feedback::{BadgeSize, PresenceBadge, PresenceStatus},
+    spec::ColorToken,
     spec::defaults::avatar as d,
     theme::{Elevation, Radius, Tokens},
     typography,
@@ -588,7 +589,7 @@ impl<'a> Avatar<'a> {
     pub fn new(id_salt: impl Into<KeyedSalt>, name: impl Into<String>) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("avatar"),
+            key: egui_mineral::agent_key!("avatar"),
             name: name.into(),
             size: AvatarSize::S32,
             shape: AvatarShape::Circular,

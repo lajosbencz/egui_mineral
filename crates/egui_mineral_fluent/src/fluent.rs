@@ -19,7 +19,8 @@ use egui_mineral::{
 use parking_lot::Mutex;
 
 use crate::{
-    BrandRamp, IconSet,
+    IconSet,
+    spec::BrandRamp,
     spec::tokens::brand::BRAND_WEB,
     theme::{ContrastMode, Scheme, TokenStore, Tokens},
 };

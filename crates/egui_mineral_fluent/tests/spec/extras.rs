@@ -1,6 +1,7 @@
 use egui_mineral_fluent::{
-    ColorToken, FluentExt as _,
+    FluentExt as _,
     extras::{SplitPane, StatusBar},
+    spec::ColorToken,
     spec::tokens::geometry,
 };
 

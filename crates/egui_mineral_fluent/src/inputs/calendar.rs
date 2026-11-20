@@ -10,7 +10,7 @@ use egui_mineral::{
     widget::{Availability, Interaction, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
 };
 
-use crate::ColorToken::{
+use crate::spec::ColorToken::{
     ColorBrandBackground, ColorBrandBackgroundInvertedHover, ColorBrandBackgroundInvertedPressed,
     ColorBrandBackgroundInvertedSelected, ColorBrandForeground1, ColorBrandForeground2,
     ColorBrandForegroundOnLightHover, ColorBrandForegroundOnLightPressed, ColorBrandStroke1, ColorNeutralForeground1,
@@ -69,7 +69,7 @@ impl<'a> Calendar<'a> {
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, value: &'a mut Option<Date>) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("calendar"),
+            key: egui_mineral::agent_key!("calendar"),
             label: label.into(),
             value,
             bounds: DateBounds::default(),
@@ -177,7 +177,7 @@ fn cell(cx: &Cx<'_>, root: Rect, x: f32, y: f32, size: Pos2) -> Rect {
     Rect::from_min_size(Pos2::new(left, root.top() + y), vec2(size.x, size.y))
 }
 
-fn text_color(look: Look, hot: Interaction, disabled: bool) -> crate::ColorToken {
+fn text_color(look: Look, hot: Interaction, disabled: bool) -> crate::spec::ColorToken {
     if disabled {
         ColorNeutralForegroundDisabled
     } else if hot.pressed && look == Look::Rest {
@@ -195,7 +195,7 @@ fn text_color(look: Look, hot: Interaction, disabled: bool) -> crate::ColorToken
 }
 
 // Hover and press fill of `CalendarDayGrid`, `CalendarPicker` items and the header buttons.
-fn fill(hot: Interaction, look: Look, disabled: bool) -> Option<crate::ColorToken> {
+fn fill(hot: Interaction, look: Look, disabled: bool) -> Option<crate::spec::ColorToken> {
     if disabled {
         return None;
     }
@@ -421,7 +421,7 @@ fn year_range(from: i16) -> std::ops::RangeInclusive<i16> {
 }
 
 impl Run<'_> {
-    fn label(&self, ui: &MineralUi<'_, Fluent>, rect: Rect, text: String, color: crate::ColorToken) {
+    fn label(&self, ui: &MineralUi<'_, Fluent>, rect: Rect, text: String, color: crate::spec::ColorToken) {
         let color = self.cx.t.color(color);
         let format = crate::typography::format(
             ui.ctx(),

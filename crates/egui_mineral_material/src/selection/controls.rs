@@ -621,7 +621,7 @@ impl<'a> CheckButton<'a> {
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, checked: &'a mut bool) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
-            key: AgentKey::Kind("checkbox"),
+            key: egui_mineral::agent_key!("checkbox"),
             salt: id_salt,
             checked,
             label: label.into(),
@@ -773,7 +773,7 @@ impl Radio {
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
-            key: AgentKey::Kind("radio"),
+            key: egui_mineral::agent_key!("radio"),
             salt: id_salt,
             selected: false,
             label: label.into(),
@@ -1053,7 +1053,7 @@ impl<'a> Switch<'a> {
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, checked: &'a mut bool) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
-            key: AgentKey::Kind("switch"),
+            key: egui_mineral::agent_key!("switch"),
             salt: id_salt,
             checked,
             label: label.into(),

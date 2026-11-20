@@ -237,7 +237,7 @@ impl<'a> IconButton<'a> {
     pub fn new(id_salt: impl Into<KeyedSalt>, icon: impl Into<Icon>, label: impl Into<String>) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
-            key: AgentKey::Kind("button"),
+            key: egui_mineral::agent_key!("button"),
             salt: id_salt,
             icon: icon.into(),
             label: label.into(),

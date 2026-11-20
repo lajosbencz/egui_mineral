@@ -224,7 +224,7 @@ impl Core<'_> {
     fn new(id_salt: impl Into<KeyedSalt>, kind: ChipKind, label: impl Into<String>) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
-            key: AgentKey::Kind("chip"),
+            key: egui_mineral::agent_key!("chip"),
             salt: id_salt,
             label: label.into(),
             kind,

@@ -13,7 +13,7 @@ use egui_mineral::{
     widget::{Availability, Interaction, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
 };
 
-use crate::ColorToken::{
+use crate::spec::ColorToken::{
     ColorCompoundBrandBackground, ColorCompoundBrandBackgroundHover, ColorCompoundBrandBackgroundPressed,
     ColorCompoundBrandForeground1, ColorCompoundBrandStroke, ColorNeutralForeground2, ColorNeutralForeground2Hover,
     ColorNeutralForeground2Pressed, ColorNeutralForeground3, ColorNeutralForeground3Hover,
@@ -658,8 +658,12 @@ impl MineralWidget for Row<'_> {
 
 impl Row<'_> {
     fn node(&self, focused: bool) -> SemanticNode {
-        let mut n = SemanticNode::new(AgentKey::Kind("treeitem").id(&self.salt), Role::TreeItem, self.label)
-            .clickable(Availability::Enabled);
+        let mut n = SemanticNode::new(
+            egui_mineral::agent_key!("treeitem").id(&self.salt),
+            Role::TreeItem,
+            self.label,
+        )
+        .clickable(Availability::Enabled);
         n.depth = self.depth + 1;
         n.state.focused = focused;
         if self.selection != TreeSelection::None {
@@ -778,7 +782,7 @@ impl<'a, N: TreeData> Tree<'a, N> {
     ) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("tree"),
+            key: egui_mineral::agent_key!("tree"),
             label: label.into(),
             roots,
             expansion,

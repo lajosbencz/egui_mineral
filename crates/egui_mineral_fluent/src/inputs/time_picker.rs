@@ -48,7 +48,7 @@ impl<'a> TimePicker<'a> {
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, value: &'a mut Option<Time>) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("time-picker"),
+            key: egui_mineral::agent_key!("time-picker"),
             label: label.into(),
             value,
             start_hour: tp::START_HOUR,

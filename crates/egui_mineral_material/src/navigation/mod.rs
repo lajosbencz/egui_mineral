@@ -15,5 +15,5 @@ pub use search::{
     SearchViewResponse,
 };
 pub use tabs::{Tab, Tabs, TabsVariant};
-pub use toolbar::{DockedToolbar, FloatingToolbar, Toolbar, ToolbarColors, ToolbarResponse};
+pub use toolbar::{DockedToolbar, FloatingToolbar, ToolbarColors, ToolbarResponse};
 pub use top_app_bar::{TopAppBar, TopAppBarResponse, TopAppBarVariant};

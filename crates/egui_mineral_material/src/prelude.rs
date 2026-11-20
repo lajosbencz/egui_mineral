@@ -36,7 +36,7 @@ pub use crate::navigation::{
     DockedToolbar, FloatingToolbar, NavDestination, NavLabels, NavigationBar, NavigationDrawer,
     NavigationDrawerModalResponse, NavigationRail, NavigationRailResponse, SearchBar, SearchBarOutput, SearchBarState,
     SearchSuggestions, SearchSuggestionsOutput, SearchView, SearchViewMode, SearchViewResponse, Tab, Tabs, TabsVariant,
-    Toolbar, ToolbarColors, ToolbarResponse, TopAppBar, TopAppBarResponse, TopAppBarVariant,
+    ToolbarColors, ToolbarResponse, TopAppBar, TopAppBarResponse, TopAppBarVariant,
 };
 pub use crate::selection::{
     CheckButton, Chip, ChipVariant, DatePicker, DateRangePicker, DisplayMode, InputChip, InputChipOutput, Menu,

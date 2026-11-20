@@ -90,6 +90,7 @@ impl<F: Fn(&str, &dyn LocaleFormat) -> Result<(), ValidationError> + Send + Sync
 
 /// When a field re-validates on its own (submit always validates everything).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
+#[non_exhaustive]
 pub enum ValidateOn {
     /// On every edit and on focus loss.
     Change,

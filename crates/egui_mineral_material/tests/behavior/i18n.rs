@@ -40,7 +40,7 @@ mod mirror {
             TreeView,
         },
         icons::{ICON_ADD, ICON_ARROW_DROP_DOWN, ICON_EDIT, ICON_HOME, ICON_MAIL, ICON_SHARE},
-        navigation::{NavDestination, NavigationBar, NavigationDrawer, Toolbar, TopAppBar},
+        navigation::{FloatingToolbar, NavDestination, NavigationBar, NavigationDrawer, TopAppBar},
         navigation::{Tab, Tabs},
         selection::{CheckButton, Chip, Switch},
         selection::{DatePicker, Menu, MenuItem, Select, SelectOption},
@@ -174,7 +174,7 @@ mod mirror {
             .menu(Menu::new("file", "File").item(MenuItem::new("Open")))
             .menu(Menu::new("edit", "Edit").item(MenuItem::new("Copy")))
             .show(ui);
-        Toolbar::floating("tb", "Edit")
+        FloatingToolbar::new("tb", "Edit")
             .actions([IconAction::new(ICON_EDIT, "Edit"), IconAction::new(ICON_SHARE, "Share")])
             .show(ui);
         ui.mineral(IconButton::new("mail", ICON_MAIL, "Mail").badge(Badge::count(12)));

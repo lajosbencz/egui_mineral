@@ -8,7 +8,7 @@ use egui_mineral::{
     widget::{Composite, MineralUi, SizeExt as _, WidgetResponse},
 };
 
-use crate::ColorToken::ColorNeutralForeground2;
+use crate::spec::ColorToken::ColorNeutralForeground2;
 use crate::{
     Fluent, FluentExt, Size,
     actions::{PushButton, ToggleButton},

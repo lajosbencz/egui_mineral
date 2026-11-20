@@ -78,7 +78,7 @@ impl SettingRow {
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
-            key: AgentKey::Kind("setting"),
+            key: egui_mineral::agent_key!("setting"),
             salt: id_salt,
             label: label.into(),
             supporting: None,

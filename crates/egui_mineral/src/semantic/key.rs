@@ -272,11 +272,82 @@ impl From<&KeyedSalt> for StableId {
     }
 }
 
+/// Kind suffix of a widget's [`AgentKey`]: lowercase words joined by single `-`, e.g. `date-field`.
+///
+/// Built with [`agent_kind!`](crate::agent_kind) or [`agent_key!`](crate::agent_key), which check the format at
+/// compile time.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct KeyKind(&'static str);
+
+impl KeyKind {
+    /// `None` unless `kind` is lowercase ASCII words joined by single `-`.
+    pub const fn new(kind: &'static str) -> Option<Self> {
+        let b = kind.as_bytes();
+        if b.is_empty() {
+            return None;
+        }
+        let mut prev = b'-';
+        let mut i = 0;
+        while i < b.len() {
+            let c = b[i];
+            if !(c.is_ascii_lowercase() || c.is_ascii_digit() || (c == b'-' && prev != b'-')) {
+                return None;
+            }
+            prev = c;
+            i += 1;
+        }
+        if prev == b'-' { None } else { Some(Self(kind)) }
+    }
+
+    /// Kind text.
+    pub const fn as_str(self) -> &'static str {
+        self.0
+    }
+}
+
+impl KeySalt for KeyKind {
+    fn write_key(&self, out: &mut String) {
+        out.push_str(self.0);
+    }
+
+    fn key_parts(&self, parts: &mut KeyParts) -> bool {
+        parts.push_str(self.0)
+    }
+}
+
+/// [`KeyKind`] checked at compile time: `agent_kind!("date-field")`.
+///
+/// ```compile_fail
+/// let kind = egui_mineral::agent_kind!("Date Field");
+/// ```
+#[macro_export]
+macro_rules! agent_kind {
+    ($kind:literal) => {{
+        const KIND: $crate::semantic::KeyKind = match $crate::semantic::KeyKind::new($kind) {
+            Some(kind) => kind,
+            None => ::core::panic!(::core::concat!(
+                "agent kind `",
+                $kind,
+                "` is not lowercase words joined by single `-`"
+            )),
+        };
+        KIND
+    }};
+}
+
+/// [`AgentKey::Kind`] of a [`KeyKind`] checked at compile time: `agent_key!("date-field")`.
+#[macro_export]
+macro_rules! agent_key {
+    ($kind:literal) => {
+        $crate::semantic::AgentKey::Kind($crate::agent_kind!($kind))
+    };
+}
+
 /// Widget agent key: `<salt key>-<kind>`, formatted only when semantics are built, or an app override.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum AgentKey {
     /// Derived from the widget's salt: `<salt key>-<kind>`.
-    Kind(&'static str),
+    Kind(KeyKind),
     /// App override from `agent_key(..)`; used verbatim.
     Custom(StableId),
 }
@@ -718,5 +789,15 @@ mod tests {
         assert_eq!(KeyedSalt::from(Hashed(9)).key(), "stable");
         let parent = KeyedSalt::from(Hashed(9));
         assert_eq!(parent.child(Hashed(1)).key(), "stable-stable");
+    }
+
+    #[test]
+    fn key_kinds_are_lowercase_words_joined_by_single_dashes() {
+        for ok in ["date-field", "a", "h2", "x-1-y"] {
+            assert_eq!(super::KeyKind::new(ok).map(super::KeyKind::as_str), Some(ok));
+        }
+        for bad in ["", "-a", "a-", "a--b", "Date", "a b", "a_b", "\u{e9}"] {
+            assert_eq!(super::KeyKind::new(bad), None, "{bad:?}");
+        }
     }
 }

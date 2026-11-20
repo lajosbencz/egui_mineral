@@ -8,7 +8,7 @@ use egui_mineral::{
 };
 
 use super::label::FieldLabel;
-use crate::ColorToken::{
+use crate::spec::ColorToken::{
     ColorNeutralForeground3, ColorPaletteDarkOrangeForeground1, ColorPaletteGreenForeground1,
     ColorPaletteRedForeground1,
 };
@@ -35,7 +35,7 @@ pub enum Validation {
 
 impl Validation {
     // react-field useFieldStyles.styles.ts useValidationMessageIconStyles
-    fn icon(self, icons: &crate::IconSet) -> (Icon, crate::ColorToken) {
+    fn icon(self, icons: &crate::IconSet) -> (Icon, crate::spec::ColorToken) {
         match self {
             Self::Error => (icons.error_circle, ColorPaletteRedForeground1),
             Self::Warning => (icons.warning, ColorPaletteDarkOrangeForeground1),

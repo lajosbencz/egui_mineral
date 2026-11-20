@@ -1,8 +1,8 @@
 use egui::{Color32, Theme};
 
 use crate::{
-    BrandRamp, ColorToken, Shadow,
     spec::tokens::{geometry, shadow},
+    spec::{BrandRamp, ColorToken, Shadow},
 };
 
 /// One of the three Fluent UI React v9 themes.

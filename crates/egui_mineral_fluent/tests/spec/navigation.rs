@@ -4,7 +4,7 @@ use egui_mineral::{
     select::{Selection, SelectionMode},
 };
 use egui_mineral_fluent::{
-    ColorToken, FluentExt, Size,
+    FluentExt, Size,
     actions::PushButton,
     data::Avatar,
     icons::{ICON_CUT, ICON_HOME, ICON_MORE_HORIZONTAL, ICON_PERSON, ICON_PIN},
@@ -13,6 +13,7 @@ use egui_mineral_fluent::{
         NavCategory, NavDensity, NavDrawer, NavItem, NavSubItem, Tab, TabAppearance, TabList, Toolbar,
         ToolbarToggleButton, Tree, TreeItem, TreeItemLayout, TreeItemPersonaLayout,
     },
+    spec::ColorToken,
     spec::defaults::{carousel as cdef, menu, menu_grid as mgdef, nav as ndef, tab, toolbar, tree as tdef},
     typography::TypeRamp,
 };

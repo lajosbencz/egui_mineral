@@ -8,7 +8,7 @@ use egui_mineral::{
     widget::{MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
 };
 
-use crate::ColorToken::{
+use crate::spec::ColorToken::{
     ColorCompoundBrandBackground, ColorNeutralBackground6, ColorPaletteDarkOrangeBackground3,
     ColorPaletteGreenBackground3, ColorPaletteRedBackground3,
 };
@@ -87,7 +87,7 @@ impl ProgressBar {
     fn build(salt: KeyedSalt, value: Option<f32>) -> Self {
         Self {
             salt,
-            key: AgentKey::Kind("progress-bar"),
+            key: egui_mineral::agent_key!("progress-bar"),
             label: None,
             value,
             max: 1.0,

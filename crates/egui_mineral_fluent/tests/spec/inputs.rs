@@ -1,11 +1,12 @@
 use egui_mineral_fluent::inputs::{Swatch, SwatchPicker, SwatchSize};
 use egui_mineral_fluent::{
-    ColorToken, FluentExt, Size,
+    FluentExt, Size,
     egui_mineral::range::RangeModel,
     inputs::{
         Checkbox, Combobox, Dropdown, Input, InputAppearance, ListOption, Rating, RatingSize, Slider, SpinButton,
         Switch, Textarea,
     },
+    spec::ColorToken,
     spec::{
         defaults::{checkbox, combobox, input, rating, slider, spin_button, swatch_picker, switch, textarea},
         tokens::geometry,

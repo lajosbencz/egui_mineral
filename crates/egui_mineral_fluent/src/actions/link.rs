@@ -7,7 +7,7 @@ use egui_mineral::{
     widget::{Availability, Interaction, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
 };
 
-use crate::ColorToken::{
+use crate::spec::ColorToken::{
     ColorBrandForegroundLink, ColorBrandForegroundLinkHover, ColorBrandForegroundLinkPressed,
     ColorNeutralForeground2Link, ColorNeutralForeground2LinkHover, ColorNeutralForeground2LinkPressed,
     ColorNeutralForegroundDisabled,
@@ -54,7 +54,7 @@ impl TextLink {
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("link"),
+            key: egui_mineral::agent_key!("link"),
             label: label.into(),
             url: None,
             new_tab: false,

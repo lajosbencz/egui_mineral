@@ -13,7 +13,7 @@ use egui_mineral::{
     widget::{Availability, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
 };
 
-use crate::ColorToken::{
+use crate::spec::ColorToken::{
     ColorBrandBackground2, ColorNeutralForeground1, ColorNeutralForeground1Hover, ColorNeutralForeground1Pressed,
     ColorNeutralForeground2, ColorNeutralStroke1, ColorNeutralStroke2, ColorStrokeFocus2, ColorSubtleBackgroundHover,
     ColorSubtleBackgroundPressed, ColorSubtleBackgroundSelected,
@@ -134,7 +134,7 @@ impl<'a> TableCellLayout<'a> {
     pub fn new(id_salt: impl Into<KeyedSalt>, text: impl Into<String>) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("table-cell-layout"),
+            key: egui_mineral::agent_key!("table-cell-layout"),
             text: text.into(),
             description: None,
             media: None,
@@ -311,7 +311,7 @@ impl<'a> Table<'a> {
     ) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("table"),
+            key: egui_mineral::agent_key!("table"),
             label: label.into(),
             size: TableSize::Medium,
             appearance: TableRowAppearance::Neutral,

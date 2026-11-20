@@ -5,13 +5,13 @@ mod pages;
 use egui::{CentralPanel, Color32, Key, KeyboardShortcut, Modifiers, Panel, scroll_area::ScrollAreaOutput};
 use egui_mineral_eframe::{EframeApp, MineralApp};
 use egui_mineral_fluent::{
-    BrandRamp,
     egui_mineral::{
         i18n::{Catalog, messages},
         runtime::{InitError, Runtime},
     },
     prelude::*,
     scroll,
+    spec::BrandRamp,
     spec::tokens::brand::BRAND_WEB,
     theme::ContrastMode,
 };

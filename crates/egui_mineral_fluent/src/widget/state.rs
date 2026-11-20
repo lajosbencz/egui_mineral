@@ -1,7 +1,7 @@
 use egui::Color32;
 use egui_mineral::widget::Interaction;
 
-use crate::{ColorToken, theme::Tokens};
+use crate::{spec::ColorToken, theme::Tokens};
 
 // CSS rest, `:hover` and `:hover:active` / `:active:focus-visible`, and disabled.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

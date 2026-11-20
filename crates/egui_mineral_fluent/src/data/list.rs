@@ -9,7 +9,7 @@ use egui_mineral::{
     widget::{Availability, MineralUi},
 };
 
-use crate::ColorToken::ColorStrokeFocus2;
+use crate::spec::ColorToken::ColorStrokeFocus2;
 use crate::{
     Fluent, FluentExt, Rt,
     inputs::{Checkbox, CheckboxShape},
@@ -67,7 +67,7 @@ impl<'a> List<'a> {
     pub fn new(id_salt: impl Into<KeyedSalt>) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("list"),
+            key: egui_mineral::agent_key!("list"),
             navigation: None,
             selection: None,
         }
@@ -293,7 +293,7 @@ impl ListUi<'_, '_> {
             Role::ListBox => Role::ListBoxOption,
             _ => Role::ListItem,
         };
-        let key = AgentKey::Kind("item").id(&item_salt);
+        let key = egui_mineral::agent_key!("item").id(&item_salt);
         semantic::emit(self.ui.ctx(), Some(response.id), response.rect, || {
             let mut n = SemanticNode::new(key, role, label);
             if self.focusable {

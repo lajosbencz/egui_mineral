@@ -7,7 +7,7 @@ use egui_mineral::{
     widget::{Availability, Interaction, MineralUi},
 };
 
-use crate::ColorToken::{
+use crate::spec::ColorToken::{
     ColorNeutralBackground1, ColorNeutralBackground1Hover, ColorNeutralBackground1Pressed,
     ColorNeutralBackground1Selected, ColorNeutralBackground2, ColorNeutralBackground2Hover,
     ColorNeutralBackground2Pressed, ColorNeutralBackground2Selected, ColorNeutralBackgroundDisabled,
@@ -18,9 +18,10 @@ use crate::ColorToken::{
     ColorTransparentStroke,
 };
 use crate::{
-    ColorToken, Fluent, FluentExt, Icon, Rt, Size,
+    Fluent, FluentExt, Icon, Rt, Size,
     data::Text,
     inputs::Checkbox,
+    spec::ColorToken,
     spec::{defaults::card as d, tokens::geometry},
     theme::{Elevation, Radius},
     typography::TypeRamp,
@@ -114,7 +115,7 @@ impl<'a> Card<'a> {
     pub fn new(id_salt: impl Into<KeyedSalt>) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("card"),
+            key: egui_mineral::agent_key!("card"),
             label: None,
             appearance: CardAppearance::Filled,
             orientation: Axis::Vertical,

@@ -11,7 +11,7 @@ use egui_mineral::{
 };
 
 use super::choice::{Position, Spec, WRAP_SLACK};
-use crate::ColorToken::{
+use crate::spec::ColorToken::{
     ColorCompoundBrandForeground1, ColorCompoundBrandForeground1Hover, ColorCompoundBrandForeground1Pressed,
     ColorCompoundBrandStroke, ColorCompoundBrandStrokeHover, ColorCompoundBrandStrokePressed, ColorNeutralForeground1,
     ColorNeutralForeground2, ColorNeutralForeground3, ColorNeutralForegroundDisabled, ColorNeutralStrokeAccessible,
@@ -61,7 +61,7 @@ impl Radio {
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>) -> Self {
         Self {
             salt: id_salt.into(),
-            key: AgentKey::Kind("radio"),
+            key: egui_mineral::agent_key!("radio"),
             label: label.into(),
             selected: false,
             position: RadioLabelPosition::After,

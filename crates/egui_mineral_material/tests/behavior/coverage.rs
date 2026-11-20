@@ -12,7 +12,7 @@ use egui_mineral_material::{
     containment::{BottomSheet, Card, Divider},
     extras::{Accordion, EmptyPlaceholder, ImageList, Rating},
     icons::{ICON_ADD, ICON_EDIT, ICON_SAVE},
-    navigation::{SearchSuggestions, Toolbar},
+    navigation::{DockedToolbar, FloatingToolbar, SearchSuggestions},
     prelude::*,
     spec::ColorRole,
     text_inputs::TextField,
@@ -113,7 +113,7 @@ fn rating_read_only_ignores_input() {
 #[test]
 fn docked_toolbar_reports_the_clicked_action() {
     let mut h = still(SCREEN, Vec::new(), |ui, seen| {
-        let r = Toolbar::docked("dock", "Tools")
+        let r = DockedToolbar::new("dock", "Tools")
             .action(IconAction::new(ICON_SAVE, "Save"))
             .action(IconAction::new(ICON_EDIT, "Edit"))
             .show(ui);
@@ -127,7 +127,7 @@ fn docked_toolbar_reports_the_clicked_action() {
 #[test]
 fn floating_toolbar_reports_its_paired_fab() {
     let mut h = still(SCREEN, (0u32, Vec::new()), |ui, (fab, seen)| {
-        let r = Toolbar::floating("float", "Tools")
+        let r = FloatingToolbar::new("float", "Tools")
             .action(IconAction::new(ICON_SAVE, "Save"))
             .fab(ICON_ADD, "Add", Edge::End)
             .show(ui);

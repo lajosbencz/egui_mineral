@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use egui::{CornerRadius, Stroke, Style, TextStyle};
 
-use crate::ColorToken::{
+use crate::spec::ColorToken::{
     ColorBrandBackground, ColorBrandForegroundLink, ColorNeutralBackground1, ColorNeutralBackground1Hover,
     ColorNeutralBackground1Pressed, ColorNeutralBackground1Selected, ColorNeutralBackground2, ColorNeutralBackground3,
     ColorNeutralForeground1, ColorNeutralForeground1Hover, ColorNeutralForeground1Pressed,
@@ -11,7 +11,11 @@ use crate::ColorToken::{
     ColorStatusDangerForeground1, ColorStatusWarningForeground1, ColorTransparentStroke,
 };
 pub use crate::tokens::{ContrastMode, Elevation, ElevationShadow, Radius, Scheme, ShadowTint, Tokens};
-use crate::{BrandRamp, ColorToken, spec::tokens::geometry, typography::TypeRamp};
+use crate::{
+    spec::tokens::geometry,
+    spec::{BrandRamp, ColorToken},
+    typography::TypeRamp,
+};
 
 #[derive(Debug)]
 struct Themed {

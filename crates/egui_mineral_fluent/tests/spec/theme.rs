@@ -1,7 +1,8 @@
 use egui::{Color32, Theme, ThemePreference};
 use egui_mineral_fluent::{
-    BrandRamp, BrandStep, ColorToken, FluentExt,
+    FluentExt,
     spec::tokens::brand::BRAND_WEB,
+    spec::{BrandRamp, BrandStep, ColorToken},
     theme::{ContrastMode, Elevation, Radius, Scheme, ShadowTint, Tokens},
 };
 

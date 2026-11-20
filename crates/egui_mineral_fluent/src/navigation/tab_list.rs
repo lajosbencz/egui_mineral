@@ -9,7 +9,7 @@ use egui_mineral::{
     widget::{Availability, Interaction, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
 };
 
-use crate::ColorToken::{
+use crate::spec::ColorToken::{
     ColorBrandBackground, ColorBrandBackground2, ColorBrandBackground2Hover, ColorBrandBackground2Pressed,
     ColorBrandBackgroundHover, ColorBrandBackgroundPressed, ColorBrandForeground2, ColorBrandForeground2Hover,
     ColorBrandForeground2Pressed, ColorCompoundBrandForeground1, ColorCompoundBrandForeground1Hover,
@@ -530,8 +530,12 @@ impl MineralWidget for TabItem<'_> {
     }
 
     fn semantics(&self, _: &I18n, _: &WidgetResponse, (): &()) -> Option<SemanticNode> {
-        let mut n = SemanticNode::new(AgentKey::Kind("tab").id(&self.salt), Role::Tab, &self.tab.label)
-            .clickable(Availability::disabled_if(self.disabled));
+        let mut n = SemanticNode::new(
+            egui_mineral::agent_key!("tab").id(&self.salt),
+            Role::Tab,
+            &self.tab.label,
+        )
+        .clickable(Availability::disabled_if(self.disabled));
         n.state.selected = Some(self.selected);
         Some(n)
     }
@@ -627,7 +631,7 @@ impl<'a> TabList<'a> {
     fn with(salt: KeyedSalt, label: String, selected: Choice<'a>, tabs: Vec<Tab>) -> Self {
         Self {
             salt,
-            key: AgentKey::Kind("tablist"),
+            key: egui_mineral::agent_key!("tablist"),
             label,
             selected,
             tabs,

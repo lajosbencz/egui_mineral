@@ -10,7 +10,7 @@ use egui_mineral::{
 };
 
 use super::overlay::{Look, ModalFocus, framed, text};
-use crate::ColorToken::{ColorBackgroundOverlay, ColorNeutralBackground1, ColorNeutralForeground1};
+use crate::spec::ColorToken::{ColorBackgroundOverlay, ColorNeutralBackground1, ColorNeutralForeground1};
 use crate::{
     Fluent, FluentExt, Rt,
     actions::PushButton,
@@ -169,7 +169,7 @@ impl Dialog {
         Self {
             id: Id::unique(("mineral::fluent-dialog", salt.id_salt())),
             salt,
-            key: AgentKey::Kind("dialog"),
+            key: egui_mineral::agent_key!("dialog"),
             title: title.into(),
             kind: DialogKind::Modal,
             actions: Vec::new(),

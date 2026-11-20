@@ -522,9 +522,9 @@ fn report_action(r: &ToolbarResponse, shared: &mut Shared) {
 }
 
 fn toolbars(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
-    super::section(ui, TOPICS[5], Some(Toolbar::META), |ui| {
+    super::section(ui, TOPICS[5], Some(<DockedToolbar<'static>>::META), |ui| {
         caption(ui, TypeScale::LabelMedium, "Docked, toggle actions");
-        let r = Toolbar::docked("nav-toolbar-docked", "Formatting")
+        let r = DockedToolbar::new("nav-toolbar-docked", "Formatting")
             .action(
                 IconAction::new(ICON_FORMAT_BOLD, "Bold")
                     .key(Format::Bold)
@@ -546,7 +546,7 @@ fn toolbars(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
         ui.add_space(8.0);
         caption(ui, TypeScale::LabelMedium, "Docked, with a segmented button");
         let mode = &mut s.toolbar_mode;
-        let r = Toolbar::docked("nav-toolbar-custom", "Display")
+        let r = DockedToolbar::new("nav-toolbar-custom", "Display")
             .action(IconAction::new(ICON_FORMAT_BOLD, "Bold"))
             .action(IconAction::new(ICON_CONTENT_CUT, "Cut"))
             .custom("mode", |ui| {
@@ -561,7 +561,7 @@ fn toolbars(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
         super::top_row(ui, |row| {
             row.add(|ui| {
                 caption(ui, TypeScale::LabelMedium, "Floating");
-                let r = Toolbar::floating("nav-toolbar-float", "Edit")
+                let r = FloatingToolbar::new("nav-toolbar-float", "Edit")
                     .actions([
                         IconAction::new(ICON_EDIT, "Edit"),
                         IconAction::new(ICON_SHARE, "Share"),
@@ -572,7 +572,7 @@ fn toolbars(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
             });
             row.add(|ui| {
                 caption(ui, TypeScale::LabelMedium, "Floating, vibrant");
-                let r = Toolbar::floating("nav-toolbar-vibrant", "Edit")
+                let r = FloatingToolbar::new("nav-toolbar-vibrant", "Edit")
                     .colors(ToolbarColors::Vibrant)
                     .actions([
                         IconAction::new(ICON_EDIT, "Edit"),
@@ -584,7 +584,7 @@ fn toolbars(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
             });
             row.add(|ui| {
                 caption(ui, TypeScale::LabelMedium, "Floating, vertical");
-                let r = Toolbar::floating("nav-toolbar-vert", "Edit")
+                let r = FloatingToolbar::new("nav-toolbar-vert", "Edit")
                     .axis(Axis::Vertical)
                     .actions([
                         IconAction::new(ICON_EDIT, "Edit"),
@@ -606,7 +606,7 @@ fn toolbars(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
             "Expanded",
             &mut s.toolbar_expanded,
         ));
-        let r = Toolbar::floating("nav-toolbar-fab", "Edit")
+        let r = FloatingToolbar::new("nav-toolbar-fab", "Edit")
             .colors(ToolbarColors::Vibrant)
             .actions([
                 IconAction::new(ICON_EDIT, "Edit"),

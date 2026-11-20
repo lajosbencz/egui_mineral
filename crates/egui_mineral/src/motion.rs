@@ -332,6 +332,7 @@ pub struct Release {
 
 /// Momentum and dismissal thresholds for fling gestures.
 #[derive(Clone, Copy, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct Fling {
     /// Velocity retained per millisecond.
     pub deceleration: f32,

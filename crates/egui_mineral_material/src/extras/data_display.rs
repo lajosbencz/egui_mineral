@@ -217,7 +217,7 @@ impl Statistic {
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>, value: f64) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
-            key: AgentKey::Kind("statistic"),
+            key: egui_mineral::agent_key!("statistic"),
             salt: id_salt,
             label: label.into(),
             value,
