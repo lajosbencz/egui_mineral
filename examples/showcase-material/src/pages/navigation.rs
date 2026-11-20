@@ -41,15 +41,12 @@ enum StatusAction {
     ResetZoom,
 }
 
-#[derive(Clone, Copy, PartialEq)]
-enum BarAction {
-    Share,
-}
-
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, egui_mineral::semantic::KeySalt)]
 enum Format {
     Bold,
     Italic,
+    Underline,
+    Cut,
 }
 
 const WORDS: [&str; 12] = [
@@ -412,12 +409,12 @@ fn rail_drawer(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     });
 }
 
-fn report_bar(r: &TopAppBarResponse, shared: &mut Shared) {
+fn report_bar<A: std::fmt::Debug>(r: &TopAppBarResponse<A>, shared: &mut Shared) {
     if r.leading_clicked {
         shared.toast("Navigation icon");
     }
     if let Some(a) = &r.clicked {
-        shared.toast(format!("Action {}", a.index()));
+        shared.toast(format!("Action {a:?}"));
     }
 }
 
@@ -427,21 +424,21 @@ fn app_bar_overflow(ui: &mut MaterialUi<'_>, shared: &mut Shared) {
         ui,
         TypeScale::LabelMedium,
         "Overflow: at most 3 inline actions on compact windows, 5 elsewhere; the rest move to the \
-         More menu with their index and agent key. Share anchors a menu to its own button.",
+         More menu with their value and agent key. Share anchors a menu to its own button.",
     );
     let r = TopAppBar::new("nav-appbar-overflow", "Document")
         .navigation(ICON_ARROW_BACK, "Back")
         .actions([
-            IconAction::new(ICON_SEARCH, "Search"),
-            IconAction::new(ICON_SHARE, "Share").key(BarAction::Share),
-            IconAction::new(ICON_EDIT, "Edit").disabled(true),
-            IconAction::new(ICON_BOOKMARK, "Bookmark"),
-            IconAction::new(ICON_DELETE, "Delete"),
-            IconAction::new(ICON_SETTINGS, "Settings"),
-            IconAction::new(ICON_CONTENT_COPY, "Copy").command(&COMMANDS[COPY].0),
+            ("search", IconAction::new(ICON_SEARCH, "Search")),
+            ("share", IconAction::new(ICON_SHARE, "Share")),
+            ("edit", IconAction::new(ICON_EDIT, "Edit").disabled(true)),
+            ("bookmark", IconAction::new(ICON_BOOKMARK, "Bookmark")),
+            ("delete", IconAction::new(ICON_DELETE, "Delete")),
+            ("settings", IconAction::new(ICON_SETTINGS, "Settings")),
+            ("copy", IconAction::new(ICON_CONTENT_COPY, "Copy").command(&COMMANDS[COPY].0)),
         ])
         .show(ui);
-    if let Some(share) = r.actions.get_by_key(&BarAction::Share) {
+    if let Some(share) = r.actions.get(&"share") {
         let menu = Menu::new("nav-appbar-share-menu", "Share")
             .item(MenuItem::new("Mail").leading(ICON_MAIL))
             .item(MenuItem::new("Copy link").leading(ICON_CONTENT_COPY));
@@ -449,7 +446,7 @@ fn app_bar_overflow(ui: &mut MaterialUi<'_>, shared: &mut Shared) {
             shared.toast(format!("Share via item {}", i.index()));
         }
     }
-    if !r.clicked.as_ref().is_some_and(|c| c.is(&BarAction::Share)) {
+    if r.clicked != Some("share") {
         report_bar(&r, shared);
     }
 }
@@ -482,8 +479,8 @@ fn app_bars(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
                 .flexible(flexible)
                 .scroll_offset(s.appbar_scroll as f32)
                 .navigation(ICON_MENU, "Menu")
-                .action(IconAction::new(ICON_SEARCH, "Search"))
-                .action(IconAction::new(ICON_STAR, "Favorite"))
+                .action("search", IconAction::new(ICON_SEARCH, "Search"))
+                .action("favorite", IconAction::new(ICON_STAR, "Favorite"))
                 .show(ui);
             report_bar(&r, shared);
         }
@@ -493,7 +490,7 @@ fn app_bars(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
             .centered(true)
             .supporting("24 unread")
             .navigation(ICON_ARROW_BACK, "Back")
-            .action(IconAction::new(ICON_SHARE, "Share"))
+            .action("share", IconAction::new(ICON_SHARE, "Share"))
             .show(ui);
         report_bar(&r, shared);
         caption(ui, TypeScale::LabelMedium, "Medium with subtitle");
@@ -521,9 +518,9 @@ fn app_bars(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     });
 }
 
-fn report_action(r: &ToolbarResponse, shared: &mut Shared) {
-    if let Some(i) = &r.clicked {
-        shared.toast(format!("Toolbar action {}", i.index()));
+fn report_action<A: std::fmt::Debug>(r: &ToolbarResponse<A>, shared: &mut Shared) {
+    if let Some(a) = &r.clicked {
+        shared.toast(format!("Toolbar action {a:?}"));
     }
 }
 
@@ -532,29 +529,30 @@ fn toolbars(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
         caption(ui, TypeScale::LabelMedium, "Docked, toggle actions");
         let r = DockedToolbar::new("nav-toolbar-docked", "Formatting")
             .action(
-                IconAction::new(ICON_FORMAT_BOLD, "Bold")
-                    .key(Format::Bold)
-                    .selected(s.toolbar_bold),
+                Format::Bold,
+                IconAction::new(ICON_FORMAT_BOLD, "Bold").selected(s.toolbar_bold),
             )
             .action(
-                IconAction::new(ICON_FORMAT_ITALIC, "Italic")
-                    .key(Format::Italic)
-                    .selected(s.toolbar_italic),
+                Format::Italic,
+                IconAction::new(ICON_FORMAT_ITALIC, "Italic").selected(s.toolbar_italic),
             )
-            .action(IconAction::new(ICON_FORMAT_UNDERLINED, "Underline").disabled(true))
-            .action(IconAction::new(ICON_CONTENT_CUT, "Cut"))
+            .action(
+                Format::Underline,
+                IconAction::new(ICON_FORMAT_UNDERLINED, "Underline").disabled(true),
+            )
+            .action(Format::Cut, IconAction::new(ICON_CONTENT_CUT, "Cut"))
             .show(ui);
-        match r.clicked.as_ref().and_then(Clicked::key::<Format>) {
+        match r.clicked {
             Some(Format::Bold) => s.toolbar_bold = !s.toolbar_bold,
             Some(Format::Italic) => s.toolbar_italic = !s.toolbar_italic,
-            None => report_action(&r, shared),
+            _ => report_action(&r, shared),
         }
         ui.add_space(8.0);
         caption(ui, TypeScale::LabelMedium, "Docked, with a segmented button");
         let mode = &mut s.toolbar_mode;
         let r = DockedToolbar::new("nav-toolbar-custom", "Display")
-            .action(IconAction::new(ICON_FORMAT_BOLD, "Bold"))
-            .action(IconAction::new(ICON_CONTENT_CUT, "Cut"))
+            .action(Format::Bold, IconAction::new(ICON_FORMAT_BOLD, "Bold"))
+            .action(Format::Cut, IconAction::new(ICON_CONTENT_CUT, "Cut"))
             .custom("mode", |ui| {
                 SegmentedButton::new("nav-toolbar-mode", "Display", mode)
                     .items(["Field", "Both", "Intensity"].into_iter().enumerate())
@@ -569,9 +567,9 @@ fn toolbars(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
                 caption(ui, TypeScale::LabelMedium, "Floating");
                 let r = FloatingToolbar::new("nav-toolbar-float", "Edit")
                     .actions([
-                        IconAction::new(ICON_EDIT, "Edit"),
-                        IconAction::new(ICON_SHARE, "Share"),
-                        IconAction::new(ICON_DELETE, "Delete"),
+                        ("edit", IconAction::new(ICON_EDIT, "Edit")),
+                        ("share", IconAction::new(ICON_SHARE, "Share")),
+                        ("delete", IconAction::new(ICON_DELETE, "Delete")),
                     ])
                     .show(ui);
                 report_action(&r, shared);
@@ -581,9 +579,9 @@ fn toolbars(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
                 let r = FloatingToolbar::new("nav-toolbar-vibrant", "Edit")
                     .colors(ToolbarColors::Vibrant)
                     .actions([
-                        IconAction::new(ICON_EDIT, "Edit"),
-                        IconAction::new(ICON_SHARE, "Share"),
-                        IconAction::new(ICON_DELETE, "Delete"),
+                        ("edit", IconAction::new(ICON_EDIT, "Edit")),
+                        ("share", IconAction::new(ICON_SHARE, "Share")),
+                        ("delete", IconAction::new(ICON_DELETE, "Delete")),
                     ])
                     .show(ui);
                 report_action(&r, shared);
@@ -593,9 +591,9 @@ fn toolbars(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
                 let r = FloatingToolbar::new("nav-toolbar-vert", "Edit")
                     .axis(Axis::Vertical)
                     .actions([
-                        IconAction::new(ICON_EDIT, "Edit"),
-                        IconAction::new(ICON_SHARE, "Share"),
-                        IconAction::new(ICON_DELETE, "Delete"),
+                        ("edit", IconAction::new(ICON_EDIT, "Edit")),
+                        ("share", IconAction::new(ICON_SHARE, "Share")),
+                        ("delete", IconAction::new(ICON_DELETE, "Delete")),
                     ])
                     .show(ui);
                 report_action(&r, shared);
@@ -615,9 +613,9 @@ fn toolbars(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
         let r = FloatingToolbar::new("nav-toolbar-fab", "Edit")
             .colors(ToolbarColors::Vibrant)
             .actions([
-                IconAction::new(ICON_EDIT, "Edit"),
-                IconAction::new(ICON_SHARE, "Share"),
-                IconAction::new(ICON_DELETE, "Delete"),
+                ("edit", IconAction::new(ICON_EDIT, "Edit")),
+                ("share", IconAction::new(ICON_SHARE, "Share")),
+                ("delete", IconAction::new(ICON_DELETE, "Delete")),
             ])
             .fab(ICON_ADD, "Add", Edge::End)
             .expanded(s.toolbar_expanded)

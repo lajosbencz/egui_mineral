@@ -6,7 +6,8 @@ use crate::Rt;
 use crate::TextAction;
 use crate::msg;
 use egui::{Color32, Frame, Sense, Stroke, Ui, Vec2, vec2};
-use egui_mineral::action::Clicked;
+use egui_mineral::action::{self, ActionValue, NoAction, Widen};
+use egui_mineral::select::ItemKey;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::MineralUi;
 use egui_mineral::{
@@ -96,11 +97,11 @@ pub enum AlertVariant {
 /// Result of [`Alert::show`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct AlertResponse {
+pub struct AlertResponse<A = NoAction> {
     /// Alert surface.
     pub response: egui::Response,
-    /// Clicked action, with its [`TextAction::key`].
-    pub clicked: Option<Clicked>,
+    /// Value of the clicked action.
+    pub clicked: Option<A>,
     /// Why it closed this frame; only with [`Alert::dismissible`].
     pub dismissed: Option<Dismiss>,
 }
@@ -108,13 +109,13 @@ pub struct AlertResponse {
 /// Inline status message with severity, actions and optional dismissal; non-MD3 (MUI `Alert` pattern).
 #[derive(Clone, Debug)]
 #[must_use = "call .show(..)"]
-pub struct Alert {
+pub struct Alert<A = NoAction> {
     salt: KeyedSalt,
     severity: Severity,
     variant: AlertVariant,
     title: Option<String>,
     message: String,
-    actions: Vec<TextAction>,
+    actions: Vec<(A, TextAction)>,
     dismissible: bool,
 }
 
@@ -132,7 +133,9 @@ impl Alert {
             dismissible: false,
         }
     }
+}
 
+impl<A: ActionValue> Alert<A> {
     crate::widget::setters! {
         /// Replaces the `<id_salt>` key prefix.
         agent_key(salt)
@@ -156,16 +159,30 @@ impl Alert {
         self
     }
 
-    /// Appends a text button; reported in [`AlertResponse::clicked`].
-    pub fn action(mut self, action: impl Into<TextAction>) -> Self {
-        self.actions.push(action.into());
-        self
+    /// Appends a text button reporting `value` in [`AlertResponse::clicked`].
+    pub fn action<B: ItemKey>(self, value: B, action: impl Into<TextAction>) -> Alert<B>
+    where
+        A: Widen<B>,
+    {
+        self.actions([(value, action)])
     }
 
-    /// Appends text buttons; see [`Self::action`].
-    pub fn actions(mut self, actions: impl IntoIterator<Item = impl Into<TextAction>>) -> Self {
-        self.actions.extend(actions.into_iter().map(Into::into));
-        self
+    /// Appends `(value, text button)` pairs; see [`Self::action`].
+    pub fn actions<B: ItemKey>(self, actions: impl IntoIterator<Item = (B, impl Into<TextAction>)>) -> Alert<B>
+    where
+        A: Widen<B>,
+    {
+        let mut alert = Alert {
+            salt: self.salt,
+            severity: self.severity,
+            variant: self.variant,
+            title: self.title,
+            message: self.message,
+            actions: action::widen(self.actions),
+            dismissible: self.dismissible,
+        };
+        alert.actions.extend(actions.into_iter().map(|(v, a)| (v, a.into())));
+        alert
     }
 
     /// Close icon button that reports [`AlertResponse::dismissed`].
@@ -175,7 +192,7 @@ impl Alert {
     }
 
     /// Paints the alert at the available width.
-    pub fn show(self, ui: &mut MineralUi<'_, Material>) -> AlertResponse {
+    pub fn show(self, ui: &mut MineralUi<'_, Material>) -> AlertResponse<A> {
         let rt = ui.rt();
         let t = ui.tokens();
         let ctx = ui.ctx().clone();
@@ -217,12 +234,13 @@ impl Alert {
             );
         }
         kit::nodes::remember_rect(&ctx, id, rect);
-        if let Some(a) = action.and_then(|i| self.actions.get(i)) {
+        let clicked = action.and_then(|i| self.actions.get(i)).map(|(v, a)| {
             a.fire(&ctx);
-        }
+            v.clone()
+        });
         AlertResponse {
             response: inner.response,
-            clicked: crate::widget::clicked(&self.actions, action, |a| a.action_key.as_ref()),
+            clicked,
             dismissed,
         }
     }
@@ -283,7 +301,10 @@ impl Alert {
                                 .actions
                                 .iter()
                                 .enumerate()
-                                .map(|(i, a)| (i, PushButton::new(self.salt.child(i), &a.label)));
+                                .map(|(i, (v, a))| {
+                                    let own = crate::widget::action_salt(&self.salt, None, a.command.as_ref(), v);
+                                    (i, PushButton::new(own, &a.label))
+                                });
                             action = crate::actions::text_actions(ui, buttons);
                         });
                     }

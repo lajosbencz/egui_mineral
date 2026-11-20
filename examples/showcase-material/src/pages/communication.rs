@@ -19,7 +19,7 @@ pub(crate) const TOPICS: &[&str] = &[
     "Tour",
 ];
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, egui_mineral::semantic::KeySalt)]
 enum TipAction {
     Learn,
     Archive,
@@ -201,7 +201,7 @@ fn snackbars(ui: &mut MaterialUi<'_>, shared: &mut Shared) {
         if row.mineral(PushButton::new("snack-action", "With action")).clicked() {
             shared
                 .toasts
-                .push(Snackbar::new("Conversation deleted").action(TextAction::new("Undo").command(snack::UNDO)));
+                .push(Snackbar::new("Conversation deleted").action("undo", TextAction::new("Undo").command(snack::UNDO)));
         }
         if row.mineral(PushButton::new("snack-close", "With close")).clicked() {
             shared.toasts.push(Snackbar::new("Connection lost").dismissible(true));
@@ -209,7 +209,7 @@ fn snackbars(ui: &mut MaterialUi<'_>, shared: &mut Shared) {
         if row.mineral(PushButton::new("snack-both", "Action and close")).clicked() {
             shared.toasts.push(
                 Snackbar::new("Draft saved to the cloud")
-                    .action(TextAction::new("Open").command(snack::OPEN))
+                    .action("open", TextAction::new("Open").command(snack::OPEN))
                     .dismissible(true),
             );
         }
@@ -219,7 +219,7 @@ fn snackbars(ui: &mut MaterialUi<'_>, shared: &mut Shared) {
                     "This snackbar carries a longer supporting text that wraps onto a second line to show the \
                      two-line layout of the component.",
                 )
-                .action(TextAction::new("Retry").command(snack::RETRY))
+                .action("retry", TextAction::new("Retry").command(snack::RETRY))
                 .dismissible(true),
             );
         }
@@ -258,10 +258,10 @@ fn tooltips(ui: &mut MaterialUi<'_>, shared: &mut Shared) {
         let r = row.mineral(PushButton::new("tip-rich-3", "With actions").variant(ButtonVariant::Tonal));
         let tip = RichTooltip::new("tip-rich-3-tooltip", "Move the file to the archive folder.")
             .title("Archive")
-            .action(TextAction::new("Learn more").key(TipAction::Learn))
-            .action(TextAction::new("Archive now").key(TipAction::Archive))
+            .action(TipAction::Learn, "Learn more")
+            .action(TipAction::Archive, "Archive now")
             .show(rt, r.response());
-        match tip.clicked.as_ref().and_then(Clicked::key::<TipAction>) {
+        match tip.clicked {
             Some(TipAction::Learn) => shared.toast("Tooltip action: Learn more"),
             Some(TipAction::Archive) => shared.toast("Tooltip action: Archive now"),
             None => {}
@@ -287,15 +287,15 @@ fn alerts(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
         let r = Alert::new(("alert-dis", i), "Details about what happened and what to do next.")
             .severity(sev)
             .title(name)
-            .action("Details")
-            .action("Ignore")
+            .action("details", "Details")
+            .action("ignore", "Ignore")
             .dismissible(true)
             .show(ui);
         if r.dismissed.is_some() {
             s.dismissed[i] = true;
         }
         if let Some(a) = r.clicked {
-            shared.toast(format!("{name} alert action {}", a.index()));
+            shared.toast(format!("{name} alert action {a}"));
         }
     }
     if s.dismissed.iter().any(|d| *d)

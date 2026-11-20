@@ -15,7 +15,8 @@ use std::f32::consts::FRAC_PI_2;
 use egui::{Color32, DragAndDrop, Id, Key, Modifiers, Rangef, Rect, Response, Sense, StrokeKind, Ui, Vec2, pos2, vec2};
 use egui_mineral::widget::Availability;
 use egui_mineral::{
-    action::{ActionKey, Clicked, ItemResponses},
+    action::{ActionValue, ItemResponses, NoAction},
+    select::ItemKey,
     dnd,
     expand::Expansion,
     focus::{self, Typeahead},
@@ -86,11 +87,11 @@ impl<K> Default for TreeState<K> {
 /// Trailing action of a [`TreeView`] row.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
-pub struct TreeAction<K> {
+pub struct TreeAction<K, A = NoAction> {
     /// Row node key.
     pub node: K,
-    /// Action of the row's [`TreeView::actions`], with its [`IconAction::key`].
-    pub action: Clicked,
+    /// Value of the clicked action of the row's [`TreeView::actions`].
+    pub action: A,
     /// Action target, e.g. to anchor a menu with [`Menu::show_at`](crate::selection::Menu::show_at).
     pub rect: Rect,
 }
@@ -98,7 +99,7 @@ pub struct TreeAction<K> {
 /// Result of [`TreeView::show`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct TreeViewResponse<K> {
+pub struct TreeViewResponse<K, A = NoAction> {
     /// Tree container response.
     pub response: egui::Response,
     /// Node expanded this frame.
@@ -109,19 +110,18 @@ pub struct TreeViewResponse<K> {
     pub activated: Option<K>,
     /// Selection or expansion.
     pub changed: bool,
-    /// Responses of the rendered rows by row index and node key (`rows.get_by_key(&key)`,
-    /// `rows.iter_keyed::<K>()`), for context menus and modifiers.
-    pub rows: ItemResponses<Response>,
+    /// Responses of the rendered rows by node key, for context menus and modifiers.
+    pub rows: ItemResponses<K, Response>,
     /// Row's leading [`ListControl`](crate::containment::ListControl) toggled (click, Space, agent); apply a checkbox with
     /// [`tree::toggle_check`] or app logic.
     pub leading_toggled: Option<K>,
     /// Trailing action without an [`IconAction::command`] clicked this frame.
-    pub clicked: Option<TreeAction<K>>,
+    pub clicked: Option<TreeAction<K, A>>,
     /// Drag and drop or Alt+arrow move; apply with [`TreeMove::apply`].
     pub moved: Option<TreeMove<K>>,
 }
 
-impl<K> TreeViewResponse<K> {
+impl<K, A> TreeViewResponse<K, A> {
     fn new(response: egui::Response) -> Self {
         Self {
             response,
@@ -137,13 +137,24 @@ impl<K> TreeViewResponse<K> {
     }
 }
 
-#[derive(Default)]
-struct RowOut {
+struct RowOut<A> {
     toggle: bool,
     select: Option<Modifiers>,
     activated: bool,
     toggled: bool,
-    action: Option<(Clicked, Rect)>,
+    action: Option<(A, Rect)>,
+}
+
+impl<A> Default for RowOut<A> {
+    fn default() -> Self {
+        Self {
+            toggle: false,
+            select: None,
+            activated: false,
+            toggled: false,
+            action: None,
+        }
+    }
 }
 
 /// [`DragAndDrop`] payload of a [`reorderable`](TreeView::reorderable) row while it drags; drop zones
@@ -161,7 +172,7 @@ impl<K> TreeDrag<K> {
     }
 }
 
-struct RowWidget<'a> {
+struct RowWidget<'a, A> {
     salt: KeyedSalt,
     key: StableId,
     label: &'a str,
@@ -175,7 +186,7 @@ struct RowWidget<'a> {
     tab_stop: focus::TabStop,
     disabled: bool,
     container: Option<ColorRole>,
-    actions: Vec<IconAction>,
+    actions: Vec<(A, IconAction)>,
 }
 
 // Row metrics shared by the rows and the drag preview, which renders in its own layer.
@@ -208,7 +219,7 @@ fn action_slot(density: Density) -> f32 {
     container.x.max(crate::adaptive::min_interactive(density))
 }
 
-impl RowWidget<'_> {
+impl<A: ActionValue> RowWidget<'_, A> {
     fn indent(&self) -> f32 {
         self.look.indent * self.depth as f32
     }
@@ -234,7 +245,7 @@ impl RowWidget<'_> {
         self.actions
             .iter()
             .enumerate()
-            .map(|(i, a)| {
+            .map(|(i, (v, a))| {
                 let from_end = self.look.gap + (n - i) as f32 * slot;
                 let left = dir.reversed().start_x(rect, Rangef::new(from_end - slot, from_end));
                 let hit = Rect::from_min_size(pos2(left, rect.center().y - target / 2.0), vec2(slot, target));
@@ -242,7 +253,7 @@ impl RowWidget<'_> {
                 kit::interact::interact(
                     ui,
                     hit,
-                    r.id.with(("mineral::tree_action", i)),
+                    r.id.with(("mineral::tree_action", v.salt().id_salt())),
                     Sense::CLICK,
                     Availability::enabled_if(enabled),
                 )
@@ -254,7 +265,7 @@ impl RowWidget<'_> {
         let rt = ui.rt();
         let (container, icon) = icon_button::metrics(ACTION_SIZE, IconButtonWidth::Default);
         let radius = small_icon_button::CONTAINER_SHAPE_ROUND.corner_radius(&t.shape, rt.i18n().direction());
-        for (a, ar) in self.actions.iter().zip(actions) {
+        for ((_, a), ar) in self.actions.iter().zip(actions) {
             let off = self.disabled || a.disabled;
             let col = if off {
                 t.role_alpha(
@@ -290,9 +301,9 @@ impl RowWidget<'_> {
                 self.disabled,
             );
         }
-        for (i, (a, r)) in self.actions.iter().zip(actions).enumerate() {
+        for ((v, a), r) in self.actions.iter().zip(actions) {
             semantic::emit(ctx, Some(r.id), r.rect, || {
-                let mut n = SemanticNode::new(self.key.sub((i, "button")), Role::Button, &a.label)
+                let mut n = SemanticNode::new(self.key.sub((v.salt(), "button")), Role::Button, &a.label)
                     .pressable(Availability::disabled_if(self.disabled || a.disabled));
                 n.state.checked = a.selected.map(Check::from);
                 n.depth = self.depth + 2;
@@ -330,10 +341,10 @@ impl RowWidget<'_> {
     }
 }
 
-impl MineralWidget for RowWidget<'_> {
+impl<A: ActionValue> MineralWidget for RowWidget<'_, A> {
     type Kit = Material;
     type State = ();
-    type Output = RowOut;
+    type Output = RowOut<A>;
 
     egui_mineral::kit::widget_meta!(salt, enabled, no_target);
 
@@ -350,7 +361,7 @@ impl MineralWidget for RowWidget<'_> {
         ui: &mut MineralUi<'_, Material>,
         frame: &WidgetFrame<'_>,
         (): &mut (),
-    ) -> WidgetResponse<RowOut> {
+    ) -> WidgetResponse<RowOut<A>> {
         let t = ui.tokens();
         let r = &frame.response;
         kit::interact::follow_press(r);
@@ -376,12 +387,11 @@ impl MineralWidget for RowWidget<'_> {
         let hit = actions
             .iter()
             .zip(&self.actions)
-            .enumerate()
-            .find_map(|(i, (r, a))| r.clicked().then_some((i, r.rect, a)));
-        if let Some((i, rect, a)) = hit {
+            .find_map(|(r, (v, a))| r.clicked().then_some((v, r.rect, a)));
+        if let Some((v, rect, a)) = hit {
             match &a.command {
                 Some(c) => shortcut::fire(ui.ctx(), c),
-                None => out.action = Some((Clicked::new(i, a.action_key.clone()), rect)),
+                None => out.action = Some((v.clone(), rect)),
             }
         }
         let on_control = out.toggled || out.action.is_some();
@@ -444,12 +454,12 @@ impl MineralWidget for RowWidget<'_> {
         WidgetResponse::new(r.clone(), out).with_changed(changed)
     }
 
-    fn semantics(&self, i18n: &I18n, _: &WidgetResponse<RowOut>, (): &()) -> Option<SemanticNode> {
+    fn semantics(&self, i18n: &I18n, _: &WidgetResponse<RowOut<A>>, (): &()) -> Option<SemanticNode> {
         Some(self.node(i18n))
     }
 }
 
-impl RowWidget<'_> {
+impl<A: ActionValue> RowWidget<'_, A> {
     fn node(&self, i18n: &I18n) -> SemanticNode {
         let mut n = SemanticNode::new(self.key.clone(), Role::TreeItem, self.label)
             .clickable(Availability::disabled_if(self.disabled));
@@ -473,7 +483,7 @@ impl RowWidget<'_> {
 }
 
 type LeadingFn<'a, N> = Box<dyn Fn(&N) -> ListSlot + 'a>;
-type ActionsFn<'a, N> = Box<dyn Fn(&N) -> Vec<IconAction> + 'a>;
+type ActionsFn<'a, N, A> = Box<dyn Fn(&N) -> Vec<(A, IconAction)> + 'a>;
 type StyleFn<'a, N> = Box<dyn Fn(&N) -> TypeScale + 'a>;
 
 /// MD3-styled tree (APG treeview keyboard). Rows carry an optional leading [`ListSlot`] (Space
@@ -481,7 +491,7 @@ type StyleFn<'a, N> = Box<dyn Fn(&N) -> TypeScale + 'a>;
 /// [`reorderable`](Self::reorderable), rows drag onto, before or after other rows, and Alt+arrows
 /// move the focused row ([`tree::move_key`]).
 #[must_use = "call .show(..)"]
-pub struct TreeView<'a, N: TreeData> {
+pub struct TreeView<'a, N: TreeData, A = NoAction> {
     salt: KeyedSalt,
     label: String,
     roots: &'a [N],
@@ -493,13 +503,13 @@ pub struct TreeView<'a, N: TreeData> {
     label_style: TypeScale,
     node_style: Option<StyleFn<'a, N>>,
     leading: Option<LeadingFn<'a, N>>,
-    actions: Option<ActionsFn<'a, N>>,
+    actions: Option<ActionsFn<'a, N, A>>,
     reorderable: bool,
     disabled: bool,
     container: Option<ColorRole>,
 }
 
-impl<N: TreeData> std::fmt::Debug for TreeView<'_, N> {
+impl<N: TreeData, A> std::fmt::Debug for TreeView<'_, N, A> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("TreeView").finish_non_exhaustive()
     }
@@ -532,7 +542,9 @@ impl<'a, N: TreeData> TreeView<'a, N> {
             container: None,
         }
     }
+}
 
+impl<'a, N: TreeData, A: ActionValue> TreeView<'a, N, A> {
     crate::widget::setters! {
         /// Replaces the `<id_salt>` key prefix.
         agent_key(salt)
@@ -562,10 +574,26 @@ impl<'a, N: TreeData> TreeView<'a, N> {
         self
     }
 
-    /// Trailing icon buttons per node; clicks report [`TreeViewResponse::clicked`].
-    pub fn actions(mut self, actions: impl Fn(&N) -> Vec<IconAction> + 'a) -> Self {
-        self.actions = Some(Box::new(actions));
-        self
+    /// Trailing `(value, icon button)` pairs per node; a click reports the node and the value in
+    /// [`TreeViewResponse::clicked`]. Replaces earlier actions.
+    pub fn actions<B: ItemKey>(self, actions: impl Fn(&N) -> Vec<(B, IconAction)> + 'a) -> TreeView<'a, N, B> {
+        TreeView {
+            salt: self.salt,
+            label: self.label,
+            roots: self.roots,
+            expansion: self.expansion,
+            selection: self.selection,
+            max_height: self.max_height,
+            row_height: self.row_height,
+            indent: self.indent,
+            label_style: self.label_style,
+            node_style: self.node_style,
+            leading: self.leading,
+            actions: Some(Box::new(actions)),
+            reorderable: self.reorderable,
+            disabled: self.disabled,
+            container: self.container,
+        }
     }
 
     /// Drag and Alt+arrow moves; reported in [`TreeViewResponse::moved`].
@@ -627,7 +655,7 @@ impl<'a, N: TreeData> TreeView<'a, N> {
     }
 
     // A row dropped inside a collapsed parent opens it.
-    fn expand_drop_target(&mut self, out: &mut TreeViewResponse<N::Key>) {
+    fn expand_drop_target(&mut self, out: &mut TreeViewResponse<N::Key, A>) {
         if let Some(m) = &out.moved
             && m.position == DropPosition::Inside
             && !self.expansion.is_expanded(&m.target)
@@ -645,7 +673,7 @@ impl<'a, N: TreeData> TreeView<'a, N> {
         kit::nodes::emit_culled(ui, rid, rect, || widget.node(i18n));
     }
 
-    fn row_widget(&self, row: &TreeRow<'a, N>, look: RowLook, tab_stop: focus::TabStop) -> RowWidget<'a> {
+    fn row_widget(&self, row: &TreeRow<'a, N>, look: RowLook, tab_stop: focus::TabStop) -> RowWidget<'a, A> {
         let key = row.node.key();
         let expanded = row.has_children && self.expansion.is_expanded(key);
         let salt = self.salt.child(key);
@@ -778,7 +806,7 @@ impl<'a, N: TreeData> TreeView<'a, N> {
         pending
     }
 
-    fn toggle_node(out: &mut TreeViewResponse<N::Key>, exp: &mut Expansion<N::Key>, key: N::Key) {
+    fn toggle_node(out: &mut TreeViewResponse<N::Key, A>, exp: &mut Expansion<N::Key>, key: N::Key) {
         if exp.toggle(key.clone()) {
             out.expanded = Some(key);
         } else {
@@ -789,8 +817,8 @@ impl<'a, N: TreeData> TreeView<'a, N> {
     fn apply_events(
         &mut self,
         rows: &[TreeRow<'a, N>],
-        events: Vec<(usize, RowOut)>,
-        out: &mut TreeViewResponse<N::Key>,
+        events: Vec<(usize, RowOut<A>)>,
+        out: &mut TreeViewResponse<N::Key, A>,
     ) {
         let mut visible: Option<Vec<N::Key>> = None;
         for (i, o) in events {
@@ -834,7 +862,7 @@ impl<'a, N: TreeData> TreeView<'a, N> {
         rows: &[TreeRow<'a, N>],
         cur: usize,
         state: &mut TreeState<N::Key>,
-        out: &mut TreeViewResponse<N::Key>,
+        out: &mut TreeViewResponse<N::Key, A>,
     ) {
         let ctx = rt.ctx();
         let dir = rt.i18n().direction();
@@ -872,11 +900,11 @@ impl<'a, N: TreeData> TreeView<'a, N> {
     fn row_response(
         &self,
         ui: &mut MineralUi<'_, Material>,
-        w: RowWidget<'_>,
+        w: RowWidget<'_, A>,
         key: &N::Key,
         id: Id,
         drag_dim: Option<f32>,
-    ) -> WidgetResponse<RowOut> {
+    ) -> WidgetResponse<RowOut<A>> {
         let rt = ui.rt();
         if let Some(dim) = drag_dim {
             let (label, visual, look) = (w.label, w.leading.visual_ref().cloned(), w.look);
@@ -902,7 +930,7 @@ impl<'a, N: TreeData> TreeView<'a, N> {
     }
 
     /// Paints the visible rows, virtualized.
-    pub fn show(mut self, ui: &mut MineralUi<'_, Material>) -> TreeViewResponse<N::Key> {
+    pub fn show(mut self, ui: &mut MineralUi<'_, Material>) -> TreeViewResponse<N::Key, A> {
         let rt = ui.rt();
         let ctx = rt.ctx();
         let id = ui.make_persistent_id(self.salt.id_salt());
@@ -933,7 +961,7 @@ impl<'a, N: TreeData> TreeView<'a, N> {
             n
         });
         let mut focused: Option<(usize, egui::Id)> = None;
-        let mut events: Vec<(usize, RowOut)> = Vec::new();
+        let mut events: Vec<(usize, RowOut<A>)> = Vec::new();
         let mut rendered: Vec<(usize, Rect)> = Vec::new();
         let mut first = true;
         let reorderable = self.can_reorder();
@@ -975,7 +1003,7 @@ impl<'a, N: TreeData> TreeView<'a, N> {
                         state.stop = Some(key.clone());
                     }
                     let (resp, o) = r.into_parts();
-                    out.rows.push(i, Some(ActionKey::new(key.clone())), resp);
+                    out.rows.push(key.clone(), resp);
                     if o.toggle || o.select.is_some() || o.activated || o.toggled || o.action.is_some() {
                         events.push((i, o));
                     }

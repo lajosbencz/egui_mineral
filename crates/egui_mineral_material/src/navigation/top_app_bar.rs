@@ -10,7 +10,8 @@ use std::sync::Arc;
 
 use egui::{Rangef, Rect, Sense, Ui, pos2, vec2};
 use egui_mineral::{
-    action::{Clicked, ItemResponses},
+    action::{self, ActionValue, ItemResponses, NoAction, Widen},
+    select::ItemKey,
     shortcut,
     widget::SizeExt,
 };
@@ -61,7 +62,7 @@ fn inline_actions(count: usize, slots: usize) -> usize {
 /// MD3 top app bar with scroll-collapsing and search modes (Compose `TopAppBar`).
 #[derive(Debug)]
 #[must_use = "call .show(..)"]
-pub struct TopAppBar<'a> {
+pub struct TopAppBar<'a, A = NoAction> {
     salt: KeyedSalt,
     title: String,
     subtitle: Option<String>,
@@ -69,7 +70,7 @@ pub struct TopAppBar<'a> {
     flexible: bool,
     centered: bool,
     navigation: Option<(Icon, String)>,
-    actions: Vec<IconAction>,
+    actions: Vec<(A, IconAction)>,
     disabled: bool,
     scrolled: bool,
     offset: f32,
@@ -79,16 +80,15 @@ pub struct TopAppBar<'a> {
 /// Result of [`TopAppBar::show`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct TopAppBarResponse {
+pub struct TopAppBarResponse<A = NoAction> {
     /// Bar container response.
     pub response: egui::Response,
     /// Navigation icon clicked; see [`TopAppBar::navigation`].
     pub leading_clicked: bool,
-    /// Clicked action without a [`IconAction::command`], inline or overflowed, with its [`IconAction::key`].
-    pub clicked: Option<Clicked>,
-    /// Buttons of the inline actions by index and [`IconAction::key`], to anchor popups; overflowed actions
-    /// have none.
-    pub actions: ItemResponses<egui::Response>,
+    /// Value of the clicked action without a [`IconAction::command`], inline or overflowed.
+    pub clicked: Option<A>,
+    /// Buttons of the inline actions by value, to anchor popups; overflowed actions have none.
+    pub actions: ItemResponses<A, egui::Response>,
     /// Overflow menu button; `None` while every action is inline.
     pub overflow: Option<egui::Response>,
     /// Search query edited; only with [`TopAppBar::search`].
@@ -97,7 +97,7 @@ pub struct TopAppBarResponse {
     pub submitted: bool,
 }
 
-impl<'a> TopAppBar<'a> {
+impl TopAppBar<'_> {
     /// `title` is the headline, also the search placeholder; agent key prefix `<id_salt>`.
     pub fn new(id_salt: impl Into<KeyedSalt>, title: impl Into<String>) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
@@ -116,7 +116,9 @@ impl<'a> TopAppBar<'a> {
             search: None,
         }
     }
+}
 
+impl<'a, A: ActionValue> TopAppBar<'a, A> {
     crate::widget::setters! {
         /// Replaces the `<id_salt>` key prefix.
         agent_key(salt)
@@ -152,16 +154,39 @@ impl<'a> TopAppBar<'a> {
         self
     }
 
-    /// Appends one action; past the inline limit (3 compact, 5 otherwise) actions go to an overflow menu.
-    pub fn action(mut self, action: impl Into<IconAction>) -> Self {
-        self.actions.push(action.into());
-        self
+    /// Appends the action reporting `value`; past the inline limit (3 compact, 5 otherwise) actions go to an
+    /// overflow menu.
+    pub fn action<B: ItemKey>(self, value: B, action: impl Into<IconAction>) -> TopAppBar<'a, B>
+    where
+        A: Widen<B>,
+    {
+        self.actions([(value, action)])
     }
 
-    /// Appends actions; see [`Self::action`].
-    pub fn actions(mut self, actions: impl IntoIterator<Item = impl Into<IconAction>>) -> Self {
-        self.actions.extend(actions.into_iter().map(Into::into));
-        self
+    /// Appends `(value, action)` pairs; see [`Self::action`].
+    pub fn actions<B: ItemKey>(
+        self,
+        actions: impl IntoIterator<Item = (B, impl Into<IconAction>)>,
+    ) -> TopAppBar<'a, B>
+    where
+        A: Widen<B>,
+    {
+        let mut bar = TopAppBar {
+            actions: action::widen(self.actions),
+            salt: self.salt,
+            title: self.title,
+            subtitle: self.subtitle,
+            variant: self.variant,
+            flexible: self.flexible,
+            centered: self.centered,
+            navigation: self.navigation,
+            disabled: self.disabled,
+            scrolled: self.scrolled,
+            offset: self.offset,
+            search: self.search,
+        };
+        bar.actions.extend(actions.into_iter().map(|(v, a)| (v, a.into())));
+        bar
     }
 
     crate::widget::setters! {
@@ -254,13 +279,13 @@ impl<'a> TopAppBar<'a> {
     }
 
     /// Paints the bar at the full available width.
-    pub fn show(mut self, ui: &mut MineralUi<'_, Material>) -> TopAppBarResponse {
+    pub fn show(mut self, ui: &mut MineralUi<'_, Material>) -> TopAppBarResponse<A> {
         let rt = ui.rt();
         let t = rt.tokens();
         let id = ui.make_persistent_id(self.salt.id_salt());
         let density = ui.density();
         let collapsed = collapsed_height(density);
-        for a in &mut self.actions {
+        for (_, a) in &mut self.actions {
             a.disabled |= self.disabled;
         }
         let height = self.bar_height(density);
@@ -322,16 +347,12 @@ impl<'a> TopAppBar<'a> {
         out
     }
 
-    fn clicked(&self, index: usize) -> Option<Clicked> {
-        crate::widget::clicked(&self.actions, Some(index), |a| a.action_key.as_ref())
-    }
-
     fn show_actions(
         &self,
         ui: &mut MineralUi<'_, Material>,
         row: &Row,
         start: f32,
-        out: &mut TopAppBarResponse,
+        out: &mut TopAppBarResponse<A>,
     ) -> f32 {
         let rt = ui.rt();
         let ctx = rt.ctx();
@@ -361,9 +382,8 @@ impl<'a> TopAppBar<'a> {
             )
             .inner;
             let mut menu = Menu::new(self.salt.child("overflow"), label).emit_anchor(false);
-            for (idx, a) in self.actions.iter().enumerate().skip(shown) {
-                let own =
-                    crate::widget::item_salt(&self.salt, a.salt.as_ref(), a.command.as_ref(), idx).child("action");
+            for (v, a) in self.actions.iter().skip(shown) {
+                let own = crate::widget::action_salt(&self.salt, a.salt.as_ref(), a.command.as_ref(), v).child("action");
                 let mut item = MenuItem::new(&a.label)
                     .leading(a.icon)
                     .disabled(a.disabled)
@@ -377,20 +397,16 @@ impl<'a> TopAppBar<'a> {
                 menu = menu.item(item);
             }
             if let Some(k) = menu.show(rt, &anchor).clicked {
-                out.clicked = self.clicked(shown + k.index());
+                out.clicked = self.actions.get(shown + k.index()).map(|(v, _)| v.clone());
             }
             out.overflow = Some(anchor);
             end += row.slot;
         }
-        for (idx, a) in self.actions.iter().enumerate().take(shown).rev() {
+        for (v, a) in self.actions.iter().take(shown).rev() {
             let r = row.slot(row.rect.width() - end - row.slot);
-            let resp = egui_mineral::layout::child(ui, ("action", idx), r, *ui.layout(), |ui| {
-                let mut b = IconButton::new(
-                    crate::widget::item_salt(&self.salt, a.salt.as_ref(), a.command.as_ref(), idx).child("action"),
-                    a.icon,
-                    &a.label,
-                )
-                .disabled(a.disabled);
+            let own = crate::widget::action_salt(&self.salt, a.salt.as_ref(), a.command.as_ref(), v).child("action");
+            let resp = egui_mineral::layout::child(ui, own.clone(), r, *ui.layout(), |ui| {
+                let mut b = IconButton::new(own, a.icon, &a.label).disabled(a.disabled);
                 if let Some(sel) = a.selected {
                     b = b.selected(sel);
                 }
@@ -400,10 +416,10 @@ impl<'a> TopAppBar<'a> {
             if resp.clicked() {
                 match &a.command {
                     Some(c) => shortcut::fire(ctx, c),
-                    None => out.clicked = self.clicked(idx),
+                    None => out.clicked = Some(v.clone()),
                 }
             }
-            out.actions.push(idx, a.action_key.clone(), resp);
+            out.actions.push(v.clone(), resp);
             end += row.slot;
         }
         end
@@ -415,7 +431,7 @@ impl<'a> TopAppBar<'a> {
         query: &mut String,
         row: &Row,
         insets: Insets,
-        out: &mut TopAppBarResponse,
+        out: &mut TopAppBarResponse<A>,
     ) {
         use defaults::app_bar as d;
         let Insets { start, end } = insets;

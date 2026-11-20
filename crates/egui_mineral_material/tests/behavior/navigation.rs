@@ -426,8 +426,8 @@ fn toolbars_shrink_with_density() {
         let mut h = still(SCREEN, [0.0; 2], move |ui, heights| {
             ui.with_density(Density::new(step), |ui| {
                 let action = || IconAction::new(icons::ICON_HOME, "Home");
-                let docked = DockedToolbar::new("dock", "Tools").action(action()).show(ui);
-                let floating = FloatingToolbar::new("float", "Tools").action(action()).show(ui);
+                let docked = DockedToolbar::new("dock", "Tools").action(0, action()).show(ui);
+                let floating = FloatingToolbar::new("float", "Tools").action(0, action()).show(ui);
                 *heights = [docked.response.rect.height(), floating.response.rect.height()];
             });
         });

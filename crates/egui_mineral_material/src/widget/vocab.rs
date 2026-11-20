@@ -1,5 +1,5 @@
 use egui_mineral::{
-    action::{ActionKey, Clicked},
+    action::{ActionKey, ActionValue, Clicked},
     semantic::KeyedSalt,
     shortcut::ActionId,
 };
@@ -25,14 +25,14 @@ pub enum Size {
 }
 
 /// Icon action item of a [`TopAppBar`](crate::navigation::TopAppBar), toolbar
-/// ([`DockedToolbar`](crate::navigation::DockedToolbar)) or `TreeView` row.
+/// ([`DockedToolbar`](crate::navigation::DockedToolbar)) or `TreeView` row; the collection pairs it with the app
+/// value it reports.
 #[derive(Clone, Debug)]
 #[must_use]
 pub struct IconAction {
     pub(crate) icon: Icon,
     pub(crate) label: String,
     pub(crate) command: Option<ActionId>,
-    pub(crate) action_key: Option<ActionKey>,
     pub(crate) selected: Option<bool>,
     pub(crate) disabled: bool,
     pub(crate) salt: Option<KeyedSalt>,
@@ -45,7 +45,6 @@ impl IconAction {
             icon: icon.into(),
             label: label.into(),
             command: None,
-            action_key: None,
             selected: None,
             disabled: false,
             salt: None,
@@ -53,7 +52,7 @@ impl IconAction {
     }
 
     crate::widget::setters! {
-        /// Default the [`Self::command`] action, else the index.
+        /// Default the [`Self::command`] action, else the item's value.
         item_salt
     }
 
@@ -62,10 +61,6 @@ impl IconAction {
     pub fn command(mut self, id: impl Into<ActionId>) -> Self {
         self.command = Some(id.into());
         self
-    }
-
-    crate::widget::setters! {
-        action_key
     }
 
     /// Toggle action.
@@ -80,13 +75,13 @@ impl IconAction {
 }
 
 /// Text button of a message surface: [`Snackbar`](crate::communication::Snackbar),
-/// [`RichTooltip`](crate::communication::RichTooltip), `Alert`, `EmptyPlaceholder`. A label converts.
+/// [`RichTooltip`](crate::communication::RichTooltip), `Alert`, `EmptyPlaceholder`; the surface pairs it with the
+/// app value it reports. A label converts.
 #[derive(Clone, Debug)]
 #[must_use]
 pub struct TextAction {
     pub(crate) label: String,
     pub(crate) command: Option<ActionId>,
-    pub(crate) action_key: Option<ActionKey>,
 }
 
 impl TextAction {
@@ -95,12 +90,7 @@ impl TextAction {
         Self {
             label: label.into(),
             command: None,
-            action_key: None,
         }
-    }
-
-    crate::widget::setters! {
-        action_key
     }
 
     /// Pressing it also fires the app action `id` ([`shortcut::fire`](egui_mineral::shortcut::fire)).
@@ -122,6 +112,20 @@ pub(crate) fn clicked<T>(
     key: impl FnOnce(&T) -> Option<&ActionKey>,
 ) -> Option<Clicked> {
     index.map(|i| Clicked::new(i, items.get(i).and_then(key).cloned()))
+}
+
+// Item salt of an action collection item: its own salt, else its command, else its value.
+pub(crate) fn action_salt(
+    parent: &KeyedSalt,
+    own: Option<&KeyedSalt>,
+    command: Option<&ActionId>,
+    value: &impl ActionValue,
+) -> KeyedSalt {
+    match (own, command) {
+        (Some(own), _) => parent.join(own),
+        (None, Some(command)) => parent.child(command),
+        (None, None) => parent.join(&value.salt()),
+    }
 }
 
 pub(crate) fn item_salt(

@@ -114,10 +114,10 @@ fn rating_read_only_ignores_input() {
 fn docked_toolbar_reports_the_clicked_action() {
     let mut h = still(SCREEN, Vec::new(), |ui, seen| {
         let r = DockedToolbar::new("dock", "Tools")
-            .action(IconAction::new(ICON_SAVE, "Save"))
-            .action(IconAction::new(ICON_EDIT, "Edit"))
+            .action(0, IconAction::new(ICON_SAVE, "Save"))
+            .action(1, IconAction::new(ICON_EDIT, "Edit"))
             .show(ui);
-        seen.extend(r.clicked.as_ref().map(egui_mineral::action::Clicked::index));
+        seen.extend(r.clicked);
     });
     h.click("dock-1-button");
     h.click("dock-0-button");
@@ -128,11 +128,11 @@ fn docked_toolbar_reports_the_clicked_action() {
 fn floating_toolbar_reports_its_paired_fab() {
     let mut h = still(SCREEN, (0u32, Vec::new()), |ui, (fab, seen)| {
         let r = FloatingToolbar::new("float", "Tools")
-            .action(IconAction::new(ICON_SAVE, "Save"))
+            .action(0, IconAction::new(ICON_SAVE, "Save"))
             .fab(ICON_ADD, "Add", Edge::End)
             .show(ui);
         *fab += u32::from(r.fab_clicked);
-        seen.extend(r.clicked.as_ref().map(egui_mineral::action::Clicked::index));
+        seen.extend(r.clicked);
     });
     h.click("float-fab");
     h.click("float-0-button");
@@ -250,7 +250,7 @@ fn image_list_and_bottom_sheet_are_named() {
 fn snackbar_host_reports_action_and_close() {
     const UNDO: ActionId = ActionId::from_static("undo");
     let mut queue = snackbar_queue();
-    let first = queue.push(Snackbar::new("Saved").action(TextAction::new("Undo").command(UNDO)));
+    let first = queue.push(Snackbar::new("Saved").action("undo", TextAction::new("Undo").command(UNDO)));
     let mut h = still(
         SCREEN,
         (queue, Vec::new(), Vec::new(), 0),

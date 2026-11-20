@@ -148,7 +148,7 @@ mod mirror {
         let menu = Menu::new("more", "More").item(MenuItem::new("Draft"));
         SplitButton::new("send", "Send", menu).show(ui);
         TopAppBar::new("bar", "Title")
-            .actions([IconAction::new(ICON_EDIT, "Edit"), IconAction::new(ICON_SHARE, "Share")])
+            .actions([(0, IconAction::new(ICON_EDIT, "Edit")), (1, IconAction::new(ICON_SHARE, "Share"))])
             .show(ui);
         DataTable::new("t", "Table", ["Name", "Size"])
             .selection(&mut selection)
@@ -179,7 +179,7 @@ mod mirror {
             .menu(Menu::new("edit", "Edit").item(MenuItem::new("Copy")))
             .show(ui);
         FloatingToolbar::new("tb", "Edit")
-            .actions([IconAction::new(ICON_EDIT, "Edit"), IconAction::new(ICON_SHARE, "Share")])
+            .actions([(0, IconAction::new(ICON_EDIT, "Edit")), (1, IconAction::new(ICON_SHARE, "Share"))])
             .show(ui);
         ui.mineral(IconButton::new("mail", ICON_MAIL, "Mail").badge(Badge::count(12)));
         let options = [SelectOption::new("Wav"), SelectOption::new("Flac")];

@@ -569,7 +569,7 @@ fn reorder(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
             .clickable(true)
     });
     let mut moved = r.moved;
-    for (i, row) in r.rows.iter() {
+    for (&i, row) in r.rows.iter() {
         if row.output().activated {
             shared.toast(format!("Activated {}", rows[i]));
         }

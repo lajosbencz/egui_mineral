@@ -121,10 +121,10 @@ fn alert_reports_actions_and_dismissal() {
     let mut h = still(SCREEN, (None, None), |ui, (clicked, dismissed)| {
         let r = Alert::new("a", "Disk almost full")
             .severity(Severity::Warning)
-            .action("Clean up")
+            .action(0, "Clean up")
             .dismissible(true)
             .show(ui);
-        *clicked = clicked.or(r.clicked.as_ref().map(egui_mineral::action::Clicked::index));
+        *clicked = clicked.or(r.clicked);
         *dismissed = dismissed.or(r.dismissed);
     });
     h.click("a-0-button");

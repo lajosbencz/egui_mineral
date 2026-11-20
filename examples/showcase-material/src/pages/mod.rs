@@ -212,7 +212,7 @@ pub(crate) enum Evt {
 
 pub(crate) struct Shared {
     pub(crate) settings: Settings,
-    pub(crate) toasts: ToastQueue<Snackbar>,
+    pub(crate) toasts: ToastQueue<Snackbar<&'static str>>,
     pub(crate) bus: Bus<Cmd, Evt>,
     pub(crate) done: Vec<u32>,
     pub(crate) platform: Vec<Result<String, String>>,

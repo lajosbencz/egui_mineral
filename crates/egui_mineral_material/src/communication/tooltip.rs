@@ -2,7 +2,8 @@ use crate::MaterialExt;
 use crate::Rt;
 use crate::TextAction;
 use egui::{Frame, Label, Response, Sense, Tooltip, vec2};
-use egui_mineral::action::Clicked;
+use egui_mineral::action::{self, ActionValue, NoAction, Widen};
+use egui_mineral::select::ItemKey;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::semantic::StableId;
 
@@ -34,11 +35,11 @@ pub struct PlainTooltipResponse {
 /// Result of [`RichTooltip::show`]; `response` is `None` while hidden.
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct RichTooltipResponse {
+pub struct RichTooltipResponse<A = NoAction> {
     /// Tooltip surface while visible.
     pub response: Option<Response>,
-    /// [`RichTooltip::action`] clicked this frame, with its [`TextAction::key`].
-    pub clicked: Option<Clicked>,
+    /// Value of the [`RichTooltip::action`] clicked this frame.
+    pub clicked: Option<A>,
 }
 
 /// MD3 plain tooltip (Compose `PlainTooltip`).
@@ -89,11 +90,11 @@ impl PlainTooltip {
 /// MD3 rich tooltip with optional title and actions (Compose `RichTooltip`).
 #[derive(Clone, Debug)]
 #[must_use = "call .show(..)"]
-pub struct RichTooltip {
+pub struct RichTooltip<A = NoAction> {
     salt: KeyedSalt,
     supporting: String,
     title: Option<String>,
-    actions: Vec<TextAction>,
+    actions: Vec<(A, TextAction)>,
 }
 
 impl RichTooltip {
@@ -107,7 +108,9 @@ impl RichTooltip {
             actions: Vec::new(),
         }
     }
+}
 
+impl<A: ActionValue> RichTooltip<A> {
     crate::widget::setters! {
         /// Prefix of the action button keys.
         agent_key(salt)
@@ -119,20 +122,31 @@ impl RichTooltip {
         self
     }
 
-    /// Appends a text button below the supporting text; reported in [`RichTooltipResponse::clicked`].
-    pub fn action(mut self, action: impl Into<TextAction>) -> Self {
-        self.actions.push(action.into());
-        self
+    /// Appends a text button below the supporting text, reporting `value` in [`RichTooltipResponse::clicked`].
+    pub fn action<B: ItemKey>(self, value: B, action: impl Into<TextAction>) -> RichTooltip<B>
+    where
+        A: Widen<B>,
+    {
+        self.actions([(value, action)])
     }
 
-    /// Appends text buttons; see [`Self::action`].
-    pub fn actions(mut self, actions: impl IntoIterator<Item = impl Into<TextAction>>) -> Self {
-        self.actions.extend(actions.into_iter().map(Into::into));
-        self
+    /// Appends `(value, text button)` pairs; see [`Self::action`].
+    pub fn actions<B: ItemKey>(self, actions: impl IntoIterator<Item = (B, impl Into<TextAction>)>) -> RichTooltip<B>
+    where
+        A: Widen<B>,
+    {
+        let mut tip = RichTooltip {
+            salt: self.salt,
+            supporting: self.supporting,
+            title: self.title,
+            actions: action::widen(self.actions),
+        };
+        tip.actions.extend(actions.into_iter().map(|(v, a)| (v, a.into())));
+        tip
     }
 
     /// Shows while `response` is hovered (egui `Tooltip::for_enabled`).
-    pub fn show(self, rt: &Rt, response: &Response) -> RichTooltipResponse {
+    pub fn show(self, rt: &Rt, response: &Response) -> RichTooltipResponse<A> {
         use defaults::tooltip as d;
         use rich_tooltip as m;
         describe(response, &self.supporting);
@@ -178,9 +192,9 @@ impl RichTooltip {
                     if has_actions {
                         ui.horizontal(|ui| {
                             ui.set_min_height(d::ACTION_LABEL_MIN_HEIGHT);
-                            let buttons = self.actions.iter().enumerate().map(|(i, a)| {
-                                let b = PushButton::new(self.salt.child(i), &a.label)
-                                    .agent_key(StableId::of(&self.salt, (i, "button")));
+                            let buttons = self.actions.iter().enumerate().map(|(i, (v, a))| {
+                                let own = crate::widget::action_salt(&self.salt, None, a.command.as_ref(), v);
+                                let b = PushButton::new(own.clone(), &a.label).agent_key(StableId::of(&own, "button"));
                                 (i, b)
                             });
                             action = crate::actions::text_actions(&mut rt.ui(ui), buttons);
@@ -190,12 +204,13 @@ impl RichTooltip {
                 },
             );
         });
-        if let Some(a) = action.and_then(|i| self.actions.get(i)) {
+        let clicked = action.and_then(|i| self.actions.get(i)).map(|(v, a)| {
             a.fire(rt.ctx());
-        }
+            v.clone()
+        });
         RichTooltipResponse {
             response: shown.map(|s| s.response),
-            clicked: crate::widget::clicked(&self.actions, action, |a| a.action_key.as_ref()),
+            clicked,
         }
     }
 }

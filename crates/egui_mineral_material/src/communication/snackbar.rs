@@ -3,7 +3,7 @@ use crate::MaterialExt;
 use crate::Rt;
 use crate::TextAction;
 use crate::msg;
-use egui_mineral::action::Clicked;
+use egui_mineral::action::{ActionValue, NoAction};
 use egui_mineral::kit::state::TempState;
 use egui_mineral::widget::MineralUi;
 use std::sync::Arc;
@@ -29,16 +29,17 @@ use crate::widget::{
     indication, parts,
 };
 
-/// Payload of a queued snackbar: text, optional action and close affordance.
+/// Payload of a queued snackbar: text, optional action and close affordance; `A` is the value its action reports,
+/// the queue's.
 #[derive(Clone, Debug)]
 #[must_use]
-pub struct Snackbar {
+pub struct Snackbar<A = NoAction> {
     text: String,
-    action: Option<TextAction>,
+    action: Option<(A, TextAction)>,
     close: bool,
 }
 
-impl Snackbar {
+impl<A: ActionValue> Snackbar<A> {
     /// `text` is the message line.
     pub fn new(text: impl Into<String>) -> Self {
         Self {
@@ -48,9 +49,9 @@ impl Snackbar {
         }
     }
 
-    /// Action button reporting [`SnackbarHostResponse::action_clicked`].
-    pub fn action(mut self, action: impl Into<TextAction>) -> Self {
-        self.action = Some(action.into());
+    /// Action button reporting `value` in [`SnackbarHostResponse::clicked`].
+    pub fn action(mut self, value: A, action: impl Into<TextAction>) -> Self {
+        self.action = Some((value, action.into()));
         self
     }
 
@@ -62,22 +63,22 @@ impl Snackbar {
 }
 
 #[derive(Clone)]
-struct Shown {
+struct Shown<A> {
     id: ToastId,
-    snackbar: Snackbar,
+    snackbar: Snackbar<A>,
     live: Live,
 }
 
 /// Result of [`SnackbarHost::show`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct SnackbarHostResponse {
+pub struct SnackbarHostResponse<A = NoAction> {
     /// Front snackbar; `None` while the queue is empty.
     pub response: Option<egui::Response>,
     /// Snackbar whose action was pressed this frame; it is dismissed.
     pub action_clicked: Option<ToastId>,
-    /// Action of [`Self::action_clicked`], with its [`TextAction::key`]; the index is 0.
-    pub clicked: Option<Clicked>,
+    /// Value of the action of [`Self::action_clicked`].
+    pub clicked: Option<A>,
     /// Snackbar closed from its close button this frame.
     pub dismissed: Option<ToastId>,
 }
@@ -95,21 +96,21 @@ const STACK_GAP: f32 = 8.0;
 const SLIDE: f32 = 16.0;
 
 /// Queue with the Compose host defaults: one snackbar at a time, `SnackbarDuration.Short`.
-pub fn snackbar_queue() -> ToastQueue<Snackbar> {
+pub fn snackbar_queue<A>() -> ToastQueue<Snackbar<A>> {
     ToastQueue::new(defaults::snackbar::MAX_VISIBLE, defaults::snackbar::DURATION_SHORT)
 }
 
 /// MD3 snackbar host over a [`ToastQueue`] of [`Snackbar`]s (Compose `SnackbarHost`).
 #[derive(Debug)]
 #[must_use = "call .show(..)"]
-pub struct SnackbarHost<'a> {
-    queue: &'a mut ToastQueue<Snackbar>,
+pub struct SnackbarHost<'a, A = NoAction> {
+    queue: &'a mut ToastQueue<Snackbar<A>>,
     key: StableId,
 }
 
-impl<'a> SnackbarHost<'a> {
+impl<'a, A: ActionValue + Send + Sync + 'static> SnackbarHost<'a, A> {
     /// Shows the front of `queue`; agent key prefix `snackbar`.
-    pub fn new(queue: &'a mut ToastQueue<Snackbar>) -> Self {
+    pub fn new(queue: &'a mut ToastQueue<Snackbar<A>>) -> Self {
         Self {
             queue,
             key: StableId::new("snackbar"),
@@ -123,18 +124,22 @@ impl<'a> SnackbarHost<'a> {
     }
 
     /// Paints the front snackbar at the bottom center of the screen.
-    pub fn show(self, rt: &Rt) -> SnackbarHostResponse {
+    pub fn show(self, rt: &Rt) -> SnackbarHostResponse<A> {
         run(rt, self.queue, &self.key)
     }
 }
 
-fn run(rt: &Rt, queue: &mut ToastQueue<Snackbar>, agent_key: &StableId) -> SnackbarHostResponse {
+fn run<A: ActionValue + Send + Sync + 'static>(
+    rt: &Rt,
+    queue: &mut ToastQueue<Snackbar<A>>,
+    agent_key: &StableId,
+) -> SnackbarHostResponse<A> {
     let ctx = rt.ctx();
     queue.update(ctx);
     let t = rt.tokens();
     let host = egui_mineral::kit::scoped_id(rt.core(), Id::unique("mineral::snackbar_host"));
-    let mut shown = Vec::<Shown>::load(ctx, host);
-    let current: Vec<Shown> = queue
+    let mut shown = Vec::<Shown<A>>::load(ctx, host);
+    let current: Vec<Shown<A>> = queue
         .visible()
         .map(|q| Shown {
             id: q.id,
@@ -190,9 +195,9 @@ fn run(rt: &Rt, queue: &mut ToastQueue<Snackbar>, agent_key: &StableId) -> Snack
             }
             if out.action {
                 queue.dismiss(s.id);
-                if let Some(action) = &s.snackbar.action {
+                if let Some((value, action)) = &s.snackbar.action {
                     action.fire(ctx);
-                    clicked = Some(Clicked::new(0, action.action_key.clone()));
+                    clicked = Some(value.clone());
                 }
                 action_clicked = Some(s.id);
             } else if out.close {
@@ -211,10 +216,10 @@ fn run(rt: &Rt, queue: &mut ToastQueue<Snackbar>, agent_key: &StableId) -> Snack
     }
 }
 
-fn paint(
+fn paint<A>(
     rt: &Rt,
     t: &crate::tokens::Tokens,
-    s: &Shown,
+    s: &Shown<A>,
     keys: Keys<'_>,
     eased: f32,
     stack: f32,
@@ -257,11 +262,11 @@ impl Row<'_> {
     }
 }
 
-fn paint_content(
+fn paint_content<A>(
     ui: &mut Ui,
     rt: &Rt,
     t: &crate::tokens::Tokens,
-    s: &Shown,
+    s: &Shown<A>,
     keys: Keys<'_>,
     interactive: bool,
 ) -> Painted {
@@ -280,7 +285,7 @@ fn paint_content(
     };
     let available = ctx.content_rect().width() - 2.0 * d::OUTER_PADDING;
     let row_w = (available - d::HORIZONTAL_SPACING - end_pad).clamp(0.0, d::CONTAINER_MAX_WIDTH);
-    let action_g = sb.action.as_ref().map(|a| {
+    let action_g = sb.action.as_ref().map(|(_, a)| {
         parts::type_galley(
             rt.core(),
             &p,
@@ -344,7 +349,7 @@ fn paint_content(
         close = r.clicked();
         focused |= r.has_focus();
     }
-    if let (Some(g), Some(a)) = (action_g, &sb.action) {
+    if let (Some(g), Some((_, a))) = (action_g, &sb.action) {
         let r = action_button(&mut rt.ui(ui), ctx, t, &row, g, &a.label, action_color);
         action = r.clicked();
         focused |= r.has_focus();

@@ -169,10 +169,10 @@ fn rich_tooltip_reports_each_action_slot() {
         let mut h = harness(SCREEN, (false, false), |ui, (primary, secondary)| {
             let anchor = ui.mineral(PushButton::new("anchor", "Anchor"));
             let r = RichTooltip::new("tip", "Supporting")
-                .actions(["Primary", "Secondary"])
+                .actions([(0, "Primary"), (1, "Secondary")])
                 .show(ui.rt(), anchor.response());
-            *primary |= r.clicked.as_ref().map(egui_mineral::action::Clicked::index) == Some(0);
-            *secondary |= r.clicked.as_ref().map(egui_mineral::action::Clicked::index) == Some(1);
+            *primary |= r.clicked == Some(0);
+            *secondary |= r.clicked == Some(1);
         });
         let anchor = h.rect("anchor-button").center();
         h.hover_at(anchor);

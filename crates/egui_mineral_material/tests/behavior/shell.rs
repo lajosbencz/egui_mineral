@@ -20,13 +20,11 @@ struct Bar {
 
 fn bar(ui: &mut Mui<'_>, n: usize, out: &mut Bar) {
     let r = TopAppBar::new("bar", "Title")
-        .actions((0..n).map(|i| IconAction::new(ICON_STAR, format!("Action {i}"))))
+        .actions((0..n).map(|i| (i, IconAction::new(ICON_STAR, format!("Action {i}")))))
         .show(ui);
-    out.inline = (0..n).map(|i| r.actions.get(i).is_some()).collect();
+    out.inline = (0..n).map(|i| r.actions.get(&i).is_some()).collect();
     out.overflow = r.overflow.is_some();
-    out.clicked = out
-        .clicked
-        .or(r.clicked.as_ref().map(egui_mineral::action::Clicked::index));
+    out.clicked = out.clicked.or(r.clicked);
 }
 
 #[test]
@@ -325,8 +323,8 @@ fn side_sheet_without_scroll_gives_content_the_full_height_and_padding() {
 fn toolbar_custom_items_share_the_row_height_and_the_roving_order() {
     let mut h = still(WIDE, 0usize, |ui, seg| {
         DockedToolbar::new("t", "Edit")
-            .action(IconAction::new(ICON_STAR, "A"))
-            .action(IconAction::new(ICON_STAR, "B"))
+            .action(0, IconAction::new(ICON_STAR, "A"))
+            .action(1, IconAction::new(ICON_STAR, "B"))
             .custom("seg", |ui| {
                 SegmentedButton::new("seg", "Mode", seg)
                     .items(
@@ -368,7 +366,7 @@ fn toolbar_custom_items_share_the_row_height_and_the_roving_order() {
 fn docked_toolbar_hides_custom_items_that_do_not_fit() {
     let mut h = still(vec2(200.0, 200.0), (), |ui, ()| {
         DockedToolbar::new("t", "Edit")
-            .action(IconAction::new(ICON_STAR, "A"))
+            .action(0, IconAction::new(ICON_STAR, "A"))
             .custom("go", |ui| ui.mineral(PushButton::new("go", "Go")).response().clone())
             .custom("wide", |ui| {
                 ui.mineral(PushButton::new("wide", "A very wide button label"))
@@ -388,20 +386,14 @@ fn top_app_bar_reports_action_keys_inline_and_overflowed() {
     let state: (Vec<String>, bool) = (Vec::new(), false);
     let mut h = harness(SCREEN, state, |ui, (keys, anchored)| {
         let r = TopAppBar::new("bar", "Title")
-            .actions((0..5).map(|i| IconAction::new(ICON_STAR, format!("Action {i}")).key(format!("k{i}"))))
+            .actions((0..5).map(|i| (format!("k{i}"), IconAction::new(ICON_STAR, format!("Action {i}")))))
             .show(ui);
-        *anchored =
-            r.actions.get_by_key(&"k0".to_owned()).is_some() && r.actions.get_by_key(&"k4".to_owned()).is_none();
-        keys.extend(
-            r.clicked
-                .as_ref()
-                .and_then(egui_mineral::action::Clicked::key::<String>)
-                .cloned(),
-        );
+        *anchored = r.actions.get(&"k0".to_owned()).is_some() && r.actions.get(&"k4".to_owned()).is_none();
+        keys.extend(r.clicked);
     });
-    h.click("bar-0-action-button");
+    h.click("bar-k0-action-button");
     h.click("bar-overflow-button");
-    h.click("bar-4-action-button");
+    h.click("bar-k4-action-button");
     let (keys, anchored) = &h.state().value;
     assert_eq!(keys, &["k0", "k4"]);
     assert!(anchored, "inline actions resolve by key, overflowed ones do not");

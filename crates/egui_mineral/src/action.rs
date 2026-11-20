@@ -36,6 +36,8 @@
 
 use std::{any::Any, fmt, sync::Arc};
 
+use crate::{select::ItemKey, semantic::KeyedSalt};
+
 type Erased = dyn Any + Send + Sync;
 
 /// App key of an action item, type-erased; cheap to clone. Keys of different types never compare equal.
@@ -108,55 +110,87 @@ impl Clicked {
     }
 }
 
-/// Per-item values of a collection's response (the button of each shown action, the response of each
-/// rendered row), by item index and by the item's key. Items that were not shown have no entry.
-#[derive(Clone, Debug)]
-pub struct ItemResponses<T> {
-    items: Vec<Item<T>>,
+/// Action type of a collection before its first action; uninhabited, so its response never reports a click.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum NoAction {}
+
+/// Value an action collection reports: any [`ItemKey`], or [`NoAction`] while it has no action. Sealed.
+pub trait ActionValue: Clone + PartialEq + sealed::Sealed {
+    /// Id salt and agent key part of the item carrying this value.
+    fn salt(&self) -> KeyedSalt;
 }
 
-#[derive(Clone, Debug)]
-struct Item<T> {
-    index: usize,
-    key: Option<ActionKey>,
-    value: T,
+impl<A: ItemKey> sealed::Sealed for A {}
+
+impl<A: ItemKey> ActionValue for A {
+    fn salt(&self) -> KeyedSalt {
+        KeyedSalt::from(self.clone())
+    }
 }
 
-impl<T> Default for ItemResponses<T> {
+impl sealed::Sealed for NoAction {}
+
+impl ActionValue for NoAction {
+    fn salt(&self) -> KeyedSalt {
+        match *self {}
+    }
+}
+
+/// Action type `B` a collection of `Self` actions has after taking a `B` action: [`NoAction`] widens to any
+/// action type, every other type only to itself, so one collection never mixes action types. Sealed.
+pub trait Widen<B>: ActionValue {
+    /// `self` as the wider type.
+    fn widen(self) -> B;
+}
+
+impl<A: ItemKey> Widen<A> for A {
+    fn widen(self) -> A {
+        self
+    }
+}
+
+impl<B: ActionValue> Widen<B> for NoAction {
+    fn widen(self) -> B {
+        match self {}
+    }
+}
+
+mod sealed {
+    pub trait Sealed {}
+}
+
+/// `items` of a collection with `A` actions, as a collection with `B` actions; see [`Widen`].
+pub fn widen<A: Widen<B>, B, T>(items: Vec<(A, T)>) -> Vec<(B, T)> {
+    items.into_iter().map(|(a, t)| (a.widen(), t)).collect()
+}
+
+/// Per-item values of a collection's response (the button of each shown action, the response of each rendered
+/// row), by the item's value. Items that were not shown have no entry.
+#[derive(Clone, Debug)]
+pub struct ItemResponses<A, T> {
+    items: Vec<(A, T)>,
+}
+
+impl<A, T> Default for ItemResponses<A, T> {
     fn default() -> Self {
         Self { items: Vec::new() }
     }
 }
 
-impl<T> ItemResponses<T> {
-    /// Records `value` for the item at `index` of the collection, with the item's `key`.
-    pub fn push(&mut self, index: usize, key: Option<ActionKey>, value: T) {
-        self.items.push(Item { index, key, value });
+impl<A: PartialEq, T> ItemResponses<A, T> {
+    /// Records `value` for the item carrying `key`.
+    pub fn push(&mut self, key: A, value: T) {
+        self.items.push((key, value));
     }
 
-    /// Value of the item at `index` of the collection; `None` while it is not shown.
-    pub fn get(&self, index: usize) -> Option<&T> {
-        self.items.iter().find(|i| i.index == index).map(|i| &i.value)
+    /// Value of the first shown item carrying `key`.
+    pub fn get(&self, key: &A) -> Option<&T> {
+        self.items.iter().find(|(k, _)| k == key).map(|(_, v)| v)
     }
 
-    /// Value of the first shown item whose key is a `K` equal to `key`.
-    pub fn get_by_key<K: Any + PartialEq>(&self, key: &K) -> Option<&T> {
-        self.items
-            .iter()
-            .find(|i| i.key.as_ref().is_some_and(|k| k.is(key)))
-            .map(|i| &i.value)
-    }
-
-    /// Shown items as `(index, value)`, in the order they were laid out.
-    pub fn iter(&self) -> impl Iterator<Item = (usize, &T)> {
-        self.items.iter().map(|i| (i.index, &i.value))
-    }
-
-    /// Shown items whose key is a `K`, as `(key, value)`, in the order they were laid out.
-    pub fn iter_keyed<K: Any>(&self) -> impl Iterator<Item = (&K, &T)> {
-        self.items
-            .iter()
-            .filter_map(|i| Some((i.key.as_ref()?.get::<K>()?, &i.value)))
+    /// Shown items as `(key, value)`, in the order they were laid out.
+    pub fn iter(&self) -> impl Iterator<Item = (&A, &T)> {
+        self.items.iter().map(|(k, v)| (k, v))
     }
 
     /// Number of shown items.
@@ -170,19 +204,10 @@ impl<T> ItemResponses<T> {
     }
 }
 
-impl<T> FromIterator<T> for ItemResponses<T> {
-    /// Unkeyed items indexed by their position.
-    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+impl<A, T> FromIterator<(A, T)> for ItemResponses<A, T> {
+    fn from_iter<I: IntoIterator<Item = (A, T)>>(iter: I) -> Self {
         Self {
-            items: iter
-                .into_iter()
-                .enumerate()
-                .map(|(index, value)| Item {
-                    index,
-                    key: None,
-                    value,
-                })
-                .collect(),
+            items: iter.into_iter().collect(),
         }
     }
 }
@@ -219,16 +244,21 @@ mod tests {
     }
 
     #[test]
-    fn item_responses_look_up_by_index_and_key() {
+    fn item_responses_look_up_by_key() {
         let mut items = ItemResponses::default();
-        items.push(0, None, 'a');
-        items.push(3, Some(ActionKey::new(Cmd::Save)), 'b');
-        assert_eq!(items.get(3), Some(&'b'));
-        assert_eq!(items.get(1), None);
-        assert_eq!(items.get_by_key(&Cmd::Save), Some(&'b'));
-        assert_eq!(items.get_by_key(&Cmd::Open), None);
-        assert_eq!(items.iter().collect::<Vec<_>>(), [(0, &'a'), (3, &'b')]);
-        assert_eq!(items.iter_keyed::<Cmd>().collect::<Vec<_>>(), [(&Cmd::Save, &'b')]);
+        items.push(Cmd::Open, 'a');
+        items.push(Cmd::Save, 'b');
+        assert_eq!(items.get(&Cmd::Save), Some(&'b'));
+        assert_eq!(items.iter().collect::<Vec<_>>(), [(&Cmd::Open, &'a'), (&Cmd::Save, &'b')]);
         assert_eq!(items.len(), 2);
+    }
+
+    #[test]
+    fn no_action_widens_and_actions_stay() {
+        fn widen<A: Widen<B>, B>(a: Vec<A>) -> Vec<B> {
+            a.into_iter().map(Widen::widen).collect()
+        }
+        assert_eq!(widen::<NoAction, &str>(Vec::new()), Vec::<&str>::new());
+        assert_eq!(widen::<_, &str>(vec!["open"]), ["open"]);
     }
 }

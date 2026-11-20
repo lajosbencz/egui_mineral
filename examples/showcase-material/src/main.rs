@@ -22,7 +22,7 @@ use pages::{Cmd, Evt, LOCALES, Page, Settings, Shared, States, THEMES, VARIANTS,
 use spawn::AppSpawner;
 
 const CONTENT_MAX_W: f32 = 1040.0;
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, egui_mineral::semantic::KeySalt)]
 enum BarAction {
     Search,
     Theme,
@@ -166,13 +166,13 @@ impl Shell {
             egui::ThemePreference::Dark => icons::ICON_DARK_MODE,
         };
         let bar = bar
-            .action(IconAction::new(icons::ICON_SEARCH, search).key(BarAction::Search))
-            .action(IconAction::new(theme_icon, format!("Theme: {theme_name}")).key(BarAction::Theme));
+            .action(BarAction::Search, IconAction::new(icons::ICON_SEARCH, search))
+            .action(BarAction::Theme, IconAction::new(theme_icon, format!("Theme: {theme_name}")));
         let r = bar.show(ui);
         if r.leading_clicked {
             self.drawer_open = true;
         }
-        match r.clicked.as_ref().and_then(Clicked::key::<BarAction>) {
+        match r.clicked {
             Some(BarAction::Search) => self.palette_open = true,
             Some(BarAction::Theme) => self.shared.settings.theme = (self.shared.settings.theme + 1) % THEMES.len(),
             None => {}

@@ -86,8 +86,8 @@ fn navigation_bars_take_their_container_heights() {
     }
 }
 
-fn actions() -> [IconAction; 2] {
-    [IconAction::new(ICON_EDIT, "Edit"), IconAction::new(ICON_SHARE, "Share")]
+fn actions() -> [(usize, IconAction); 2] {
+    [(0, IconAction::new(ICON_EDIT, "Edit")), (1, IconAction::new(ICON_SHARE, "Share"))]
 }
 
 #[test]

@@ -79,7 +79,7 @@ fn reorderable_rows_click_and_open_context_menu() {
         assert_eq!(r.rows.len(), items.len());
         s.moved = s.moved.or(r.moved);
         s.rects = r.rows.iter().map(|(_, w)| w.rect).collect();
-        for (i, row) in r.rows.iter() {
+        for (&i, row) in r.rows.iter() {
             if row.output().activated {
                 s.activated = Some(i);
             }

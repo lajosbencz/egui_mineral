@@ -24,7 +24,7 @@ pub struct ReorderableListResponse {
     /// Move committed this frame; the app applies it to `items`.
     pub moved: Option<Reorder>,
     /// Row responses by item index.
-    pub rows: ItemResponses<WidgetResponse<ListItemOutput>>,
+    pub rows: ItemResponses<usize, WidgetResponse<ListItemOutput>>,
 }
 
 /// List whose rows reorder by drag or Alt+arrows; non-MD3 (Flutter `ReorderableListView` pattern).
@@ -77,7 +77,7 @@ impl<'a, T: AsIdSalt> ReorderableList<'a, T> {
                     .enumerate()
                     .map(|(i, it)| {
                         let row = item(i, it).drag_indicator(&rt.icons()).disabled(true);
-                        ui.push_id(it, |ui| rt.ui(ui).mineral(row)).inner
+                        (i, ui.push_id(it, |ui| rt.ui(ui).mineral(row)).inner)
                     })
                     .collect();
                 (None, rows)
@@ -101,7 +101,7 @@ fn reorderable_list<T: AsIdSalt>(
     salt: &KeyedSalt,
     items: &[T],
     mut item: impl FnMut(usize, &T) -> ListItem,
-) -> (Option<Reorder>, ItemResponses<WidgetResponse<ListItemOutput>>) {
+) -> (Option<Reorder>, ItemResponses<usize, WidgetResponse<ListItemOutput>>) {
     let rt = ui.rt();
     let mut focused = None;
     let mut rows = ItemResponses::default();
@@ -114,11 +114,11 @@ fn reorderable_list<T: AsIdSalt>(
                 if r.has_focus() {
                     focused = Some(i);
                 }
-                rows.push(i, None, r);
+                rows.push(i, r);
             }
             RowView::Dragged => {
                 ui.multiply_opacity(t.state.disabled_content);
-                rows.push(i, None, rt.ui(ui).mineral(w));
+                rows.push(i, rt.ui(ui).mineral(w));
             }
             RowView::Preview => {
                 rt.ui(ui).mineral(w.dragged(true));

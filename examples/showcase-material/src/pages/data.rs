@@ -280,13 +280,13 @@ fn tree(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
                 if n.dir {
                     Vec::new()
                 } else {
-                    vec![IconAction::new(icons::ICON_DELETE, "Delete")]
+                    vec![("delete", IconAction::new(icons::ICON_DELETE, "Delete"))]
                 }
             })
             .reorderable(true)
             .show(ui)
     });
-    for (key, row) in r.rows.iter_keyed::<u32>() {
+    for (key, row) in r.rows.iter() {
         if Menu::context_requested(rt, row) {
             let menu = Menu::new(("tree-menu", *key), "Node actions")
                 .item(MenuItem::new("Details").key(NodeAction::Details))

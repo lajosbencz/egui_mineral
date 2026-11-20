@@ -11,7 +11,8 @@ use egui_mineral::widget::MineralUi;
 use egui::{Id, Layout, Rangef, Rect, Response, Sense, Ui, UiBuilder, pos2, vec2};
 use egui_mineral::widget::Availability;
 use egui_mineral::{
-    action::{Clicked, ItemResponses},
+    action::{ActionValue, ItemResponses, NoAction, Widen},
+    select::ItemKey,
     focus::RovingFocus,
     i18n::Direction,
     layout::{Axis, Constraints, Edge, Measure},
@@ -33,7 +34,7 @@ use crate::{
 };
 use crate::{
     IconAction,
-    widget::item_salt,
+    widget::action_salt,
     widget::{
         common::{self},
         parts,
@@ -52,16 +53,15 @@ fn dense_height(height: f32, item: f32) -> f32 {
 /// Result of [`DockedToolbar::show`] and [`FloatingToolbar::show`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct ToolbarResponse {
+pub struct ToolbarResponse<A = NoAction> {
     /// Toolbar container response.
     pub response: Response,
-    /// Clicked action without a [`IconAction::command`], with its [`IconAction::key`]; the index counts icon
-    /// actions only.
-    pub clicked: Option<Clicked>,
-    /// Targets of the shown icon actions by index (custom items excluded) and [`IconAction::key`], e.g. to
-    /// anchor a [`Menu::show_at`](crate::selection::Menu::show_at); actions that are not shown (overflowed,
-    /// toolbar off screen or collapsed) have none.
-    pub actions: ItemResponses<Rect>,
+    /// Value of the clicked action without a [`IconAction::command`].
+    pub clicked: Option<A>,
+    /// Targets of the shown icon actions by value, e.g. to anchor a
+    /// [`Menu::show_at`](crate::selection::Menu::show_at); actions that are not shown (overflowed, toolbar off
+    /// screen or collapsed) have none.
+    pub actions: ItemResponses<A, Rect>,
     /// Paired FAB clicked; see [`FloatingToolbar::fab`].
     pub fab_clicked: bool,
 }
@@ -69,8 +69,8 @@ pub struct ToolbarResponse {
 // Room offered to a custom item so it measures at its natural width.
 const NATURAL_WIDTH: f32 = 10_000.0;
 
-enum Item<'a> {
-    Action(IconAction),
+enum Item<'a, A> {
+    Action(A, IconAction),
     Custom(Custom<'a>),
 }
 
@@ -81,7 +81,7 @@ struct Custom<'a> {
     add: Option<CustomFn<'a>>,
 }
 
-impl Item<'_> {
+impl<A> Item<'_, A> {
     fn is_custom(&self) -> bool {
         matches!(self, Self::Custom(_))
     }
@@ -93,11 +93,11 @@ fn custom_id(toolbar: &KeyedSalt, c: &Custom<'_>) -> Id {
 
 // Main-axis length per item, `None` when hidden. Custom items take the width measured last pass; vertical
 // toolbars and, beyond `room`, trailing custom items are hidden.
-fn plan(ui: &Ui, salt: &KeyedSalt, list: &[Item<'_>], item: f32, axis: Axis, room: Option<f32>) -> Vec<Option<f32>> {
+fn plan<A>(ui: &Ui, salt: &KeyedSalt, list: &[Item<'_, A>], item: f32, axis: Axis, room: Option<f32>) -> Vec<Option<f32>> {
     let mut widths: Vec<Option<f32>> = list
         .iter()
         .map(|i| match i {
-            Item::Action(_) => Some(item),
+            Item::Action(..) => Some(item),
             Item::Custom(_) if axis == Axis::Vertical => None,
             Item::Custom(c) => {
                 Some(egui_mineral::perf::size_or_discard(ui.ctx(), custom_id(salt, c)).map_or(0.0, |s| s.x))
@@ -124,16 +124,16 @@ fn total(plan: &[Option<f32>]) -> f32 {
 }
 
 #[expect(clippy::too_many_arguments, reason = "one laid-out row")]
-fn items(
+fn items<A: ActionValue>(
     ui: &mut MineralUi<'_, Material>,
     rect: Rect,
     salt: &KeyedSalt,
-    list: &mut [Item<'_>],
+    list: &mut [Item<'_, A>],
     plan: &[Option<f32>],
     palette: Palette,
     axis: Axis,
     gap: f32,
-) -> (Option<Clicked>, ItemResponses<Rect>) {
+) -> (Option<A>, ItemResponses<A, Rect>) {
     let rt = ui.rt();
     let layout = match axis {
         Axis::Horizontal => rt.i18n().direction().row(),
@@ -146,17 +146,14 @@ fn items(
     let mut stops: Vec<(Id, bool)> = Vec::new();
     ui.scope_builder(UiBuilder::new().max_rect(rect).layout(layout), |ui| {
         ui.spacing_mut().item_spacing = vec2(gap, gap);
-        let mut index = 0;
         for (entry, shown) in list.iter_mut().zip(plan) {
             if shown.is_none() {
                 continue;
             }
             match entry {
-                Item::Action(a) => {
-                    let i = index;
-                    index += 1;
+                Item::Action(v, a) => {
                     let mut b = IconButton::new(
-                        item_salt(salt, a.salt.as_ref(), a.command.as_ref(), i),
+                        action_salt(salt, a.salt.as_ref(), a.command.as_ref(), v),
                         a.icon,
                         &a.label,
                     )
@@ -169,11 +166,11 @@ fn items(
                     if r.clicked() {
                         match &a.command {
                             Some(c) => shortcut::fire(ui.ctx(), c),
-                            None => clicked = Some(Clicked::new(i, a.action_key.clone())),
+                            None => clicked = Some(v.clone()),
                         }
                     }
                     stops.push((r.response().id, !a.disabled));
-                    rects.push(i, a.action_key.clone(), r.response().rect);
+                    rects.push(v.clone(), r.response().rect);
                 }
                 Item::Custom(c) => {
                     let Some(add) = c.add.take() else { continue };
@@ -192,7 +189,7 @@ fn items(
     (clicked, rects)
 }
 
-fn announce(ctx: &egui::Context, response: &Response, core: &Core<'_>, expanded: Option<bool>) {
+fn announce<A>(ctx: &egui::Context, response: &Response, core: &Core<'_, A>, expanded: Option<bool>) {
     semantic::emit(ctx, Some(response.id), response.rect, || {
         let mut n = SemanticNode::new(StableId::of(&core.salt, "toolbar"), Role::Toolbar, &core.label);
         n.state.expanded = expanded;
@@ -224,15 +221,15 @@ pub enum ToolbarColors {
     Vibrant,
 }
 
-struct Core<'a> {
+struct Core<'a, A> {
     salt: KeyedSalt,
     label: String,
     vibrant: bool,
     disabled: bool,
-    items: Vec<Item<'a>>,
+    items: Vec<Item<'a, A>>,
 }
 
-impl Core<'_> {
+impl Core<'_, NoAction> {
     fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
@@ -243,10 +240,34 @@ impl Core<'_> {
             items: Vec::new(),
         }
     }
+}
+
+impl<'a, A: ActionValue> Core<'a, A> {
+    fn with_actions<B: ItemKey>(self, actions: impl IntoIterator<Item = (B, impl Into<IconAction>)>) -> Core<'a, B>
+    where
+        A: Widen<B>,
+    {
+        let mut items: Vec<Item<'a, B>> = self
+            .items
+            .into_iter()
+            .map(|i| match i {
+                Item::Action(v, a) => Item::Action(v.widen(), a),
+                Item::Custom(c) => Item::Custom(c),
+            })
+            .collect();
+        items.extend(actions.into_iter().map(|(v, a)| Item::Action(v, a.into())));
+        Core {
+            salt: self.salt,
+            label: self.label,
+            vibrant: self.vibrant,
+            disabled: self.disabled,
+            items,
+        }
+    }
 
     fn apply_disabled(&mut self) {
         for i in &mut self.items {
-            if let Item::Action(a) = i {
+            if let Item::Action(_, a) = i {
                 a.disabled |= self.disabled;
             }
         }
@@ -282,20 +303,6 @@ macro_rules! core_setters {
             disabled |s| s.core().disabled
         }
 
-        /// Appends one icon button.
-        pub fn action(mut self, action: impl Into<IconAction>) -> Self {
-            self.core().items.push(Item::Action(action.into()));
-            self
-        }
-
-        /// Appends icon buttons.
-        pub fn actions(mut self, actions: impl IntoIterator<Item = impl Into<IconAction>>) -> Self {
-            self.core()
-                .items
-                .extend(actions.into_iter().map(|a| Item::Action(a.into())));
-            self
-        }
-
         /// Appends a content slot laid out in the toolbar row at the action height, between the
         /// actions in call order; `add` returns the response of the item's focusable widget, which
         /// joins the arrow-key roving order (a group that roves itself returns its non-focusable
@@ -317,24 +324,45 @@ macro_rules! core_setters {
 
 /// MD3 docked toolbar (Compose `FlexibleBottomAppBar`); always horizontal.
 #[must_use = "call .show(..)"]
-pub struct DockedToolbar<'a>(Core<'a>);
+pub struct DockedToolbar<'a, A = NoAction>(Core<'a, A>);
 
-egui_mineral::kit::opaque_debug!(DockedToolbar<'_>);
+egui_mineral::kit::opaque_debug!(DockedToolbar<'_, A>);
 
-impl<'a> DockedToolbar<'a> {
+impl DockedToolbar<'_> {
     /// `FlexibleBottomAppBar`; `label` names the toolbar for assistive technology.
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>) -> Self {
         Self(Core::new(id_salt, label))
     }
+}
 
-    fn core(&mut self) -> &mut Core<'a> {
+impl<'a, A: ActionValue> DockedToolbar<'a, A> {
+    fn core(&mut self) -> &mut Core<'a, A> {
         &mut self.0
     }
 
     core_setters!();
 
+    /// Appends the icon button reporting `value`.
+    pub fn action<B: ItemKey>(self, value: B, action: impl Into<IconAction>) -> DockedToolbar<'a, B>
+    where
+        A: Widen<B>,
+    {
+        self.actions([(value, action)])
+    }
+
+    /// Appends `(value, icon button)` pairs.
+    pub fn actions<B: ItemKey>(
+        self,
+        actions: impl IntoIterator<Item = (B, impl Into<IconAction>)>,
+    ) -> DockedToolbar<'a, B>
+    where
+        A: Widen<B>,
+    {
+        DockedToolbar(self.0.with_actions(actions))
+    }
+
     /// Spans the available width, `FlexibleHorizontalArrangement` (`SpaceBetween`).
-    pub fn show(self, ui: &mut MineralUi<'_, Material>) -> ToolbarResponse {
+    pub fn show(self, ui: &mut MineralUi<'_, Material>) -> ToolbarResponse<A> {
         let rt = ui.rt();
         let mut core = self.0;
         core.apply_disabled();
@@ -397,16 +425,16 @@ impl<'a> DockedToolbar<'a> {
 /// MD3 floating toolbar (Compose `HorizontalFloatingToolbar`, `VerticalFloatingToolbar`); can stack vertically
 /// and pair with a FAB.
 #[must_use = "call .show(..)"]
-pub struct FloatingToolbar<'a> {
-    core: Core<'a>,
+pub struct FloatingToolbar<'a, A = NoAction> {
+    core: Core<'a, A>,
     axis: Axis,
     fab: Option<PairedFab>,
     expanded: bool,
 }
 
-egui_mineral::kit::opaque_debug!(FloatingToolbar<'_>);
+egui_mineral::kit::opaque_debug!(FloatingToolbar<'_, A>);
 
-impl<'a> FloatingToolbar<'a> {
+impl FloatingToolbar<'_> {
     /// `HorizontalFloatingToolbar`; `label` names the toolbar for assistive technology.
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>) -> Self {
         Self {
@@ -416,12 +444,38 @@ impl<'a> FloatingToolbar<'a> {
             expanded: true,
         }
     }
+}
 
-    fn core(&mut self) -> &mut Core<'a> {
+impl<'a, A: ActionValue> FloatingToolbar<'a, A> {
+    fn core(&mut self) -> &mut Core<'a, A> {
         &mut self.core
     }
 
     core_setters!();
+
+    /// Appends the icon button reporting `value`.
+    pub fn action<B: ItemKey>(self, value: B, action: impl Into<IconAction>) -> FloatingToolbar<'a, B>
+    where
+        A: Widen<B>,
+    {
+        self.actions([(value, action)])
+    }
+
+    /// Appends `(value, icon button)` pairs.
+    pub fn actions<B: ItemKey>(
+        self,
+        actions: impl IntoIterator<Item = (B, impl Into<IconAction>)>,
+    ) -> FloatingToolbar<'a, B>
+    where
+        A: Widen<B>,
+    {
+        FloatingToolbar {
+            core: self.core.with_actions(actions),
+            axis: self.axis,
+            fab: self.fab,
+            expanded: self.expanded,
+        }
+    }
 
     /// Default [`Axis::Horizontal`].
     pub fn axis(mut self, axis: Axis) -> Self {
@@ -447,7 +501,7 @@ impl<'a> FloatingToolbar<'a> {
     }
 
     /// Lays out in place.
-    pub fn show(mut self, ui: &mut MineralUi<'_, Material>) -> ToolbarResponse {
+    pub fn show(mut self, ui: &mut MineralUi<'_, Material>) -> ToolbarResponse<A> {
         let rt = ui.rt();
         self.core.apply_disabled();
         let axis = self.axis;
@@ -555,7 +609,7 @@ struct BarPlace {
     elevation: f32,
 }
 
-impl FloatingToolbar<'_> {
+impl<A: ActionValue> FloatingToolbar<'_, A> {
     fn floating_bar(
         &mut self,
         ui: &mut MineralUi<'_, Material>,
@@ -563,7 +617,7 @@ impl FloatingToolbar<'_> {
         place: BarPlace,
         axis: Axis,
         widths: &[Option<f32>],
-    ) -> (Option<Clicked>, ItemResponses<Rect>) {
+    ) -> (Option<A>, ItemResponses<A, Rect>) {
         let BarPlace {
             bar,
             content,

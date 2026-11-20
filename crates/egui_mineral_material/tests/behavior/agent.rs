@@ -186,16 +186,14 @@ fn inserting_a_toolbar_action_keeps_the_keys_of_identified_ones() {
     use egui_mineral_material::{IconAction, icons, navigation::FloatingToolbar};
     let mut h = harness(WIDE, (false, 0), |ui, (insert, pastes)| {
         let actions = insert
-            .then(|| IconAction::new(icons::ICON_CONTENT_CUT, "Cut").command("edit.cut"))
+            .then(|| ("cut", IconAction::new(icons::ICON_CONTENT_CUT, "Cut").command("edit.cut")))
             .into_iter()
             .chain([
-                IconAction::new(icons::ICON_CONTENT_COPY, "Copy").command("edit.copy"),
-                IconAction::new(icons::ICON_CONTENT_PASTE, "Paste").salt("paste"),
+                ("copy", IconAction::new(icons::ICON_CONTENT_COPY, "Copy").command("edit.copy")),
+                ("paste", IconAction::new(icons::ICON_CONTENT_PASTE, "Paste").salt("paste")),
             ]);
         let out = FloatingToolbar::new("tb", "Edit").actions(actions).show(ui);
-        *pastes += usize::from(
-            out.clicked.as_ref().map(egui_mineral::action::Clicked::index) == Some(usize::from(*insert) + 1),
-        );
+        *pastes += usize::from(out.clicked == Some("paste"));
     });
     let keys = ["tb-edit-copy-button", "tb-paste-button"];
     let rects = keys.map(|k| h.rect(k));
