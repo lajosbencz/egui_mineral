@@ -145,8 +145,7 @@ fn keyed(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
             .font(TypeScale::BodySmall.font(rt.ctx())),
         );
         let w = egui::Button::new(format!("Raw button ({})", s.clicks));
-        if rt
-            .ui(ui)
+        if ui
             .mineral(Interop::new(
                 "interop-raw-button",
                 "Raw button",

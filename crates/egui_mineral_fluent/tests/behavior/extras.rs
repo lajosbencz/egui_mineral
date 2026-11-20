@@ -133,13 +133,14 @@ fn pagination_moves_a_stale_page_onto_the_last() {
 #[test]
 fn command_palette_reports_the_clicked_entry() {
     let mut h = harness((true, String::new(), None), |ui, (open, query, clicked)| {
-        let commands = [PaletteCommand::new("Save"), PaletteCommand::new("Open")];
+        let commands = [PaletteCommand::new("Save"), PaletteCommand::new("Open").key("open")];
         let r = CommandPalette::new("pal", commands, query).show_modal(ui.rt(), open);
-        *clicked = clicked.or(r.clicked);
+        *clicked = clicked.take().or(r.clicked);
     });
     h.run();
     h.click("pal-1-command");
-    assert_eq!((h.state().value.0, h.state().value.2), (false, Some(1)));
+    let clicked = h.state().value.2.as_ref().map(|c| (c.index(), c.key_str()));
+    assert_eq!((h.state().value.0, clicked), (false, Some((1, Some("open")))));
 }
 
 #[test]
@@ -151,12 +152,13 @@ fn command_palette_keys_skip_disabled_entries() {
             PaletteCommand::new("Open"),
         ];
         let r = CommandPalette::new("pal", commands, query).show_modal(ui.rt(), open);
-        *clicked = clicked.or(r.clicked);
+        *clicked = clicked.take().or(r.clicked);
     });
     h.run();
     h.press(Key::ArrowDown);
     h.press(Key::Enter);
-    assert_eq!((h.state().value.0, h.state().value.2), (false, Some(2)));
+    let clicked = h.state().value.2.as_ref().map(|c| (c.index(), c.key()));
+    assert_eq!((h.state().value.0, clicked), (false, Some((2, None))));
 }
 
 fn menu_bar() -> crate::support::Harness<'static, Vec<&'static str>> {

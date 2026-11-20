@@ -1,5 +1,3 @@
-use std::num::NonZeroU8;
-
 use egui::{Pos2, Rect, vec2};
 use egui_mineral::{
     i18n::{I18n, Sides},
@@ -29,7 +27,7 @@ pub struct Textarea<'a> {
     value: &'a mut String,
     appearance: InputAppearance,
     size: Size,
-    rows: NonZeroU8,
+    rows: u8,
     placeholder: Option<String>,
     invalid: bool,
     disabled: bool,
@@ -45,7 +43,7 @@ impl<'a> Textarea<'a> {
             value,
             appearance: InputAppearance::Outline,
             size: Size::Medium,
-            rows: NonZeroU8::MIN.saturating_add(1),
+            rows: 2,
             placeholder: None,
             invalid: false,
             disabled: false,
@@ -64,9 +62,9 @@ impl<'a> Textarea<'a> {
         self
     }
 
-    /// Visible lines before the size's `maxHeight`; default 2, as an HTML `<textarea>`.
-    pub fn rows(mut self, rows: NonZeroU8) -> Self {
-        self.rows = rows;
+    /// Visible lines before the size's `maxHeight`, at least 1; default 2, as an HTML `<textarea>`.
+    pub fn rows(mut self, rows: u8) -> Self {
+        self.rows = egui_mineral::kit::sanitize::at_least(rows, 1.., "Textarea rows");
         self
     }
 
@@ -129,7 +127,7 @@ impl<'a> Textarea<'a> {
     // Border box: the textarea, `padding-bottom` for the focus underline and both borders.
     fn height(&self) -> f32 {
         let (min, max, pad, _) = self.spec();
-        let lines = f32::from(self.rows.get()) * self.chrome().metrics().line + 2.0 * pad;
+        let lines = f32::from(self.rows) * self.chrome().metrics().line + 2.0 * pad;
         lines.clamp(min, max) + ta::FOCUS_UNDERLINE + 2.0 * g::STROKE_WIDTH_THIN
     }
 }
@@ -172,7 +170,7 @@ impl MineralWidget for Textarea<'_> {
                 (inner.bottom() - ta::FOCUS_UNDERLINE - pad_v).max(inner.top() + pad_v),
             ),
         );
-        let lines = usize::from(self.rows.get());
+        let lines = usize::from(self.rows);
         let shown = textbox::show(
             ui,
             self.value,

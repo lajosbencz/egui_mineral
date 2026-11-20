@@ -378,7 +378,7 @@ fn timeline(ui: &mut Mui<'_>) {
             i18n::DateLength::Medium,
         )
     };
-    rt.ui(ui).mineral(
+    ui.mineral(
         Timeline::new("demo-timeline")
             .item(
                 TimelineItem::new("Release 1.0 shipped")
@@ -398,7 +398,6 @@ fn timeline(ui: &mut Mui<'_>) {
 }
 
 fn description(ui: &mut Mui<'_>, s: &mut State) {
-    let rt = ui.rt();
     super::row(ui, |row| {
         row.add(|ui| s.dl_layout = super::choice(ui, "dl-layout", "Layout", &["Horizontal", "Vertical"], s.dl_layout));
         row.add(|ui| {
@@ -416,7 +415,7 @@ fn description(ui: &mut Mui<'_>, s: &mut State) {
     } else {
         DescriptionLayout::Vertical
     };
-    rt.ui(ui).mineral(
+    ui.mineral(
         DescriptionList::new("demo-dl")
             .layout(layout)
             .columns(s.dl_columns)
@@ -450,11 +449,10 @@ fn empty(ui: &mut Mui<'_>, s: &mut State) {
 }
 
 fn statistics(ui: &mut Mui<'_>) {
-    let rt = ui.rt();
     super::top_row(ui, |row| {
         row.add(|ui| {
             ui.vertical(|ui| {
-                rt.ui(ui).mineral(
+                ui.mineral(
                     Statistic::new("st-rev", "Revenue", 12_345.67)
                         .fraction_digits(2)
                         .unit("EUR")
@@ -465,7 +463,7 @@ fn statistics(ui: &mut Mui<'_>) {
         row.space(32.0);
         row.add(|ui| {
             ui.vertical(|ui| {
-                rt.ui(ui).mineral(
+                ui.mineral(
                     Statistic::new("st-lat", "Latency", 182.0)
                         .unit("ms")
                         .trend(Trend::Absolute(-14.0))
@@ -477,7 +475,7 @@ fn statistics(ui: &mut Mui<'_>) {
         row.space(32.0);
         row.add(|ui| {
             ui.vertical(|ui| {
-                rt.ui(ui).mineral(
+                ui.mineral(
                     Statistic::new("st-err", "Errors", 31.0)
                         .trend(Trend::Percent(8.0))
                         .inverted(true),
@@ -487,7 +485,7 @@ fn statistics(ui: &mut Mui<'_>) {
         row.space(32.0);
         row.add(|ui| {
             ui.vertical(|ui| {
-                rt.ui(ui).mineral(Statistic::new("st-users", "Users", 1_204_000.0));
+                ui.mineral(Statistic::new("st-users", "Users", 1_204_000.0));
             })
         });
     });

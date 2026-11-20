@@ -697,7 +697,7 @@ impl<'a> TabList<'a> {
         let mut picked = None;
         let mut ids = Vec::with_capacity(tabs.len());
         let mut rects = Vec::with_capacity(tabs.len());
-        let body = |ui: &mut Ui| {
+        let mut body = |ui: &mut Ui| {
             ui.spacing_mut().item_spacing = vec2(gap, gap);
             for (i, (tab, m)) in tabs.iter().zip(&measured).enumerate() {
                 let r = rt.ui(ui).mineral(TabItem {
@@ -725,7 +725,7 @@ impl<'a> TabList<'a> {
                 } else {
                     crate::widget::row(ui, dir, stretch)
                 };
-                ui.scope_builder(builder, body).response
+                ui.scope_builder(builder, |ui| body(ui)).response
             })
             .inner;
         let axis = if vertical { Axis::Vertical } else { Axis::Horizontal };

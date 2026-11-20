@@ -11,7 +11,6 @@ use egui_mineral_material::{
     icons::{ICON_ATTACH_MONEY, ICON_EMAIL, ICON_LOCK, ICON_PERSON, ICON_SEARCH, ICON_VISIBILITY},
     prelude::*,
 };
-use std::num::NonZero;
 
 use super::{Shared, caption};
 
@@ -203,14 +202,14 @@ fn filled_fields(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
         );
         row.mineral(
             TextField::new("ti-desc", "Description", &mut s.description)
-                .rows(NonZero::new(3).expect("non-zero"))
+                .rows(3)
                 .text_style(TypeScale::BodyMedium)
                 .supporting("BodyMedium text style")
                 .preferred_width(260.0),
         );
         row.mineral(
             TextField::new("ti-multi", "Message", &mut s.multiline)
-                .rows(NonZero::new(4).expect("non-zero"))
+                .rows(4)
                 .max_chars(200)
                 .supporting("Fixed 4 rows")
                 .preferred_width(320.0),
@@ -259,7 +258,7 @@ fn outlined_fields(ui: &mut Mui<'_>, s: &mut State) {
         );
         row.mineral(
             outlined(TextField::new("ti-grow", "Notes", &mut s.grow))
-                .rows(NonZero::new(2).expect("non-zero"))
+                .rows(2)
                 .grow_rows(4)
                 .supporting("Grows 2 to 6 rows")
                 .preferred_width(320.0),
@@ -432,33 +431,28 @@ fn numbers(ui: &mut Mui<'_>, s: &mut State) {
 }
 
 fn otp(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
-    let rt = ui.rt();
     super::section(ui, TOPICS[2], Some(<OtpField<'static>>::META), |ui| {
         let f = OtpField::new("ti-otp", "Verification code (paste a full code to fill)", 6, &mut s.otp);
-        if rt.ui(ui).mineral(f).output().completed {
+        if ui.mineral(f).output().completed {
             shared.toast(format!("Code complete: {} digits", s.otp.len()));
         }
-        rt.ui(ui)
-            .mineral(OtpField::new("ti-otp-pin", "Masked PIN", 4, &mut s.otp_pin).masked(true));
-        rt.ui(ui).mineral(
+        ui.mineral(OtpField::new("ti-otp-pin", "Masked PIN", 4, &mut s.otp_pin).masked(true));
+        ui.mineral(
             OtpField::new("ti-otp-alpha", "Alphanumeric invite code", 5, &mut s.otp_alpha)
                 .charset(Charset::Alphanumeric),
         );
-        rt.ui(ui)
-            .mineral(OtpField::new("ti-otp-err", "Wrong code", 6, &mut s.otp_error).error("Incorrect code"));
+        ui.mineral(OtpField::new("ti-otp-err", "Wrong code", 6, &mut s.otp_error).error("Incorrect code"));
         let mut v = String::from("123");
-        rt.ui(ui)
-            .mineral(OtpField::new("ti-otp-dis", "Disabled", 6, &mut v).disabled(true));
+        ui.mineral(OtpField::new("ti-otp-dis", "Disabled", 6, &mut v).disabled(true));
     });
 }
 
 fn tags(ui: &mut Mui<'_>, s: &mut State) {
-    let rt = ui.rt();
     super::section(ui, TOPICS[3], Some(<TagsField<'static>>::META), |ui| {
         let f = TagsField::new("ti-tags", "Topics", &mut s.tags)
             .placeholder("Type and press Enter or comma")
             .preferred_width(420.0);
-        let out = rt.ui(ui).mineral(f).into_output();
+        let out = ui.mineral(f).into_output();
         if !out.added.is_empty() || !out.removed.is_empty() {
             s.tags_last = format!("added {:?}, removed {:?}", out.added, out.removed);
         }
@@ -469,15 +463,15 @@ fn tags(ui: &mut Mui<'_>, s: &mut State) {
             .icon(ICON_SEARCH)
             .supporting("Counter shows used tags")
             .preferred_width(420.0);
-        rt.ui(ui).mineral(f);
+        ui.mineral(f);
         let err = s.tags_semi.is_empty().then(|| "Add at least one tag".to_owned());
         let f = TagsField::new("ti-tags-semi", "Semicolon delimiter, required", &mut s.tags_semi)
             .delimiters([';'])
             .maybe_error(err)
             .preferred_width(420.0);
-        rt.ui(ui).mineral(f);
+        ui.mineral(f);
         let mut off = vec!["locked".to_owned()];
-        rt.ui(ui).mineral(
+        ui.mineral(
             TagsField::new("ti-tags-dis", "Disabled", &mut off)
                 .disabled(true)
                 .preferred_width(420.0),
@@ -486,35 +480,31 @@ fn tags(ui: &mut Mui<'_>, s: &mut State) {
 }
 
 fn inline(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
-    let rt = ui.rt();
     super::section(ui, TOPICS[4], Some(<InlineEdit<'static>>::META), |ui| {
         caption(
             ui,
             TypeScale::LabelMedium,
             "Click, Enter or F2 to edit; Enter submits, Escape cancels",
         );
-        let r = rt
-            .ui(ui)
-            .mineral(InlineEdit::new("ti-inline", "Title", &mut s.inline_title).preferred_width(320.0));
+        let r = ui.mineral(InlineEdit::new("ti-inline", "Title", &mut s.inline_title).preferred_width(320.0));
         if r.output().submitted {
             shared.toast(format!("Renamed to {}", s.inline_title));
         }
         caption(ui, TypeScale::LabelMedium, "Headline style");
-        rt.ui(ui).mineral(
+        ui.mineral(
             InlineEdit::new("ti-inline-h", "Heading", &mut s.inline_heading)
                 .text_style(TypeScale::HeadlineSmall)
                 .preferred_width(420.0),
         );
         caption(ui, TypeScale::LabelMedium, "Empty value shows the placeholder");
-        rt.ui(ui).mineral(
+        ui.mineral(
             InlineEdit::new("ti-inline-e", "Description", &mut s.inline_empty)
                 .placeholder("Add a description")
                 .preferred_width(320.0),
         );
         caption(ui, TypeScale::LabelMedium, "Disabled");
         let mut fixed = String::from("Read-only text");
-        rt.ui(ui)
-            .mineral(InlineEdit::new("ti-inline-d", "Locked", &mut fixed).disabled(true));
+        ui.mineral(InlineEdit::new("ti-inline-d", "Locked", &mut fixed).disabled(true));
     });
 }
 
@@ -561,11 +551,11 @@ fn dates(ui: &mut Mui<'_>, s: &mut State) {
 }
 
 fn form(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
-    let rt = ui.rt();
     super::section(ui, TOPICS[6], None, |ui| {
         // Narrow form column; the section divider keeps the full width.
         ui.scope(|ui| {
-            ui.set_max_width(ui.available_width().min(420.0));
+            let width = ui.available_width().min(420.0);
+            ui.set_max_width(width);
             let r = Form::new("signup", &mut s.form)
                 .field("username", "Username", |f| {
                     f.required(true)
@@ -599,14 +589,14 @@ fn form(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
                     }
                 })
                 .submit_label("Sign up")
-                .show(&mut rt.ui(ui));
+                .show(ui);
             if let Some(values) = r.submitted {
                 s.form_done = Some(format!("{} <{}>", values["username"], values["email"]));
                 s.form.finish_submit(Ok(()));
                 shared.toast("Signed up");
             }
             ui.add_space(8.0);
-            super::row(&mut rt.ui(ui), |row| {
+            super::row(ui, |row| {
                 if row
                     .mineral(PushButton::new("ti-form-reset", "Reset").variant(ButtonVariant::Outlined))
                     .clicked()
@@ -631,14 +621,13 @@ fn form(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
 }
 
 fn files(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
-    let rt = ui.rt();
     super::section(ui, TOPICS[7], Some(FileDropZone::META), |ui| {
         caption(
             ui,
             TypeScale::LabelMedium,
             "Images only, up to 3 files; drag files from the OS onto the zone",
         );
-        let r = rt.ui(ui).mineral(
+        let r = ui.mineral(
             FileDropZone::new("ti-drop")
                 .accept(FileFilter::new(FileType::new("Images", ["png", "jpg", "jpeg", "gif"])))
                 .max_files(3)
@@ -662,7 +651,7 @@ fn files(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
             ui.label(format!("Rejected: {f}"));
         }
         caption(ui, TypeScale::LabelMedium, "Disabled, default text");
-        rt.ui(ui).mineral(
+        ui.mineral(
             FileDropZone::new("ti-drop-dis")
                 .disabled(true)
                 .preferred_width(420.0)
@@ -745,7 +734,7 @@ fn inspector(ui: &mut Mui<'_>, s: &mut State) {
                 .spacing([16.0, 4.0])
                 .show(ui, |g| rows(g));
         };
-        rt.ui(ui).with_density(Density::MIN, |ui| {
+        ui.with_density(Density::MIN, |ui| {
             Accordion::new("ti-insp-acc", &mut s.inspector_open)
                 .variant(AccordionVariant::Flat)
                 .show(ui, |a| {

@@ -101,28 +101,25 @@ fn badges(ui: &mut Mui<'_>, s: &mut State) {
 }
 
 fn linear(ui: &mut Mui<'_>, s: &mut State) {
-    let rt = ui.rt();
     sub(ui, "Driven by slider");
-    rt.ui(ui).mineral(ValueSlider::new(
+    ui.mineral(ValueSlider::new(
         "lin-slider",
         "Progress",
         RangeModel::new(0.0, 100.0).step(1.0),
         &mut s.progress,
     ));
     let v = (s.progress / 100.0) as f32;
-    rt.ui(ui)
-        .mineral(LinearProgressIndicator::determinate("lin-det", v).label("Determinate"));
+    ui.mineral(LinearProgressIndicator::determinate("lin-det", v).label("Determinate"));
     sub(ui, "Wavy");
-    rt.ui(ui).mineral(
+    ui.mineral(
         LinearProgressIndicator::determinate("lin-wavy", v)
             .label("Wavy")
             .variant(ProgressVariant::Wavy),
     );
     sub(ui, "Indeterminate");
-    rt.ui(ui)
-        .mineral(LinearProgressIndicator::indeterminate("lin-ind").label("Indeterminate"));
+    ui.mineral(LinearProgressIndicator::indeterminate("lin-ind").label("Indeterminate"));
     sub(ui, "Indeterminate, wavy, fixed width");
-    rt.ui(ui).mineral(
+    ui.mineral(
         LinearProgressIndicator::indeterminate("lin-ind-wavy")
             .label("Wavy indeterminate")
             .variant(ProgressVariant::Wavy)
@@ -267,7 +264,6 @@ fn tooltips(ui: &mut Mui<'_>, shared: &mut Shared) {
 }
 
 fn alerts(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
-    let rt = ui.rt();
     for (vi, (variant, vname)) in ALERT_VARIANTS.into_iter().enumerate() {
         sub(ui, vname);
         for (si, (sev, name)) in SEVERITIES.into_iter().enumerate() {
@@ -297,8 +293,7 @@ fn alerts(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
         }
     }
     if s.dismissed.iter().any(|d| *d)
-        && rt
-            .ui(ui)
+        && ui
             .mineral(PushButton::new("alert-reset", "Restore alerts").variant(ButtonVariant::Text))
             .clicked()
     {
@@ -307,11 +302,10 @@ fn alerts(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
 }
 
 fn skeletons(ui: &mut Mui<'_>) {
-    let rt = ui.rt();
     sub(ui, "Text lines");
     let width = 480.0_f32.min(ui.available_width());
     ui.allocate_ui(vec2(width, 0.0), |ui| {
-        rt.ui(ui).mineral(Skeleton::new(
+        ui.mineral(Skeleton::new(
             "skel-text",
             SkeletonShape::text(3, TypeScale::BodyMedium),
         ));
@@ -319,7 +313,7 @@ fn skeletons(ui: &mut Mui<'_>) {
     sub(ui, "Title scale text");
     let width = 480.0_f32.min(ui.available_width());
     ui.allocate_ui(vec2(width, 0.0), |ui| {
-        rt.ui(ui).mineral(Skeleton::new(
+        ui.mineral(Skeleton::new(
             "skel-title",
             SkeletonShape::text(2, TypeScale::TitleLarge),
         ));
@@ -332,10 +326,8 @@ fn skeletons(ui: &mut Mui<'_>) {
 }
 
 fn tour(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
-    let rt = ui.rt();
     ui.label("Each step highlights one of the widgets below.");
-    if rt
-        .ui(ui)
+    if ui
         .mineral(PushButton::new("tour-start", "Start tour").icon(ICON_ADD))
         .clicked()
     {

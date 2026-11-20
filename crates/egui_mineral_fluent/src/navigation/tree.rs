@@ -887,7 +887,7 @@ impl<'a, N: TreeData> Tree<'a, N> {
         let total = (y - d::ROW_GAP).max(0.0);
         let mut drawn: Vec<Drawn> = Vec::new();
         let group = ui
-            .push_id(self.salt.id_salt(), |ui: &mut Ui| {
+            .push_id(self.salt.id_salt(), |ui| {
                 let width = ui.available_width();
                 let (area, group) = ui.allocate_exact_size(vec2(width, total), Sense::hover());
                 let clip = ui.clip_rect();

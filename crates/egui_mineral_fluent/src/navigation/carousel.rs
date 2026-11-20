@@ -346,7 +346,7 @@ impl<'a> Carousel<'a> {
         let mut height = reserved;
         let mut nav_width = memo.nav_width;
         let group = ui
-            .push_id(self.salt.id_salt(), |ui: &mut Ui| {
+            .push_id(self.salt.id_salt(), |ui| {
                 ui.scope_builder(UiBuilder::new().layout(rt.i18n().direction().column()), |ui| {
                     ui.spacing_mut().item_spacing.y = 0.0;
                     let mut cards = CarouselUi {

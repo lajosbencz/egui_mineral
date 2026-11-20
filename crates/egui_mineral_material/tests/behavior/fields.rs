@@ -2,7 +2,6 @@ use egui::{
     Color32, Event, Key,
     accesskit::{Action, ActionData, ActionRequest, TreeId},
 };
-use std::num::NonZeroUsize;
 
 use egui_mineral::{select::Selection, widget::SizeExt};
 use egui_mineral_material::{
@@ -143,7 +142,7 @@ fn multi_select_toggles_options_and_stays_open() {
 #[test]
 fn multiline_fields_in_one_ui_scroll_independently() {
     let long = (0..12).map(|i| format!("line {i}")).collect::<Vec<_>>().join("\n");
-    let rows = NonZeroUsize::MIN.saturating_add(1);
+    let rows = 2;
     let mut h = harness(SCREEN, (long, String::from("short")), |ui, (a, b)| {
         ui.mineral(TextField::new("a", "A", a).rows(rows).preferred_width(200.0));
         ui.mineral(TextField::new("b", "B", b).rows(rows).preferred_width(200.0));

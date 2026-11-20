@@ -34,6 +34,9 @@ use crate::{
 };
 
 /// Visual layer over the headless core: design values, message catalogs, style and egui setup.
+///
+/// Open for third-party kits: the trait is not sealed, and methods added to it later ship with default bodies,
+/// so an existing kit keeps compiling across minor releases.
 pub trait Stylekit: Send + Sync + 'static {
     /// For the platform of `ctx`; sanitized by [`Runtime::new`].
     fn policies(&self, ctx: &Context) -> Policies;
@@ -393,7 +396,8 @@ impl<K: Stylekit> Runtime<K> {
 }
 
 impl<K> Runtime<K> {
-    /// Wraps a plain `Ui`, e.g. inside egui closures: `ui.horizontal(|ui| { let ui = &mut rt.ui(ui); .. })`.
+    /// Wraps a plain `Ui` inside egui closures that hand one out: `Frame::show(ui, |ui| { let ui = &mut rt.ui(ui); .. })`.
+    /// The layout methods of [`MineralUi`] (`horizontal`, `scope`, ..) need no wrap.
     /// Root `Ui`s (area, window) get the kit's style.
     pub fn ui<'a>(&'a self, ui: &'a mut Ui) -> MineralUi<'a, K> {
         if ui.stack().is_root_ui() {

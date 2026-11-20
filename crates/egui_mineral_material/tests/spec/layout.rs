@@ -128,7 +128,7 @@ fn scoped_density_shrinks_only_its_subtree() {
 #[test]
 fn text_style_sets_the_line_spacing_of_extra_rows() {
     use egui_mineral_material::spec::TypeScale;
-    let rows = std::num::NonZero::new(4).expect("non-zero");
+    let rows = 4;
     let h = harness(SCREEN, [String::new(), String::new()], move |ui, [a, b]| {
         ui.mineral(TextField::new("body", "Body", a).rows(rows));
         ui.mineral(

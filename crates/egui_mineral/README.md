@@ -56,6 +56,11 @@ let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
 output.textures_delta.clear();
 ```
 
+## Borrowing the runtime
+
+`Runtime::new` returns an `Arc<Runtime<K>>`; a pass borrows it (`let rt = &self.rt;`)
+beside disjoint borrows of the app's state fields, without cloning the `Arc` per frame.
+
 ## Cargo features
 
 | Feature | Default | Adds |
@@ -68,6 +73,8 @@ output.textures_delta.clear();
 | `platform-clipboard` | | OS clipboard (`arboard`): `PlatformClipboard` |
 | `platform-notify` | | OS notifications (`notify-rust`, D-Bus on Linux): `PlatformNotifier` |
 | `platform-native` | | `platform-pickers`, `platform-clipboard` and `platform-notify` |
+| `spawn-tokio` | | Native only: `spawn` `TokioSpawner`, a `Spawner` and `bus::BlockingSpawner` over the app's Tokio runtime handle |
+| `spawn-wasm` | | wasm32 only: `spawn` `WasmSpawner`, a `Spawner` over `wasm_bindgen_futures::spawn_local` |
 | `web-save-stream` | | Chromium streams `FileWriter` to disk; other browsers buffer |
 | `unstable-hotpatch` | | Native only: Dioxus `subsecond` hot-patching of `Runtime::pass`; the `dx` CLI must match `subsecond` 0.7.10; enable it from the command line only (`dx serve --hotpatch --features egui_mineral/unstable-hotpatch`), never in a manifest, since feature unification would ship it; touch the app's `main.rs` before each `dx serve` (see `docs/blockers.md`) |
 

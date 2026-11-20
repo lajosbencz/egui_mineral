@@ -303,12 +303,11 @@ fn bars(ui: &mut Mui<'_>, s: &mut State) {
 }
 
 fn rail_drawer(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
-    let rt = ui.rt();
     super::section(ui, TOPICS[2], Some(<NavigationRail<'static>>::META), |ui| {
         super::top_row(ui, |row| {
             row.add(|ui| {
-                caption(&mut rt.ui(ui), TypeScale::LabelMedium, "Baseline: menu, FAB, badges");
-                boxed(&mut rt.ui(ui), vec2(120.0, 420.0), |ui| {
+                caption(ui, TypeScale::LabelMedium, "Baseline: menu, FAB, badges");
+                boxed(ui, vec2(120.0, 420.0), |ui| {
                     let r = NavigationRail::new("nav-rail", &mut s.rail)
                         .menu_button(true)
                         .fab(|ui| {
@@ -327,8 +326,8 @@ fn rail_drawer(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
                 });
             });
             row.add(|ui| {
-                caption(&mut rt.ui(ui), TypeScale::LabelMedium, "Expressive collapsed");
-                boxed(&mut rt.ui(ui), vec2(120.0, 420.0), |ui| {
+                caption(ui, TypeScale::LabelMedium, "Expressive collapsed");
+                boxed(ui, vec2(120.0, 420.0), |ui| {
                     NavigationRail::new("nav-rail-expr", &mut s.rail_expr)
                         .expanded(false)
                         .item(NavDestination::new(ICON_HOME, "Home"))
@@ -338,12 +337,8 @@ fn rail_drawer(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
                 });
             });
             row.add(|ui| {
-                caption(
-                    &mut rt.ui(ui),
-                    TypeScale::LabelMedium,
-                    "Expressive, toggled by the menu button",
-                );
-                boxed(&mut rt.ui(ui), vec2(340.0, 420.0), |ui| {
+                caption(ui, TypeScale::LabelMedium, "Expressive, toggled by the menu button");
+                boxed(ui, vec2(340.0, 420.0), |ui| {
                     let expanded = s.rail_expanded;
                     let r = NavigationRail::new("nav-rail-toggle", &mut s.rail_toggle)
                         .expanded(expanded)
@@ -363,8 +358,8 @@ fn rail_drawer(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     super::section(ui, TOPICS[3], Some(NavigationDrawer::META), |ui| {
         super::top_row(ui, |row| {
             row.add(|ui| {
-                caption(&mut rt.ui(ui), TypeScale::LabelMedium, "Standard");
-                boxed(&mut rt.ui(ui), vec2(300.0, 300.0), |ui| {
+                caption(ui, TypeScale::LabelMedium, "Standard");
+                boxed(ui, vec2(300.0, 300.0), |ui| {
                     NavigationDrawer::new("nav-drawer", &mut s.drawer)
                         .item(NavDestination::new(ICON_INBOX, "Inbox").badge(Badge::count(24)))
                         .item(NavDestination::new(ICON_SEND, "Sent"))
@@ -373,8 +368,8 @@ fn rail_drawer(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
                 });
             });
             row.add(|ui| {
-                caption(&mut rt.ui(ui), TypeScale::LabelMedium, "Sections and dividers");
-                boxed(&mut rt.ui(ui), vec2(300.0, 380.0), |ui| {
+                caption(ui, TypeScale::LabelMedium, "Sections and dividers");
+                boxed(ui, vec2(300.0, 380.0), |ui| {
                     NavigationDrawer::new("nav-drawer-sections", &mut s.drawer_sections)
                         .section("Mail")
                         .item(NavDestination::new(ICON_INBOX, "Inbox").badge(Badge::count(24)))
@@ -511,7 +506,6 @@ fn report_action(r: &ToolbarResponse, shared: &mut Shared) {
 }
 
 fn toolbars(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
-    let rt = ui.rt();
     super::section(ui, TOPICS[5], Some(Toolbar::META), |ui| {
         caption(ui, TypeScale::LabelMedium, "Docked, toggle actions");
         let r = Toolbar::docked("nav-toolbar-docked", "Formatting")
@@ -542,18 +536,18 @@ fn toolbars(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
         ui.add_space(8.0);
         super::top_row(ui, |row| {
             row.add(|ui| {
-                caption(&mut rt.ui(ui), TypeScale::LabelMedium, "Floating");
+                caption(ui, TypeScale::LabelMedium, "Floating");
                 let r = Toolbar::floating("nav-toolbar-float", "Edit")
                     .actions([
                         IconAction::new(ICON_EDIT, "Edit"),
                         IconAction::new(ICON_SHARE, "Share"),
                         IconAction::new(ICON_DELETE, "Delete"),
                     ])
-                    .show(&mut rt.ui(ui));
+                    .show(ui);
                 report_action(&r, shared);
             });
             row.add(|ui| {
-                caption(&mut rt.ui(ui), TypeScale::LabelMedium, "Floating, vibrant");
+                caption(ui, TypeScale::LabelMedium, "Floating, vibrant");
                 let r = Toolbar::floating("nav-toolbar-vibrant", "Edit")
                     .colors(ToolbarColors::Vibrant)
                     .actions([
@@ -561,11 +555,11 @@ fn toolbars(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
                         IconAction::new(ICON_SHARE, "Share"),
                         IconAction::new(ICON_DELETE, "Delete"),
                     ])
-                    .show(&mut rt.ui(ui));
+                    .show(ui);
                 report_action(&r, shared);
             });
             row.add(|ui| {
-                caption(&mut rt.ui(ui), TypeScale::LabelMedium, "Floating, vertical");
+                caption(ui, TypeScale::LabelMedium, "Floating, vertical");
                 let r = Toolbar::floating("nav-toolbar-vert", "Edit")
                     .axis(Axis::Vertical)
                     .actions([
@@ -573,7 +567,7 @@ fn toolbars(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
                         IconAction::new(ICON_SHARE, "Share"),
                         IconAction::new(ICON_DELETE, "Delete"),
                     ])
-                    .show(&mut rt.ui(ui));
+                    .show(ui);
                 report_action(&r, shared);
             });
         });
@@ -583,7 +577,7 @@ fn toolbars(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
             TypeScale::LabelMedium,
             "Floating with a FAB; collapsed shows only the FAB",
         );
-        rt.ui(ui).mineral(CheckButton::new(
+        ui.mineral(CheckButton::new(
             "nav-toolbar-expanded",
             "Expanded",
             &mut s.toolbar_expanded,
@@ -908,7 +902,6 @@ fn step_buttons(ui: &mut Mui<'_>, steps: &mut Steps, id: &'static str) {
 }
 
 fn stepper(ui: &mut Mui<'_>, s: &mut State) {
-    let rt = ui.rt();
     super::section(ui, TOPICS[10], Some(<Stepper<'static>>::META), |ui| {
         caption(ui, TypeScale::LabelMedium, "Horizontal, linear, step 3 optional");
         Stepper::new("nav-step-h", &mut s.steps_h)
@@ -921,8 +914,7 @@ fn stepper(ui: &mut Mui<'_>, s: &mut State) {
             });
         step_buttons(ui, &mut s.steps_h, "nav-step-h-btn");
         let mut err = s.steps_h.status(1) == egui_mineral::steps::StepStatus::Error;
-        if rt
-            .ui(ui)
+        if ui
             .mineral(CheckButton::new("nav-step-error", "Profile step in error", &mut err))
             .changed()
         {
@@ -953,13 +945,12 @@ fn stepper(ui: &mut Mui<'_>, s: &mut State) {
 }
 
 fn search(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
-    let rt = ui.rt();
     super::section(ui, TOPICS[11], Some(<SearchBar<'static>>::META), |ui| {
         caption(ui, TypeScale::LabelMedium, "Default with trailing action");
         let bar = SearchBar::new("nav-sbar", "Search", &mut s.bar_query)
             .placeholder("Search the catalog")
             .trailing_icon(ICON_MIC, "Voice search");
-        let out = rt.ui(ui).mineral(bar).into_output();
+        let out = ui.mineral(bar).into_output();
         if out.trailing_clicked {
             shared.toast("Voice search");
         }
@@ -971,17 +962,16 @@ fn search(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
         let bar = SearchBar::new("nav-sbar-back", "Search", &mut s.back_query)
             .back_button(true)
             .preferred_width(360.0);
-        if rt.ui(ui).mineral(bar).output().leading_clicked {
+        if ui.mineral(bar).output().leading_clicked {
             s.back_query.clear();
         }
         ui.add_space(8.0);
         caption(ui, TypeScale::LabelMedium, "Disabled");
         let mut empty = String::new();
-        rt.ui(ui)
-            .mineral(SearchBar::new("nav-sbar-off", "Search", &mut empty).disabled(true));
+        ui.mineral(SearchBar::new("nav-sbar-off", "Search", &mut empty).disabled(true));
     });
     super::section(ui, TOPICS[12], Some(<SearchView<'static>>::META), |ui| {
-        rt.ui(ui).mineral(CheckButton::new(
+        ui.mineral(CheckButton::new(
             "nav-view-docked",
             "Docked (off: full screen covers the window)",
             &mut s.view_docked,
@@ -1010,8 +1000,7 @@ fn search(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     });
     super::section(ui, TOPICS[13], Some(<SearchSuggestions<'static>>::META), |ui| {
         caption(ui, TypeScale::LabelMedium, "SearchSuggestions");
-        if let Some(i) = rt
-            .ui(ui)
+        if let Some(i) = ui
             .mineral(SearchSuggestions::new(
                 "nav-suggest",
                 "Search fruit",

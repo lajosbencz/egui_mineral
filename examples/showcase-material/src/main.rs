@@ -10,7 +10,7 @@ use egui_mineral::{
     bus::{Bus, SpawnerExt},
     i18n::Direction,
     nav::Router,
-    runtime::{InitError, Runtime},
+    runtime::Runtime,
     shortcut,
 };
 pub(crate) use egui_mineral_material::{Material, Rt};
@@ -31,8 +31,15 @@ const ICON_FONTS: IconFonts = IconFonts::new(
 
 pub(crate) type Mui<'a> = MineralUi<'a, Material>;
 
+// The runtime sits beside the state it shows: `let rt = &self.rt;` borrows one field, `self.shell` the other.
 struct App {
     rt: Arc<Rt>,
+    shell: Shell,
+    #[cfg(not(target_arch = "wasm32"))]
+    _executor: tokio::runtime::Runtime,
+}
+
+struct Shell {
     router: Router<Page>,
     inspector: Inspector,
     shared: Shared,
@@ -43,20 +50,23 @@ struct App {
     palette_open: bool,
     palette_query: String,
     commands: Vec<PaletteCommand>,
-    targets: Vec<Page>,
-    spawner: Arc<AppSpawner>,
 }
 
 impl App {
-    fn new(ctx: &egui::Context) -> Result<Self, InitError> {
+    fn new(ctx: &egui::Context) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         let rt = Runtime::new(ctx, Material::from_fonts(ICON_FONTS.fonts()))?;
+        #[cfg(not(target_arch = "wasm32"))]
+        let executor = tokio::runtime::Builder::new_multi_thread().enable_time().build()?;
+        #[cfg(not(target_arch = "wasm32"))]
+        let spawner = Arc::new(AppSpawner::new(executor.handle().clone()));
+        #[cfg(target_arch = "wasm32")]
+        let spawner = Arc::new(AppSpawner::new());
         // The navigation page binds Cmd+Q and Cmd+/- as menu commands.
         ctx.options_mut(|o| {
             o.zoom_with_keyboard = false;
             o.quit_shortcuts.clear();
         });
         let (bus, mut handle) = Bus::<Cmd, Evt>::new(ctx);
-        let spawner = Arc::new(AppSpawner::default());
         spawner.spawn_future(async move {
             while let Some(cmd) = handle.commands.next().await {
                 match cmd {
@@ -69,23 +79,21 @@ impl App {
                 }
             }
         });
-        let (mut commands, targets): (Vec<PaletteCommand>, Vec<Page>) = Page::ALL
+        // Keyed by the page route; a page's topics share its key.
+        let mut commands: Vec<PaletteCommand> = Page::ALL
             .iter()
             .flat_map(|&p| {
-                std::iter::once((PaletteCommand::new(p.title()).icon(p.icon()).group("Pages"), p)).chain(
-                    p.topics()
-                        .iter()
-                        .map(move |t| (PaletteCommand::new(*t).group(p.title()), p)),
-                )
+                std::iter::once(PaletteCommand::new(p.title()).icon(p.icon()).group("Pages"))
+                    .chain(p.topics().iter().map(move |t| PaletteCommand::new(*t).group(p.title())))
+                    .map(move |c| c.key(p.to_string()))
             })
-            .unzip();
-        // Same commands and shortcuts as the View menu on the navigation page; entries past `targets` never click.
+            .collect();
+        // Same commands and shortcuts as the View menu on the navigation page.
         for i in [pages::navigation::ZOOM_IN, pages::navigation::ZOOM_OUT] {
             let (id, key, label) = &pages::navigation::COMMANDS[i];
             commands.push(PaletteCommand::new(*label).group("View").command(id, *key));
         }
-        Ok(Self {
-            rt,
+        let shell = Shell {
             router: Router::new(Page::Foundations),
             inspector: Inspector::default(),
             shared: Shared {
@@ -94,7 +102,7 @@ impl App {
                 bus,
                 done: Vec::new(),
                 platform: Vec::new(),
-                spawner: spawner.clone(),
+                spawner,
             },
             pages: States::default(),
             applied: None,
@@ -103,13 +111,23 @@ impl App {
             palette_open: false,
             palette_query: String::new(),
             commands,
-            targets,
-            spawner,
+        };
+        Ok(Self {
+            rt,
+            shell,
+            #[cfg(not(target_arch = "wasm32"))]
+            _executor: executor,
         })
     }
 
-    fn apply_settings(&mut self) {
-        let rt = Arc::clone(&self.rt);
+    fn show(&mut self, ui: &mut Ui) -> ScrollAreaOutput<()> {
+        let rt = &self.rt;
+        self.shell.show(rt, ui)
+    }
+}
+
+impl Shell {
+    fn apply_settings(&mut self, rt: &Rt) {
         let ctx = rt.ctx();
         let s = &self.shared.settings;
         if self.applied.as_ref() == Some(s) {
@@ -206,13 +224,11 @@ impl App {
     }
 }
 
-impl App {
-    fn shell(&mut self, ui: &mut Ui) -> ScrollAreaOutput<()> {
-        let rt = Arc::clone(&self.rt);
+impl Shell {
+    fn show(&mut self, rt: &Rt, ui: &mut Ui) -> ScrollAreaOutput<()> {
         let ctx = rt.ctx();
         self.inspector.toggle_on(ctx, INSPECTOR);
-        self.spawner.reap();
-        self.apply_settings();
+        self.apply_settings(rt);
         let events: Vec<Evt> = self.shared.bus.drain().collect();
         for e in events {
             match e {
@@ -226,7 +242,7 @@ impl App {
 
         let page = rt.pass(ui, |ui| self.body(ui));
         self.inspector
-            .show_with_state(&rt, &mut Serde(&mut self.shared.settings));
+            .show_with_state(rt, &mut Serde(&mut self.shared.settings));
         page
     }
 
@@ -278,8 +294,8 @@ impl App {
             .shortcut(PALETTE)
             .show_modal(rt, &mut self.palette_open)
             .clicked;
-        if let Some(i) = picked {
-            self.navigate(self.targets[i]);
+        if let Some(page) = picked.as_ref().and_then(Clicked::key_str).and_then(|k| k.parse().ok()) {
+            self.navigate(page);
         }
         SnackbarHost::new(&mut self.shared.toasts).show(rt);
         let ctx = rt.ctx();
@@ -298,9 +314,10 @@ impl App {
 
 impl eframe::App for App {
     fn ui(&mut self, ui: &mut Ui, frame: &mut eframe::Frame) {
-        self.inspector
+        self.shell
+            .inspector
             .set_cpu_time(frame.info().cpu_usage.map(std::time::Duration::from_secs_f32));
-        self.shell(ui);
+        self.show(ui);
     }
 }
 
@@ -432,7 +449,7 @@ mod tests {
         app.rt.core().motion().set_reduced(true);
         let agent = app.rt.agent(egui::ViewportId::ROOT);
         let target = Page::ALL[2];
-        assert_ne!(*app.router.current(), target);
+        assert_ne!(*app.shell.router.current(), target);
         let session = std::thread::spawn(move || {
             futures_executor::block_on(async {
                 agent.snapshot().await?;
@@ -453,14 +470,14 @@ mod tests {
             .expect("agent thread")
             .unwrap_or_else(|e: AgentError| panic!("{e}"));
         settle(&mut app, &ctx);
-        assert_eq!(*app.router.current(), target);
+        assert_eq!(*app.shell.router.current(), target);
     }
 
     fn step(app: &mut App, ctx: &egui::Context, events: Vec<egui::Event>) -> Vec<egui::ViewportCommand> {
         let mut raw = screen();
         raw.events = events;
         let mut out = ctx.run_ui(raw, |ui| {
-            app.shell(ui);
+            app.show(ui);
         });
         out.textures_delta.clear();
         out.viewport_output
@@ -507,7 +524,7 @@ mod tests {
         let mut app = App::new(&ctx).expect("showcase app");
         app.rt.core().motion().set_reduced(true);
         app.rt.set_collect_semantics(true);
-        app.navigate(Page::Navigation);
+        app.shell.navigate(Page::Navigation);
         settle(&mut app, &ctx);
         (ctx, app)
     }
@@ -536,7 +553,7 @@ mod tests {
 
         step(&mut app, &ctx, press(Key::N, Modifiers::NONE));
         step_until(&mut app, &ctx, "New activating", |a| {
-            a.pages.navigation.last_action == "Command: New"
+            a.shell.pages.navigation.last_action == "Command: New"
         });
         settle(&mut app, &ctx);
         assert!(
@@ -552,10 +569,10 @@ mod tests {
         let command = Modifiers::COMMAND | Modifiers::CTRL;
         step(&mut app, &ctx, press(Key::Plus, command));
         step_until(&mut app, &ctx, "Zoom in firing", |a| {
-            a.pages.navigation.last_action == "Command: Zoom in"
+            a.shell.pages.navigation.last_action == "Command: Zoom in"
         });
         assert!(!menu_item_open(&app, "nav-mb-view-0-menu-item"));
-        assert_eq!(app.pages.navigation.zoom, 110);
+        assert_eq!(app.shell.pages.navigation.zoom, 110);
     }
 
     #[test]
@@ -575,7 +592,7 @@ mod tests {
             closed |= matches!(cmd, egui::ViewportCommand::Close);
         }
         assert!(closed, "Quit command did not close the viewport");
-        assert_eq!(app.pages.navigation.last_action, "Command: Quit");
+        assert_eq!(app.shell.pages.navigation.last_action, "Command: Quit");
     }
 
     macro_rules! every_page_holds_up {
@@ -625,8 +642,8 @@ mod tests {
             ctx.set_zoom_factor(zoom);
             let mut app = App::new(&ctx).expect("showcase app");
             app.rt.set_collect_semantics(true);
-            app.shared.settings.locale = locale;
-            app.shared.settings.density = density;
+            app.shell.shared.settings.locale = locale;
+            app.shell.shared.settings.density = density;
             (ctx, app)
         };
         let classes: Vec<egui::Vec2> = std::iter::once(COMPACT_MIN)
@@ -666,7 +683,7 @@ mod tests {
     }
 
     fn check(ctx: &egui::Context, app: &mut App, page: Page, size: egui::Vec2, width: bool) -> BTreeSet<String> {
-        app.navigate(page);
+        app.shell.navigate(page);
         let mut problems = BTreeSet::new();
         let mut over = 0.0;
         for _ in 0..if width { SETTLE } else { 2 } {
@@ -675,7 +692,7 @@ mod tests {
                 ..RawInput::default()
             };
             let mut out = ctx.run_ui(raw, |ui| {
-                let page = app.shell(ui);
+                let page = app.show(ui);
                 over = page.content_size.x - page.inner_rect.width();
             });
             out.textures_delta.clear();

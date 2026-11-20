@@ -31,10 +31,8 @@ pub(crate) fn show(ui: &mut Fui<'_>, s: &mut State) {
 
 fn split_pane(ui: &mut Fui<'_>) {
     heading(ui, "h-split-pane", "SplitPane");
-    let rt = ui.rt();
     let width = ui.available_width();
     ui.allocate_ui(vec2(width, 120.0), |ui| {
-        let ui = &mut rt.ui(ui);
         SplitPane::new("split", "Panes").min_first(80.0).min_second(80.0).show(
             ui,
             |ui| ui.label("First pane"),
@@ -95,5 +93,5 @@ fn command_palette(ui: &mut Fui<'_>, s: &mut State) {
     let out = CommandPalette::new("palette", commands, &mut s.query)
         .shortcut(toggle)
         .show_modal(rt, &mut s.palette_open);
-    s.ran = out.clicked.or(s.ran);
+    s.ran = out.clicked.map(|c| c.index()).or(s.ran);
 }

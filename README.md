@@ -55,7 +55,7 @@ struct App {
 
 impl App {
     /// Fails when a catalog does not parse.
-    fn new(ctx: &egui::Context) -> Result<Self, egui_mineral_material::egui_mineral::runtime::InitError> {
+    fn new(ctx: &egui::Context) -> Result<Self, InitError> {
         let rt = Runtime::new(ctx, Material::default())?;
         Ok(Self { rt, clicks: 0 })
     }
@@ -63,8 +63,10 @@ impl App {
 
 impl eframe::App for App {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        // Disjoint field borrows; the `Arc` is not cloned per frame.
+        let rt = &self.rt;
         let clicks = &mut self.clicks;
-        self.rt.pass(ui, |ui| {
+        rt.pass(ui, |ui| {
             let label = format!("Clicked {clicks} times");
             if ui.mineral(PushButton::new("counter", label).variant(ButtonVariant::Filled)).clicked() {
                 *clicks += 1;

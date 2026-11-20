@@ -49,9 +49,9 @@ deny = [
   # Rule 3: no backend types in the core or the stylekit. dev-dependencies count too
   { name = "eframe", wrappers = ["showcase-material", "showcase-fluent"], reason = "docs/rules.md rule 3: backend only in apps/tools" },
   { name = "winit", wrappers = ["eframe", "egui-winit", "glutin-winit", "accesskit_winit", "showcase-material", "showcase-fluent"], reason = "docs/rules.md rule 3: backend only in apps/tools" },
-  # Rule 9: no async runtime in libraries
-  # cfg(all(target_os = "emscripten", wasm_bindgen_unstable_tokio)), never built here.
-  { name = "tokio", wrappers = ["wasm-bindgen-futures"], reason = "docs/rules.md rule 9: apps bring their own executor via Spawner" },
+  # Rule 9: no async runtime in libraries but the core's opt-in `spawn-tokio` adapter
+  # wasm-bindgen-futures: cfg(all(target_os = "emscripten", wasm_bindgen_unstable_tokio)), never built here.
+  { name = "tokio", wrappers = ["wasm-bindgen-futures", "egui_mineral", "showcase-material"], reason = "docs/rules.md rule 9: apps bring their own executor via Spawner" },
   { name = "async-std", reason = "docs/rules.md rule 9: apps bring their own executor via Spawner" },
 ]
 

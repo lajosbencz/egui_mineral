@@ -12,7 +12,6 @@ use egui_mineral_material::{
     },
     prelude::*,
 };
-use std::num::NonZero;
 
 use super::{Shared, section, sub};
 
@@ -275,7 +274,7 @@ fn dialogs(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
             ui.mineral(TextField::new("dlg-name", "Name", &mut s.dialog_name).preferred_width(260.0));
             ui.mineral(
                 TextField::new("dlg-notes", "Notes", &mut s.dialog_notes)
-                    .rows(NonZero::new(3).expect("non-zero"))
+                    .rows(3)
                     .preferred_width(260.0),
             );
         });
@@ -294,9 +293,8 @@ fn dialogs(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
 }
 
 fn sheet_body(ui: &mut Mui<'_>, id: &'static str, shared: &mut Shared) {
-    let rt = ui.rt();
     for i in 0..4 {
-        let r = rt.ui(ui).mineral(
+        let r = ui.mineral(
             ListItem::new((id, i), format!("Sheet row {}", i + 1))
                 .leading(ListSlot::new().icon(ICON_FOLDER))
                 .clickable(true),
@@ -367,14 +365,12 @@ fn side_sheets(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
 }
 
 fn dividers(ui: &mut Mui<'_>) {
-    let rt = ui.rt();
     sub(ui, "Full");
-    rt.ui(ui).mineral(Divider::new("div-full"));
+    ui.mineral(Divider::new("div-full"));
     sub(ui, "Inset (16 start)");
-    rt.ui(ui).mineral(Divider::new("div-inset").inset_start(16.0));
+    ui.mineral(Divider::new("div-inset").inset_start(16.0));
     sub(ui, "Inset both ends");
-    rt.ui(ui)
-        .mineral(Divider::new("div-inset-both").inset_start(32.0).inset_end(32.0));
+    ui.mineral(Divider::new("div-inset-both").inset_start(32.0).inset_end(32.0));
     sub(ui, "Vertical");
     super::row(ui, |row| {
         row.add(|ui| ui.label("One"));
@@ -413,7 +409,6 @@ fn carousels(ui: &mut Mui<'_>, s: &mut State) {
 }
 
 fn list_items(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
-    let rt = ui.rt();
     sub(
         ui,
         "One line, leading kinds (click to select; the checkbox and radio toggle on their own)",
@@ -440,7 +435,7 @@ fn list_items(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
         ("Custom paint", ListSlot::new().paint(gradient)),
     ];
     for (i, (name, lead)) in rows.into_iter().enumerate() {
-        let r = rt.ui(ui).mineral(
+        let r = ui.mineral(
             ListItem::new(("li1", i), name)
                 .leading(lead)
                 .clickable(true)
@@ -457,7 +452,7 @@ fn list_items(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
         }
     }
     sub(ui, "Two lines, trailing kinds");
-    let r = rt.ui(ui).mineral(
+    let r = ui.mineral(
         ListItem::new("li2-icon", "Trailing icon")
             .supporting("Supporting text")
             .leading(ListSlot::new().avatar('B'))
@@ -467,7 +462,7 @@ fn list_items(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     if r.output().activated {
         shared.toast("Trailing icon item activated");
     }
-    let r = rt.ui(ui).mineral(
+    let r = ui.mineral(
         ListItem::new("li2-text", "Trailing text")
             .supporting("Supporting text")
             .leading(ListSlot::new().icon(ICON_DESCRIPTION))
@@ -477,7 +472,7 @@ fn list_items(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
     if r.output().activated {
         shared.toast("Trailing text item activated");
     }
-    let r = rt.ui(ui).mineral(
+    let r = ui.mineral(
         ListItem::new("li2-switch", "Trailing switch")
             .supporting("The switch toggles; the row activates")
             .leading(ListSlot::new().icon(ICON_SETTINGS))
@@ -489,14 +484,14 @@ fn list_items(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
         shared.toast("Trailing switch item activated");
     }
     sub(ui, "Overline, three lines");
-    rt.ui(ui).mineral(
+    ui.mineral(
         ListItem::new("li3-overline", "Overline and supporting")
             .overline("Overline")
             .supporting("Supporting text under the headline")
             .leading(ListSlot::new().avatar('C'))
             .trailing(ListSlot::new().text("10:24")),
     );
-    rt.ui(ui).mineral(
+    ui.mineral(
         ListItem::new("li3-lines", "Three line item")
             .supporting("Two supporting rows are allowed when the item is forced to three lines. The text wraps.")
             .lines(ListLines::Three)
@@ -506,14 +501,13 @@ fn list_items(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
 }
 
 fn list_states(ui: &mut Mui<'_>, s: &mut State) {
-    let rt = ui.rt();
     sub(ui, "Selected, disabled, and selection rows (the whole row toggles)");
-    rt.ui(ui).mineral(
+    ui.mineral(
         ListItem::new("li-sel", "Selected")
             .leading(ListSlot::new().icon(ICON_STAR))
             .selected(true),
     );
-    rt.ui(ui).mineral(
+    ui.mineral(
         ListItem::new("li-dis", "Disabled")
             .supporting("Not interactive")
             .leading(ListSlot::new().icon(ICON_WORK))
@@ -521,7 +515,7 @@ fn list_states(ui: &mut Mui<'_>, s: &mut State) {
             .disabled(true),
     );
     for (i, checked) in s.list_checks.iter_mut().enumerate().skip(1) {
-        let r = rt.ui(ui).mineral(
+        let r = ui.mineral(
             ListItem::new(("li-check", i), format!("Checkbox row {i}")).leading(ListSlot::new().checkbox(*checked)),
         );
         *checked ^= r.output().leading_toggled;
@@ -529,7 +523,6 @@ fn list_states(ui: &mut Mui<'_>, s: &mut State) {
 }
 
 fn swipe(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
-    let rt = ui.rt();
     ui.label("Swipe rows: end action archives (tap to confirm), start action deletes (full swipe).");
     let mut removed = None;
     for (i, name) in s.swipe_rows.iter().enumerate() {
@@ -542,7 +535,7 @@ fn swipe(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
                     .destructive(true),
             )
             .swipe_end(SwipeAction::new(ICON_ARCHIVE, "Archive"));
-        if let Some(side) = rt.ui(ui).mineral(item).output().swiped {
+        if let Some(side) = ui.mineral(item).output().swiped {
             let verb = if side == Edge::Start { "Deleted" } else { "Archived" };
             shared.toast(format!("{verb} {name}"));
             removed = Some(i);
@@ -552,8 +545,7 @@ fn swipe(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
         s.swipe_rows.remove(i);
     }
     if s.swipe_rows.len() < SWIPE_ROWS.len()
-        && rt
-            .ui(ui)
+        && ui
             .mineral(PushButton::new("swipe-reset", "Restore rows").variant(ButtonVariant::Text))
             .clicked()
     {
@@ -596,9 +588,8 @@ fn reorder(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
 }
 
 fn accordions(ui: &mut Mui<'_>, s: &mut State, shared: &mut Shared) {
-    let rt = ui.rt();
     let mut density = f64::from(shared.settings.density);
-    rt.ui(ui).mineral(
+    ui.mineral(
         ValueSlider::new(
             "acc-density",
             "Density (header height)",

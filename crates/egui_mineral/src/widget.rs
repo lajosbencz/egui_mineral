@@ -335,7 +335,8 @@ impl<'a, K> MineralUi<'a, K> {
         Rc::clone(self.input.get_or_init(|| Rc::new(self.rt.core().input())))
     }
 
-    /// Outlives this borrow of the `Ui`; wraps child uis inside egui closures via [`Runtime::ui`].
+    /// Outlives this borrow of the `Ui`; wraps the plain `Ui` of egui closures via [`Runtime::ui`] where no
+    /// layout method of `MineralUi` applies.
     pub fn rt(&self) -> &'a Runtime<K> {
         self.rt
     }
@@ -354,6 +355,63 @@ impl<'a, K> MineralUi<'a, K> {
     pub fn kit(&self) -> &'a K {
         self.rt.kit()
     }
+}
+
+macro_rules! layout_wrappers {
+    ($($(#[$doc:meta])* $name:ident($($arg:ident: $ty:ty),*);)+) => {
+        /// egui layout containers whose closure gets a `MineralUi`, so nested content needs no
+        /// [`Runtime::ui`] re-wrap. Each forwards to the `egui::Ui` method of the same name.
+        impl<K> MineralUi<'_, K> {
+            $(
+                $(#[$doc])*
+                pub fn $name<R>(
+                    &mut self,
+                    $($arg: $ty,)*
+                    add_contents: impl FnOnce(&mut MineralUi<'_, K>) -> R,
+                ) -> egui::InnerResponse<R> {
+                    let (rt, input) = (self.rt, self.input.clone());
+                    self.ui.$name($($arg,)* |ui| add_contents(&mut MineralUi { ui, rt, input }))
+                }
+            )+
+        }
+    };
+}
+
+layout_wrappers! {
+    /// Row in the layout direction; see `egui::Ui::horizontal`.
+    horizontal();
+    /// Row centered across the full available height.
+    horizontal_centered();
+    /// Row aligned to the top of the full available height.
+    horizontal_top();
+    /// Row that wraps at the available width.
+    horizontal_wrapped();
+    /// Top-down column, start-aligned.
+    vertical();
+    /// Top-down column, centered.
+    vertical_centered();
+    /// Top-down column, centered, children filling the width.
+    vertical_centered_justified();
+    /// Single child centered and filling the available space.
+    centered_and_justified();
+    /// Child `Ui` allocated at `desired_size` in the current layout.
+    allocate_ui(desired_size: Vec2);
+    /// Child `Ui` allocated at `desired_size`, laid out by `layout`.
+    allocate_ui_with_layout(desired_size: Vec2, layout: egui::Layout);
+    /// Child `Ui` with its own style and layout state.
+    scope();
+    /// Child `Ui` configured by `ui_builder`.
+    scope_builder(ui_builder: egui::UiBuilder);
+    /// Child `Ui` laid out by `layout`.
+    with_layout(layout: egui::Layout);
+    /// Child `Ui` whose ids are salted with `id_salt`.
+    push_id(id_salt: impl egui::AsIdSalt);
+    /// Child `Ui` indented by the style's indent.
+    indent(id_salt: impl egui::AsIdSalt);
+    /// Child `Ui` in the group frame of the current egui style.
+    group();
+    /// Child `Ui` that is disabled unless `enabled`.
+    add_enabled_ui(enabled: bool);
 }
 
 impl<K: Stylekit> MineralUi<'_, K> {

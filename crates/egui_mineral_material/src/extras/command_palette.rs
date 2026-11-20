@@ -314,7 +314,7 @@ impl<'a> CommandPalette<'a> {
         palette::finish(ctx, &self.commands, &mut run, dismissed, open);
         st.was_open = *open;
         st.store(ctx, id);
-        CommandPaletteResponse::new(modal.response, run, dismissed)
+        CommandPaletteResponse::new(modal.response, palette::clicked(&self.commands, run), dismissed)
     }
 }
 

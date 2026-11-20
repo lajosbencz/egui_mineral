@@ -1,5 +1,3 @@
-use std::num::NonZeroU8;
-
 use egui::Color32;
 
 use egui_mineral_fluent::{
@@ -183,11 +181,7 @@ fn sliders(ui: &mut Fui<'_>, s: &mut State) {
             .size(RatingSize::Large)
             .color(RatingColor::Marigold),
     );
-    ui.mineral(
-        RatingDisplay::new("rd-2", "Compact", 4.2)
-            .compact(true)
-            .max(NonZeroU8::MIN.saturating_add(4)),
-    );
+    ui.mineral(RatingDisplay::new("rd-2", "Compact", 4.2).compact(true).max(5));
 }
 
 fn fields(ui: &mut Fui<'_>, s: &mut State) {

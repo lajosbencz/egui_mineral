@@ -13,7 +13,7 @@ categories.workspace = true
 exclude = ["clippy.toml"]
 
 [package.metadata.docs.rs]
-features = ["icu", "persist-fs", "persist-json", "persist-toml", "platform-native", "web-save-stream"]
+features = ["icu", "persist-fs", "persist-json", "persist-toml", "platform-native", "spawn-tokio", "spawn-wasm", "web-save-stream"]
 rustdoc-args = ["--cfg", "docsrs"]
 targets = ["x86_64-unknown-linux-gnu", "wasm32-unknown-unknown"]
 
@@ -46,6 +46,10 @@ platform-clipboard = ["dep:arboard", "dep:wasm-bindgen-futures"]
 # OS notifications (`notify-rust` with D-Bus, browser Notification API).
 platform-notify = ["dep:notify-rust", "dep:wasm-bindgen-futures"]
 platform-native = ["platform-pickers", "platform-clipboard", "platform-notify"]
+# `spawn::TokioSpawner` over the app's Tokio runtime handle (native only).
+spawn-tokio = ["dep:tokio"]
+# `spawn::WasmSpawner` over `wasm_bindgen_futures::spawn_local` (wasm32 only).
+spawn-wasm = ["dep:wasm-bindgen-futures"]
 # Chromium streams `save_file_writer` to disk (File System Access API); other browsers buffer.
 web-save-stream = ["platform-pickers"]
 # Dioxus `subsecond` hot-patching, native only; command line only (`dx serve --hotpatch --features egui_mineral/unstable-hotpatch`).
@@ -94,6 +98,7 @@ arboard = { workspace = true, optional = true }
 notify-rust = { workspace = true, optional = true }
 subsecond = { version = "0.7.10", optional = true }
 dioxus-devtools = { version = "0.7.10", optional = true }
+tokio = { workspace = true, optional = true, features = ["rt"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 web-sys = { workspace = true, features = ["Window", "Storage", "Navigator", "Clipboard", "Notification", "NotificationOptions", "NotificationPermission", "Blob", "File"] }

@@ -76,7 +76,7 @@ clippy:
     cargo clippy -p showcase-fluent --target wasm32-unknown-unknown -- -D warnings
 
 # Features of the published crates but `unstable-hotpatch`
-test_features := "egui_mineral/platform-native,egui_mineral/persist-json,egui_mineral/web-save-stream,egui_mineral_material/theme-file,egui_mineral_material/unstable-catalog,egui_mineral_material/unstable-spec,egui_mineral_fluent/unstable-catalog,egui_mineral_fluent/unstable-spec"
+test_features := "egui_mineral/platform-native,egui_mineral/persist-json,egui_mineral/web-save-stream,egui_mineral/spawn-tokio,egui_mineral/spawn-wasm,egui_mineral_material/theme-file,egui_mineral_material/unstable-catalog,egui_mineral_material/unstable-spec,egui_mineral_fluent/unstable-catalog,egui_mineral_fluent/unstable-spec"
 
 # Default features (+spec) without the showcases' feature unification, every feature, none; extra args go to nextest, e.g. `--no-run`
 test *args: (test-default args)

@@ -146,10 +146,8 @@ fn breadcrumbs(ui: &mut Fui<'_>, s: &mut State) {
 
 fn overflow(ui: &mut Fui<'_>, s: &mut State) {
     heading(ui, "h-overflow", "Overflow");
-    let rt = ui.rt();
     ui.scope(|ui| {
         ui.set_max_width(280.0);
-        let ui = &mut rt.ui(ui);
         let mut bar = Toolbar::new("toolbar-overflow", "Edit").overflow(Overflow::new("More items"));
         for label in ["Cut", "Copy", "Paste", "Undo", "Redo"] {
             bar = bar.action(label);
@@ -269,7 +267,6 @@ fn tree_items(persona: bool) -> Vec<TreeItem> {
 
 fn trees(ui: &mut Fui<'_>, s: &mut State) {
     heading(ui, "h-tree", "Tree");
-    let rt = ui.rt();
     let cases = [
         ("none", None, TreeAppearance::Subtle, false),
         (
@@ -298,7 +295,8 @@ fn trees(ui: &mut Fui<'_>, s: &mut State) {
     {
         let items = tree_items(persona);
         ui.scope(|ui| {
-            ui.set_max_width(ui.available_width().min(360.0));
+            let width = ui.available_width().min(360.0);
+            ui.set_max_width(width);
             let mut tree = Tree::items(("tree", i), name, &items, open).appearance(appearance);
             if let Some(mode) = mode {
                 if checked.mode() != mode {
@@ -306,7 +304,7 @@ fn trees(ui: &mut Fui<'_>, s: &mut State) {
                 }
                 tree = tree.selection(checked);
             }
-            let r = tree.show(&mut rt.ui(ui));
+            let r = tree.show(ui);
             *tree_activated = r.activated.or(tree_activated.take());
         });
         ui.add_space(4.0);
@@ -339,21 +337,21 @@ fn menu_grids(ui: &mut Fui<'_>, s: &mut State) {
 
 fn carousels(ui: &mut Fui<'_>, s: &mut State) {
     heading(ui, "h-carousel", "Carousel");
-    let rt = ui.rt();
     let cases = [
         ("default", CarouselAppearance::Default, false),
         ("elevated", CarouselAppearance::Elevated, true),
     ];
     for (i, ((name, appearance, autoplay), active)) in cases.into_iter().zip(s.carousel.iter_mut()).enumerate() {
         ui.scope(|ui| {
-            ui.set_max_width(ui.available_width().min(360.0));
+            let width = ui.available_width().min(360.0);
+            ui.set_max_width(width);
             let mut carousel = Carousel::new(("carousel", i), name, active)
                 .appearance(appearance)
                 .brand(autoplay);
             if autoplay {
                 carousel = carousel.autoplay(std::time::Duration::from_secs(4)).circular(true);
             }
-            carousel.show(&mut rt.ui(ui), |c| {
+            carousel.show(ui, |c| {
                 for n in 1..=3 {
                     c.card(format!("Slide {n}"), |ui| {
                         ui.set_height(96.0);

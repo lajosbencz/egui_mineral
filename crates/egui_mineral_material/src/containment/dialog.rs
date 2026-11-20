@@ -75,7 +75,8 @@ fn text_actions_end<T>(
             before(ui);
             // A sizing pass measures what the content needs.
             if !ui.is_sizing_pass() {
-                ui.add_space((ui.available_width() - total).max(0.0));
+                let free = (ui.available_width() - total).max(0.0);
+                ui.add_space(free);
             }
             crate::actions::text_actions(&mut rt.ui(ui), buttons)
         })
