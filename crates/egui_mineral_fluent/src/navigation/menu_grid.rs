@@ -605,7 +605,7 @@ impl MenuGrid {
         let id = trigger.id.with(("mineral::fluent-menu-grid", salt.id_salt()));
         let seen_id = id.with("mineral::menu-grid-cells");
         let seen: usize = ctx.data(|d| d.get_temp(seen_id)).unwrap_or(0);
-        let stop = focus::tab_stop(ctx, id, None, seen, |_| true);
+        let stop = focus::tab_stop(ctx, id, None, &focus::Items::all(seen));
         let dir = rt.i18n().direction();
         let t = rt.tokens();
         // `useMenuPopoverStyles`

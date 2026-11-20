@@ -128,7 +128,7 @@ impl MenuStrip {
         let (rect, bar_resp) = ui.allocate_exact_size(vec2(width, bar_h), Sense::hover());
         ui.painter().rect_filled(rect, 0, t.color.surface_container);
         let enabled = |i: usize| self.menus.get(i).is_some_and(|m| !m.disabled);
-        let tab_stop = focus::tab_stop(&ctx, id, bar.open, self.menus.len(), enabled);
+        let tab_stop = focus::tab_stop(&ctx, id, bar.open, &focus::Items::new(self.menus.len(), enabled));
         if bar.open.is_some_and(|o| !enabled(o)) {
             bar.open = None;
         }
@@ -157,8 +157,8 @@ impl MenuStrip {
             menu = out.panel;
             let still_open = st.open;
             st.store(&ctx, menu_id);
-            if out.nav != 0 {
-                let next = menubar::adjacent(i, out.nav, self.menus.len());
+            if let Some(edge) = out.nav {
+                let next = menubar::adjacent(i, edge, self.menus.len());
                 bar.open = Some(next);
                 Self::reopen(&ctx, id, next, buttons[next].rect, Some(FocusTarget::SelectedOrFirst));
             } else if !still_open {

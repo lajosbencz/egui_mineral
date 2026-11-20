@@ -309,7 +309,7 @@ impl<'a, K: ItemKey> ButtonGroup<'a, K> {
         // stop per button, as in a standard APG button row.
         if let Some(c) = &self.choice {
             let selected = c.index();
-            let stop = focus::tab_stop(ctx, id, selected, len, enabled);
+            let stop = focus::tab_stop(ctx, id, selected, &focus::Items::new(len, enabled));
             for (i, b) in buttons.iter_mut().enumerate() {
                 b.tab_stop = TabStop::at(i, stop);
             }

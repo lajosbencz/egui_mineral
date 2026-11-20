@@ -163,7 +163,7 @@ impl Group {
         let selected = choice.index();
         let rt = ui.rt();
         let enabled = |i: usize| items.get(i).is_some_and(|d| !d.disabled);
-        let tab_stop = focus::tab_stop(rt.ctx(), group, selected, items.len(), enabled);
+        let tab_stop = focus::tab_stop(rt.ctx(), group, selected, &focus::Items::new(items.len(), enabled));
         let mut ids = Vec::with_capacity(items.len());
         let mut picked = None;
         let shape = row.shape.dense(ui.density(), row.font);

@@ -444,7 +444,7 @@ impl<'a, K: ItemKey> Carousel<'a, K> {
             since: ctx.input(|i| i.time),
         });
         let reduced = rt.core().motion().reduced();
-        let tab_stop = focus::tab_stop(ctx, id, Some(*next), len, |_| true);
+        let tab_stop = focus::tab_stop(ctx, id, Some(*next), &focus::Items::all(len));
         let mut ids = Vec::with_capacity(len);
         let mut picked = None;
         let lead = ((ui.available_width() - width) / 2.0).max(0.0);

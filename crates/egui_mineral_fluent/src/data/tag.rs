@@ -1023,7 +1023,7 @@ impl<'a, K: ItemKey> TagGroup<'a, K> {
             .data_mut(|d| d.remove_temp::<Option<Refocus>>(refocus_id))
             .flatten();
         let target = pending.and_then(|(at, last)| stop_of(&entries, defaults, at, last));
-        let stop = focus::tab_stop(ui.ctx(), id, target, disabled.len(), enabled);
+        let stop = focus::tab_stop(ui.ctx(), id, target, &focus::Items::new(disabled.len(), enabled));
         let gap = defaults.size.metrics().group_gap;
         let mut ids: Vec<egui::Id> = Vec::with_capacity(disabled.len());
         let mut dismissed: Option<(&K, IdSalt)> = None;

@@ -43,5 +43,13 @@ pub fn page<R>(
     id_salt: impl Into<KeyedSalt>,
     add: impl FnOnce(&mut MineralUi<'_, Material>) -> R,
 ) -> ScrollAreaOutput<R> {
-    kit::scroll::page(ui, id_salt, page_style(), nested_style(), add)
+    kit::scroll::page(
+        ui,
+        id_salt,
+        kit::scroll::PageBars {
+            page: page_style(),
+            nested: nested_style(),
+        },
+        add,
+    )
 }

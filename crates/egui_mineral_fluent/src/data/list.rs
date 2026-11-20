@@ -114,7 +114,7 @@ impl<'a, K: ItemKey> List<'a, K> {
         let first: Option<usize> = ui.ctx().data(|d| d.get_temp(first_id));
         let scope = ui.scope(|ui| {
             ui.spacing_mut().item_spacing.y = 0.0;
-            let stop = roving::tab_stop(rt.ctx(), id, first, known, |_| true);
+            let stop = roving::tab_stop(rt.ctx(), id, first, &roving::Items::all(known));
             let mut lui = ListUi {
                 ui,
                 rt,

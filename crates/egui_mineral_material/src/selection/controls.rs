@@ -1006,7 +1006,12 @@ impl<'a, K: ItemKey> RadioGroup<'a, K> {
         let mut picked = None;
         let group_id = ui.make_persistent_id(salt.id_salt());
         let enabled = |i: usize| !disabled && options.get(i).is_some_and(|o| !o.disabled);
-        let tab_stop = focus::tab_stop(ui.ctx(), group_id, choice.index(), options.len(), enabled);
+        let tab_stop = focus::tab_stop(
+            ui.ctx(),
+            group_id,
+            choice.index(),
+            &focus::Items::new(options.len(), enabled),
+        );
         let mut body = |ui: &mut Ui| {
             for (i, o) in options.iter().enumerate() {
                 let r = rt.ui(ui).mineral(

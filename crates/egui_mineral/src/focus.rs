@@ -65,6 +65,48 @@ enum Orientation {
     Grid { columns: usize },
 }
 
+/// Items of a roving group: their count and which of them take focus.
+#[derive(Clone, Copy)]
+pub struct Items<F> {
+    len: usize,
+    enabled: F,
+}
+
+impl Items<fn(usize) -> bool> {
+    /// `len` items, all enabled.
+    pub fn all(len: usize) -> Self {
+        Self { len, enabled: |_| true }
+    }
+}
+
+impl<F: Fn(usize) -> bool> Items<F> {
+    /// `len` items; `enabled` is false for the ones focus skips.
+    pub fn new(len: usize, enabled: F) -> Self {
+        Self { len, enabled }
+    }
+
+    /// Item count.
+    pub fn len(&self) -> usize {
+        self.len
+    }
+
+    /// `true` without items.
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
+    /// `false` past the end.
+    pub fn is_enabled(&self, index: usize) -> bool {
+        index < self.len && (self.enabled)(index)
+    }
+}
+
+impl<F> std::fmt::Debug for Items<F> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Items").field("len", &self.len).finish_non_exhaustive()
+    }
+}
+
 /// APG roving tabindex model over a linear or grid item set.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RovingFocus {
@@ -146,21 +188,20 @@ impl RovingFocus {
         let ctx = core.ctx();
         let focused = ctx.memory(egui::Memory::focused)?;
         let current = ids.iter().position(|id| *id == focused)?;
-        let idx = self.on_key(core, focused, current, ids.len(), enabled)?;
+        let idx = self.on_key(core, focused, current, &Items::new(ids.len(), enabled))?;
         ctx.memory_mut(|m| m.request_focus(ids[idx]));
         Some(idx)
     }
 
-    /// Index this pass's arrow keys move the item `current` of `len` to, skipping items where
-    /// `enabled` is false; `None` when it stays. Keeps egui's focus navigation off the arrows while
-    /// `focused`, the item's widget, has focus. Moving focus is the caller's.
+    /// Index this pass's arrow keys move the item `current` to, skipping disabled items; `None` when it stays.
+    /// Keeps egui's focus navigation off the arrows while `focused`, the item's widget, has focus. Moving focus is
+    /// the caller's.
     pub fn on_key(
         &self,
         core: &crate::runtime::Core,
         focused: Id,
         current: usize,
-        len: usize,
-        enabled: impl Fn(usize) -> bool,
+        items: &Items<impl Fn(usize) -> bool>,
     ) -> Option<usize> {
         let ctx = core.ctx();
         let arrows = match self.orientation {
@@ -172,7 +213,7 @@ impl RovingFocus {
         let dir = core.i18n().direction();
         let mut idx = current;
         for key in plain_key_presses(ctx) {
-            if let Some(next) = self.target(key, dir, idx, len, &enabled) {
+            if let Some(next) = self.target(key, dir, idx, items) {
                 idx = next;
             }
         }
@@ -185,9 +226,9 @@ impl RovingFocus {
         key: Key,
         dir: Direction,
         current: usize,
-        len: usize,
-        enabled: impl Fn(usize) -> bool,
+        items: &Items<impl Fn(usize) -> bool>,
     ) -> Option<usize> {
+        let (len, enabled) = (items.len, |i| items.is_enabled(i));
         let mut cand = self.step(key, dir, current, len)?;
         match key {
             Key::Home => return (0..len).find(|i| enabled(*i)),
@@ -226,13 +267,8 @@ impl RovingFocus {
 
 /// Index of the group's single Tab stop: the focused item, else `selected`, else the item focused
 /// last, else 0; falls to the first enabled item when that one is disabled.
-pub fn tab_stop(
-    ctx: &Context,
-    group: Id,
-    selected: Option<usize>,
-    len: usize,
-    enabled: impl Fn(usize) -> bool,
-) -> usize {
+pub fn tab_stop(ctx: &Context, group: Id, selected: Option<usize>, items: &Items<impl Fn(usize) -> bool>) -> usize {
+    let (len, enabled) = (items.len, |i| items.is_enabled(i));
     let last: Option<(usize, Id)> = ctx.data(|d| d.get_temp(tab_stop_key(group)));
     let focused = last.filter(|(_, id)| ctx.memory(|m| m.has_focus(*id)));
     let stop = resolve_tab_stop(focused.map(|f| f.0), selected, last.map(|l| l.0), len);
@@ -488,26 +524,35 @@ mod tests {
     #[test]
     fn roving_wraps_flips_and_grids() {
         let h = RovingFocus::new(Axis::Horizontal);
-        assert_eq!(h.target(Key::ArrowRight, Direction::Ltr, 2, 3, |_| true), Some(0));
-        assert_eq!(h.target(Key::ArrowRight, Direction::Rtl, 0, 3, |_| true), Some(2));
-        assert_eq!(h.target(Key::ArrowDown, Direction::Ltr, 0, 3, |_| true), None);
+        assert_eq!(h.target(Key::ArrowRight, Direction::Ltr, 2, &Items::all(3)), Some(0));
+        assert_eq!(h.target(Key::ArrowRight, Direction::Rtl, 0, &Items::all(3)), Some(2));
+        assert_eq!(h.target(Key::ArrowDown, Direction::Ltr, 0, &Items::all(3)), None);
         let g = RovingFocus::grid(7);
-        assert_eq!(g.target(Key::ArrowDown, Direction::Ltr, 3, 42, |_| true), Some(10));
-        assert_eq!(g.target(Key::ArrowUp, Direction::Ltr, 3, 42, |_| true), None);
+        assert_eq!(g.target(Key::ArrowDown, Direction::Ltr, 3, &Items::all(42)), Some(10));
+        assert_eq!(g.target(Key::ArrowUp, Direction::Ltr, 3, &Items::all(42)), None);
         let g3 = RovingFocus::grid(3);
-        assert_eq!(g3.target(Key::ArrowDown, Direction::Ltr, 6, 9, |_| true), None);
-        assert_eq!(g3.target(Key::ArrowRight, Direction::Ltr, 8, 9, |_| true), None);
+        assert_eq!(g3.target(Key::ArrowDown, Direction::Ltr, 6, &Items::all(9)), None);
+        assert_eq!(g3.target(Key::ArrowRight, Direction::Ltr, 8, &Items::all(9)), None);
     }
 
     #[test]
     fn roving_skips_disabled() {
         let h = RovingFocus::new(Axis::Horizontal);
         let on = |i: usize| i != 1;
-        assert_eq!(h.target(Key::ArrowRight, Direction::Ltr, 0, 3, on), Some(2));
-        assert_eq!(h.target(Key::ArrowLeft, Direction::Ltr, 2, 3, on), Some(0));
-        assert_eq!(h.target(Key::End, Direction::Ltr, 0, 3, |i| i < 2), Some(1));
+        assert_eq!(
+            h.target(Key::ArrowRight, Direction::Ltr, 0, &Items::new(3, on)),
+            Some(2)
+        );
+        assert_eq!(h.target(Key::ArrowLeft, Direction::Ltr, 2, &Items::new(3, on)), Some(0));
+        assert_eq!(
+            h.target(Key::End, Direction::Ltr, 0, &Items::new(3, |i| i < 2)),
+            Some(1)
+        );
         let nowrap = h.wrap(false);
-        assert_eq!(nowrap.target(Key::ArrowRight, Direction::Ltr, 2, 3, |i| i != 2), None);
+        assert_eq!(
+            nowrap.target(Key::ArrowRight, Direction::Ltr, 2, &Items::new(3, |i| i != 2)),
+            None
+        );
     }
 
     #[test]
@@ -515,7 +560,10 @@ mod tests {
         let enabled = [true; 3];
         for wrap in [true, false] {
             let h = RovingFocus::new(Axis::Horizontal).wrap(wrap);
-            assert_eq!(h.target(Key::ArrowLeft, Direction::Ltr, 9, 3, |i| enabled[i]), Some(1));
+            assert_eq!(
+                h.target(Key::ArrowLeft, Direction::Ltr, 9, &Items::new(3, |i| enabled[i])),
+                Some(1)
+            );
         }
     }
 

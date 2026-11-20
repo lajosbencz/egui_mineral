@@ -2,7 +2,7 @@
 
 use egui::{Id, Key, Memory, Modifiers};
 
-use crate::{kit::state::TempState, runtime::Core, shortcut, widget::Availability};
+use crate::{kit::state::TempState, layout::Edge, runtime::Core, shortcut, widget::Availability};
 
 /// Menu bar state in temp memory, keyed by the bar id.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -76,20 +76,23 @@ pub fn refocus_title(ctx: &egui::Context, group: Id, index: usize, title: Id) {
     crate::kit::interact::remember(ctx, group, [(index, title)]);
 }
 
-/// `nav` is -1 or 1; wraps: -1 from the first menu is the last, 1 from the last is the first.
-pub fn adjacent(open: usize, nav: i8, count: usize) -> usize {
-    open.checked_add_signed(isize::from(nav))
-        .map_or(count - 1, |j| j % count)
+/// Menu next to `open` of `count` toward `edge` in reading order; wraps at both ends.
+pub fn adjacent(open: usize, edge: Edge, count: usize) -> usize {
+    match edge {
+        Edge::Start => open.checked_sub(1).unwrap_or(count.saturating_sub(1)),
+        Edge::End => open.saturating_add(1).checked_rem(count).unwrap_or(0),
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::adjacent;
+    use crate::layout::Edge;
 
     #[test]
     fn arrows_wrap_at_both_ends() {
-        assert_eq!(adjacent(0, -1, 3), 2);
-        assert_eq!(adjacent(2, 1, 3), 0);
-        assert_eq!(adjacent(1, 1, 3), 2);
+        assert_eq!(adjacent(0, Edge::Start, 3), 2);
+        assert_eq!(adjacent(2, Edge::End, 3), 0);
+        assert_eq!(adjacent(1, Edge::End, 3), 2);
     }
 }

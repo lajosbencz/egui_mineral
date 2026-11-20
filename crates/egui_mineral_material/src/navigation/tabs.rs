@@ -195,9 +195,12 @@ impl<'a, K: ItemKey> Tabs<'a, K> {
                 }
             })
             .collect();
-        let tab_stop = focus::tab_stop(ctx, id, sel, self.specs.len(), |i| {
-            self.specs.get(i).is_some_and(|s| !s.disabled)
-        });
+        let tab_stop = focus::tab_stop(
+            ctx,
+            id,
+            sel,
+            &focus::Items::new(self.specs.len(), |i| self.specs.get(i).is_some_and(|s| !s.disabled)),
+        );
         let dir = rt.i18n().direction();
         let mut picked = None;
         let row = TabRow {

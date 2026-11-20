@@ -1,4 +1,5 @@
 use egui::{Id, Key, Margin, Modifiers, Rangef, Rect, Response, Sense, Stroke, Ui, pos2, text::LayoutJob, vec2};
+use egui_mineral::focus::Items;
 use egui_mineral::{
     action::Clicked,
     anchor::{Align, Anchor, Side},
@@ -941,7 +942,7 @@ fn step_from_trigger(rt: &Rt, rows: &[SeenRow]) {
     let enabled_at = |i: usize| rows.get(i).is_some_and(|r| r.enabled);
     for key in kit::interact::plain_key_presses(ctx) {
         if let Some(to) = roving
-            .target(key, dir, row, rows.len(), enabled_at)
+            .target(key, dir, row, &Items::new(rows.len(), enabled_at))
             .and_then(|to| rows.get(to))
         {
             ctx.memory_mut(|m| m.request_focus(to.id));

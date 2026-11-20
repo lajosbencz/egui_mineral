@@ -153,7 +153,12 @@ impl<'a, K: ItemKey> SegmentedButton<'a, K> {
         let id = ui.make_persistent_id(self.salt.id_salt());
         let selected: Vec<bool> = (0..len).map(|i| self.choice.is_selected(i)).collect();
         let enabled = |i: usize| self.items.get(i).is_some_and(|s| !s.disabled);
-        let stop = focus::tab_stop(ctx, id, selected.iter().position(|s| *s), len, enabled);
+        let stop = focus::tab_stop(
+            ctx,
+            id,
+            selected.iter().position(|s| *s),
+            &focus::Items::new(len, enabled),
+        );
 
         let font = sb::LABEL_TEXT_FONT.font(ctx);
         let labels: Vec<Arc<Galley>> = self

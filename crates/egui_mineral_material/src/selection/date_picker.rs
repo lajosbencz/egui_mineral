@@ -1273,8 +1273,7 @@ impl Config {
             ctx,
             id,
             index_of(sel.anchor()).or(index_of(Some(env.today))),
-            month_days.len(),
-            |i| env.limits.contains(month_days[i]),
+            &focus::Items::new(month_days.len(), |i| env.limits.contains(month_days[i])),
         );
         let mut day_ids = Vec::with_capacity(month_days.len());
         for (row, week) in grid.weeks().enumerate() {

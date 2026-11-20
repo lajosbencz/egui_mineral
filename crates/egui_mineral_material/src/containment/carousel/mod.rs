@@ -509,7 +509,7 @@ impl<'a> Carousel<'a> {
         }
 
         let current = nearest(&strip.geo.snaps, st.scroll);
-        let tab_stop = focus::tab_stop(&ctx, id, Some(current), self.count, |_| true);
+        let tab_stop = focus::tab_stop(&ctx, id, Some(current), &focus::Items::all(self.count));
         let items = self.paint_items(ui, &strip, st.scroll, tab_stop, &mut content, &mut out.activated);
         kit::interact::remember(&ctx, id, items.ids);
         self.arrow_focus(rt, &strip, &mut st, items.focus.or(focused));
@@ -691,7 +691,7 @@ impl<'a> Carousel<'a> {
             Axis::Horizontal
         })
         .wrap(false);
-        if let Some(idx) = nav.on_key(rt.core(), strip.item_id(cur), cur, self.count, |_| true)
+        if let Some(idx) = nav.on_key(rt.core(), strip.item_id(cur), cur, &focus::Items::all(self.count))
             && let Some(&snap) = strip.geo.snaps.get(idx)
         {
             st.target = Some(snap);

@@ -501,7 +501,12 @@ impl<'a> Stepper<'a> {
         let stops: Vec<usize> = (0..n)
             .filter(|&i| !self.disabled && (i == current || self.steps.can_select(i)))
             .collect();
-        let tab = focus::tab_stop(ctx, id, stops.iter().position(|&i| i == current), stops.len(), |_| true);
+        let tab = focus::tab_stop(
+            ctx,
+            id,
+            stops.iter().position(|&i| i == current),
+            &focus::Items::all(stops.len()),
+        );
         let tab_step = stops.get(tab).copied();
         let start = ui.cursor().min;
         let mut pass = StepPass {

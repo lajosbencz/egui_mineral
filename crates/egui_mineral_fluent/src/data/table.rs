@@ -1,4 +1,5 @@
 use crate::msg;
+use egui_mineral::focus::Items;
 use std::{borrow::Cow, ops::Range, sync::Arc};
 
 use egui::{CursorIcon, Galley, Id, Rangef, Rect, Sense, Stroke, StrokeKind, UiBuilder, pos2, text::LayoutJob, vec2};
@@ -529,7 +530,7 @@ impl Grid {
             return;
         }
         if let Some((current, focused)) = self.focused
-            && let Some(next) = RovingFocus::grid(self.columns).on_key(ui.core(), focused, current, cells, |_| true)
+            && let Some(next) = RovingFocus::grid(self.columns).on_key(ui.core(), focused, current, &Items::all(cells))
         {
             self.focus.pending = Some(next);
             ui.scroll_to_rect(geo.row(self.row(next)), None);

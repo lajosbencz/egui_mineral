@@ -280,7 +280,12 @@ impl<'a, K: ItemKey> SwatchPicker<'a, K> {
         let group_id = ui.make_persistent_id(salt.id_salt());
         let enabled = |i: usize| !disabled && swatches.get(i).is_some_and(|s| !s.disabled);
         let selected = choice.index();
-        let tab_stop = focus::tab_stop(ui.ctx(), group_id, selected, swatches.len(), enabled);
+        let tab_stop = focus::tab_stop(
+            ui.ctx(),
+            group_id,
+            selected,
+            &focus::Items::new(swatches.len(), enabled),
+        );
         let mut body = |ui: &mut Ui| {
             ui.spacing_mut().item_spacing = vec2(gap, gap);
             for (r, row) in swatches.chunks(columns).enumerate() {

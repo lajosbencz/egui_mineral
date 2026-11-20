@@ -5,6 +5,7 @@ use crate::Rt;
 use crate::adaptive::Density;
 use egui_mineral::i18n::I18n;
 use egui_mineral::kit::state::TempState;
+use egui_mineral::layout::Edge;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::MineralUi;
 use std::time::Duration;
@@ -399,7 +400,7 @@ pub(crate) struct Outcome {
     pub(crate) fired: bool,
     pub(crate) closed: bool,
     pub(crate) dismissed: Option<Dismiss>,
-    pub(crate) nav: i8,
+    pub(crate) nav: Option<Edge>,
     pub(crate) first_rect: Option<Rect>,
 }
 
@@ -1207,7 +1208,9 @@ impl Menu {
                             Self::close_level(ctx, st, level_ids, l);
                         }
                     }
-                    Key::ArrowLeft | Key::ArrowRight => out.nav = if key == fwd { 1 } else { -1 },
+                    Key::ArrowLeft | Key::ArrowRight => {
+                        out.nav = Some(if key == fwd { Edge::End } else { Edge::Start });
+                    }
                     _ => {}
                 }
             }

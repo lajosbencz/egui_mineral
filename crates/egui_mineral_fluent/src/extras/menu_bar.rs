@@ -130,7 +130,7 @@ impl<'a> MenuBar<'a> {
         let mut bar = BarState::load(&ctx, id);
         let disabled: Vec<bool> = self.menus.iter().map(|m| m.disabled || self.disabled).collect();
         let enabled = |i: usize| disabled.get(i).is_some_and(|d| !d);
-        let stop = focus::tab_stop(&ctx, id, bar.open, self.menus.len(), enabled);
+        let stop = focus::tab_stop(&ctx, id, bar.open, &focus::Items::new(self.menus.len(), enabled));
         if bar.open.is_some_and(|o| !enabled(o)) {
             bar.open = None;
         }
@@ -218,14 +218,14 @@ impl<'a> MenuBar<'a> {
     }
 }
 
-// An end-to-start or start-to-end arrow no row consumed: -1 or 1.
-fn arrow(ctx: &Context, dir: egui_mineral::i18n::Direction) -> Option<i8> {
+// A reading-order arrow no row consumed.
+fn arrow(ctx: &Context, dir: egui_mineral::i18n::Direction) -> Option<egui_mineral::layout::Edge> {
     let (forward, back) = dir.pick((Key::ArrowRight, Key::ArrowLeft), (Key::ArrowLeft, Key::ArrowRight));
     ctx.input_mut(|i| {
         if i.consume_key(Modifiers::NONE, forward) {
-            Some(1)
+            Some(egui_mineral::layout::Edge::End)
         } else if i.consume_key(Modifiers::NONE, back) {
-            Some(-1)
+            Some(egui_mineral::layout::Edge::Start)
         } else {
             None
         }

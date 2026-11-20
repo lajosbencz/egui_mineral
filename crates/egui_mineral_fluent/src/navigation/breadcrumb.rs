@@ -303,7 +303,7 @@ impl Breadcrumb {
             None => false,
         };
         let id = ui.make_persistent_id(salt.id_salt());
-        let stop = roving::tab_stop(ui.ctx(), id, None, parts.len(), enabled);
+        let stop = roving::tab_stop(ui.ctx(), id, None, &roving::Items::new(parts.len(), enabled));
         let mut ids = Vec::with_capacity(parts.len());
         let mut clicked = None;
         let mut trigger = None;

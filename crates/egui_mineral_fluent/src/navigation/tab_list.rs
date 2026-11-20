@@ -694,7 +694,7 @@ impl<'a, K: ItemKey> TabList<'a, K> {
         } = self;
         let id = ui.make_persistent_id(salt.id_salt());
         let enabled = |i: usize| !disabled && tabs.get(i).is_some_and(|t| !t.disabled);
-        let tab_stop = roving::tab_stop(ui.ctx(), id, selected.index(), tabs.len(), enabled);
+        let tab_stop = roving::tab_stop(ui.ctx(), id, selected.index(), &roving::Items::new(tabs.len(), enabled));
         let measured: Vec<Measured> = tabs.iter().map(|t| Measured::of(ui, t, size, vertical)).collect();
         let stretch = measured.iter().fold(0.0_f32, |m, l| m.max(l.cross(vertical)));
         let dir = rt.i18n().direction();

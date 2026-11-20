@@ -328,7 +328,7 @@ impl<'a> ImageList<'a> {
         let (grid, height) = self.geometry(&mut st, width);
         let (area, response) = ui.allocate_exact_size(vec2(width, height), Sense::hover());
         let mut activated = None;
-        let tab = focus::tab_stop(&ctx, id, None, len, |_| !self.disabled);
+        let tab = focus::tab_stop(&ctx, id, None, &focus::Items::new(len, |_| !self.disabled));
         let focused = ctx.memory(egui::Memory::focused);
         let held = st.focus.filter(|&i| i < len && focused == Some(id.with(i)));
         let range = match self.layout {

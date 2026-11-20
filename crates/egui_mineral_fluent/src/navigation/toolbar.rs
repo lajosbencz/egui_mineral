@@ -561,7 +561,7 @@ impl<'a> Toolbar<'a> {
         disabled.extend(more.then_some(false));
         let enabled = |i: usize| disabled.get(i).is_some_and(|d| !d);
         let id = ui.make_persistent_id(salt.id_salt());
-        let stop = roving::tab_stop(ui.ctx(), id, None, disabled.len(), enabled);
+        let stop = roving::tab_stop(ui.ctx(), id, None, &roving::Items::new(disabled.len(), enabled));
         let m = Metrics::button(Size::Medium, false);
         let row_height = m.pad_top + m.pad_bottom + m.line_height + 2.0 * g::STROKE_WIDTH_THIN;
         let mut run = Run {

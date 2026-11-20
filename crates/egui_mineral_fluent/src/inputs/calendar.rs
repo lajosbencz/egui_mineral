@@ -513,8 +513,7 @@ impl Run<'_> {
             ctx,
             self.cx.id,
             index_of(self.value).or(index_of(Some(self.today))),
-            in_month.len(),
-            |i| in_month.get(i).is_some_and(|d| b.contains(*d)),
+            &focus::Items::new(in_month.len(), |i| in_month.get(i).is_some_and(|d| b.contains(*d))),
         );
         // The day about to take focus must be focusable this pass.
         let stop = st
@@ -803,7 +802,12 @@ impl Run<'_> {
             self.value
                 .and_then(|d| usize::try_from(i32::from(d.year()) - i32::from(st.years_from)).ok())
         };
-        let stop = focus::tab_stop(ui.ctx(), group, selected.filter(|i| *i < n), n, enabled);
+        let stop = focus::tab_stop(
+            ui.ctx(),
+            group,
+            selected.filter(|i| *i < n),
+            &focus::Items::new(n, enabled),
+        );
         let mut ids = Vec::with_capacity(n);
         let mut chosen = None;
         for i in 0..n {
