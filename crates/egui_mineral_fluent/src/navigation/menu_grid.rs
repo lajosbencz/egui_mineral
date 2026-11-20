@@ -1,6 +1,6 @@
 use egui::{Id, Margin, Rangef, Rect, Response, Sense, Stroke, StrokeKind, UiBuilder, pos2, text::LayoutJob, vec2};
 use egui_mineral::{
-    action::Clicked,
+    action::ActionValue,
     anchor::{Align, Anchor, Side},
     focus::{self, Cell, Grid, GridSize, on_grid_key},
     i18n::I18n,
@@ -42,7 +42,6 @@ pub struct MenuGridItem {
     icon: Option<Icon>,
     sub_text: Option<String>,
     disabled: bool,
-    action_key: Option<egui_mineral::action::ActionKey>,
 }
 
 impl MenuGridItem {
@@ -53,7 +52,6 @@ impl MenuGridItem {
             icon: None,
             sub_text: None,
             disabled: false,
-            action_key: None,
         }
     }
 
@@ -67,10 +65,6 @@ impl MenuGridItem {
     pub fn secondary_text(mut self, text: impl Into<String>) -> Self {
         self.sub_text = Some(text.into());
         self
-    }
-
-    crate::widget::setters! {
-        action_key
     }
 
     crate::widget::setters! {
@@ -92,7 +86,6 @@ pub struct MenuGridAction {
     label: String,
     icon: Icon,
     disabled: bool,
-    action_key: Option<egui_mineral::action::ActionKey>,
 }
 
 impl MenuGridAction {
@@ -102,12 +95,7 @@ impl MenuGridAction {
             label: label.into(),
             icon: icon.into(),
             disabled: false,
-            action_key: None,
         }
-    }
-
-    crate::widget::setters! {
-        action_key
     }
 
     crate::widget::setters! {
@@ -159,13 +147,6 @@ impl MenuGridCell {
         }
     }
 
-    fn action_key(&self) -> Option<&egui_mineral::action::ActionKey> {
-        match self {
-            Self::Item(i) => i.action_key.as_ref(),
-            Self::Action(a) => a.action_key.as_ref(),
-        }
-    }
-
     fn height(&self) -> f32 {
         match self {
             Self::Item(i) => {
@@ -178,22 +159,35 @@ impl MenuGridCell {
     }
 }
 
-/// Fluent `MenuGridRow`: cells in one line; the items share the width the actions leave.
-#[derive(Clone, Debug, Default)]
+/// Fluent `MenuGridRow`: cells in one line; the items share the width the actions leave. Each cell reports its
+/// value of type `A`.
+#[derive(Clone, Debug)]
 #[must_use]
-pub struct MenuGridRow {
+pub struct MenuGridRow<A> {
     cells: Vec<MenuGridCell>,
+    values: Vec<A>,
     salt: Option<KeyedSalt>,
 }
 
-impl MenuGridRow {
+impl<A> Default for MenuGridRow<A> {
+    fn default() -> Self {
+        Self {
+            cells: Vec::new(),
+            values: Vec::new(),
+            salt: None,
+        }
+    }
+}
+
+impl<A: ActionValue> MenuGridRow<A> {
     /// No cells.
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Appends a cell.
-    pub fn cell(mut self, cell: impl Into<MenuGridCell>) -> Self {
+    /// Appends the cell reporting `value`.
+    pub fn cell(mut self, value: A, cell: impl Into<MenuGridCell>) -> Self {
+        self.values.push(value);
         self.cells.push(cell.into());
         self
     }
@@ -349,13 +343,13 @@ impl MineralWidget for GridCell<'_> {
 /// Result of one [`MenuGridUi`] row.
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct MenuGridRowResponse {
+pub struct MenuGridRowResponse<A> {
     /// Spans the row.
     pub response: Response,
     /// Responses of the cells, in order.
     pub cells: Vec<Response>,
-    /// Cell activated this pass; its index is the column.
-    pub clicked: Option<Clicked>,
+    /// Value of the cell activated this pass.
+    pub clicked: Option<A>,
 }
 
 // Widest row of the previous pass: rows stretch to it, as the menu popover sizes to its content.
@@ -408,25 +402,26 @@ struct Slot {
     column: usize,
 }
 
-/// Places the rows of a [`MenuGrid`].
-pub struct MenuGridUi<'u, 's> {
+/// Places the rows of a [`MenuGrid`]; `A` is the value its cells report.
+pub struct MenuGridUi<'u, 's, A> {
     ui: &'u mut MineralUi<'s, Fluent>,
     salt: &'u KeyedSalt,
     stop: usize,
     row: usize,
     slots: Vec<Slot>,
-    clicked: Option<MenuGridClicked>,
+    clicked: Option<A>,
     memo: Memo,
     seen: f32,
 }
 
-kit::opaque_debug!(MenuGridUi<'_, '_>);
+kit::opaque_debug!(MenuGridUi<'_, '_, A>);
 
-impl MenuGridUi<'_, '_> {
+impl<A: ActionValue> MenuGridUi<'_, '_, A> {
     /// `MenuGridRow`: the cells in one line on a row surface.
-    pub fn row(&mut self, row: MenuGridRow) -> MenuGridRowResponse {
+    pub fn row(&mut self, row: MenuGridRow<A>) -> MenuGridRowResponse<A> {
         let MenuGridRow {
             cells: cells_in,
+            values,
             salt: row_salt,
         } = row;
         let index = self.row;
@@ -490,7 +485,7 @@ impl MenuGridUi<'_, '_> {
                 };
                 let out = rt.ui(ui).mineral(widget);
                 if out.changed() {
-                    clicked = Some(Clicked::new(column, cell.action_key().cloned()));
+                    clicked = values.get(column).cloned();
                 }
                 let r = out.into_response();
                 self.slots.push(Slot {
@@ -502,11 +497,8 @@ impl MenuGridUi<'_, '_> {
                 cells.push(r);
             }
         }
-        if let Some(cell) = &clicked {
-            self.clicked = Some(MenuGridClicked {
-                row: index,
-                cell: cell.clone(),
-            });
+        if clicked.is_some() {
+            self.clicked.clone_from(&clicked);
         }
         let name = cells_in.first().map_or("", MenuGridCell::label).to_owned();
         let key = egui_mineral::agent_key!("gridrow").id(&salt);
@@ -519,31 +511,21 @@ impl MenuGridUi<'_, '_> {
     }
 }
 
-/// Cell of a [`MenuGrid`] activated this pass.
-#[derive(Clone, Debug)]
-#[non_exhaustive]
-pub struct MenuGridClicked {
-    /// Row position in the grid.
-    pub row: usize,
-    /// Index is the column, key the cell's `key(..)`.
-    pub cell: Clicked,
-}
-
 /// Result of showing a [`MenuGrid`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct MenuGridResponse<R = ()> {
+pub struct MenuGridResponse<R, A> {
     /// Surface, on passes it showed.
     pub response: Option<Response>,
     /// Why it closed this pass.
     pub dismissed: Option<Dismiss>,
-    /// Cell activated this pass.
-    pub clicked: Option<MenuGridClicked>,
+    /// Value of the cell activated this pass.
+    pub clicked: Option<A>,
     /// What `add` returned, on passes it showed.
     pub inner: Option<R>,
 }
 
-impl<R> MenuGridResponse<R> {
+impl<R, A> MenuGridResponse<R, A> {
     fn closed(dismissed: Option<Dismiss>) -> Self {
         Self {
             response: None,
@@ -583,13 +565,13 @@ impl MenuGrid {
 
     /// Shown while `open`, anchored below `trigger`, whose clicks toggle it; `add` places the rows. The first
     /// enabled cell takes focus on opening; Escape, Tab and outside presses close it, activating a cell does not.
-    pub fn show<R>(
+    pub fn show<R, A: ActionValue>(
         self,
         rt: &Rt,
         trigger: &Response,
         open: &mut bool,
-        add: impl FnOnce(&mut MenuGridUi<'_, '_>) -> R,
-    ) -> MenuGridResponse<R> {
+        add: impl FnOnce(&mut MenuGridUi<'_, '_, A>) -> R,
+    ) -> MenuGridResponse<R, A> {
         let ctx = rt.ctx();
         let Self { salt, key, label } = self;
         let mut dismissed = None;

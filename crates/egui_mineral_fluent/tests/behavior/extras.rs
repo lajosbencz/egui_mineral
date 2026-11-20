@@ -183,16 +183,16 @@ fn menu_bar() -> crate::support::Harness<'static, Vec<&'static str>> {
         let mut clicked = Vec::new();
         MenuBar::new("bar")
             .menu(BarMenu::new("File", |m| {
-                if m.item("Open").clicked {
+                if m.item("open", "Open").clicked {
                     clicked.push("open");
                 }
             }))
             .menu(BarMenu::new("Edit", |m| {
-                m.item("Copy");
+                m.item("copy", "Copy");
             }))
             .menu(
                 BarMenu::new("Off", |m| {
-                    m.item("Never");
+                    m.item("never", "Never");
                 })
                 .disabled(true),
             )

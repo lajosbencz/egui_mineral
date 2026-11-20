@@ -24,10 +24,10 @@ fn menu() -> Harness<'static, MenuState> {
         let log = &mut s.log;
         let (checked, radio) = (&mut s.checked, &mut s.radio);
         Menu::new("m", "Actions").show(rt, &trigger, open, |m| {
-            if m.item(MenuItem::new("Cut").icon(ICON_CUT)).clicked {
+            if m.item("cut", MenuItem::new("Cut").icon(ICON_CUT)).clicked {
                 log.push("cut");
             }
-            m.item(MenuItem::new("Off").disabled(true));
+            m.item("off", MenuItem::new("Off").disabled(true));
             m.divider();
             m.checkbox_item("Wrap", checked);
             m.group("Size", |m| {
@@ -35,7 +35,7 @@ fn menu() -> Harness<'static, MenuState> {
                 m.radio_item("Large", radio, 1);
             });
             m.submenu("More", |m| {
-                if m.item("Deep").clicked {
+                if m.item("deep", "Deep").clicked {
                     log.push("deep");
                 }
             });
@@ -150,7 +150,7 @@ fn typeahead_menu() -> Harness<'static, MenuState> {
         let log = &mut s.log;
         Menu::new("t", "Actions").show(rt, &trigger, &mut s.open, |m| {
             for (name, tag) in [("Cut", "cut"), ("Copy", "copy"), ("Paste", "paste"), ("Crop", "crop")] {
-                if m.item(MenuItem::new(name).disabled(name == "Crop")).clicked {
+                if m.item(tag, MenuItem::new(name).disabled(name == "Crop")).clicked {
                     log.push(tag);
                 }
             }
@@ -199,16 +199,16 @@ fn split_menu() -> Harness<'static, MenuState> {
         let open = &mut s.open;
         let log = &mut s.log;
         Menu::new("m", "Actions").show(rt, &trigger, open, |m| {
-            m.item("Cut");
-            let r = m.split_item("Paste", |m| {
-                if m.item("Plain").clicked {
+            m.item("cut", "Cut");
+            let r = m.split_item("paste", "Paste", |m| {
+                if m.item("plain", "Plain").clicked {
                     log.push("plain");
                 }
             });
             if r.clicked {
                 log.push("paste");
             }
-            if m.item("Last").clicked {
+            if m.item("last", "Last").clicked {
                 log.push("last");
             }
         });
@@ -290,13 +290,13 @@ fn menu_opened_by_a_menu_pick_survives_the_picking_press() {
         let more = ui.mineral(PushButton::new("more", "More")).response().clone();
         let mut picked = false;
         Menu::new("a", "More").show(rt, &more, first, |m| {
-            picked = m.item("Rename").clicked;
+            picked = m.item("rename", "Rename").clicked;
         });
         *second |= picked;
         ui.add_space(200.0);
         let target = ui.mineral(PushButton::new("target", "Target")).response().clone();
         Menu::new("b", "Target").show(rt, &target, second, |m| {
-            m.item("Copy");
+            m.item("copy", "Copy");
         });
     });
     h.run();

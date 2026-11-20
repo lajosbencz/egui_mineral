@@ -108,7 +108,7 @@ fn dialog_is_the_max_width_with_the_surface_padding_around_the_title() {
         let rt = ui.rt();
         let mut open = true;
         Dialog::new("dlg", "Title")
-            .action("Ok")
+            .action(0, "Ok")
             .show_modal(rt, &mut open, |_| {});
     });
     let surface = rect(&p, "dlg-dialog");
@@ -124,8 +124,8 @@ fn dialog_actions_keep_their_width_and_end_align_inside_a_flow() {
         Flow::new(vec2(8.0, 8.0), Align::Center).show(ui, |row| {
             row.add(|_| {});
             Dialog::new("dlg", "Delete file")
-                .action("Cancel")
-                .action("Delete")
+                .action(0, "Cancel")
+                .action(1, "Delete")
                 .show_modal(rt, open, |_| {});
         });
     });

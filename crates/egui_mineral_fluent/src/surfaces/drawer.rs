@@ -3,7 +3,8 @@ use std::time::Duration;
 
 use egui::{Align2, Frame, Id, Margin, Panel, Rect, Response, ScrollArea, Ui, UiBuilder, Vec2, pos2, vec2};
 use egui_mineral::{
-    action::Clicked,
+    action::{ActionValue, NoAction, Widen},
+    select::ItemKey,
     i18n::Direction,
     kit::{self, state::TempState},
     motion::{self, Visibility},
@@ -92,18 +93,18 @@ impl DrawerSize {
 /// Result of showing a [`Drawer`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct DrawerResponse<R> {
+pub struct DrawerResponse<R, A = NoAction> {
     /// Surface while shown.
     pub response: Option<Response>,
     /// Body closure result while shown.
     pub inner: Option<R>,
-    /// Footer action clicked this frame.
-    pub clicked: Option<Clicked>,
+    /// Value of the footer action clicked this frame.
+    pub clicked: Option<A>,
     /// Why it closed this frame.
     pub dismissed: Option<Dismiss>,
 }
 
-impl<R> DrawerResponse<R> {
+impl<R, A> DrawerResponse<R, A> {
     fn closed() -> Self {
         Self {
             response: None,
@@ -122,16 +123,16 @@ struct Heights {
 
 impl TempState for Heights {}
 
-struct Body<R> {
+struct Body<R, A> {
     inner: R,
-    clicked: Option<Clicked>,
+    clicked: Option<A>,
     close: bool,
 }
 
 /// Fluent `OverlayDrawer` and `InlineDrawer`: header, scrolling body and footer on a screen edge.
 #[derive(Clone, Debug)]
 #[must_use = "call .show_modal(..) or .show(..)"]
-pub struct Drawer {
+pub struct Drawer<A = NoAction> {
     salt: KeyedSalt,
     key: AgentKey,
     id: Id,
@@ -140,7 +141,7 @@ pub struct Drawer {
     close_button: bool,
     position: DrawerPosition,
     size: DrawerSize,
-    footer: Vec<DialogAction>,
+    footer: Vec<(A, DialogAction)>,
     separator: bool,
 }
 
@@ -161,7 +162,9 @@ impl Drawer {
             separator: true,
         }
     }
+}
 
+impl<A: ActionValue> Drawer<A> {
     crate::widget::setters! {
         /// Replaces the `<id_salt>-drawer` key.
         agent_key(key)
@@ -191,10 +194,25 @@ impl Drawer {
         self
     }
 
-    /// Appends a `DrawerFooter` button.
-    pub fn footer_action(mut self, action: impl Into<DialogAction>) -> Self {
-        self.footer.push(action.into());
-        self
+    /// Appends the `DrawerFooter` button reporting `value`.
+    pub fn footer_action<B: ItemKey>(self, value: B, action: impl Into<DialogAction>) -> Drawer<B>
+    where
+        A: Widen<B>,
+    {
+        let mut drawer = Drawer {
+            salt: self.salt,
+            key: self.key,
+            id: self.id,
+            label: self.label,
+            title: self.title,
+            close_button: self.close_button,
+            position: self.position,
+            size: self.size,
+            footer: egui_mineral::action::widen(self.footer),
+            separator: self.separator,
+        };
+        drawer.footer.push((value, action.into()));
+        drawer
     }
 
     /// `separator` of an inline drawer; default `true`.
@@ -209,7 +227,7 @@ impl Drawer {
         rt: &Rt,
         open: &mut bool,
         add: impl FnOnce(&mut MineralUi<'_, Fluent>) -> R,
-    ) -> DrawerResponse<R> {
+    ) -> DrawerResponse<R, A> {
         let ctx = rt.ctx();
         self.id = kit::scoped_id(rt.core(), self.id);
         ModalFocus::scope(ctx, self.id.with("focus"), open, |_, open| {
@@ -260,7 +278,7 @@ impl Drawer {
         ui: &mut MineralUi<'_, Fluent>,
         open: &mut bool,
         add: impl FnOnce(&mut MineralUi<'_, Fluent>) -> R,
-    ) -> DrawerResponse<R> {
+    ) -> DrawerResponse<R, A> {
         let rt = ui.rt();
         self.id = kit::scoped_id(rt.core(), self.id);
         let Some(e) = self.progress(rt, *open) else {
@@ -353,13 +371,20 @@ impl Drawer {
         }
     }
 
+    fn footer_salt(&self, value: &A, action: &DialogAction) -> KeyedSalt {
+        action
+            .salt
+            .clone()
+            .unwrap_or_else(|| self.salt.child("footer").join(&value.salt()))
+    }
+
     fn body<R>(
         &self,
         rt: &Rt,
         ui: &mut Ui,
         extent: Vec2,
         add: impl FnOnce(&mut MineralUi<'_, Fluent>) -> R,
-    ) -> Body<R> {
+    ) -> Body<R, A> {
         let t = rt.tokens();
         let dir = rt.i18n().direction();
         ui.set_min_size(extent);
@@ -436,12 +461,12 @@ impl Drawer {
             ui.horizontal(|ui| {
                 ui.add_space(d::PADDING_X);
                 ui.spacing_mut().item_spacing.x = d::FOOTER_GAP;
-                for (i, a) in self.footer.iter().enumerate() {
-                    let b = PushButton::new(self.salt.child(("footer", i)), &a.label)
+                for (v, a) in &self.footer {
+                    let b = PushButton::new(self.footer_salt(v, a), &a.label)
                         .appearance(a.appearance)
                         .disabled(a.disabled);
                     if rt.ui(ui).mineral(b).response().clicked() {
-                        clicked = Some(a.clicked(i));
+                        clicked = Some(v.clone());
                     }
                 }
             });

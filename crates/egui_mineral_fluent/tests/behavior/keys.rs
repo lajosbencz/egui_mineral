@@ -1,62 +1,39 @@
-use egui_mineral::action::Clicked;
 use egui_mineral_fluent::{
     actions::PushButton,
     inputs::{Select, Swatch, SwatchPicker},
     navigation::{
         Breadcrumb, BreadcrumbButton, Menu, MenuGrid, MenuGridAction, MenuGridItem, MenuGridRow, MenuItem, TabList,
-        Toolbar, ToolbarButton, ToolbarRadioGroup,
+        Toolbar, ToolbarRadioGroup,
     },
     surfaces::{Dialog, DialogAction},
 };
 
 use crate::support::{FluentHarness, Harness, harness};
 
-fn key(clicked: Option<&Clicked>) -> Option<&str> {
-    clicked.and_then(Clicked::key::<&str>).copied()
-}
-
 #[test]
-fn dialog_reports_the_key_of_the_clicked_action() {
+fn dialog_reports_the_value_of_the_clicked_action() {
     let mut h = harness((true, None), |ui, (open, clicked)| {
         let r = Dialog::new("dlg", "Delete file")
-            .action("Cancel")
-            .action(DialogAction::new("Delete").key("delete"))
+            .action("cancel", "Cancel")
+            .action("delete", DialogAction::new("Delete"))
             .show_modal(ui.rt(), open, |_| {});
         *clicked = r.clicked.or(clicked.take());
     });
     h.run();
-    h.click("dlg-action-1-button");
+    h.click("dlg-action-delete-button");
     h.run();
-    let clicked = h.state().value.1.as_ref();
-    assert_eq!(clicked.map(Clicked::index), Some(1));
-    assert_eq!(key(clicked), Some("delete"));
+    assert_eq!(h.state().value.1, Some("delete"));
 }
 
-#[test]
-fn an_item_without_a_key_reports_its_index_only() {
-    let mut h = harness((true, None), |ui, (open, clicked)| {
-        let r = Dialog::new("dlg", "Delete file")
-            .action("Cancel")
-            .show_modal(ui.rt(), open, |_| {});
-        *clicked = r.clicked.or(clicked.take());
-    });
-    h.run();
-    h.click("dlg-action-0-button");
-    h.run();
-    let clicked = h.state().value.1.as_ref();
-    assert_eq!(clicked.map(Clicked::index), Some(0));
-    assert_eq!(key(clicked), None);
-}
-
-fn menu() -> Harness<'static, (bool, Option<Clicked>)> {
+fn menu() -> Harness<'static, (bool, Option<&'static str>)> {
     harness((false, None), |ui, (open, clicked)| {
         let rt = ui.rt();
         let trigger = ui.mineral(PushButton::new("trig", "Open")).response().clone();
         let r = Menu::new("m", "Actions").show(rt, &trigger, open, |m| {
-            m.item(MenuItem::new("Cut").key("cut"));
+            m.item("cut", MenuItem::new("Cut"));
             m.checkbox_item("Wrap", &mut false);
             m.submenu("More", |m| {
-                m.item(MenuItem::new("Deep").key("deep"));
+                m.item("deep", MenuItem::new("Deep"));
             });
         });
         *clicked = r.clicked.or(clicked.take());
@@ -64,7 +41,7 @@ fn menu() -> Harness<'static, (bool, Option<Clicked>)> {
 }
 
 #[test]
-fn menu_reports_the_key_of_the_clicked_row() {
+fn menu_reports_the_value_of_the_clicked_row() {
     let mut h = menu();
     h.run();
     h.click("trig-button");
@@ -72,7 +49,7 @@ fn menu_reports_the_key_of_the_clicked_row() {
     h.click("m-1-menuitem");
     assert_eq!(h.state().value.1, None, "a checkbox row is not an action");
     h.click("m-0-menuitem");
-    assert_eq!(key(h.state().value.1.as_ref()), Some("cut"));
+    assert_eq!(h.state().value.1, Some("cut"));
 }
 
 #[test]
@@ -84,56 +61,49 @@ fn menu_reports_submenu_rows() {
     h.click("m-2-menuitem");
     h.run();
     h.click("m-sub-2-0-menuitem");
-    let clicked = h.state().value.1.as_ref();
-    assert_eq!(key(clicked), Some("deep"));
-    assert_eq!(clicked.map(Clicked::index), Some(0), "index within the submenu");
+    assert_eq!(h.state().value.1, Some("deep"));
 }
 
 #[test]
-fn menu_grid_reports_the_key_and_position_of_the_cell() {
-    let mut h = harness((false, None, None), |ui, (open, clicked, cell)| {
+fn menu_grid_reports_the_value_of_the_cell() {
+    let mut h = harness((false, None), |ui, (open, clicked)| {
         let rt = ui.rt();
         let trigger = ui.mineral(PushButton::new("trig", "Open")).response().clone();
         let r = MenuGrid::new("g", "Actions").show(rt, &trigger, open, |g| {
-            g.row(MenuGridRow::new().cell(MenuGridItem::new("Cut").key("cut")));
+            g.row(MenuGridRow::new().cell("cut", MenuGridItem::new("Cut")));
             g.row(
                 MenuGridRow::new()
-                    .cell(MenuGridItem::new("Copy").key("copy"))
-                    .cell(MenuGridAction::new("Pin", egui_mineral_fluent::icons::ICON_PIN).key("pin")),
+                    .cell("copy", MenuGridItem::new("Copy"))
+                    .cell("pin", MenuGridAction::new("Pin", egui_mineral_fluent::icons::ICON_PIN)),
             );
         });
-        *cell = r.clicked.as_ref().map(|c| (c.row, c.cell.index())).or(*cell);
-        *clicked = r.clicked.map(|c| c.cell).or(clicked.take());
+        *clicked = r.clicked.or(clicked.take());
     });
     h.run();
     h.click("trig-button");
     h.run();
     h.click("g-1-1-gridcell");
-    let (_, clicked, cell) = &h.state().value;
-    assert_eq!(key(clicked.as_ref()), Some("pin"));
-    assert_eq!(*cell, Some((1, 1)));
+    assert_eq!(h.state().value.1, Some("pin"));
 }
 
 #[test]
-fn toolbar_and_breadcrumb_report_keys() {
+fn toolbar_and_breadcrumb_report_values() {
     let mut h = harness((None, None), |ui, (tool, crumb)| {
         let r = Toolbar::new("tb", "Tools")
-            .action("Cut")
-            .action(ToolbarButton::new("Copy").key("copy"))
+            .action("cut", "Cut")
+            .action("copy", "Copy")
             .show(ui);
         *tool = r.clicked.or(tool.take());
         let r = Breadcrumb::new("bc", "Path")
-            .item(BreadcrumbButton::new("Home").key("home"))
-            .item(BreadcrumbButton::new("Page").current(true))
+            .item("home", BreadcrumbButton::new("Home"))
+            .item("page", BreadcrumbButton::new("Page").current(true))
             .show(ui);
         *crumb = r.clicked.or(crumb.take());
     });
     h.run();
-    h.click("tb-1-button");
+    h.click("tb-copy-button");
     h.click("bc-0-button");
-    let (tool, crumb) = &h.state().value;
-    assert_eq!(key(tool.as_ref()), Some("copy"));
-    assert_eq!(key(crumb.as_ref()), Some("home"));
+    assert_eq!(h.state().value, (Some("copy"), Some("home")));
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, egui_mineral::semantic::KeySalt)]

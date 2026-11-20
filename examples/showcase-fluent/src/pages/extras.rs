@@ -46,17 +46,17 @@ fn menu_bar(ui: &mut FluentUi<'_>) {
     MenuBar::new("bar")
         .menu(
             BarMenu::new("File", |m| {
-                m.item("New");
-                m.item("Open");
+                m.item("new", "New");
+                m.item("open", "Open");
                 m.divider();
-                m.item("Exit");
+                m.item("exit", "Exit");
             })
             .mnemonic('f'),
         )
         .menu(
             BarMenu::new("Edit", |m| {
-                m.item("Copy");
-                m.item("Paste");
+                m.item("copy", "Copy");
+                m.item("paste", "Paste");
             })
             .mnemonic('e'),
         )

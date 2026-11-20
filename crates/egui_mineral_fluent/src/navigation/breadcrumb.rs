@@ -1,9 +1,9 @@
 use egui::{Frame, Sense, vec2};
 use egui_mineral::{
-    action::Clicked,
     focus::{self as roving, RovingFocus},
     i18n::Direction,
     layout::Axis,
+    select::ItemKey,
     semantic::{self, AgentKey, KeyedSalt, Role, SemanticNode},
     widget::MineralUi,
 };
@@ -29,7 +29,6 @@ pub struct BreadcrumbButton {
     icon: Option<Icon>,
     current: bool,
     disabled: bool,
-    action_key: Option<egui_mineral::action::ActionKey>,
 }
 
 impl BreadcrumbButton {
@@ -40,7 +39,6 @@ impl BreadcrumbButton {
             icon: None,
             current: false,
             disabled: false,
-            action_key: None,
         }
     }
 
@@ -55,10 +53,6 @@ impl BreadcrumbButton {
     pub fn current(mut self, current: bool) -> Self {
         self.current = current;
         self
-    }
-
-    crate::widget::setters! {
-        action_key
     }
 
     crate::widget::setters! {
@@ -196,17 +190,18 @@ fn metrics(size: Size, current: bool) -> Metrics {
 /// Result of showing a [`Breadcrumb`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct BreadcrumbResponse {
+pub struct BreadcrumbResponse<K> {
     /// Spans the trail.
     pub response: egui::Response,
-    /// Item clicked this frame, also from the overflow menu; the current and disabled items never report.
-    pub clicked: Option<Clicked>,
+    /// Value of the item clicked this frame, also from the overflow menu; the current and disabled items never
+    /// report.
+    pub clicked: Option<K>,
 }
 
 /// Fluent `Breadcrumb`: a trail of [`BreadcrumbItem`]s separated by a [`BreadcrumbDivider`].
 #[derive(Debug)]
 #[must_use = "call .show(..)"]
-pub struct Breadcrumb {
+pub struct Breadcrumb<K> {
     salt: KeyedSalt,
     key: AgentKey,
     label: String,
@@ -215,10 +210,12 @@ pub struct Breadcrumb {
     divider: BreadcrumbDivider,
     overflow: Option<Overflow>,
     items: Vec<BreadcrumbItem>,
+    values: Vec<K>,
 }
 
-impl Breadcrumb {
-    /// `label` names the trail for assistive technology; agent key `<id_salt>-breadcrumb`.
+impl<K: ItemKey> Breadcrumb<K> {
+    /// `label` names the trail for assistive technology; agent key `<id_salt>-breadcrumb`; `K` is the item values'
+    /// type.
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>) -> Self {
         Self {
             salt: id_salt.into(),
@@ -233,18 +230,22 @@ impl Breadcrumb {
             divider: BreadcrumbDivider::new(),
             overflow: None,
             items: Vec::new(),
+            values: Vec::new(),
         }
     }
 
-    /// Appends one item.
-    pub fn item(mut self, item: impl Into<BreadcrumbItem>) -> Self {
+    /// Appends the item reporting `value`.
+    pub fn item(mut self, value: K, item: impl Into<BreadcrumbItem>) -> Self {
+        self.values.push(value);
         self.items.push(item.into());
         self
     }
 
-    /// Appends items in order.
-    pub fn items(mut self, items: impl IntoIterator<Item = impl Into<BreadcrumbItem>>) -> Self {
-        self.items.extend(items.into_iter().map(Into::into));
+    /// Appends `(value, item)` pairs in order.
+    pub fn items(mut self, items: impl IntoIterator<Item = (K, impl Into<BreadcrumbItem>)>) -> Self {
+        for (value, item) in items {
+            self = self.item(value, item);
+        }
         self
     }
 
@@ -279,7 +280,7 @@ impl Breadcrumb {
     }
 
     /// Shows the trail.
-    pub fn show(self, ui: &mut MineralUi<'_, Fluent>) -> BreadcrumbResponse {
+    pub fn show(self, ui: &mut MineralUi<'_, Fluent>) -> BreadcrumbResponse<K> {
         let rt = ui.rt();
         let Self {
             salt,
@@ -290,6 +291,7 @@ impl Breadcrumb {
             divider,
             overflow,
             items,
+            values,
         } = self;
         let dir = rt.i18n().direction();
         let glyph = divider.glyph(dir, &rt.icons());
@@ -361,10 +363,7 @@ impl Breadcrumb {
         semantic::emit(ui.ctx(), Some(group.id), group.rect, || {
             SemanticNode::new(key.id(&salt), Role::Navigation, &label)
         });
-        let clicked = clicked.map(|i| {
-            let key = items.get(i).and_then(|it| it.button.action_key.clone());
-            Clicked::new(i, key)
-        });
+        let clicked = clicked.and_then(|i| values.get(i).cloned());
         BreadcrumbResponse {
             response: group,
             clicked,
@@ -452,7 +451,7 @@ fn parts(shown: &[bool], at_start: bool) -> Vec<Part> {
     parts
 }
 
-fn overflow_rows(m: &mut MenuUi<'_, '_>, items: &[BreadcrumbItem], shown: &[bool]) -> Option<usize> {
+fn overflow_rows(m: &mut MenuUi<'_, '_, usize>, items: &[BreadcrumbItem], shown: &[bool]) -> Option<usize> {
     let mut clicked = None;
     for (i, item) in items.iter().enumerate().filter(|(i, _)| shown.get(*i) == Some(&false)) {
         let b = &item.button;
@@ -460,7 +459,7 @@ fn overflow_rows(m: &mut MenuUi<'_, '_>, items: &[BreadcrumbItem], shown: &[bool
         if let Some(icon) = b.icon {
             row = row.icon(icon);
         }
-        if m.item(row).clicked {
+        if m.item(i, row).clicked {
             clicked = Some(i);
         }
     }

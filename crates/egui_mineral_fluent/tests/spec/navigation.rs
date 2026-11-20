@@ -113,7 +113,7 @@ fn menu_rows_are_the_item_height_inside_the_minimum_width() {
         let rt = ui.rt();
         let trigger = ui.mineral(PushButton::new("trig", "Open")).response().clone();
         Menu::new("m", "Actions").show(rt, &trigger, &mut open, |m| {
-            m.item("Cut");
+            m.item(0, "Cut");
         });
     });
     let tree = p.rt.tree(egui::ViewportId::ROOT).expect("semantics collected");
@@ -131,7 +131,7 @@ fn toolbar_padding_follows_the_size() {
         (Size::Large, 4.0, 20.0),
     ] {
         let p = render(|ui| {
-            Toolbar::new("tb", "Tools").size(size).action("Cut").show(ui);
+            Toolbar::new("tb", "Tools").size(size).action(0, "Cut").show(ui);
         });
         let button = tab_rect(&p, "tb-0-button");
         let bar = tab_rect(&p, "tb-toolbar");
@@ -151,7 +151,7 @@ fn toolbar_checked_toggle_uses_the_selected_subtle_fill() {
     let mut on = true;
     let p = render(|ui| {
         Toolbar::new("tb", "Tools")
-            .action("Cut")
+            .action(0, "Cut")
             .toggle(ToolbarToggleButton::new("Bold", &mut on))
             .show(ui);
     });
@@ -163,13 +163,13 @@ fn toolbar_checked_toggle_uses_the_selected_subtle_fill() {
 #[test]
 fn toolbar_divider_adds_its_padding_on_both_sides() {
     let plain = render(|ui| {
-        Toolbar::new("tb", "Tools").action("Cut").action("Copy").show(ui);
+        Toolbar::new("tb", "Tools").action(0, "Cut").action(1, "Copy").show(ui);
     });
     let divided = render(|ui| {
         Toolbar::new("tb", "Tools")
-            .action("Cut")
+            .action(0, "Cut")
             .divider()
-            .action("Copy")
+            .action(1, "Copy")
             .show(ui);
     });
     let extra = tab_rect(&divided, "tb-toolbar").width() - tab_rect(&plain, "tb-toolbar").width();
@@ -181,9 +181,9 @@ fn trail(size: Size) -> impl FnMut(&mut FluentUi<'_>) {
     move |ui| {
         Breadcrumb::new("bc", "Path")
             .size(size)
-            .item(BreadcrumbButton::new("Home").icon(ICON_HOME))
-            .item("Docs")
-            .item(BreadcrumbButton::new("Page").current(true))
+            .item(0, BreadcrumbButton::new("Home").icon(ICON_HOME))
+            .item(1, "Docs")
+            .item(2, BreadcrumbButton::new("Page").current(true))
             .show(ui);
     }
 }
@@ -212,7 +212,7 @@ fn breadcrumb_dividers_take_the_icon_size_between_items() {
 fn breadcrumb_icon_slot_adds_its_size_and_gap() {
     let p = render(|ui| {
         Breadcrumb::new("bc", "Path")
-            .item(BreadcrumbButton::new("Home").icon(ICON_HOME))
+            .item(0, BreadcrumbButton::new("Home").icon(ICON_HOME))
             .show(ui);
     });
     // Padding and border, icon and its gap, then the label.
@@ -409,13 +409,13 @@ fn grid_pass() -> Pass {
         MenuGrid::new("g", "Actions").show(ui.rt(), &trigger, &mut true, |g| {
             g.row(
                 MenuGridRow::new()
-                    .cell(MenuGridItem::new("Cut").icon(ICON_CUT).secondary_text("Ctrl+X"))
-                    .cell(MenuGridAction::new("More", ICON_MORE_HORIZONTAL)),
+                    .cell("cut", MenuGridItem::new("Cut").icon(ICON_CUT).secondary_text("Ctrl+X"))
+                    .cell("more", MenuGridAction::new("More", ICON_MORE_HORIZONTAL)),
             );
             g.row(
                 MenuGridRow::new()
-                    .cell("Copy")
-                    .cell(MenuGridAction::new("Pin", ICON_PIN)),
+                    .cell("copy", "Copy")
+                    .cell("pin", MenuGridAction::new("Pin", ICON_PIN)),
             );
         });
     })
@@ -522,9 +522,9 @@ fn menu_split_row_is_the_main_part_plus_the_trigger_with_a_separator() {
         let rt = ui.rt();
         let trigger = ui.mineral(PushButton::new("trig", "Open")).response().clone();
         Menu::new("m", "Actions").show(rt, &trigger, &mut open, |m| {
-            m.item("Cut");
-            m.split_item("Paste", |m| {
-                m.item("Plain");
+            m.item("cut", "Cut");
+            m.split_item("paste", "Paste", |m| {
+                m.item("plain", "Plain");
             });
         });
     });

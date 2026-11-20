@@ -152,12 +152,12 @@ fn dialog_harness(kind: DialogKind) -> Harness<'static, DialogState> {
         let rt = ui.rt();
         let r = Dialog::new("dlg", "Delete file")
             .kind(kind)
-            .action("Cancel")
-            .action("Delete")
+            .action(0, "Cancel")
+            .action(1, "Delete")
             .show_modal(rt, open, |ui| {
                 ui.label("Sure?");
             });
-        *clicked = clicked.or(r.clicked.map(|c| c.index()));
+        *clicked = clicked.or(r.clicked);
         *dismissed = dismissed.or(r.dismissed);
     })
 }
@@ -196,7 +196,7 @@ fn drawer_overlay_closes_on_escape() {
         Drawer::new("dr", "Menu")
             .title("Menu")
             .close_button(true)
-            .footer_action("Save")
+            .footer_action(0, "Save")
             .show_modal(rt, open, |ui| {
                 ui.label("Body");
             });

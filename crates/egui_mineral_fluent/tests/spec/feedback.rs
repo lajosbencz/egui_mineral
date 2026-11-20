@@ -166,7 +166,7 @@ fn presence_badge_is_a_square_of_its_size() {
 
 #[test]
 fn toast_is_as_wide_as_the_toaster_and_shows_its_text() {
-    let mut queue = toast_queue();
+    let mut queue = toast_queue::<egui_mineral::action::NoAction>();
     queue.push(Toast::new("Saved").body("All changes saved."));
     let p = render(|ui| {
         Toaster::new(&mut queue).show(ui.rt());

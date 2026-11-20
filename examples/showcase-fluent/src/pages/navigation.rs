@@ -3,7 +3,6 @@ use egui_mineral_fluent::{
     actions::PushButton,
     data::{Avatar, AvatarColor},
     egui_mineral::{
-        action::Clicked,
         expand::Expansion,
         layout::Axis,
         select::{Selection, SelectionMode},
@@ -36,8 +35,8 @@ pub(crate) struct State {
     last: &'static str,
     bold: [bool; 4],
     align: usize,
-    crumb: Option<Clicked>,
-    overflow_last: Option<Clicked>,
+    crumb: Option<&'static str>,
+    overflow_last: Option<&'static str>,
     nav: Option<usize>,
     nav_small: Option<usize>,
     tree_open: [Expansion<String>; 3],
@@ -94,16 +93,16 @@ fn toolbars(ui: &mut FluentUi<'_>, s: &mut State) {
     for (i, size) in Size::ALL.iter().copied().enumerate() {
         Toolbar::new(("toolbar", i), format!("{size:?}"))
             .size(size)
-            .action("Cut")
-            .action(ToolbarButton::new("Paste").disabled(true))
+            .action("cut", "Cut")
+            .action("paste", ToolbarButton::new("Paste").disabled(true))
             .toggle(ToolbarToggleButton::new("Bold", &mut s.bold[i]))
             .show(ui);
     }
     let icon = |label: &'static str, icon| ToolbarButton::new(label).icon(icon).label_visible(false);
     let radio = |label: &'static str, icon| ToolbarRadioButton::new(label).icon(icon).label_visible(false);
     Toolbar::new("toolbar-icons", "Icons")
-        .action(icon("Cut", ICON_CUT))
-        .action(icon("Settings", ICON_SETTINGS).disabled(true))
+        .action("cut", icon("Cut", ICON_CUT))
+        .action("settings", icon("Settings", ICON_SETTINGS).disabled(true))
         .divider()
         .toggle(
             ToolbarToggleButton::new("Home", &mut s.bold[3])
@@ -119,13 +118,13 @@ fn toolbars(ui: &mut FluentUi<'_>, s: &mut State) {
         .show(ui);
     Toolbar::new("toolbar-vertical", "Vertical")
         .axis(Axis::Vertical)
-        .action(ToolbarButton::new("Home").icon(ICON_HOME))
+        .action("home", ToolbarButton::new("Home").icon(ICON_HOME))
         .divider()
-        .action(ToolbarButton::new("People").icon(ICON_PERSON))
+        .action("people", ToolbarButton::new("People").icon(ICON_PERSON))
         .show(ui);
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, egui_mineral_fluent::prelude::KeySalt)]
 enum Edit {
     Cut,
     Paste,
@@ -138,44 +137,37 @@ fn breadcrumbs(ui: &mut FluentUi<'_>, s: &mut State) {
     for (i, size) in Size::ALL.iter().copied().enumerate() {
         let r = Breadcrumb::new(("breadcrumb", i), format!("{size:?}"))
             .size(size)
-            .item(BreadcrumbButton::new("Home").icon(ICON_HOME).key("home"))
-            .item(BreadcrumbButton::new("Docs").key("docs"))
-            .item(BreadcrumbButton::new("Page").current(true))
+            .item("home", BreadcrumbButton::new("Home").icon(ICON_HOME))
+            .item("docs", BreadcrumbButton::new("Docs"))
+            .item("page", BreadcrumbButton::new("Page").current(true))
             .show(ui);
         s.crumb = r.clicked.or(s.crumb.take());
     }
     Breadcrumb::new("breadcrumb-arrow", "Arrow keys")
         .focus(BreadcrumbFocus::Arrow)
-        .item("Home")
-        .item(BreadcrumbButton::new("Docs").disabled(true))
-        .item(BreadcrumbButton::new("Page").current(true))
+        .item("home", "Home")
+        .item("docs", BreadcrumbButton::new("Docs").disabled(true))
+        .item("page", BreadcrumbButton::new("Page").current(true))
         .show(ui);
-    ui.label(format!(
-        "Clicked: {:?}",
-        s.crumb.as_ref().and_then(Clicked::key::<&str>)
-    ));
+    ui.label(format!("Clicked: {:?}", s.crumb));
 }
 
 fn overflow(ui: &mut FluentUi<'_>, s: &mut State) {
     heading(ui, "h-overflow", "Overflow");
     ui.scope(|ui| {
         ui.set_max_width(280.0);
-        let mut bar = Toolbar::new("toolbar-overflow", "Edit").overflow(Overflow::new("More items"));
-        for label in ["Cut", "Copy", "Paste", "Undo", "Redo"] {
-            bar = bar.action(ToolbarButton::new(label).key(label));
-        }
-        let r = bar.show(ui);
+        let r = Toolbar::new("toolbar-overflow", "Edit")
+            .overflow(Overflow::new("More items"))
+            .actions(["Cut", "Copy", "Paste", "Undo", "Redo"].map(|label| (label, label)))
+            .show(ui);
         s.overflow_last = r.clicked.or(s.overflow_last.take());
         let r = Breadcrumb::new("breadcrumb-overflow", "Path")
             .overflow(Overflow::new("More items").direction(OverflowDirection::Start))
-            .items(["Home", "Docs", "Guide", "Topic", "Page"].map(|label| BreadcrumbButton::new(label).key(label)))
+            .items(["Home", "Docs", "Guide", "Topic", "Page"].map(|label| (label, label)))
             .show(ui);
         s.crumb = r.clicked.or(s.crumb.take());
     });
-    ui.label(format!(
-        "Clicked: {:?}",
-        s.overflow_last.as_ref().and_then(Clicked::key::<&str>)
-    ));
+    ui.label(format!("Clicked: {:?}", s.overflow_last));
 }
 
 fn navs(ui: &mut FluentUi<'_>, s: &mut State) {
@@ -223,26 +215,24 @@ fn menus(ui: &mut FluentUi<'_>, s: &mut State) {
     } = s;
     let r = Menu::new("menu", "Edit").show(rt, &trigger, menu_open, |m| {
         m.item(
-            MenuItem::new("Cut")
-                .icon(ICON_CUT)
-                .secondary_text("Ctrl+X")
-                .key(Edit::Cut),
+            Edit::Cut,
+            MenuItem::new("Cut").icon(ICON_CUT).secondary_text("Ctrl+X"),
         );
-        m.item(MenuItem::new("Paste").disabled(true));
+        m.item(Edit::Paste, MenuItem::new("Paste").disabled(true));
         m.divider();
         m.checkbox_item("Word wrap", wrap);
         m.group("Size", |m| {
             m.radio_item("Small", size, 0);
             m.radio_item("Large", size, 1);
         });
-        m.split_item(MenuItem::new("Paste").key(Edit::Paste), |m| {
-            m.item(MenuItem::new("Paste as plain text").key(Edit::PastePlain));
+        m.split_item(Edit::Paste, "Paste", |m| {
+            m.item(Edit::PastePlain, "Paste as plain text");
         });
         m.submenu("More", |m| {
-            m.item(MenuItem::new("Select all").key(Edit::SelectAll));
+            m.item(Edit::SelectAll, "Select all");
         });
     });
-    match r.clicked.as_ref().and_then(Clicked::key::<Edit>) {
+    match r.clicked {
         Some(Edit::Cut) => *last = "Cut",
         Some(Edit::Paste) => *last = "Paste",
         Some(Edit::PastePlain) => *last = "Paste as plain text",
@@ -335,18 +325,18 @@ fn menu_grids(ui: &mut FluentUi<'_>, s: &mut State) {
     let r = MenuGrid::new("menu-grid", "Actions").show(ui.rt(), &trigger, &mut s.menu_grid_open, |g| {
         g.row(
             MenuGridRow::new()
-                .cell(MenuGridItem::new("Cut").icon(ICON_CUT).secondary_text("Ctrl+X"))
-                .cell(MenuGridAction::new("More", ICON_MORE_HORIZONTAL)),
+                .cell((0, 0), MenuGridItem::new("Cut").icon(ICON_CUT).secondary_text("Ctrl+X"))
+                .cell((0, 1), MenuGridAction::new("More", ICON_MORE_HORIZONTAL)),
         );
         g.row(
             MenuGridRow::new()
-                .cell(MenuGridItem::new("Copy").icon(ICON_COPY))
-                .cell(MenuGridAction::new("Share", ICON_SHARE).disabled(true))
-                .cell(MenuGridAction::new("Pin", ICON_PIN)),
+                .cell((1, 0), MenuGridItem::new("Copy").icon(ICON_COPY))
+                .cell((1, 1), MenuGridAction::new("Share", ICON_SHARE).disabled(true))
+                .cell((1, 2), MenuGridAction::new("Pin", ICON_PIN)),
         );
-        g.row(MenuGridRow::new().cell(MenuGridItem::new("Paste").disabled(true)));
+        g.row(MenuGridRow::new().cell((2, 0), MenuGridItem::new("Paste").disabled(true)));
     });
-    s.grid_last = r.clicked.map(|c| (c.row, c.cell.index())).or(s.grid_last);
+    s.grid_last = r.clicked.or(s.grid_last);
     ui.label(format!("Activated: {:?}", s.grid_last));
 }
 

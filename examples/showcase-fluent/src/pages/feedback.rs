@@ -19,7 +19,7 @@ use crate::FluentUi;
 #[derive(Debug)]
 pub(crate) struct State {
     dismissed: [bool; 4],
-    queue: ToastQueue<Toast>,
+    queue: ToastQueue<Toast<&'static str>>,
     pushed: u32,
 }
 
@@ -224,7 +224,7 @@ fn toasts(ui: &mut FluentUi<'_>, s: &mut State) {
                         .body("Something happened.")
                         .intent(intent)
                         .position(position)
-                        .footer_action(ToastLink::new("Undo").key("undo"))
+                        .footer_action("undo", ToastLink::new("Undo"))
                         .dismissible(true),
                 );
             }

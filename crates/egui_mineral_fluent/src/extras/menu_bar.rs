@@ -1,7 +1,7 @@
 use crate::msg;
 use egui::{Context, Id, Key, Modifiers, Response, Vec2};
 use egui_mineral::{
-    action::Clicked,
+    action::{ActionValue, NoAction},
     focus::{self, RovingFocus, TabStop},
     kit::{
         self,
@@ -24,22 +24,22 @@ use crate::{
 // Not in Fluent UI React v9: a desktop menu bar of subtle buttons opening Fluent `Menu`s.
 const BAR_H: f32 = 32.0;
 
-type Rows<'a> = Box<dyn FnOnce(&mut MenuUi<'_, '_>) + 'a>;
+type Rows<'a, A> = Box<dyn FnOnce(&mut MenuUi<'_, '_, A>) + 'a>;
 
 /// Top-level entry of a [`MenuBar`]: the bar title and the rows of its [`Menu`].
 #[must_use]
-pub struct BarMenu<'a> {
+pub struct BarMenu<'a, A = NoAction> {
     title: String,
     mnemonic: Option<char>,
     disabled: bool,
-    rows: Rows<'a>,
+    rows: Rows<'a, A>,
 }
 
-kit::opaque_debug!(BarMenu<'_>);
+kit::opaque_debug!(BarMenu<'_, A>);
 
-impl<'a> BarMenu<'a> {
+impl<'a, A: ActionValue> BarMenu<'a, A> {
     /// `title` names the bar button and the menu; `rows` places the [`MenuUi`] rows while the menu is open.
-    pub fn new(title: impl Into<String>, rows: impl FnOnce(&mut MenuUi<'_, '_>) + 'a) -> Self {
+    pub fn new(title: impl Into<String>, rows: impl FnOnce(&mut MenuUi<'_, '_, A>) + 'a) -> Self {
         Self {
             title: title.into(),
             mnemonic: None,
@@ -63,31 +63,31 @@ impl<'a> BarMenu<'a> {
 /// Result of [`MenuBar::show`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct MenuBarResponse {
+pub struct MenuBarResponse<A = NoAction> {
     /// Bar response.
     pub response: Response,
     /// Open menu surface; `None` while all menus are closed.
     pub popup: Option<Response>,
     /// Index of the open menu.
     pub open: Option<usize>,
-    /// Row activated this pass ([`MenuResponse::clicked`](crate::navigation::MenuResponse::clicked) of the open
-    /// menu).
-    pub clicked: Option<Clicked>,
+    /// Value of the row activated this pass ([`MenuResponse::clicked`](crate::navigation::MenuResponse::clicked)
+    /// of the open menu).
+    pub clicked: Option<A>,
 }
 
-/// Horizontal menu bar over [`BarMenu`]s with APG menubar keyboard behavior; not in Fluent UI React v9.
-/// A [`MenuItem::key`](crate::navigation::MenuItem::key) names the row in [`MenuBarResponse::clicked`].
+/// Horizontal menu bar over [`BarMenu`]s with APG menubar keyboard behavior; not in Fluent UI React v9. Every menu
+/// reports the same value type.
 #[must_use = "call .show(..)"]
-pub struct MenuBar<'a> {
+pub struct MenuBar<'a, A = NoAction> {
     salt: KeyedSalt,
     label: Option<String>,
     disabled: bool,
-    menus: Vec<BarMenu<'a>>,
+    menus: Vec<BarMenu<'a, A>>,
 }
 
-kit::opaque_debug!(MenuBar<'_>);
+kit::opaque_debug!(MenuBar<'_, A>);
 
-impl<'a> MenuBar<'a> {
+impl<'a, A: ActionValue> MenuBar<'a, A> {
     /// Horizontal row of menu titles; agent key prefix `<id_salt>`.
     pub fn new(id_salt: impl Into<KeyedSalt>) -> Self {
         Self {
@@ -116,13 +116,13 @@ impl<'a> MenuBar<'a> {
     }
 
     /// Appends a menu.
-    pub fn menu(mut self, menu: BarMenu<'a>) -> Self {
+    pub fn menu(mut self, menu: BarMenu<'a, A>) -> Self {
         self.menus.push(menu);
         self
     }
 
     /// Paints the bar and the open menu.
-    pub fn show(self, ui: &mut MineralUi<'_, Fluent>) -> MenuBarResponse {
+    pub fn show(self, ui: &mut MineralUi<'_, Fluent>) -> MenuBarResponse<A> {
         let rt = ui.rt();
         let ctx = ui.ctx().clone();
         let dir = rt.i18n().direction();

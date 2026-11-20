@@ -1,7 +1,8 @@
 use crate::msg;
 use egui::{Align2, Frame, Id, Margin, Order, Rect, Response, Ui, Vec2, vec2};
 use egui_mineral::{
-    action::Clicked,
+    action::{ActionValue, NoAction, Widen},
+    select::ItemKey,
     kit::{self, state::TempState},
     motion::{self, Visibility},
     overlay::{self, Dismiss},
@@ -51,7 +52,7 @@ pub enum DialogActionsPosition {
     Start,
 }
 
-/// Button of a [`Dialog`]'s actions.
+/// Button of a [`Dialog`]'s actions; the dialog pairs it with its value. A label converts.
 #[derive(Clone, Debug)]
 #[must_use]
 pub struct DialogAction {
@@ -59,7 +60,6 @@ pub struct DialogAction {
     pub(super) appearance: ButtonAppearance,
     pub(super) disabled: bool,
     pub(super) salt: Option<KeyedSalt>,
-    action_key: Option<egui_mineral::action::ActionKey>,
 }
 
 impl DialogAction {
@@ -70,20 +70,11 @@ impl DialogAction {
             appearance: ButtonAppearance::Secondary,
             disabled: false,
             salt: None,
-            action_key: None,
         }
     }
 
     crate::widget::setters! {
         item_salt
-    }
-
-    crate::widget::setters! {
-        action_key
-    }
-
-    pub(super) fn clicked(&self, index: usize) -> Clicked {
-        Clicked::new(index, self.action_key.clone())
     }
 
     /// Default [`ButtonAppearance::Secondary`]; `Primary` marks the main action.
@@ -113,18 +104,18 @@ impl From<String> for DialogAction {
 /// Result of [`Dialog::show_modal`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct DialogResponse<R> {
+pub struct DialogResponse<R, A = NoAction> {
     /// Surface while shown.
     pub response: Option<Response>,
     /// Content closure result while shown.
     pub inner: Option<R>,
-    /// Action clicked this frame.
-    pub clicked: Option<Clicked>,
+    /// Value of the action clicked this frame.
+    pub clicked: Option<A>,
     /// Why it closed without an action.
     pub dismissed: Option<Dismiss>,
 }
 
-impl<R> DialogResponse<R> {
+impl<R, A> DialogResponse<R, A> {
     fn closed() -> Self {
         Self {
             response: None,
@@ -143,21 +134,21 @@ impl TempState for ActionsWidth {}
 /// Fluent `Dialog`: surface with title, content and actions over a backdrop.
 #[derive(Clone, Debug)]
 #[must_use = "call .show_modal(..)"]
-pub struct Dialog {
+pub struct Dialog<A = NoAction> {
     salt: KeyedSalt,
     key: AgentKey,
     id: Id,
     title: String,
     kind: DialogKind,
-    actions: Vec<DialogAction>,
+    actions: Vec<(A, DialogAction)>,
     position: DialogActionsPosition,
     fluid: bool,
     close_button: bool,
 }
 
-struct Shown<R> {
+struct Shown<R, A> {
     inner: R,
-    clicked: Option<Clicked>,
+    clicked: Option<A>,
     close: bool,
     rect: Rect,
 }
@@ -178,7 +169,9 @@ impl Dialog {
             close_button: false,
         }
     }
+}
 
+impl<A: ActionValue> Dialog<A> {
     crate::widget::setters! {
         /// Replaces the `<id_salt>-dialog` key.
         agent_key(key)
@@ -190,10 +183,24 @@ impl Dialog {
         self
     }
 
-    /// Appends an action button.
-    pub fn action(mut self, action: impl Into<DialogAction>) -> Self {
-        self.actions.push(action.into());
-        self
+    /// Appends the action button reporting `value`.
+    pub fn action<B: ItemKey>(self, value: B, action: impl Into<DialogAction>) -> Dialog<B>
+    where
+        A: Widen<B>,
+    {
+        let mut dialog = Dialog {
+            salt: self.salt,
+            key: self.key,
+            id: self.id,
+            title: self.title,
+            kind: self.kind,
+            actions: egui_mineral::action::widen(self.actions),
+            position: self.position,
+            fluid: self.fluid,
+            close_button: self.close_button,
+        };
+        dialog.actions.push((value, action.into()));
+        dialog
     }
 
     /// Default [`DialogActionsPosition::End`].
@@ -221,7 +228,7 @@ impl Dialog {
         rt: &Rt,
         open: &mut bool,
         add: impl FnOnce(&mut MineralUi<'_, Fluent>) -> R,
-    ) -> DialogResponse<R> {
+    ) -> DialogResponse<R, A> {
         let ctx = rt.ctx();
         self.id = kit::scoped_id(rt.core(), self.id);
         ModalFocus::scope(ctx, self.id.with("focus"), open, |focus, open| {
@@ -248,7 +255,7 @@ impl Dialog {
         focus: &mut ModalFocus,
         eased: f32,
         add: impl FnOnce(&mut MineralUi<'_, Fluent>) -> R,
-    ) -> DialogResponse<R> {
+    ) -> DialogResponse<R, A> {
         let ctx = rt.ctx();
         let t = rt.tokens();
         let width = d::MAX_WIDTH.min(ctx.content_rect().width());
@@ -281,7 +288,7 @@ impl Dialog {
         }
     }
 
-    fn finish<R>(&self, rt: &Rt, response: Response, shown: Shown<R>, dismissed: Option<Dismiss>) -> DialogResponse<R> {
+    fn finish<R>(&self, rt: &Rt, response: Response, shown: Shown<R, A>, dismissed: Option<Dismiss>) -> DialogResponse<R, A> {
         let role = if self.kind == DialogKind::Alert {
             Role::AlertDialog
         } else {
@@ -306,7 +313,7 @@ impl Dialog {
         eased: f32,
         width: f32,
         add: impl FnOnce(&mut MineralUi<'_, Fluent>) -> R,
-    ) -> Shown<R> {
+    ) -> Shown<R, A> {
         let t = rt.tokens();
         ui.multiply_opacity(eased);
         let look = Look {
@@ -375,11 +382,14 @@ impl Dialog {
         close
     }
 
-    fn action_salt(&self, i: usize, action: &DialogAction) -> KeyedSalt {
-        action.salt.clone().unwrap_or_else(|| self.salt.child(("action", i)))
+    fn action_salt(&self, value: &A, action: &DialogAction) -> KeyedSalt {
+        action
+            .salt
+            .clone()
+            .unwrap_or_else(|| self.salt.child("action").join(&value.salt()))
     }
 
-    fn actions_row(&self, rt: &Rt, ui: &mut Ui, focus: &mut ModalFocus, width: f32) -> Option<Clicked> {
+    fn actions_row(&self, rt: &Rt, ui: &mut Ui, focus: &mut ModalFocus, width: f32) -> Option<A> {
         let dir = rt.i18n().direction();
         let narrow = rt.ctx().content_rect().width() <= d::BREAKPOINT;
         let count = self.actions.len();
@@ -404,11 +414,11 @@ impl Dialog {
                     ui.set_max_width(f32::INFINITY);
                 }
                 if !self.close_button
-                    && let Some((first, action)) = self.actions.iter().enumerate().find(|(_, a)| !a.disabled)
+                    && let Some((value, action)) = self.actions.iter().find(|(_, a)| !a.disabled)
                 {
                     focus.enter(
                         rt.ctx(),
-                        ui.make_persistent_id(self.action_salt(first, action).id_salt()),
+                        ui.make_persistent_id(self.action_salt(value, action).id_salt()),
                     );
                 }
                 let free = (width - known).max(0.0);
@@ -419,15 +429,15 @@ impl Dialog {
                 if lead > 0.0 {
                     ui.add_space(lead);
                 }
-                for (i, a) in self.actions.iter().enumerate() {
-                    let mut b = PushButton::new(self.action_salt(i, a), &a.label)
+                for (v, a) in &self.actions {
+                    let mut b = PushButton::new(self.action_salt(v, a), &a.label)
                         .appearance(a.appearance)
                         .disabled(a.disabled);
                     if share > 0.0 {
                         b.min_width = Some(share);
                     }
                     if rt.ui(ui).mineral(b).response().clicked() {
-                        clicked = Some(a.clicked(i));
+                        clicked = Some(v.clone());
                     }
                 }
                 ui.min_rect().width() - lead

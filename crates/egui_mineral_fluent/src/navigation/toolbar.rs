@@ -2,7 +2,7 @@ use egui::{Frame, Margin, UiBuilder, vec2};
 use egui_mineral::kit::choice::Choice;
 use egui_mineral::select::ItemKey;
 use egui_mineral::{
-    action::Clicked,
+    action::{ActionValue, NoAction, Widen},
     focus::{self as roving, RovingFocus},
     layout::Axis,
     semantic::{self, AgentKey, KeyedSalt, Role, SemanticNode},
@@ -33,7 +33,6 @@ struct Base {
     appearance: ButtonAppearance,
     disabled: bool,
     salt: Option<KeyedSalt>,
-    action_key: Option<egui_mineral::action::ActionKey>,
 }
 
 impl Base {
@@ -45,7 +44,6 @@ impl Base {
             appearance: ButtonAppearance::Subtle,
             disabled: false,
             salt: None,
-            action_key: None,
         }
     }
 }
@@ -72,16 +70,9 @@ macro_rules! item_setters {
             }
 
             /// Identity within the toolbar (egui id and agent key part), stable when items are inserted
-            /// before it; default its index.
+            /// before it; default the button's value, else its index.
             pub fn salt(mut self, id_salt: impl Into<KeyedSalt>) -> Self {
                 self.0.salt = Some(id_salt.into());
-                self
-            }
-
-            /// App key of any type, reported as [`Clicked::key`] in [`ToolbarResponse::clicked`]; several items may
-            /// share one.
-            pub fn key<K: std::any::Any + Clone + PartialEq + Send + Sync>(mut self, key: K) -> Self {
-                self.0.action_key = Some(egui_mineral::action::ActionKey::new(key));
                 self
             }
 
@@ -153,12 +144,6 @@ impl<'a> ToolbarToggleButton<'a> {
     /// before it; default its index.
     pub fn salt(mut self, id_salt: impl Into<KeyedSalt>) -> Self {
         self.base.salt = Some(id_salt.into());
-        self
-    }
-
-    /// App key of any type, reported as [`Clicked::key`] in [`ToolbarResponse::clicked`]; several items may share one.
-    pub fn key<K: std::any::Any + Clone + PartialEq + Send + Sync>(mut self, key: K) -> Self {
-        self.base.action_key = Some(egui_mineral::action::ActionKey::new(key));
         self
     }
 
@@ -246,25 +231,62 @@ struct RadioEntry<'a> {
 egui_mineral::kit::opaque_debug!(RadioEntry<'_>);
 
 #[derive(Debug)]
-enum Entry<'a> {
-    Button(ToolbarButton),
+enum Entry<'a, A> {
+    Button(A, ToolbarButton),
     Toggle(ToolbarToggleButton<'a>),
     Radio(RadioEntry<'a>),
     Divider,
-    Group(ToolbarGroup<'a>),
+    Group(Vec<Entry<'a, A>>),
 }
 
-/// Fluent `ToolbarGroup`: items grouped in one toolbar; it adds no visuals.
-#[derive(Debug, Default)]
+impl<'a, A> Entry<'a, A> {
+    fn widen<B>(self) -> Entry<'a, B>
+    where
+        A: Widen<B>,
+    {
+        match self {
+            Self::Button(v, b) => Entry::Button(v.widen(), b),
+            Self::Toggle(t) => Entry::Toggle(t),
+            Self::Radio(r) => Entry::Radio(r),
+            Self::Divider => Entry::Divider,
+            Self::Group(g) => Entry::Group(g.into_iter().map(Entry::widen).collect()),
+        }
+    }
+}
+
+fn widen_all<A: Widen<B>, B>(entries: Vec<Entry<'_, A>>) -> Vec<Entry<'_, B>> {
+    entries.into_iter().map(Entry::widen).collect()
+}
+
+/// Fluent `ToolbarGroup`: items grouped in one toolbar; it adds no visuals. Built by [`Toolbar::group`].
+#[derive(Debug)]
 #[must_use]
-pub struct ToolbarGroup<'a>(Vec<Entry<'a>>);
+pub struct ToolbarGroup<'a, A = NoAction>(Vec<Entry<'a, A>>);
 
 macro_rules! entries {
-    ($field:tt) => {
-        /// Appends a button.
-        pub fn action(mut self, button: impl Into<ToolbarButton>) -> Self {
-            self.$field.push(Entry::Button(button.into()));
-            self
+    ($ty:ident, $field:tt) => {
+        /// Appends the button reporting `value`.
+        pub fn action<B: ItemKey>(self, value: B, button: impl Into<ToolbarButton>) -> $ty<'a, B>
+        where
+            A: Widen<B>,
+        {
+            let mut next = self.retype();
+            next.$field.push(Entry::Button(value, button.into()));
+            next
+        }
+
+        /// Appends `(value, button)` pairs.
+        pub fn actions<B: ItemKey>(
+            self,
+            buttons: impl IntoIterator<Item = (B, impl Into<ToolbarButton>)>,
+        ) -> $ty<'a, B>
+        where
+            A: Widen<B>,
+        {
+            let mut next = self.retype();
+            next.$field
+                .extend(buttons.into_iter().map(|(v, b)| Entry::Button(v, b.into())));
+            next
         }
 
         /// Appends a toggle button.
@@ -288,38 +310,45 @@ macro_rules! entries {
             self
         }
 
-        /// Appends a group.
-        pub fn group(mut self, group: ToolbarGroup<'a>) -> Self {
-            self.$field.push(Entry::Group(group));
-            self
+        /// Appends a group; `build` fills it like the toolbar, starting from the values reported so far.
+        pub fn group<B: ActionValue>(self, build: impl FnOnce(ToolbarGroup<'a, A>) -> ToolbarGroup<'a, B>) -> $ty<'a, B>
+        where
+            A: Widen<B>,
+        {
+            let group = build(ToolbarGroup(Vec::new()));
+            let mut next: $ty<'a, B> = self.retype();
+            next.$field.push(Entry::Group(group.0));
+            next
         }
     };
 }
 
-impl<'a> ToolbarGroup<'a> {
-    /// Starts empty.
-    pub fn new() -> Self {
-        Self::default()
+impl<'a, A: ActionValue> ToolbarGroup<'a, A> {
+    fn retype<B>(self) -> ToolbarGroup<'a, B>
+    where
+        A: Widen<B>,
+    {
+        ToolbarGroup(widen_all(self.0))
     }
 
-    entries!(0);
+    entries!(ToolbarGroup, 0);
 }
 
-enum Kind<'a> {
-    Plain,
+enum Kind<'a, A> {
+    Plain(A),
     Toggle(&'a mut bool),
     Radio { group: usize, value: usize },
 }
 
-enum Slot<'a> {
+enum Slot<'a, A> {
     Divider,
-    Item(Box<Base>, Kind<'a>, usize),
+    Item(Box<Base>, Kind<'a, A>, usize),
 }
 
-fn flatten<'a>(entries: Vec<Entry<'a>>, slots: &mut Vec<Slot<'a>>, groups: &mut Vec<Box<dyn Radios + 'a>>) {
+fn flatten<'a, A>(entries: Vec<Entry<'a, A>>, slots: &mut Vec<Slot<'a, A>>, groups: &mut Vec<Box<dyn Radios + 'a>>) {
     for entry in entries {
         match entry {
-            Entry::Button(b) => slots.push(Slot::Item(Box::new(b.0), Kind::Plain, 0)),
+            Entry::Button(v, b) => slots.push(Slot::Item(Box::new(b.0), Kind::Plain(v), 0)),
             Entry::Toggle(t) => slots.push(Slot::Item(Box::new(t.base), Kind::Toggle(t.checked), 0)),
             Entry::Radio(g) => {
                 let group = groups.len();
@@ -332,7 +361,7 @@ fn flatten<'a>(entries: Vec<Entry<'a>>, slots: &mut Vec<Slot<'a>>, groups: &mut 
                 );
             }
             Entry::Divider => slots.push(Slot::Divider),
-            Entry::Group(g) => flatten(g.0, slots, groups),
+            Entry::Group(g) => flatten(g, slots, groups),
         }
     }
 }
@@ -360,30 +389,36 @@ fn button<'a>(base: Base, salt: KeyedSalt) -> PushButton<'a> {
 // useToolbarDividerStyles.styles.ts `root`: padding on both sides of the line
 const DIVIDER_WIDTH: f32 = 2.0 * d::DIVIDER_PADDING + g::STROKE_WIDTH_THIN;
 
-struct Run {
+struct Run<A> {
     ids: Vec<egui::Id>,
-    clicked: Option<Clicked>,
+    clicked: Option<A>,
     changed: bool,
     stop: usize,
 }
 
-impl Run {
+impl<A: ActionValue> Run<A> {
     fn item<'a>(
         &mut self,
         rt: &Rt,
         ui: &mut egui::Ui,
         salt: &KeyedSalt,
-        (base, kind, index): (Base, Kind<'a>, usize),
+        (base, kind, index): (Base, Kind<'a, A>, usize),
         groups: &mut [Box<dyn Radios + 'a>],
     ) {
         let pos = self.ids.len();
         let off = base.disabled;
-        let item_salt = base.salt.clone().unwrap_or_else(|| salt.child(index));
-        let ran = Clicked::new(index, base.action_key.clone());
+        let item_salt = base.salt.clone().unwrap_or_else(|| match &kind {
+            Kind::Plain(v) => salt.join(&v.salt()),
+            _ => salt.child(index),
+        });
+        let mut ran = None;
         let mut b = button(base, item_salt);
         b.tab_stop = Some(roving::TabStop::at(pos, self.stop));
         let radio = match kind {
-            Kind::Plain => None,
+            Kind::Plain(v) => {
+                ran = Some(v);
+                None
+            }
             Kind::Toggle(checked) => {
                 b = b.bind(checked);
                 None
@@ -398,8 +433,8 @@ impl Run {
         };
         let r = rt.ui(ui).mineral(b);
         let clicked = r.response().clicked() && !off;
-        if clicked {
-            self.clicked = Some(ran);
+        if clicked && ran.is_some() {
+            self.clicked = ran;
         }
         match radio {
             Some((group, value)) if clicked => self.pick(groups, group, value),
@@ -415,11 +450,11 @@ impl Run {
         ui: &MineralUi<'_, Fluent>,
         (menu, owner): (Menu, egui::Id),
         trigger: &egui::Response,
-        hidden: Vec<Slot<'a>>,
+        hidden: Vec<Slot<'a, A>>,
         groups: &mut [Box<dyn Radios + 'a>],
     ) {
         let mut open = overflow::is_open(ui.ctx(), owner);
-        menu.show(rt, trigger, &mut open, |m| {
+        let r = menu.show(rt, trigger, &mut open, |m: &mut MenuUi<'_, '_, A>| {
             for slot in hidden {
                 match slot {
                     Slot::Divider => m.divider(),
@@ -427,6 +462,9 @@ impl Run {
                 }
             }
         });
+        if r.clicked.is_some() {
+            self.clicked = r.clicked;
+        }
         overflow::set_open(ui.ctx(), owner, open);
     }
 
@@ -438,24 +476,20 @@ impl Run {
 
     fn row<'a>(
         &mut self,
-        m: &mut MenuUi<'_, '_>,
-        (base, kind, index): (Base, Kind<'a>, usize),
+        m: &mut MenuUi<'_, '_, A>,
+        (base, kind, _): (Base, Kind<'a, A>, usize),
         groups: &mut [Box<dyn Radios + 'a>],
     ) {
-        let ran = Clicked::new(index, base.action_key);
         let mut item = MenuItem::new(base.label).disabled(base.disabled);
         if let Some(icon) = base.icon {
             item = item.icon(icon);
         }
         match kind {
-            Kind::Plain => {
-                if m.item(item).clicked {
-                    self.clicked = Some(ran);
-                }
+            Kind::Plain(v) => {
+                m.item(v, item);
             }
             Kind::Toggle(checked) => {
                 if m.checkbox_item(item, checked).clicked {
-                    self.clicked = Some(ran);
                     self.changed = true;
                 }
             }
@@ -463,7 +497,6 @@ impl Run {
                 let Some(selected) = groups.get_mut(group) else { return };
                 let mut current = selected.selected();
                 if m.radio_item(item, &mut current, Some(value)).clicked {
-                    self.clicked = Some(ran);
                     self.changed |= selected.select(value);
                 }
             }
@@ -474,31 +507,31 @@ impl Run {
 /// Result of showing a [`Toolbar`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct ToolbarResponse {
+pub struct ToolbarResponse<A = NoAction> {
     /// Spans every item; `mark_changed` when `changed`.
     pub response: egui::Response,
     /// Agrees with `response.changed()`; a toggle or radio value changed.
     pub changed: bool,
-    /// Button, toggle or radio button clicked this frame, also when it sits in the overflow menu; its
-    /// index counts the items in order (dividers do not count).
-    pub clicked: Option<Clicked>,
+    /// Value of the button clicked this frame, also when it sits in the overflow menu; toggles and radio buttons
+    /// report through `changed`.
+    pub clicked: Option<A>,
 }
 
 /// Fluent `Toolbar`: a row or column of buttons, toggles, radio buttons and dividers. One Tab stop;
 /// arrow keys along the axis move focus (wrapping), Home and End jump.
 #[derive(Debug)]
 #[must_use = "call .show(..)"]
-pub struct Toolbar<'a> {
+pub struct Toolbar<'a, A = NoAction> {
     salt: KeyedSalt,
     key: AgentKey,
     label: String,
     size: Size,
     vertical: bool,
     overflow: Option<Overflow>,
-    items: Vec<Entry<'a>>,
+    items: Vec<Entry<'a, A>>,
 }
 
-impl<'a> Toolbar<'a> {
+impl Toolbar<'_> {
     /// `label` names the toolbar for assistive technology; agent key `<id_salt>-toolbar`.
     pub fn new(id_salt: impl Into<KeyedSalt>, label: impl Into<String>) -> Self {
         Self {
@@ -509,6 +542,23 @@ impl<'a> Toolbar<'a> {
             vertical: false,
             overflow: None,
             items: Vec::new(),
+        }
+    }
+}
+
+impl<'a, A: ActionValue> Toolbar<'a, A> {
+    fn retype<B>(self) -> Toolbar<'a, B>
+    where
+        A: Widen<B>,
+    {
+        Toolbar {
+            salt: self.salt,
+            key: self.key,
+            label: self.label,
+            size: self.size,
+            vertical: self.vertical,
+            overflow: self.overflow,
+            items: widen_all(self.items),
         }
     }
 
@@ -530,7 +580,7 @@ impl<'a> Toolbar<'a> {
         self
     }
 
-    entries!(items);
+    entries!(Toolbar, items);
 
     crate::widget::setters! {
         /// Replaces the `<id_salt>-toolbar` agent key.
@@ -538,7 +588,7 @@ impl<'a> Toolbar<'a> {
     }
 
     /// Shows the toolbar.
-    pub fn show(self, ui: &mut MineralUi<'_, Fluent>) -> ToolbarResponse {
+    pub fn show(self, ui: &mut MineralUi<'_, Fluent>) -> ToolbarResponse<A> {
         let rt = ui.rt();
         let Self {
             salt,
@@ -626,13 +676,13 @@ impl<'a> Toolbar<'a> {
 }
 
 // Slots split into shown and overflowed ones; the trailing menu button's width is reserved.
-fn plan<'s>(
+fn plan<'s, A>(
     ui: &MineralUi<'_, Fluent>,
     salt: &KeyedSalt,
     overflow: Option<&Overflow>,
-    slots: Vec<Slot<'s>>,
+    slots: Vec<Slot<'s, A>>,
     inline: f32,
-) -> (Vec<Slot<'s>>, Vec<Slot<'s>>) {
+) -> (Vec<Slot<'s, A>>, Vec<Slot<'s, A>>) {
     let Some(o) = overflow else {
         return (slots, Vec::new());
     };
@@ -658,7 +708,7 @@ fn plan<'s>(
     (shown, hidden)
 }
 
-fn number(slots: &mut [Slot<'_>]) {
+fn number<A>(slots: &mut [Slot<'_, A>]) {
     let mut index = 0;
     for slot in slots {
         if let Slot::Item(.., n) = slot {
@@ -668,7 +718,7 @@ fn number(slots: &mut [Slot<'_>]) {
     }
 }
 
-fn disabled_flags(slots: &[Slot<'_>]) -> Vec<bool> {
+fn disabled_flags<A>(slots: &[Slot<'_, A>]) -> Vec<bool> {
     slots
         .iter()
         .filter_map(|s| match s {

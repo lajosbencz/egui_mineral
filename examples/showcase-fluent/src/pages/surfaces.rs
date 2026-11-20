@@ -1,7 +1,7 @@
 use egui_mineral_fluent::{
     actions::{ButtonAppearance, PushButton},
     data::Text,
-    egui_mineral::{action::Clicked, anchor::Side, expand::Expansion, layout::Axis},
+    egui_mineral::{anchor::Side, expand::Expansion, layout::Axis},
     icons::ICON_PERSON,
     surfaces::{
         Accordion, AccordionItem, AccordionSize, Card, CardAppearance, CardHeader, Dialog, DialogAction,
@@ -122,23 +122,22 @@ fn dialogs(ui: &mut FluentUi<'_>, s: &mut State) {
                 .close_button(kind != DialogKind::Alert)
                 .fluid_actions(fluid)
                 .actions_position(DialogActionsPosition::End)
-                .action(DialogAction::new("Cancel").key(Choice::Cancel))
+                .action(Choice::Cancel, "Cancel")
                 .action(
-                    DialogAction::new("Confirm")
-                        .appearance(ButtonAppearance::Primary)
-                        .key(Choice::Confirm),
+                    Choice::Confirm,
+                    DialogAction::new("Confirm").appearance(ButtonAppearance::Primary),
                 )
                 .show_modal(rt, &mut s.dialogs[i], |ui| {
                     ui.mineral(Text::new(("dialog-text", i), "Dialog content."));
                 });
-            if let Some(choice) = r.clicked.as_ref().and_then(Clicked::key::<Choice>) {
+            if let Some(choice) = r.clicked {
                 s.last = format!("{label} action {choice:?}");
             }
         }
     });
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, egui_mineral_fluent::prelude::KeySalt)]
 enum Choice {
     Cancel,
     Confirm,
@@ -163,7 +162,7 @@ fn drawers(ui: &mut FluentUi<'_>, s: &mut State) {
                 .close_button(true)
                 .position(p)
                 .size(DrawerSize::Small)
-                .footer_action("Save")
+                .footer_action("save", "Save")
                 .show_modal(rt, &mut s.drawers[i], |ui| {
                     ui.mineral(Text::new(("drawer-text", i), "Drawer body."));
                 });

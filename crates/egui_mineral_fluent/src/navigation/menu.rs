@@ -1,7 +1,7 @@
 use egui::{Id, Key, Margin, Modifiers, Rangef, Rect, Response, Sense, Stroke, Ui, pos2, text::LayoutJob, vec2};
 use egui_mineral::focus::Items;
 use egui_mineral::{
-    action::Clicked,
+    action::{ActionValue, NoAction},
     anchor::{Align, Anchor, Side},
     focus::RovingFocus,
     i18n::I18n,
@@ -42,7 +42,6 @@ pub struct MenuItem {
     secondary: Option<String>,
     disabled: bool,
     salt: Option<KeyedSalt>,
-    action_key: Option<egui_mineral::action::ActionKey>,
 }
 
 impl MenuItem {
@@ -54,7 +53,6 @@ impl MenuItem {
             secondary: None,
             disabled: false,
             salt: None,
-            action_key: None,
         }
     }
 
@@ -72,11 +70,6 @@ impl MenuItem {
 
     crate::widget::setters! {
         item_salt
-    }
-
-    crate::widget::setters! {
-        /// Reported by [`MenuResponse::clicked`] for [`MenuUi::item`] and the main part of [`MenuUi::split_item`].
-        action_key
     }
 
     crate::widget::setters! {
@@ -468,15 +461,24 @@ pub struct MenuItemResponse<R = ()> {
     pub inner: R,
 }
 
-#[derive(Default)]
-struct Shared {
+struct Shared<A> {
     close: bool,
-    clicked: Option<Clicked>,
+    clicked: Option<A>,
     inside: Vec<Rect>,
 }
 
-/// Places the rows of a [`Menu`] or submenu.
-pub struct MenuUi<'u, 's> {
+impl<A> Default for Shared<A> {
+    fn default() -> Self {
+        Self {
+            close: false,
+            clicked: None,
+            inside: Vec::new(),
+        }
+    }
+}
+
+/// Places the rows of a [`Menu`] or submenu; `A` is the value its [`Self::item`] rows report.
+pub struct MenuUi<'u, 's, A = NoAction> {
     ui: &'u mut Ui,
     rt: &'u Rt,
     salt: KeyedSalt,
@@ -485,7 +487,7 @@ pub struct MenuUi<'u, 's> {
     state: Level,
     index: usize,
     rows: Vec<SeenRow>,
-    shared: &'s mut Shared,
+    shared: &'s mut Shared<A>,
 }
 
 // A row shown this pass, in order.
@@ -498,9 +500,9 @@ struct SeenRow {
     split: Option<Id>,
 }
 
-kit::opaque_debug!(MenuUi<'_, '_>);
+kit::opaque_debug!(MenuUi<'_, '_, A>);
 
-impl MenuUi<'_, '_> {
+impl<A: ActionValue> MenuUi<'_, '_, A> {
     fn row(&mut self, item: &MenuItem, kind: Kind) -> (Response, bool, bool) {
         let i = self.index;
         self.index += 1;
@@ -546,24 +548,23 @@ impl MenuUi<'_, '_> {
         (response, clicked, held)
     }
 
-    fn activate(&mut self, item: &MenuItem, index: usize, clicked: bool) {
+    fn activate(&mut self, item: &MenuItem, value: A, clicked: bool) {
         if clicked {
             self.shared.close = true;
             if !item.disabled {
-                self.shared.clicked = Some(Clicked::new(index, item.action_key.clone()));
+                self.shared.clicked = Some(value);
             }
         }
     }
 
-    /// `MenuItem`: activating it closes the whole menu and reports it as [`MenuResponse::clicked`].
-    pub fn item(&mut self, item: impl Into<MenuItem>) -> MenuItemResponse {
+    /// `MenuItem`: activating it closes the whole menu and reports `value` as [`MenuResponse::clicked`].
+    pub fn item(&mut self, value: A, item: impl Into<MenuItem>) -> MenuItemResponse {
         let item = item.into();
-        let i = self.index;
         let (response, clicked, held) = self.row(&item, Kind::Item);
         if held && self.state.open_sub.is_some() {
             self.state.open_sub = None;
         }
-        self.activate(&item, i, clicked);
+        self.activate(&item, value, clicked);
         MenuItemResponse {
             response,
             clicked: clicked && !item.disabled,
@@ -608,12 +609,13 @@ impl MenuUi<'_, '_> {
     }
 
     /// `MenuSplitGroup`: a row split into a main action and a submenu trigger. Activating the main part closes the
-    /// whole menu; the trigger opens `add` beside the row on click, Enter, `hoverDelay` of hovering or the
+    /// whole menu and reports `value`; the trigger opens `add` beside the row on click, Enter, `hoverDelay` of hovering or the
     /// start-to-end arrow on it. That arrow on the main part moves focus to the trigger, its opposite back.
     pub fn split_item<R>(
         &mut self,
+        value: A,
         item: impl Into<MenuItem>,
-        add: impl FnOnce(&mut MenuUi<'_, '_>) -> R,
+        add: impl FnOnce(&mut MenuUi<'_, '_, A>) -> R,
     ) -> MenuItemResponse<Option<R>> {
         let item = item.into();
         let i = self.index;
@@ -665,7 +667,7 @@ impl MenuUi<'_, '_> {
         } else if held && self.state.open_sub == Some(i) {
             self.state.open_sub = None;
         }
-        self.activate(&item, i, clicked);
+        self.activate(&item, value, clicked);
         if self.state.open_sub != Some(i) {
             return MenuItemResponse {
                 response,
@@ -772,7 +774,7 @@ impl MenuUi<'_, '_> {
     pub fn submenu<R>(
         &mut self,
         item: impl Into<MenuItem>,
-        add: impl FnOnce(&mut MenuUi<'_, '_>) -> R,
+        add: impl FnOnce(&mut MenuUi<'_, '_, A>) -> R,
     ) -> MenuItemResponse<Option<R>> {
         let item = item.into();
         let i = self.index;
@@ -823,14 +825,14 @@ impl MenuUi<'_, '_> {
 }
 
 // Surface of one menu level; returns the content result and whether the level asked to close itself.
-fn level<R>(
+fn level<R, A: ActionValue>(
     rt: &Rt,
     ui: &mut Ui,
     salt: &KeyedSalt,
     focus_first: bool,
     is_sub: bool,
-    shared: &mut Shared,
-    add: impl FnOnce(&mut MenuUi<'_, '_>) -> R,
+    shared: &mut Shared<A>,
+    add: impl FnOnce(&mut MenuUi<'_, '_, A>) -> R,
 ) -> (R, bool) {
     let ctx = ui.ctx().clone();
     let t = rt.tokens();
@@ -985,16 +987,16 @@ fn overlay_escape(ctx: &egui::Context) -> bool {
 /// Result of [`Menu::show`].
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct MenuResponse<R = ()> {
+pub struct MenuResponse<R = (), A = NoAction> {
     /// Surface, on passes it showed.
     pub response: Option<Response>,
     /// What `add` returned, on passes it showed.
     pub inner: Option<R>,
     /// Why it closed this pass.
     pub dismissed: Option<Dismiss>,
-    /// Item activated this pass ([`MenuUi::item`] or the main part of [`MenuUi::split_item`], also in a
-    /// submenu); its index counts the rows of its own menu level.
-    pub clicked: Option<Clicked>,
+    /// Value of the item activated this pass ([`MenuUi::item`] or the main part of [`MenuUi::split_item`], also
+    /// in a submenu).
+    pub clicked: Option<A>,
 }
 
 /// Fluent `Menu`: a popup list of rows anchored below its trigger. The trigger's clicks toggle it, Escape,
@@ -1041,13 +1043,14 @@ impl Menu {
     }
 
     /// Shown while `open`, anchored to `trigger`; `add` places the rows. The first enabled row takes focus on opening.
-    pub fn show<R>(
+    /// `A` is inferred from the [`MenuUi::item`] values; a menu without such rows names it (`MenuUi<'_, '_, NoAction>`).
+    pub fn show<R, A: ActionValue>(
         self,
         rt: &Rt,
         trigger: &Response,
         open: &mut bool,
-        add: impl FnOnce(&mut MenuUi<'_, '_>) -> R,
-    ) -> MenuResponse<R> {
+        add: impl FnOnce(&mut MenuUi<'_, '_, A>) -> R,
+    ) -> MenuResponse<R, A> {
         let ctx = rt.ctx();
         let mut dismissed = None;
         if trigger.clicked() {

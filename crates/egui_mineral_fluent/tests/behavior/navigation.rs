@@ -93,8 +93,8 @@ fn toolbar(vertical: bool) -> Harness<'static, Bar> {
     harness(Bar::default(), move |ui, s| {
         Toolbar::new("tb", "Tools")
             .axis(if vertical { Axis::Vertical } else { Axis::Horizontal })
-            .action("Cut")
-            .action(ToolbarButton::new("Copy").disabled(true))
+            .action(0, "Cut")
+            .action(1, ToolbarButton::new("Copy").disabled(true))
             .divider()
             .toggle(ToolbarToggleButton::new("Bold", &mut s.bold))
             .radio_group(ToolbarRadioGroup::new(&mut s.align).item(0, "Left").item(1, "Right"))
@@ -163,13 +163,13 @@ fn breadcrumb(focus: BreadcrumbFocus) -> Harness<'static, Trail> {
     harness(Trail::default(), move |ui, s| {
         let r = Breadcrumb::new("bc", "Path")
             .focus(focus)
-            .item("Home")
-            .item(BreadcrumbItem::new(BreadcrumbButton::new("Docs").disabled(true)))
-            .item("Guide")
-            .item(BreadcrumbButton::new("Page").current(true))
+            .item(0, "Home")
+            .item(1, BreadcrumbItem::new(BreadcrumbButton::new("Docs").disabled(true)))
+            .item(2, "Guide")
+            .item(3, BreadcrumbButton::new("Page").current(true))
             .show(ui);
         if let Some(c) = r.clicked {
-            s.clicked = Some(c.index());
+            s.clicked = Some(c);
         }
     })
 }
@@ -242,13 +242,12 @@ fn narrow_toolbar(width: Option<f32>) -> Harness<'static, Bar> {
         if let Some(w) = width {
             ui.set_max_width(w);
         }
-        let mut bar = Toolbar::new("tb", "Tools").overflow(Overflow::new("More"));
-        for label in LABELS {
-            bar = bar.action(label);
-        }
-        let r = bar.show(ui);
+        let r = Toolbar::new("tb", "Tools")
+            .overflow(Overflow::new("More"))
+            .actions(LABELS.into_iter().enumerate())
+            .show(ui);
         if let Some(c) = r.clicked {
-            s.activated = Some(c.index());
+            s.activated = Some(c);
         }
     })
 }
@@ -264,11 +263,9 @@ fn fitting_width() -> f32 {
 fn toolbar_without_overflow_keeps_every_item() {
     let mut h = harness(Bar::default(), |ui, _| {
         ui.set_max_width(60.0);
-        let mut bar = Toolbar::new("tb", "Tools");
-        for label in LABELS {
-            bar = bar.action(label);
-        }
-        bar.show(ui);
+        Toolbar::new("tb", "Tools")
+            .actions(LABELS.into_iter().enumerate())
+            .show(ui);
     });
     h.run();
     for i in 0..LABELS.len() {
@@ -316,9 +313,9 @@ fn narrow_trail(width: Option<f32>, direction: OverflowDirection) -> Harness<'st
         }
         let r = Breadcrumb::new("bc", "Path")
             .overflow(Overflow::new("More").direction(direction))
-            .items(["Home", "Docs", "Wiki", "Page", "Info"])
+            .items(["Home", "Docs", "Wiki", "Page", "Info"].into_iter().enumerate())
             .show(ui);
-        s.clicked = r.clicked.map(|c| c.index()).or(s.clicked);
+        s.clicked = r.clicked.or(s.clicked);
     })
 }
 
@@ -650,18 +647,18 @@ fn grid() -> Harness<'static, Grid> {
         let r = MenuGrid::new("g", "Actions").show(ui.rt(), &trigger, &mut s.open, |g| {
             g.row(
                 MenuGridRow::new()
-                    .cell(MenuGridItem::new("Cut").secondary_text("Ctrl+X"))
-                    .cell(MenuGridAction::new("More cut", ICON_MORE_HORIZONTAL)),
+                    .cell((0, 0), MenuGridItem::new("Cut").secondary_text("Ctrl+X"))
+                    .cell((0, 1), MenuGridAction::new("More cut", ICON_MORE_HORIZONTAL)),
             );
             g.row(
                 MenuGridRow::new()
-                    .cell("Copy")
-                    .cell(MenuGridAction::new("Share", ICON_SHARE).disabled(true))
-                    .cell(MenuGridAction::new("Pin", ICON_PIN)),
+                    .cell((1, 0), "Copy")
+                    .cell((1, 1), MenuGridAction::new("Share", ICON_SHARE).disabled(true))
+                    .cell((1, 2), MenuGridAction::new("Pin", ICON_PIN)),
             );
-            g.row(MenuGridRow::new().cell("Delete"));
+            g.row(MenuGridRow::new().cell((2, 0), "Delete"));
         });
-        s.activated.extend(r.clicked.map(|c| (c.row, c.cell.index())));
+        s.activated.extend(r.clicked);
     })
 }
 
@@ -713,9 +710,9 @@ fn menu_grid_rows_size_from_content_and_share_the_widest_row() {
 }
 
 // Headless text has no width, so the rows are sized by action cells (24 wide, 4 apart, 6 padding each side).
-fn action_row(actions: usize) -> MenuGridRow {
+fn action_row(actions: usize) -> MenuGridRow<usize> {
     (0..actions).fold(MenuGridRow::new(), |row, i| {
-        row.cell(MenuGridAction::new(format!("Action {i}"), ICON_PIN))
+        row.cell(i, MenuGridAction::new(format!("Action {i}"), ICON_PIN))
     })
 }
 

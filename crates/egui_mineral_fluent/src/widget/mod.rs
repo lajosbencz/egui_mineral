@@ -22,15 +22,6 @@ macro_rules! setters {
             self
         }
     };
-    ($(#[$m:meta])* action_key) => {
-        /// App key of any type, reported as [`Clicked::key`](egui_mineral::action::Clicked::key) when the item runs;
-        /// several items may share one.
-        $(#[$m])*
-        pub fn key<K: std::any::Any + Clone + PartialEq + Send + Sync>(mut self, key: K) -> Self {
-            self.action_key = Some(egui_mineral::action::ActionKey::new(key));
-            self
-        }
-    };
     ($(#[$m:meta])* agent_key(key)) => {
         $(#[$m])*
         pub fn agent_key(mut self, key: impl Into<egui_mineral::semantic::StableId>) -> Self {

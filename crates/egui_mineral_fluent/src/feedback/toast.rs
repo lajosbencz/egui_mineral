@@ -4,7 +4,7 @@ use egui::{
     Align, Align2, Color32, CornerRadius, Id, Layout, Margin, Order, Sense, Stroke, StrokeKind, UiBuilder, vec2,
 };
 use egui_mineral::{
-    action::Clicked,
+    action::{ActionValue, NoAction},
     i18n::Direction,
     kit::state::TempState,
     motion::{self, Visibility},
@@ -112,25 +112,17 @@ impl ToastIntent {
     pub const ALL: &'static [Self] = &[Self::Info, Self::Success, Self::Warning, Self::Error];
 }
 
-/// Link of a [`Toast`]: an action in its title row or footer.
+/// Link of a [`Toast`]: an action in its title row or footer; the toast pairs it with its value. A label converts.
 #[derive(Clone, Debug)]
 #[must_use]
 pub struct ToastLink {
     label: String,
-    action_key: Option<egui_mineral::action::ActionKey>,
 }
 
 impl ToastLink {
     /// `label` is the link text and accessible name.
     pub fn new(label: impl Into<String>) -> Self {
-        Self {
-            label: label.into(),
-            action_key: None,
-        }
-    }
-
-    crate::widget::setters! {
-        action_key
+        Self { label: label.into() }
     }
 }
 
@@ -147,7 +139,8 @@ impl From<String> for ToastLink {
 }
 
 #[derive(Clone, Debug)]
-struct ActionLink {
+struct ActionLink<A> {
+    value: A,
     link: ToastLink,
     footer: bool,
 }
@@ -155,28 +148,29 @@ struct ActionLink {
 /// Action of a toast pressed this frame ([`ToasterResponse::action_clicked`]).
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
-pub struct ToastAction {
+pub struct ToastAction<A> {
     /// Toast the action belongs to.
     pub toast: ToastId,
-    /// Index among the toast's title and footer actions, in the order added, and the link's key.
-    pub clicked: Clicked,
+    /// Value of the pressed link.
+    pub clicked: A,
 }
 
-/// Payload of a queued toast: intent icon, title, body, subtitle, actions and dismiss link.
+/// Payload of a queued toast: intent icon, title, body, subtitle, actions and dismiss link; `A` is the value its
+/// links report, the queue's.
 #[derive(Clone, Debug)]
 #[must_use]
-pub struct Toast {
+pub struct Toast<A = NoAction> {
     title: String,
     body: Option<String>,
     subtitle: Option<String>,
     intent: Option<ToastIntent>,
     inverted: bool,
     position: ToastPosition,
-    actions: Vec<ActionLink>,
+    actions: Vec<ActionLink<A>>,
     dismissible: bool,
 }
 
-impl Toast {
+impl<A: ActionValue> Toast<A> {
     /// Bottom end, no intent icon.
     pub fn new(title: impl Into<String>) -> Self {
         Self {
@@ -221,18 +215,20 @@ impl Toast {
         self
     }
 
-    /// Link at the end of the title row; reported by [`ToasterResponse::action_clicked`].
-    pub fn action(mut self, link: impl Into<ToastLink>) -> Self {
+    /// Link at the end of the title row, reporting `value` in [`ToasterResponse::action_clicked`].
+    pub fn action(mut self, value: A, link: impl Into<ToastLink>) -> Self {
         self.actions.push(ActionLink {
+            value,
             link: link.into(),
             footer: false,
         });
         self
     }
 
-    /// Link in the `ToastFooter`; reported by [`ToasterResponse::action_clicked`].
-    pub fn footer_action(mut self, link: impl Into<ToastLink>) -> Self {
+    /// Link in the `ToastFooter`, reporting `value` in [`ToasterResponse::action_clicked`].
+    pub fn footer_action(mut self, value: A, link: impl Into<ToastLink>) -> Self {
         self.actions.push(ActionLink {
+            value,
             link: link.into(),
             footer: true,
         });
@@ -247,23 +243,23 @@ impl Toast {
 }
 
 /// Queue showing 20 toasts at once with the `dispatchToast` default timeout.
-pub fn toast_queue() -> ToastQueue<Toast> {
+pub fn toast_queue<A>() -> ToastQueue<Toast<A>> {
     ToastQueue::new(d::LIMIT, d::TIMEOUT)
 }
 
 #[derive(Clone)]
-struct Shown {
+struct Shown<A> {
     id: ToastId,
-    toast: Toast,
+    toast: Toast<A>,
     live: Live,
 }
 
 /// Result of [`Toaster::show`].
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct ToasterResponse {
+pub struct ToasterResponse<A = NoAction> {
     /// Action pressed this frame.
-    pub action_clicked: Option<ToastAction>,
+    pub action_clicked: Option<ToastAction<A>>,
     /// Toast closed by its dismiss link this frame; it is dismissed.
     pub dismissed: Option<ToastId>,
 }
@@ -278,15 +274,15 @@ struct Painted {
 /// Fluent `Toaster` over a [`ToastQueue`] of [`Toast`]s.
 #[derive(Debug)]
 #[must_use = "call .show(..)"]
-pub struct Toaster<'a> {
-    queue: &'a mut ToastQueue<Toast>,
+pub struct Toaster<'a, A = NoAction> {
+    queue: &'a mut ToastQueue<Toast<A>>,
     key: StableId,
     pause_on_hover: bool,
 }
 
-impl<'a> Toaster<'a> {
+impl<'a, A: ActionValue + Send + Sync + 'static> Toaster<'a, A> {
     /// Shows `queue`; agent key prefix `toast`.
-    pub fn new(queue: &'a mut ToastQueue<Toast>) -> Self {
+    pub fn new(queue: &'a mut ToastQueue<Toast<A>>) -> Self {
         Self {
             queue,
             key: StableId::new("toast"),
@@ -307,13 +303,13 @@ impl<'a> Toaster<'a> {
     }
 
     /// Paints the visible toasts stacked at their positions.
-    pub fn show(self, rt: &Rt) -> ToasterResponse {
+    pub fn show(self, rt: &Rt) -> ToasterResponse<A> {
         let ctx = rt.ctx();
         let queue = self.queue;
         queue.update(ctx);
         let host = egui_mineral::kit::scoped_id(rt.core(), Id::unique("mineral::toaster"));
-        let mut shown = Vec::<Shown>::load(ctx, host);
-        let current: Vec<Shown> = queue
+        let mut shown = Vec::<Shown<A>>::load(ctx, host);
+        let current: Vec<Shown<A>> = queue
             .visible()
             .map(|q| Shown {
                 id: q.id,
@@ -326,7 +322,10 @@ impl<'a> Toaster<'a> {
                 shown.push(c.clone());
             }
         }
-        let mut out = ToasterResponse::default();
+        let mut out = ToasterResponse {
+            action_clicked: None,
+            dismissed: None,
+        };
         let mut stacks = [0.0_f32; 6];
         let mut index = 0_usize;
         shown.retain(|s| {
@@ -366,11 +365,10 @@ impl<'a> Toaster<'a> {
                         queue.resume(s.id);
                     }
                 }
-                if let Some(i) = painted.clicked {
-                    let key = s.toast.actions.get(i).and_then(|a| a.link.action_key.clone());
+                if let Some(a) = painted.clicked.and_then(|i| s.toast.actions.get(i)) {
                     out.action_clicked = Some(ToastAction {
                         toast: s.id,
-                        clicked: Clicked::new(i, key),
+                        clicked: a.value.clone(),
                     });
                 }
                 if painted.dismissed {
@@ -441,7 +439,7 @@ fn link(ui: &mut egui::Ui, rt: &Rt, salt: (&'static str, usize, &'static str, us
     rt.ui(ui).mineral(TextLink::new(salt, label)).response().clicked()
 }
 
-fn content(ui: &mut egui::Ui, rt: &Rt, toast: &Toast, palette: &Palette, slot: usize, pressed: &mut Pressed) {
+fn content<A>(ui: &mut egui::Ui, rt: &Rt, toast: &Toast<A>, palette: &Palette, slot: usize, pressed: &mut Pressed) {
     let t = rt.tokens();
     let dir = rt.i18n().direction();
     if let Some(intent) = toast.intent {
@@ -471,7 +469,7 @@ fn content(ui: &mut egui::Ui, rt: &Rt, toast: &Toast, palette: &Palette, slot: u
             let small = (ty::FONT_SIZE_BASE_200, ty::FONT_SIZE_BASE_200, ty::FONT_WEIGHT_REGULAR);
             text(ui, rt, subtitle, small, palette.fg2);
         }
-        let footer: Vec<(usize, &ActionLink)> = toast.actions.iter().enumerate().filter(|(_, a)| a.footer).collect();
+        let footer: Vec<(usize, &ActionLink<A>)> = toast.actions.iter().enumerate().filter(|(_, a)| a.footer).collect();
         if !footer.is_empty() {
             ui.add_space(d::FOOTER_PADDING_TOP);
             ui.scope_builder(UiBuilder::new().layout(dir.row()), |ui| {
@@ -486,7 +484,7 @@ fn content(ui: &mut egui::Ui, rt: &Rt, toast: &Toast, palette: &Palette, slot: u
     });
 }
 
-fn title_row(ui: &mut egui::Ui, rt: &Rt, toast: &Toast, palette: &Palette, slot: usize, pressed: &mut Pressed) {
+fn title_row<A>(ui: &mut egui::Ui, rt: &Rt, toast: &Toast<A>, palette: &Palette, slot: usize, pressed: &mut Pressed) {
     let dir = rt.i18n().direction();
     let (end, start) = match dir {
         Direction::Ltr => (Layout::right_to_left(Align::Min), Layout::left_to_right(Align::Min)),
@@ -508,7 +506,7 @@ fn title_row(ui: &mut egui::Ui, rt: &Rt, toast: &Toast, palette: &Palette, slot:
     });
 }
 
-fn paint_toast(rt: &Rt, s: &Shown, at: &Placement<'_>) -> Painted {
+fn paint_toast<A>(rt: &Rt, s: &Shown<A>, at: &Placement<'_>) -> Painted {
     let ctx = rt.ctx();
     let t = rt.tokens();
     let dir = rt.i18n().direction();

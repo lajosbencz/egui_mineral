@@ -587,7 +587,7 @@ meta!(
     "react-toolbar/library/src/components/ToolbarGroup/useToolbarGroupStyles.styles.ts"
 );
 meta!(
-    Breadcrumb,
+    Breadcrumb<K>,
     Navigation,
     "Breadcrumb",
     "react-breadcrumb/library/src/components/Breadcrumb/useBreadcrumbStyles.styles.ts"
@@ -689,7 +689,7 @@ meta!(
     "react-menu-grid-preview/library/src/components/MenuGrid/useMenuGridStyles.styles.ts"
 );
 meta!(
-    MenuGridRow,
+    MenuGridRow<A>,
     Navigation,
     "MenuGridRow",
     "react-menu-grid-preview/library/src/components/MenuGridRow/useMenuGridRowStyles.styles.ts"
@@ -822,7 +822,7 @@ pub const CATALOG: &[ComponentMeta] = &[
     <ToolbarToggleButton<'static>>::META,
     ToolbarRadioButton::META,
     <ToolbarGroup<'static>>::META,
-    Breadcrumb::META,
+    <Breadcrumb<()>>::META,
     BreadcrumbItem::META,
     BreadcrumbButton::META,
     BreadcrumbDivider::META,
@@ -848,7 +848,7 @@ pub const CATALOG: &[ComponentMeta] = &[
     <Carousel<'static, usize>>::META,
     CarouselCard::META,
     MenuGrid::META,
-    MenuGridRow::META,
+    <MenuGridRow<()>>::META,
     MenuGridItem::META,
     MenuGridAction::META,
     <Tree<'static, TreeItem>>::META,
