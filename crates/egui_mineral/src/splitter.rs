@@ -4,7 +4,7 @@ use egui::{CursorIcon, Id, Key, Rect, Response, Sense, UiBuilder, pos2};
 
 use crate::{
     kit,
-    layout::{Axis, MinTarget, Zones},
+    layout::{Axis, Fraction, MinTarget, Zones},
     range::{RangeModel, Track},
     runtime::Stylekit,
     semantic::{self, AgentKey, KeyedSalt, Role, SemanticNode, StableId},
@@ -21,7 +21,7 @@ pub struct Splitter {
     key: AgentKey,
     label: String,
     axis: Axis,
-    default_fraction: f32,
+    default_fraction: Fraction,
     min_first: f32,
     min_second: f32,
     handle: f32,
@@ -44,8 +44,8 @@ pub struct SplitterResponse<A, B> {
     pub handle_rect: Rect,
     /// Gap between the panes; the handle's hit zone, at least the minimum target.
     pub hit_rect: Rect,
-    /// Share of the split length before the handle, in 0.0..=1.0; persisted per id.
-    pub fraction: f32,
+    /// Share of the split length before the handle; persisted per id.
+    pub fraction: Fraction,
 }
 
 impl Splitter {
@@ -56,7 +56,7 @@ impl Splitter {
             key: AgentKey::Kind("splitter"),
             label: label.into(),
             axis: Axis::Horizontal,
-            default_fraction: 0.5,
+            default_fraction: Fraction::HALF,
             min_first: 0.0,
             min_second: 0.0,
             handle: 0.0,
@@ -84,9 +84,9 @@ impl Splitter {
         self
     }
 
-    /// Initial fraction in 0.0..=1.0 before any persisted one; others clamp into it.
-    pub fn default_fraction(mut self, default_fraction: f32) -> Self {
-        self.default_fraction = crate::kit::sanitize::within(default_fraction, 0.0..=1.0, "Splitter default_fraction");
+    /// Initial fraction before any persisted one.
+    pub fn default_fraction(mut self, default_fraction: impl Into<Fraction>) -> Self {
+        self.default_fraction = default_fraction.into();
         self
     }
 
@@ -165,7 +165,7 @@ impl Splitter {
             .width();
         let total = (hi - lo - gap).max(0.0);
         let range = self.range(total);
-        let stored = ui.data_mut(|d| *d.get_persisted_mut_or(id, self.default_fraction));
+        let stored = ui.data_mut(|d| *d.get_persisted_mut_or(id, self.default_fraction.get()));
         let mut fraction = stored;
 
         // Gap slot at `f`, and the visual handle centered in it.
@@ -245,7 +245,7 @@ impl Splitter {
             response: handle,
             handle_rect: h,
             hit_rect: slot,
-            fraction,
+            fraction: Fraction::new(fraction),
         }
     }
 }
@@ -331,6 +331,7 @@ mod tests {
     use egui::{Id, Rect, Vec2};
 
     use super::Splitter;
+    use crate::layout::Fraction;
     use crate::{i18n::Direction, test_support::harness};
 
     #[test]
@@ -383,7 +384,7 @@ mod tests {
     #[test]
     fn rtl_puts_the_first_pane_at_the_start_and_keys_follow_it() {
         let mut h = harness(
-            |ui, panes: &mut (Rect, Rect, f32)| {
+            |ui, panes: &mut (Rect, Rect, Fraction)| {
                 let i18n = ui.core().i18n();
                 if i18n.direction() == Direction::Ltr {
                     i18n.set_locale("ar").unwrap();
@@ -391,7 +392,7 @@ mod tests {
                 let r = Splitter::new("s", "Split").show(ui, |ui| ui.max_rect(), |ui| ui.max_rect());
                 *panes = (r.first, r.second, r.fraction);
             },
-            (Rect::NOTHING, Rect::NOTHING, 0.0),
+            (Rect::NOTHING, Rect::NOTHING, Fraction::ZERO),
         );
         h.run();
         let (first, second, before) = h.state().value;
@@ -418,7 +419,7 @@ mod tests {
             .step(0.0)
             .jump(f64::NAN);
         assert_eq!(
-            (s.default_fraction, s.min_first, s.min_second, s.handle),
+            (s.default_fraction.get(), s.min_first, s.min_second, s.handle),
             (1.0, 0.0, 0.0, 0.0)
         );
         assert_eq!((s.step, s.jump), (Some(super::MIN_STEP), Some(super::MIN_STEP)));

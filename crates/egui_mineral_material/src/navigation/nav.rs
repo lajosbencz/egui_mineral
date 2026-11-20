@@ -448,8 +448,8 @@ struct ItemColors {
 impl ItemColors {
     fn of(c: &crate::color::ColorScheme, selected: bool, enabled: bool, top: bool) -> Self {
         let unselected = Self {
-            icon: bar::ITEM_INACTIVE_ICON_COLOR.resolve(c),
-            label: bar::ITEM_INACTIVE_LABEL_TEXT_COLOR.resolve(c),
+            icon: c.role(bar::ITEM_INACTIVE_ICON_COLOR),
+            label: c.role(bar::ITEM_INACTIVE_LABEL_TEXT_COLOR),
         };
         if !enabled {
             return Self {
@@ -457,10 +457,10 @@ impl ItemColors {
                 label: with_alpha(unselected.label, nx::DISABLED_ALPHA),
             };
         }
-        let icon = bar::ITEM_ACTIVE_ICON_COLOR.resolve(c);
+        let icon = c.role(bar::ITEM_ACTIVE_ICON_COLOR);
         // Start-icon items use the icon color for the label (`selectedTextColorStartIconPosition`).
         let label = if top {
-            bar::ITEM_ACTIVE_LABEL_TEXT_COLOR.resolve(c)
+            c.role(bar::ITEM_ACTIVE_LABEL_TEXT_COLOR)
         } else {
             icon
         };

@@ -8,6 +8,7 @@ use egui::{
     pos2, vec2,
 };
 use egui_mineral::kit::state::TempState;
+use egui_mineral::layout::Fraction;
 use egui_mineral::overlay::OverlayResponse;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::Availability;
@@ -98,10 +99,10 @@ impl BottomSheet {
     /// Resting heights as fractions of the screen height, each clamped to 0.1..=1; an empty list keeps the
     /// current detents.
     #[track_caller]
-    pub fn detents(mut self, fractions: impl IntoIterator<Item = f32>) -> Self {
+    pub fn detents(mut self, fractions: impl IntoIterator<Item: Into<Fraction>>) -> Self {
         let fractions: Vec<f32> = fractions
             .into_iter()
-            .map(|f| egui_mineral::kit::sanitize::within(f, 0.1..=1.0, "detent"))
+            .map(|f| egui_mineral::kit::sanitize::at_least(f.into().get(), 0.1.., "detent"))
             .collect();
         if fractions.is_empty() {
             egui_mineral::kit::sanitize::report(format_args!("detents must be non-empty"));

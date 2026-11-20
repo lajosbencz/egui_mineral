@@ -339,8 +339,7 @@ fn optional_single_segments_start_empty_and_content_width_hugs_labels() {
 fn auto_targets_keep_their_height_through_ewebs_touchless_pointerdown_pass() {
     let pos = egui::pos2(20.0, 20.0);
     let mut h = harness(SCREEN, Vec::<f32>::new(), |ui, heights| {
-        let rt = ui.rt();
-        let hit = MinTarget::Auto.points(rt.core());
+        let hit = ui.target(MinTarget::Auto);
         heights.push(Zones::new(Measure::new(vec2(20.0, 20.0)), hit).outer.height());
     });
     let touch = |phase| synth::touch(pos, phase);

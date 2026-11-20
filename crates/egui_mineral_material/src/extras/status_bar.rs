@@ -3,6 +3,7 @@ use crate::MaterialExt;
 use crate::MaterialUiExt as _;
 use egui::{Pos2, Rangef, Rect, Response, Sense, Stroke, Vec2, pos2, vec2};
 use egui_mineral::kit::strip;
+use egui_mineral::layout::Fraction;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::status::StatusLead;
 use egui_mineral::widget::{Availability, MineralUi};
@@ -199,7 +200,7 @@ impl StatusBar {
 }
 
 impl StatusBar {
-    fn progress(&self, ui: &mut MineralUi<'_, Material>, i: usize, text: &str, value: Option<f32>, center: Pos2) {
+    fn progress(&self, ui: &mut MineralUi<'_, Material>, i: usize, text: &str, value: Option<Fraction>, center: Pos2) {
         let salt = self.salt.child((i, "progress"));
         match value {
             Some(v) => CircularProgressIndicator::determinate(salt, v),
@@ -212,7 +213,7 @@ impl StatusBar {
 }
 
 impl StatusBar {
-    fn linear(&self, ui: &mut MineralUi<'_, Material>, i: usize, text: &str, value: Option<f32>, center: Pos2) {
+    fn linear(&self, ui: &mut MineralUi<'_, Material>, i: usize, text: &str, value: Option<Fraction>, center: Pos2) {
         let salt = self.salt.child((i, "progress"));
         match value {
             Some(v) => LinearProgressIndicator::determinate(salt, v),

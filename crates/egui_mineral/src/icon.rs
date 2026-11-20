@@ -1,20 +1,52 @@
 use egui::{Context, FontData, FontFamily, FontId, FontInsert, FontPriority, InsertFontFamily};
 
-/// One icon character of a named font family.
+/// Named egui font family of an icon font: the one source of its [`Glyph`]s ([`Self::glyph`]) and of the
+/// [`IconFont`] that installs it ([`Self::font`]), so the two cannot name different families.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct IconFamily(&'static str);
+
+impl IconFamily {
+    /// Family registered as `name`; keep one constant per icon font.
+    pub const fn new(name: &'static str) -> Self {
+        Self(name)
+    }
+
+    /// Registered family name.
+    pub const fn name(self) -> &'static str {
+        self.0
+    }
+
+    /// Glyph `ch` of this family.
+    pub const fn glyph(self, ch: char) -> Glyph {
+        Glyph { family: self, ch }
+    }
+
+    /// Font file `ttf` that provides this family, unshifted.
+    pub const fn font(self, ttf: &'static [u8]) -> IconFont {
+        IconFont {
+            name: self.0,
+            ttf,
+            family: self,
+            y_offset_factor: 0.0,
+        }
+    }
+
+    /// egui family of the glyphs.
+    pub fn font_family(self) -> FontFamily {
+        FontFamily::Name(self.0.into())
+    }
+}
+
+/// One icon character of an [`IconFamily`]; built by [`IconFamily::glyph`] only.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Glyph {
-    family: &'static str,
+    family: IconFamily,
     ch: char,
 }
 
 impl Glyph {
-    /// Glyph `ch` of `family`.
-    pub const fn new(family: &'static str, ch: char) -> Self {
-        Self { family, ch }
-    }
-
-    /// Name of the egui font family holding [`Self::ch`] ([`IconFont::family`]).
-    pub const fn family(self) -> &'static str {
+    /// Family holding [`Self::ch`].
+    pub const fn family(self) -> IconFamily {
         self.family
     }
 
@@ -25,7 +57,7 @@ impl Glyph {
 
     /// Font family to lay [`Self::ch`] out with.
     pub fn font_family(self) -> FontFamily {
-        FontFamily::Name(self.family.into())
+        self.family.font_family()
     }
 
     /// Font of this glyph at `size`.
@@ -89,29 +121,19 @@ impl Icon {
     }
 }
 
-/// Font bytes plus the family name [`Glyph::family`] refers to; installed once per context.
+/// Font file of an [`IconFamily`], built by [`IconFamily::font`]; installed once per context.
 #[derive(Clone, Copy, Debug)]
-#[non_exhaustive]
 pub struct IconFont {
-    /// Registered font name.
-    pub name: &'static str,
-    /// Font file.
-    pub ttf: &'static [u8],
-    /// Family [`Glyph::family`] refers to.
-    pub family: &'static str,
-    /// Vertical glyph shift as a fraction of the font size, to align with text baselines.
-    pub y_offset_factor: f32,
+    name: &'static str,
+    ttf: &'static [u8],
+    family: IconFamily,
+    y_offset_factor: f32,
 }
 
 impl IconFont {
-    /// Font `ttf` registered as `family`, unshifted.
-    pub const fn new(family: &'static str, ttf: &'static [u8]) -> Self {
-        Self {
-            name: family,
-            ttf,
-            family,
-            y_offset_factor: 0.0,
-        }
+    /// Family the font is registered under.
+    pub const fn family(&self) -> IconFamily {
+        self.family
     }
 
     /// Registered font name; the family name by default.
@@ -129,7 +151,7 @@ impl IconFont {
         }
     }
 
-    /// Registers the font under [`Self::family`], and as lowest-priority proportional fallback.
+    /// Registers the font under its [`IconFamily`], and as lowest-priority proportional fallback.
     pub fn install(&self, ctx: &Context) {
         let mut data = FontData::from_static(self.ttf);
         data.tweak.y_offset_factor = self.y_offset_factor;
@@ -142,7 +164,7 @@ impl IconFont {
                     priority: FontPriority::Lowest,
                 },
                 InsertFontFamily {
-                    family: FontFamily::Name(self.family.into()),
+                    family: self.family.font_family(),
                     priority: FontPriority::Highest,
                 },
             ],
@@ -154,8 +176,9 @@ impl IconFont {
 mod tests {
     use super::*;
 
-    const FILLED: Glyph = Glyph::new("a", 'x');
-    const OUTLINED: Glyph = Glyph::new("b", 'x');
+    const A: IconFamily = IconFamily::new("a");
+    const FILLED: Glyph = A.glyph('x');
+    const OUTLINED: Glyph = IconFamily::new("b").glyph('x');
 
     #[test]
     fn glyph_picks_the_form() {
@@ -168,5 +191,6 @@ mod tests {
     #[test]
     fn font_id_names_the_family() {
         assert_eq!(FILLED.font_id(12.0).family, FontFamily::Name("a".into()));
+        assert_eq!(A.font(&[]).family(), FILLED.family());
     }
 }

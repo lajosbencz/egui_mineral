@@ -12,7 +12,8 @@ fn pane(disabled: bool) -> impl FnMut(&mut FluentUi<'_>, &mut f32) {
         *fraction = SplitPane::new("sp", "Panes")
             .disabled(disabled)
             .show(ui, |ui| ui.label("A"), |ui| ui.label("B"))
-            .fraction;
+            .fraction
+            .get();
     }
 }
 
@@ -55,7 +56,7 @@ fn status_bar(ui: &mut FluentUi<'_>, width: f32) -> Option<Clicked> {
             )
             .item(
                 StatusItem::new("x")
-                    .progress(StatusProgress::Linear(Some(0.2)))
+                    .progress(StatusProgress::Linear(Some(0.2.into())))
                     .clickable(true),
             )
             .item(StatusItem::new("x").clickable(true))
@@ -101,7 +102,7 @@ fn status_item_bar_progress_exposes_its_value() {
     let mut h = harness((), |ui, ()| {
         narrow(ui, 300.0, |ui| {
             StatusBar::new("status", "Status")
-                .item(StatusItem::new("Upload").progress(StatusProgress::Linear(Some(0.5))))
+                .item(StatusItem::new("Upload").progress(StatusProgress::Linear(Some(0.5.into()))))
                 .show(ui);
         });
     });

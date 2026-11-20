@@ -67,7 +67,7 @@ fn status_bar(ui: &mut FluentUi<'_>) {
     heading(ui, "h-status-bar", "StatusBar");
     StatusBar::new("status", "Status")
         .item(StatusItem::new("Indexing").progress(StatusProgress::Circular(None)))
-        .item(StatusItem::new("Upload").progress(StatusProgress::Linear(Some(0.4))))
+        .item(StatusItem::new("Upload").progress(StatusProgress::Linear(Some(0.4.into()))))
         .item(StatusItem::new("2 errors").tone(StatusTone::Error).clickable(true))
         .trailing(StatusItem::new("Ln 4, Col 2").clickable(true))
         .show(ui);

@@ -1,5 +1,6 @@
 use crate::Material;
 use crate::MaterialExt;
+use egui_mineral::layout::Fraction;
 use egui_mineral::semantic::AgentKey;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::MineralUi;
@@ -62,11 +63,11 @@ struct Spec {
 }
 
 impl Spec {
-    fn new(value: Option<f32>) -> Self {
+    fn new(value: Option<Fraction>) -> Self {
         Self {
             key: AgentKey::Kind("progress"),
             label: None,
-            value: value.map(|v| v.clamp(0.0, 1.0)),
+            value: value.map(Fraction::get),
             wavy: false,
         }
     }
@@ -79,11 +80,11 @@ impl Spec {
 /// Constructors and setters over `salt` and `spec: Spec` fields.
 macro_rules! indicator_setters {
     ($motion:literal, $wavy:literal) => {
-        /// `value` is the fraction done, clamped to 0..=1; agent key `<id_salt>-progress`.
-        pub fn determinate(id_salt: impl Into<KeyedSalt>, value: f32) -> Self {
+        /// `value` is the fraction done; agent key `<id_salt>-progress`.
+        pub fn determinate(id_salt: impl Into<KeyedSalt>, value: impl Into<Fraction>) -> Self {
             Self {
                 salt: id_salt.into(),
-                spec: Spec::new(Some(value)),
+                spec: Spec::new(Some(value.into())),
             }
         }
 

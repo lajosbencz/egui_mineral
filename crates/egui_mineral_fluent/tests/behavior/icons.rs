@@ -34,7 +34,7 @@ fn fluent_icon_converts_to_both_forms_of_its_family() {
 fn dropdown_chevron_defaults_to_the_fluent_font() {
     let pass = dropdown(Fluent::default());
     let chevron = ICON_CHEVRON_DOWN.regular().to_string();
-    assert_eq!(pass.text_family(&chevron), Some(FontFamily::Name(ICON_FAMILY.into())));
+    assert_eq!(pass.text_family(&chevron), Some(ICON_FAMILY.font_family()));
 }
 
 #[test]

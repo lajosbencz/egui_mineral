@@ -246,7 +246,7 @@ impl StatusBar {
             StatusProgress::Linear(value) => {
                 let rect = Rect::from_center_size(center, vec2(BAR, ICON));
                 let bar = match value {
-                    Some(v) => ProgressBar::determinate(salt, v),
+                    Some(v) => ProgressBar::determinate(salt, v.get()),
                     None => ProgressBar::indeterminate(salt),
                 };
                 let mut child = ui.new_child(UiBuilder::new().max_rect(rect));
