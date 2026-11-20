@@ -262,8 +262,16 @@ impl<'a> IconButton<'a> {
         agent_key(key)
     }
 
+    // Slot of a default button in a density-aware row: the 48dp target less density, at least the container.
+    pub(crate) fn slot(density: Density) -> f32 {
+        let g = geometry(Size::Small, IconButtonWidth::default());
+        density.dense_to(
+            crate::adaptive::MIN_INTERACTIVE_DP,
+            g.icon + crate::adaptive::CONTENT_PAD,
+        )
+    }
+
     // Dense composites size the slot to the container instead of the 48dp target.
-    #[cfg(feature = "extras")]
     pub(crate) fn hit_target(mut self, target: MinTarget) -> Self {
         self.target = target;
         self
@@ -330,7 +338,7 @@ impl<'a> IconButton<'a> {
     }
 
     pub(crate) fn footprint(&self, rt: &Rt, density: Density) -> Vec2 {
-        Zones::new(self.container(density).into(), self.min_target().points(rt.core()))
+        Zones::new(self.container(density).into(), self.target.points(rt.core()))
             .outer
             .size()
     }
@@ -356,7 +364,7 @@ impl MineralWidget for IconButton<'_> {
         self.shortcut
     }
 
-    fn min_target(&self) -> MinTarget {
+    fn min_target(&self, _: &MineralUi<'_, Self::Kit>) -> MinTarget {
         self.target
     }
 

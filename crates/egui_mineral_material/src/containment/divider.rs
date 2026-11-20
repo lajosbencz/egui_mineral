@@ -66,7 +66,7 @@ impl MineralWidget for Divider {
         Sense::hover()
     }
 
-    fn min_target(&self) -> MinTarget {
+    fn min_target(&self, _: &MineralUi<'_, Self::Kit>) -> MinTarget {
         MinTarget::None
     }
 

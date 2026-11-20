@@ -1,9 +1,13 @@
 use egui::{Key, Modifiers};
 use egui_mineral::{i18n::Direction, layout::Axis, overlay::Dismiss};
 use egui_mineral_material::{
+    IconAction, MaterialUiExt as _,
     actions::PushButton,
+    adaptive::Density,
     icons,
-    navigation::{NavDestination, NavigationBar, NavigationDrawer, NavigationRail, SearchBar, SearchView, Tab, Tabs},
+    navigation::{
+        NavDestination, NavigationBar, NavigationDrawer, NavigationRail, SearchBar, SearchView, Tab, Tabs, Toolbar,
+    },
     selection::{RadioGroup, RadioOption},
 };
 
@@ -406,5 +410,22 @@ fn search_back_arrows_point_along_the_reading_direction() {
             SearchView::new("view", "Search", &mut String::new()).show(ui, &mut true, |_, _| ());
         });
         view.text(&back.codepoint().to_string());
+    }
+}
+
+#[test]
+fn toolbars_shrink_with_density() {
+    for (step, height) in [(0, 64.0), (-3, 52.0), (-6, 44.0)] {
+        let mut h = still(SCREEN, [0.0; 2], move |ui, heights| {
+            ui.with_density(Density::new(step), |ui| {
+                let action = || IconAction::new(icons::ICON_HOME, "Home");
+                let docked = Toolbar::docked("dock", "Tools").action(action()).show(ui);
+                let floating = Toolbar::floating("float", "Tools").action(action()).show(ui);
+                *heights = [docked.response.rect.height(), floating.response.rect.height()];
+            });
+        });
+        h.run();
+        assert_eq!(h.state().value, [height; 2], "density {step}");
+        assert!(h.rect("dock-0-button").height() <= height, "density {step}");
     }
 }

@@ -13,7 +13,6 @@ use egui_mineral::{
 
 pub(crate) const WINDOW_CLASS_BREAKPOINTS: [f32; 4] = [600.0, 840.0, 1200.0, 1600.0];
 
-// Density-independent, like `MIN_INTERACTIVE`.
 pub(crate) const MIN_INTERACTIVE_DP: f32 = 48.0;
 
 pub(crate) const TARGETS: TargetPolicy = TargetPolicy::baseline().mouse(24.0).touch(MIN_INTERACTIVE_DP);
@@ -137,6 +136,11 @@ impl Density {
     pub fn dense(self, size: f32, min: Self) -> f32 {
         size + 4.0 * f32::from(self.max(min).step())
     }
+}
+
+/// [`MIN_INTERACTIVE`] shrunk 4dp per `density` step: 48dp at [`Density::DEFAULT`], 24dp at [`Density::MIN`].
+pub fn min_interactive(density: Density) -> MinTarget {
+    MinTarget::Points(density.dense(MIN_INTERACTIVE_DP, Density::MIN))
 }
 
 fn flow(align: Align) -> Flow {

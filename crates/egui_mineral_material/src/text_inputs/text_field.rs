@@ -19,7 +19,7 @@ use egui::{
     text::{LayoutJob, TextWrapping},
     vec2,
 };
-use egui_mineral::layout::{Constraints, Measure};
+use egui_mineral::layout::{Constraints, Edge, Measure};
 use egui_mineral::widget::Availability;
 use egui_mineral::{
     edit::{EditBuffer, EditEvent, FieldFocus},
@@ -703,6 +703,8 @@ pub(crate) struct FieldChrome {
     pub max_chars: Option<usize>,
     pub text_style: Option<TypeScale>,
     pub label_hidden: bool,
+    pub text_align: Option<Edge>,
+    pub tabular: bool,
 }
 
 /// `variant`, `supporting`, `error`, `maybe_error` and (unless `no_icon`) `icon` builders over a
@@ -761,6 +763,14 @@ macro_rules! field_chrome_setters {
         /// `false` hides the label but keeps it as the accessible name; default `true`.
         pub fn label_visible(mut self, label_visible: bool) -> Self {
             self.$($path).+.label_hidden = !label_visible;
+            self
+        }
+    };
+    (align) => {
+        /// Reading-order edge the value aligns to, edited and displayed; default
+        /// [`Edge::Start`]($crate::egui_mineral::layout::Edge::Start).
+        pub fn text_align(mut self, text_align: $crate::egui_mineral::layout::Edge) -> Self {
+            self.chrome.text_align = Some(text_align);
             self
         }
     };
@@ -868,6 +878,7 @@ impl<'a> TextField<'a> {
 
     crate::text_inputs::text_field::field_chrome_setters!();
     crate::text_inputs::text_field::field_chrome_setters!(text);
+    crate::text_inputs::text_field::field_chrome_setters!(align);
 
     /// Overflowing text keeps this part visible: a single-line value while unfocused, and the
     /// supporting text. [`Elide::Start`] shows a path's file name. Default: the value scrolls
@@ -1041,6 +1052,7 @@ pub(crate) struct BareEdit<'a> {
     colors: &'a FieldColors,
     t: &'a Tokens,
     v_align: egui::Align,
+    h_align: Edge,
     mask: bool,
     rows: Option<usize>,
 }
@@ -1054,6 +1066,7 @@ impl<'a> BareEdit<'a> {
             colors,
             t,
             v_align: egui::Align::Min,
+            h_align: Edge::Start,
             mask: false,
             rows: None,
         }
@@ -1062,6 +1075,11 @@ impl<'a> BareEdit<'a> {
     #[cfg(feature = "extras")]
     pub(crate) fn v_align(mut self, v_align: egui::Align) -> Self {
         self.v_align = v_align;
+        self
+    }
+
+    pub(crate) fn h_align(mut self, h_align: Edge) -> Self {
+        self.h_align = h_align;
         self
     }
 
@@ -1083,7 +1101,7 @@ impl<'a> BareEdit<'a> {
         text: &mut dyn TextBuffer,
         add: impl FnOnce(&mut Ui, TextEdit<'_>) -> Response,
     ) -> Response {
-        let dir = ui.i18n().direction();
+        let dir = ui.i18n().direction().from_edge(self.h_align);
         let mut layouter = input_layouter(self.format, self.mask, self.rows.is_some());
         let edit = match self.rows {
             Some(rows) => TextEdit::multiline(text).desired_rows(rows),
@@ -1141,27 +1159,38 @@ impl TextField<'_> {
         let (interactive, max_chars, event_filter) = (!self.disabled, self.chrome.max_chars, self.event_filter);
         let style = self.input_style();
         let text: &mut String = if buffered { buffer.draft_mut() } else { &mut *self.value };
-        // The unfocused editor stays for clicks and Tab; an elided copy is painted over its
+        let align = self.chrome.text_align.unwrap_or(Edge::Start);
+        // The unfocused editor stays for clicks and Tab; an elided or tabular copy is painted over its
         // transparent text.
-        let elided = self
-            .elide
-            .filter(|_| !cx.focused && rows.is_none() && !mask)
-            .map(|e| elided_galley(ui.painter(), text, style, cx.colors.input, cx.rect.width(), e))
-            .filter(|g| g.text() != text.as_str());
-        let color = if elided.is_some() {
+        let display = (!cx.focused && rows.is_none() && !mask)
+            .then(|| {
+                if self.chrome.tabular {
+                    let format = style.format(ui.ctx(), cx.colors.input);
+                    let mut job = egui_mineral::kit::text::tabular_figures(ui.ctx(), text, &format);
+                    job.wrap = TextWrapping::truncate_at_width(cx.rect.width());
+                    return Some(ui.painter().layout_job(job));
+                }
+                self.elide
+                    .map(|e| elided_galley(ui.painter(), text, style, cx.colors.input, cx.rect.width(), e))
+                    .filter(|g| g.text() != text.as_str())
+            })
+            .flatten();
+        let color = if display.is_some() {
             Color32::TRANSPARENT
         } else {
             cx.colors.input
         };
-        if let Some(g) = &elided {
+        if let Some(g) = &display {
             let x = ui
                 .i18n()
                 .direction()
+                .from_edge(align)
                 .start_x(cx.rect, Rangef::new(0.0, 0.0 + g.size().x));
             ui.painter()
                 .galley(pos2(x, cx.rect.top()), Arc::clone(g), Color32::PLACEHOLDER);
         }
         BareEdit::new(cx.id, cx.rect, style.format(ui.ctx(), color), cx.colors, cx.t)
+            .h_align(align)
             .mask(mask)
             .rows(rows)
             .show(ui, text, |ui, mut edit| {

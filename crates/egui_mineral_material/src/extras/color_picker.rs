@@ -568,7 +568,7 @@ impl MineralWidget for HueBar<'_> {
         Some(Axis::Horizontal)
     }
 
-    fn min_target(&self) -> MinTarget {
+    fn min_target(&self, _: &MineralUi<'_, Self::Kit>) -> MinTarget {
         MIN_INTERACTIVE
     }
 
@@ -665,7 +665,7 @@ impl MineralWidget for Swatch {
 
     egui_mineral::kit::widget_meta!(salt, enabled);
 
-    fn min_target(&self) -> MinTarget {
+    fn min_target(&self, _: &MineralUi<'_, Self::Kit>) -> MinTarget {
         MIN_INTERACTIVE
     }
 

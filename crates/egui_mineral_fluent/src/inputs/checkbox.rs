@@ -269,7 +269,7 @@ impl MineralWidget for Checkbox<'_> {
             .map_or(Sense::click(), |t| roving_sense(Sense::click(), t))
     }
 
-    fn min_target(&self) -> MinTarget {
+    fn min_target(&self, _: &MineralUi<'_, Self::Kit>) -> MinTarget {
         MinTarget::None
     }
 

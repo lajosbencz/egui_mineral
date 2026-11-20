@@ -406,8 +406,9 @@ pub trait MineralWidget {
         true
     }
 
-    /// Defaults to [`MinTarget::Auto`] (policy target for the current pointer).
-    fn min_target(&self) -> MinTarget {
+    /// Defaults to [`MinTarget::Auto`] (policy target for the current pointer). `ui` gives kits their
+    /// subtree settings, e.g. a density that shrinks the target.
+    fn min_target(&self, _: &MineralUi<'_, Self::Kit>) -> MinTarget {
         MinTarget::Auto
     }
 
@@ -457,7 +458,7 @@ fn show<K, W: MineralWidget<Kit = K>>(ui: &mut MineralUi<'_, K>, mut widget: W) 
     let min = if composite {
         0.0
     } else {
-        widget.min_target().points_for(core, input.modality)
+        widget.min_target(ui).points_for(core, input.modality)
     };
     // Height is unbounded: horizontal layouts report only the current row height as available.
     let constraints = Constraints::loose(Vec2::new(ui.available_width(), f32::INFINITY));
@@ -776,7 +777,7 @@ mod tests {
             IdSalt::new("probe")
         }
 
-        fn min_target(&self) -> MinTarget {
+        fn min_target(&self, _: &MineralUi<'_, Self::Kit>) -> MinTarget {
             MinTarget::None
         }
 

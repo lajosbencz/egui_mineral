@@ -105,7 +105,7 @@ pub(crate) fn place_chip(
 ) -> bool {
     let rt = ui.rt();
     let chip = chip.target(MinTarget::Auto);
-    let zones = Zones::new(rect.size().into(), chip.min_target().points(rt.core()));
+    let zones = Zones::new(rect.size().into(), chip.min_target(ui).points(rt.core()));
     let outer = zones.translate(rect.min - zones.visual.min).outer;
     rt.ui(&mut ui.new_child(UiBuilder::new().id_salt(salt).max_rect(outer)))
         .mineral(chip)

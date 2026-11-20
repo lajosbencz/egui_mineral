@@ -209,7 +209,7 @@ impl MineralWidget for GridCell<'_> {
         focus::roving_sense(Sense::click(), self.tab_stop)
     }
 
-    fn min_target(&self) -> MinTarget {
+    fn min_target(&self, _: &MineralUi<'_, Self::Kit>) -> MinTarget {
         MinTarget::None
     }
 

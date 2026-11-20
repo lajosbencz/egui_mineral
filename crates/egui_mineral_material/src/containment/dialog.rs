@@ -61,7 +61,7 @@ fn text_actions_end<T>(
     let rt = ui.rt();
     let width = |b: &PushButton<'_>| {
         let measure = b.layout(ui, Constraints::loose(vec2(ui.available_width(), f32::INFINITY)), &());
-        Zones::new(measure, b.min_target().points(ui.core())).outer.width()
+        Zones::new(measure, b.min_target(ui).points(ui.core())).outer.width()
     };
     let buttons: Vec<_> = actions
         .into_iter()

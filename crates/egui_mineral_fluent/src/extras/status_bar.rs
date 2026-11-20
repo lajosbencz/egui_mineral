@@ -108,18 +108,19 @@ impl StatusBar {
         );
 
         let content_of = |it: &StatusItem| content_color(it, &t);
-        let galley = |text: &str, color: Color32, room: Option<f32>| -> Arc<Galley> {
-            let mut job = LayoutJob::single_section(text.to_owned(), TEXT.format(ui.ctx(), color));
+        let galley = |it: &StatusItem, room: Option<f32>| -> Arc<Galley> {
+            let format = TEXT.format(ui.ctx(), content_of(it));
+            let mut job = if it.has_tabular_figures() {
+                egui_mineral::kit::text::tabular_figures(ui.ctx(), it.text(), &format)
+            } else {
+                LayoutJob::single_section(it.text().to_owned(), format)
+            };
             if let Some(room) = room {
                 job.wrap = egui::text::TextWrapping::truncate_at_width(room);
             }
             ui.painter().layout_job(job)
         };
-        let mut galleys: Vec<Arc<Galley>> = self
-            .items
-            .iter()
-            .map(|(it, _)| galley(it.text(), content_of(it), None))
-            .collect();
+        let mut galleys: Vec<Arc<Galley>> = self.items.iter().map(|(it, _)| galley(it, None)).collect();
         let chrome = |i: usize| 2.0 * PAD_X + self.items[i].0.lead().map_or(0.0, |l| lead_width(l) + ICON_GAP);
         let measured: Vec<strip::Item> = self
             .items
@@ -140,7 +141,7 @@ impl StatusBar {
             .map(|(i, (placed, (item, at_end)))| {
                 let placed = placed?;
                 if let Some(room) = placed.elided_room {
-                    galleys[i] = galley(item.text(), content_of(item), Some(room));
+                    galleys[i] = galley(item, Some(room));
                 }
                 Some(slot(rect, dir, *at_end, placed.offset, placed.width))
             })

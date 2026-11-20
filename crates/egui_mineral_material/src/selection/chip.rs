@@ -600,7 +600,7 @@ impl MineralWidget for Core<'_> {
 
     egui_mineral::kit::widget_meta!(salt, enabled);
 
-    fn min_target(&self) -> MinTarget {
+    fn min_target(&self, _: &MineralUi<'_, Self::Kit>) -> MinTarget {
         self.min_target
     }
 

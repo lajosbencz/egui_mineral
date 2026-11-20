@@ -16,6 +16,7 @@ pub mod scroll;
 pub mod semantic;
 pub mod state;
 pub mod strip;
+pub mod text;
 
 /// `id` made distinct per runtime and window: `Context` data and popup ids are shared by every viewport and runtime,
 /// so state keyed by an app salt alone would leak between them. Call outside `Context` lock closures.

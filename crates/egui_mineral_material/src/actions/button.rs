@@ -777,7 +777,7 @@ impl MineralWidget for PushButton<'_> {
         focus::roving_sense(Sense::click(), self.tab_stop)
     }
 
-    fn min_target(&self) -> MinTarget {
+    fn min_target(&self, _: &MineralUi<'_, Self::Kit>) -> MinTarget {
         self.min_target
     }
 

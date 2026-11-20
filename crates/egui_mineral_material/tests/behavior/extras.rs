@@ -441,3 +441,18 @@ fn status_item_linear_progress_paints_a_status_line_bar_inside_its_item() {
         assert!(bar.height() < item.height(), "bar {i} fits the status line");
     }
 }
+
+#[test]
+fn status_item_with_tabular_figures_keeps_its_text_and_place() {
+    let bar = |tabular| {
+        render(|ui| {
+            StatusBar::new("status", "Status")
+                .item(StatusItem::new("Frame 120").tabular_figures(tabular))
+                .show(ui);
+        })
+        .text("Frame 120")
+    };
+    let (plain, tabular) = (bar(false), bar(true));
+    assert_eq!(plain.min, tabular.min);
+    assert!(tabular.width() >= plain.width());
+}

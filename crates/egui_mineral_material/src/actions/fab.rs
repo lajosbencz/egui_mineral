@@ -332,7 +332,7 @@ macro_rules! fab_widget_meta {
             self.core.shortcut
         }
 
-        fn min_target(&self) -> MinTarget {
+        fn min_target(&self, _: &MineralUi<'_, Self::Kit>) -> MinTarget {
             crate::adaptive::MIN_INTERACTIVE
         }
 

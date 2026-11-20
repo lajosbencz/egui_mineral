@@ -231,7 +231,7 @@ impl MineralWidget for Rating<'_> {
 
     kit::widget_meta!(salt);
 
-    fn min_target(&self) -> MinTarget {
+    fn min_target(&self, _: &MineralUi<'_, Self::Kit>) -> MinTarget {
         MinTarget::None
     }
 

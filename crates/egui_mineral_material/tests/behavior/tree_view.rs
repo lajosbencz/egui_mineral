@@ -1,10 +1,14 @@
 //! `TreeView`: selection, keyboard expansion and activation.
 
 use egui::Key;
+use egui_mineral::tree::TreeData as _;
 use egui_mineral::{expand::Expansion, select::Selection};
-use egui_mineral_material::extras::{TreeDrag, TreeView};
+use egui_mineral_material::{
+    extras::{TreeDrag, TreeView},
+    spec::TypeScale,
+};
 
-use crate::support::{Harness, MineralHarness, SCREEN, TreeNode, harness};
+use crate::support::{Harness, MineralHarness, SCREEN, TreeNode, harness, render};
 
 #[derive(Default)]
 struct Tree {
@@ -127,4 +131,25 @@ fn culled_rows_register_no_widgets() {
         .ctx
         .viewport(|v| v.prev_pass.widgets.layers().map(|(_, w)| w.len()).sum());
     assert!(widgets < 150, "{widgets} widgets for {ROWS} rows");
+}
+
+#[test]
+fn node_text_style_sets_the_label_role_per_row() {
+    let roots = vec![TreeNode::branch(1, "Docs", vec![]), TreeNode::leaf(2, "Notes")];
+    let folder = TypeScale::TitleLargeEmphasized;
+    let p = render(|ui| {
+        let mut expansion = Expansion::default();
+        TreeView::new("tree", "Files", &roots, &mut expansion)
+            .text_style(TypeScale::BodySmall)
+            .node_text_style(|n| {
+                if n.label() == "Docs" {
+                    folder
+                } else {
+                    TypeScale::BodySmall
+                }
+            })
+            .show(ui);
+    });
+    assert_eq!(p.text("Docs").height(), folder.line_height());
+    assert_eq!(p.text("Notes").height(), TypeScale::BodySmall.line_height());
 }

@@ -134,7 +134,8 @@ impl Material {
         Density::new(self.density.load(Ordering::Relaxed))
     }
 
-    /// Shrinks visuals only; touch targets stay at [`adaptive::MIN_INTERACTIVE`].
+    /// Shrinks visuals; the hit targets of `CheckButton`, `Radio`, `Switch` and toolbar actions follow
+    /// ([`adaptive::min_interactive`]), others stay at [`adaptive::MIN_INTERACTIVE`].
     pub fn set_density(&self, density: Density) {
         self.density.store(density.step(), Ordering::Relaxed);
     }

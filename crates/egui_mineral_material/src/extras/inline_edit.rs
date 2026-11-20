@@ -68,6 +68,7 @@ pub struct InlineEdit<'a> {
     style: TypeScale,
     placeholder: Option<String>,
     disabled: bool,
+    editing: Option<&'a mut bool>,
     chrome: FieldChrome,
 }
 
@@ -82,6 +83,7 @@ impl<'a> InlineEdit<'a> {
             style: TypeScale::BodyLarge,
             placeholder: None,
             disabled: false,
+            editing: None,
             chrome: FieldChrome::default(),
         }
     }
@@ -91,6 +93,14 @@ impl<'a> InlineEdit<'a> {
     /// Text role of the preview and the editor; default [`TypeScale::BodyLarge`].
     pub fn text_style(mut self, text_style: TypeScale) -> Self {
         self.style = text_style;
+        self
+    }
+
+    /// Binds the editor's open state: setting it opens the editor focused with the text selected
+    /// (an app shortcut such as F2), clearing it discards the draft; the widget writes it back as the
+    /// editor opens, submits and cancels.
+    pub fn editing(mut self, editing: &'a mut bool) -> Self {
+        self.editing = Some(editing);
         self
     }
 
@@ -221,6 +231,17 @@ impl Composite for InlineEdit<'_> {
         let edit_id = base.with("edit");
         let mut st = EditState::load(&ctx, state_id);
         let (mut submitted, mut cancelled) = (false, false);
+        match self.editing.as_deref() {
+            Some(true) if st.draft.is_none() && !self.disabled => {
+                st.draft = Some(self.value.clone());
+                st.focus = true;
+            }
+            Some(false) if st.draft.take().is_some() => {
+                st.cancel = None;
+                cancelled = true;
+            }
+            _ => {}
+        }
         let h = row_height(self.style);
         let width = constraints.constrain(vec2(tf::MIN_WIDTH, 0.0)).x;
 
@@ -263,6 +284,9 @@ impl Composite for InlineEdit<'_> {
             self.preview(ui, &mut st, vec2(width, h))
         };
         let editing = st.draft.is_some();
+        if let Some(bound) = self.editing.as_deref_mut() {
+            *bound = editing;
+        }
         st.store(&ctx, state_id);
         let mut response = response;
         if submitted {

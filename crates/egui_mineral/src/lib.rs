@@ -130,8 +130,8 @@ macro_rules! __delegate_widget_meta {
             $crate::widget::MineralWidget::enabled(&self.$field)
         }
 
-        fn min_target(&self) -> $crate::layout::MinTarget {
-            $crate::widget::MineralWidget::min_target(&self.$field)
+        fn min_target(&self, ui: &$crate::widget::MineralUi<'_, Self::Kit>) -> $crate::layout::MinTarget {
+            $crate::widget::MineralWidget::min_target(&self.$field, ui)
         }
 
         fn access_key(&self) -> ::core::option::Option<$crate::shortcut::Mnemonic> {
@@ -170,7 +170,7 @@ macro_rules! __widget_meta {
         $crate::__widget_meta!($($($rest)*)?);
     };
     (no_target $(, $($rest:tt)*)?) => {
-        fn min_target(&self) -> $crate::layout::MinTarget {
+        fn min_target(&self, _: &$crate::widget::MineralUi<'_, Self::Kit>) -> $crate::layout::MinTarget {
             $crate::layout::MinTarget::None
         }
         $crate::__widget_meta!($($($rest)*)?);
