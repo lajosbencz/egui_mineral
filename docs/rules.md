@@ -31,7 +31,7 @@ Other files cite them as `docs/rules.md rule N`.
    Dependencies must be GPL-3.0 compatible (`deny.toml` allow list).
    No GPL-2.0-only, EPL, CDDL, SSPL.
 9. The core never requires Tokio, because it lacks full wasm32-unknown-unknown support, and never starts or owns a runtime.
-   Apps supply a `Spawner`: their own, or an opt-in core adapter over their executor (`spawn-tokio`, `spawn-wasm`).
+   Apps supply a `Spawner`: their own, or a core adapter (`spawn::ThreadSpawner`, or opt-in over their executor: `spawn-tokio`, `spawn-wasm`).
 10. Library code never panics, whatever the input:
     caller arguments, layout sizes, text, pointer, key and AccessKit input, agent requests, app data that changes between frames, persisted state, timing. 
     Fallible APIs return `Result`, invalid values are replaced with the nearest valid one through `kit::sanitize` (`at_least`, `within`, `index`),
@@ -40,7 +40,7 @@ Other files cite them as `docs/rules.md rule N`.
     Indices that outlive the current scope (stored, persisted, app-provided, agent or AccessKit requests) go through `.get()` or `kit::sanitize::index` where they are used.
     Locally derived ones may index, iterators are preferred over both.
 11. Every thread or task has an owner that joins or cancels it. The core spawns none, apps own them through their `Spawner` (futures) and `BlockingSpawner` (blocking OS calls).
-    The opt-in adapters (`spawn::TokioSpawner`, `spawn::WasmSpawner`) forward to the app's executor and own the tasks they spawn: drop or `shutdown` cancels them. Their spawn calls are the only `#[expect(clippy::disallowed_methods, reason)]` of this rule, in `spawn.rs` only.
+    The adapters (`spawn::ThreadSpawner`, `spawn::TokioSpawner`, `spawn::WasmSpawner`) own the tasks they spawn: drop or `shutdown` cancels them. Their spawn calls are the only `#[expect(clippy::disallowed_methods, reason)]` of this rule, in `spawn.rs` only.
 
 ## Enforcement
 

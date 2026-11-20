@@ -1,13 +1,15 @@
-//! Opt-in [`Spawner`](crate::bus::Spawner) adapters over the app's executor.
+//! [`Spawner`](crate::bus::Spawner) adapters: plain threads, or opt-in over the app's executor.
 //!
-//! The app owns the executor; an adapter forwards to it and owns the tasks it spawned: dropping the adapter
-//! cancels them (`docs/rules.md` rules 9 and 11).
+//! An adapter owns the tasks it spawned: dropping it cancels them (`docs/rules.md` rules 9 and 11).
 //!
 //! | Feature | Target | Adapter |
 //! |---|---|---|
 //! | `spawn-tokio` | native | `TokioSpawner` over a `tokio::runtime::Handle` |
 //! | `spawn-wasm` | wasm32 | `WasmSpawner` over `wasm_bindgen_futures::spawn_local` |
+//! | | native | `ThreadSpawner`, one OS thread per task |
 
+#[cfg(not(target_arch = "wasm32"))]
+pub use self::thread::ThreadSpawner;
 #[cfg(all(feature = "spawn-tokio", not(target_arch = "wasm32")))]
 pub use self::tokio::TokioSpawner;
 #[cfg(all(feature = "spawn-wasm", target_arch = "wasm32"))]
@@ -252,6 +254,213 @@ mod wasm {
     impl Drop for WasmSpawner {
         fn drop(&mut self) {
             self.shutdown();
+        }
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+mod thread {
+    use std::{
+        pin::pin,
+        sync::Arc,
+        task::{Context, Wake, Waker},
+        thread::{Builder, JoinHandle, Thread},
+    };
+
+    use futures_util::future::{AbortHandle, Abortable};
+    use parking_lot::Mutex;
+
+    use crate::bus::{BlockingJob, BlockingSpawner, BoxFuture, Spawner};
+
+    /// [`Spawner`] and [`BlockingSpawner`] running each task on its own OS thread, for apps without an async
+    /// runtime.
+    ///
+    /// Owns the tasks it spawned: dropping it aborts the futures, which end at their next wake;
+    /// [`Self::shutdown`] also joins every thread. A blocking job that already started runs to completion. A
+    /// task that panicked is reported to `tracing`.
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    ///
+    /// use egui_mineral::{bus::SpawnerExt, spawn::ThreadSpawner};
+    ///
+    /// // Shared by the bus handlers and `NativePlatform::new(Arc::clone(&spawner))`.
+    /// let spawner = Arc::new(ThreadSpawner::new());
+    /// spawner.spawn_future(async {});
+    /// spawner.shutdown();
+    /// ```
+    #[derive(Debug, Default)]
+    pub struct ThreadSpawner {
+        tasks: Mutex<Vec<Task>>,
+    }
+
+    #[derive(Debug)]
+    struct Task {
+        thread: JoinHandle<()>,
+        abort: Option<AbortHandle>,
+    }
+
+    impl ThreadSpawner {
+        /// Spawner without tasks.
+        pub fn new() -> Self {
+            Self::default()
+        }
+
+        /// Tasks spawned and not yet finished.
+        pub fn running(&self) -> usize {
+            let mut tasks = self.tasks.lock();
+            reap(&mut tasks);
+            tasks.len()
+        }
+
+        /// Aborts every future and joins every thread, waiting for started blocking jobs; tasks spawned
+        /// meanwhile are kept.
+        pub fn shutdown(&self) {
+            let tasks = std::mem::take(&mut *self.tasks.lock());
+            for task in &tasks {
+                task.abort();
+            }
+            for task in tasks {
+                report(task.thread);
+            }
+        }
+
+        fn start(&self, abort: Option<AbortHandle>, run: impl FnOnce() + Send + 'static) {
+            #[expect(
+                clippy::disallowed_methods,
+                reason = "docs/rules.md rule 11: the adapter owns the thread and joins it on shutdown"
+            )]
+            let spawned = Builder::new().name("egui_mineral-task".into()).spawn(run);
+            match spawned {
+                Ok(thread) => {
+                    let mut tasks = self.tasks.lock();
+                    reap(&mut tasks);
+                    tasks.push(Task { thread, abort });
+                }
+                Err(e) => tracing::error!(target: "egui_mineral", error = %e, "spawning a task thread failed"),
+            }
+        }
+    }
+
+    impl Task {
+        fn abort(&self) {
+            if let Some(abort) = &self.abort {
+                abort.abort();
+            }
+        }
+    }
+
+    fn report(thread: JoinHandle<()>) {
+        if thread.join().is_err() {
+            tracing::error!(target: "egui_mineral", "spawned task panicked");
+        }
+    }
+
+    fn reap(tasks: &mut Vec<Task>) {
+        let (ended, running) = std::mem::take(tasks)
+            .into_iter()
+            .partition(|t: &Task| t.thread.is_finished());
+        *tasks = running;
+        for task in ended {
+            report(task.thread);
+        }
+    }
+
+    struct Unpark(Thread);
+
+    impl Wake for Unpark {
+        fn wake(self: Arc<Self>) {
+            self.0.unpark();
+        }
+
+        fn wake_by_ref(self: &Arc<Self>) {
+            self.0.unpark();
+        }
+    }
+
+    fn block_on(fut: BoxFuture) {
+        let mut fut = pin!(fut);
+        let waker = Waker::from(Arc::new(Unpark(std::thread::current())));
+        let mut cx = Context::from_waker(&waker);
+        while fut.as_mut().poll(&mut cx).is_pending() {
+            std::thread::park();
+        }
+    }
+
+    impl Spawner for ThreadSpawner {
+        fn spawn(&self, fut: BoxFuture) {
+            let (abort, registration) = AbortHandle::new_pair();
+            self.start(Some(abort), move || {
+                block_on(Box::pin(async move {
+                    if Abortable::new(fut, registration).await.is_err() {
+                        tracing::debug!(target: "egui_mineral", "spawned task aborted");
+                    }
+                }));
+            });
+        }
+    }
+
+    impl BlockingSpawner for ThreadSpawner {
+        fn spawn_blocking(&self, job: BlockingJob) {
+            self.start(None, job);
+        }
+    }
+
+    impl Drop for ThreadSpawner {
+        fn drop(&mut self) {
+            for task in self.tasks.get_mut().iter() {
+                task.abort();
+            }
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use std::sync::{
+            Arc,
+            atomic::{AtomicBool, Ordering},
+            mpsc,
+        };
+
+        use super::ThreadSpawner;
+        use crate::bus::{BlockingSpawner as _, SpawnerExt as _};
+
+        struct SetOnDrop(Arc<AtomicBool>);
+
+        impl Drop for SetOnDrop {
+            fn drop(&mut self) {
+                self.0.store(true, Ordering::SeqCst);
+            }
+        }
+
+        #[test]
+        fn runs_futures_and_blocking_jobs_on_threads() {
+            let spawner = ThreadSpawner::new();
+            let (tx, rx) = mpsc::channel();
+            let blocking = tx.clone();
+            let (wake_tx, wake_rx) = futures_channel::oneshot::channel::<i32>();
+            spawner.spawn_future(async move { tx.send(wake_rx.await.unwrap()).unwrap() });
+            spawner.spawn_blocking(Box::new(move || blocking.send(2).unwrap()));
+            wake_tx.send(1).unwrap();
+            let mut got = [rx.recv().unwrap(), rx.recv().unwrap()];
+            spawner.shutdown();
+            got.sort_unstable();
+            assert_eq!(got, [1, 2]);
+            assert_eq!(spawner.running(), 0);
+        }
+
+        #[test]
+        fn shutdown_cancels_pending_futures() {
+            let spawner = ThreadSpawner::new();
+            let dropped = Arc::new(AtomicBool::new(false));
+            let guard = SetOnDrop(Arc::clone(&dropped));
+            spawner.spawn_future(async move {
+                let _guard = guard;
+                std::future::pending::<()>().await;
+            });
+            assert_eq!(spawner.running(), 1);
+            spawner.shutdown();
+            assert!(dropped.load(Ordering::SeqCst), "the pending future is dropped");
         }
     }
 }
