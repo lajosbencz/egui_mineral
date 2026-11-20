@@ -5,7 +5,7 @@ use egui_taffy::{Tui, TuiBuilderLogic, TuiContainerResponse, taffy};
 
 use crate::{
     i18n::Direction,
-    runtime::Runtime,
+    runtime::{Runtime, Stylekit},
     widget::{MineralUi, MineralWidget, WidgetResponse},
 };
 
@@ -150,7 +150,10 @@ impl<K> FlowItems<'_, K> {
     }
 
     /// Shows `widget` as one flow item.
-    pub fn mineral<W: MineralWidget<Kit = K>>(&mut self, widget: W) -> WidgetResponse<W::Output> {
+    pub fn mineral<W: MineralWidget<Kit = K>>(&mut self, widget: W) -> WidgetResponse<W::Output>
+    where
+        K: Stylekit,
+    {
         self.add(|ui| ui.mineral(widget))
     }
 

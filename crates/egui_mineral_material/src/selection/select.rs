@@ -105,7 +105,7 @@ pub(crate) fn place_chip(
 ) -> bool {
     let rt = ui.rt();
     let chip = chip.target(MinTarget::Auto);
-    let zones = Zones::new(rect.size().into(), chip.min_target(ui).points(rt.core()));
+    let zones = Zones::new(rect.size().into(), ui.target(chip.min_target(ui)));
     let outer = zones.translate(rect.min - zones.visual.min).outer;
     rt.ui(&mut ui.new_child(UiBuilder::new().id_salt(salt).max_rect(outer)))
         .mineral(chip)
@@ -473,8 +473,8 @@ impl<'a> Select<'a> {
         &self.options[i].label
     }
 
-    fn content_width(&self, rt: &Rt, density: Density, w: f32) -> f32 {
-        w - content_inset(rt, density, self.chrome.leading.is_some()) - content_inset(rt, density, true)
+    fn content_width(&self, density: Density, w: f32) -> f32 {
+        w - content_inset(density, self.chrome.leading.is_some()) - content_inset(density, true)
     }
 
     fn chip_widths(&self, ui: &MineralUi<'_, Material>, chips: &[usize]) -> Vec<f32> {
@@ -486,12 +486,7 @@ impl<'a> Select<'a> {
         if chips.is_empty() {
             return field_h(ui.density(), self.chrome.variant, self.shows_label());
         }
-        let rows = chip_flow(
-            &self.chip_widths(ui, &chips),
-            self.content_width(ui.rt(), ui.density(), w),
-            0.0,
-        )
-        .1;
+        let rows = chip_flow(&self.chip_widths(ui, &chips), self.content_width(ui.density(), w), 0.0).1;
         ChipRows::new(ui, self.chrome.variant, self.shows_label(), true).field_height(
             ui.density(),
             self.chrome.variant,
@@ -621,7 +616,7 @@ impl Select<'_> {
         let colors = decor.colors;
         let dir = rt.i18n().direction();
         // `ExposedDropdownMenuDefaults.TrailingIcon`: the drop-down arrow turned over while expanded.
-        let slot = text_field::icon_slot(rt, ui.density()) / 2.0;
+        let slot = text_field::icon_slot(ui.density()) / 2.0;
         let ax = dir.reversed().start_x(field, Rangef::point(slot));
         let turn = if state.combo.is_open() {
             std::f32::consts::PI

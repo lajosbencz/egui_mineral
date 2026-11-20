@@ -104,8 +104,8 @@ impl<'a> TagsField<'a> {
     }
 
     fn content_width(&self, ui: &MineralUi<'_, Material>, w: f32) -> f32 {
-        let (rt, density) = (ui.rt(), ui.density());
-        let span = w - content_inset(rt, density, self.chrome.leading.is_some()) - content_inset(rt, density, false);
+        let density = ui.density();
+        let span = w - content_inset(density, self.chrome.leading.is_some()) - content_inset(density, false);
         span - text_field::affix_room(ui, &self.chrome, span)
     }
 

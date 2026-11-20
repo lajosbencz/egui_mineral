@@ -631,7 +631,7 @@ impl MineralWidget for Core<'_> {
         let remove_center = pos2(x(rect.width() - end - trail / 2.0), rect.center().y);
         let remove_hit = Rect::from_center_size(
             remove_center,
-            egui::Vec2::splat(crate::adaptive::MIN_INTERACTIVE.points(rt.core())),
+            egui::Vec2::splat(crate::adaptive::min_interactive(ui.density())),
         );
         let remove = self.has_remove().then(|| {
             kit::input::interact(

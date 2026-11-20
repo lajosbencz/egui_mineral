@@ -13,7 +13,7 @@ use egui_mineral::widget::Availability;
 use egui_mineral::{
     focus::RovingFocus,
     i18n::Direction,
-    layout::{Axis, Constraints, Edge, Measure, MinTarget},
+    layout::{Axis, Constraints, Edge, Measure},
     semantic::{self, Role, SemanticNode, StableId},
     shortcut,
     widget::{MineralWidget, WidgetFrame, WidgetResponse},
@@ -22,7 +22,7 @@ use egui_mineral::{
 use crate::actions::icon_button::{IconButton, Palette};
 use crate::{
     Icon,
-    adaptive::MIN_INTERACTIVE_DP,
+    adaptive::Density,
     motion,
     spec::{
         ColorRole,
@@ -39,14 +39,13 @@ use crate::{
     },
 };
 
-// Compose IconButton minimumInteractiveComponentSize, less density
 fn slot(ui: &MineralUi<'_, Material>) -> f32 {
     IconButton::slot(ui.density())
 }
 
 // `height` at default density; the padding around the action slot stays.
 fn dense_height(height: f32, item: f32) -> f32 {
-    height - (MIN_INTERACTIVE_DP - item)
+    height - (crate::adaptive::min_interactive(Density::DEFAULT) - item)
 }
 
 /// Result of [`DockedToolbar::show`] and [`FloatingToolbar::show`].
@@ -158,8 +157,7 @@ fn items(
                         a.icon,
                         &a.label,
                     )
-                    .disabled(a.disabled)
-                    .hit_target(MinTarget::Points(item));
+                    .disabled(a.disabled);
                     if let Some(sel) = a.selected {
                         b = b.selected(sel);
                     }

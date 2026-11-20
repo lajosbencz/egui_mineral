@@ -1,0 +1,10 @@
+id: min-target-points
+language: rust
+severity: error
+message: Resolve minimum targets with MineralUi::target or adaptive::min_interactive(density), so density applies; MinTarget::points skips Stylekit::min_target.
+files:
+  - crates/egui_mineral_material/src/**
+rule:
+  any:
+    - pattern: $X.points($CORE)
+    - pattern: $X.points_for($$$ARGS)

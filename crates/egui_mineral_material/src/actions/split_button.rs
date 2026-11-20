@@ -1,5 +1,6 @@
 use crate::Material;
 use crate::MaterialExt;
+use crate::MaterialUiExt as _;
 use crate::actions::button::{ContainerVariant, Space};
 use egui_mineral::i18n::I18n;
 use egui_mineral::semantic::KeyedSalt;
@@ -167,7 +168,15 @@ impl SplitButton {
     /// Paints both parts and the menu while open.
     pub fn show(self, ui: &mut MineralUi<'_, Material>) -> SplitButtonResponse {
         let rt = ui.rt();
-        let m = metrics(self.size);
+        let mut m = metrics(self.size);
+        // The default size is dense down to its glyphs with padding, like `IconButton`.
+        if self.size == Size::Small {
+            let b = self.size.metrics();
+            m.height = ui.density().dense_to(
+                m.height,
+                b.font.line_height().max(b.icon).max(m.trail_icon) + crate::adaptive::CONTENT_PAD,
+            );
+        }
         let mut lead = PushButton::new(self.salt.child("lead"), &self.label)
             .agent_key(StableId::of(&self.salt, "button"))
             .variant(self.variant.into())
@@ -200,13 +209,19 @@ impl SplitButton {
             disabled: self.disabled,
         };
         let dir = rt.i18n().direction();
-        let min = crate::adaptive::MIN_INTERACTIVE.points(ui.core());
+        let min = crate::adaptive::min_interactive(ui.density());
         let row = vec2(ui.available_width(), m.height.max(min));
         let (lead_r, trail_r) = ui
             .scope(|ui| {
                 ui.spacing_mut().item_spacing.x = m.gap;
-                ui.allocate_ui_with_layout(row, dir.row(), |ui| (rt.ui(ui).mineral(lead), rt.ui(ui).mineral(trail)))
-                    .inner
+                ui.allocate_ui_with_layout(row, dir.row(), |ui| {
+                    (
+                        rt.ui(ui)
+                            .mineral(egui_mineral::widget::SizeExt::preferred_height(lead, m.height)),
+                        rt.ui(ui).mineral(trail),
+                    )
+                })
+                .inner
             })
             .inner;
         let menu_item = if self.disabled {

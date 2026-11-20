@@ -8,7 +8,7 @@ use crate::{
     input::{InputContext, PanClaim, PointerKind},
     layout::{Axis, Constraints, Measure, MinTarget, Zones},
     perf,
-    runtime::{Core, Runtime},
+    runtime::{Core, Runtime, Stylekit},
     semantic::{self, SemanticNode},
     shortcut::{self, ActionId, Mnemonic, Trigger},
 };
@@ -354,10 +354,20 @@ impl<'a, K> MineralUi<'a, K> {
     pub fn kit(&self) -> &'a K {
         self.rt.kit()
     }
+}
 
+impl<K: Stylekit> MineralUi<'_, K> {
     /// Lays out, places zones, runs input and emits semantics for `widget`; culls off-screen leaves.
     pub fn mineral<W: MineralWidget<Kit = K>>(&mut self, widget: W) -> WidgetResponse<W::Output> {
         show(self, widget)
+    }
+
+    /// Minimum hit target edge in points of `target` here, as [`Self::mineral`] resolves it: the policy
+    /// value for the pass's pointer, adjusted by [`Stylekit::min_target`]. For parts a widget hit-tests
+    /// or reserves space for itself.
+    pub fn target(&self, target: MinTarget) -> f32 {
+        let points = target.points_for(self.core(), self.pass_input().modality);
+        self.kit().min_target(self, points)
     }
 }
 
@@ -406,8 +416,8 @@ pub trait MineralWidget {
         true
     }
 
-    /// Defaults to [`MinTarget::Auto`] (policy target for the current pointer). `ui` gives kits their
-    /// subtree settings, e.g. a density that shrinks the target.
+    /// Defaults to [`MinTarget::Auto`] (policy target for the current pointer). The kit adjusts the
+    /// resolved edge through [`Stylekit::min_target`].
     fn min_target(&self, _: &MineralUi<'_, Self::Kit>) -> MinTarget {
         MinTarget::Auto
     }
@@ -448,7 +458,7 @@ pub trait MineralWidget {
     ) -> Option<SemanticNode>;
 }
 
-fn show<K, W: MineralWidget<Kit = K>>(ui: &mut MineralUi<'_, K>, mut widget: W) -> WidgetResponse<W::Output> {
+fn show<K: Stylekit, W: MineralWidget<Kit = K>>(ui: &mut MineralUi<'_, K>, mut widget: W) -> WidgetResponse<W::Output> {
     let core = ui.core();
     let input = &*ui.pass_input();
     let id = ui.make_persistent_id(widget.id_salt());
@@ -458,7 +468,7 @@ fn show<K, W: MineralWidget<Kit = K>>(ui: &mut MineralUi<'_, K>, mut widget: W) 
     let min = if composite {
         0.0
     } else {
-        widget.min_target(ui).points_for(core, input.modality)
+        ui.target(widget.min_target(ui))
     };
     // Height is unbounded: horizontal layouts report only the current row height as available.
     let constraints = Constraints::loose(Vec2::new(ui.available_width(), f32::INFINITY));

@@ -78,8 +78,7 @@ pub(crate) fn flip(checked: &mut Option<&mut bool>, selected: &mut Option<bool>)
     true
 }
 
-pub(crate) fn action_slot(dir: egui_mineral::i18n::Direction, bar: Rect, from_start: f32) -> Rect {
-    let size = crate::adaptive::MIN_INTERACTIVE_DP;
+pub(crate) fn action_slot(dir: egui_mineral::i18n::Direction, size: f32, bar: Rect, from_start: f32) -> Rect {
     let x = dir.start_x(bar, Rangef::new(from_start, from_start + size));
     Rect::from_min_size(pos2(x, bar.center().y - size / 2.0), vec2(size, size))
 }

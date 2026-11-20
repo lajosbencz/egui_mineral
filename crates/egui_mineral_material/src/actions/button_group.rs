@@ -1,4 +1,5 @@
 use crate::Material;
+use crate::MaterialUiExt as _;
 use egui::{Id, Response, Sense, Vec2, vec2};
 use egui_mineral::kit::state::TempState;
 use egui_mineral::semantic::KeyedSalt;
@@ -299,7 +300,7 @@ impl<'a> ButtonGroup<'a> {
         let height = first_height.unwrap_or_else(|| buttons.first().map_or(0.0, |b| measure(b).y));
         let row = vec2(
             ui.available_width(),
-            height.max(crate::adaptive::MIN_INTERACTIVE.points(rt.core())),
+            height.max(crate::adaptive::min_interactive(ui.density())),
         );
         let layout = dir.row().with_main_wrap(!self.connected);
         let outer = ui.scope(|ui| {

@@ -1,7 +1,6 @@
 use crate::Material;
 use crate::MaterialExt;
 use crate::MaterialUiExt as _;
-use crate::Rt;
 use crate::adaptive::Density;
 use egui_mineral::i18n::I18n;
 use egui_mineral::i18n::Sides;
@@ -179,11 +178,11 @@ impl Control {
     }
 
     // Compose minimumInteractiveComponentSize
-    pub(crate) fn node(self, rt: &Rt, center: Pos2) -> Rect {
+    pub(crate) fn node(self, density: Density, center: Pos2) -> Rect {
         Rect::from_center_size(
             center,
             self.canvas()
-                .max(Vec2::splat(crate::adaptive::MIN_INTERACTIVE.points(rt.core()))),
+                .max(Vec2::splat(crate::adaptive::min_interactive(density))),
         )
     }
 
@@ -680,8 +679,8 @@ impl MineralWidget for CheckButton<'_> {
         self.mnemonic
     }
 
-    fn min_target(&self, ui: &MineralUi<'_, Self::Kit>) -> MinTarget {
-        crate::adaptive::min_interactive(ui.density())
+    fn min_target(&self, _: &MineralUi<'_, Self::Kit>) -> MinTarget {
+        crate::adaptive::MIN_INTERACTIVE
     }
 
     fn layout(&self, ui: &MineralUi<'_, Material>, c: Constraints, (): &Self::State) -> Measure {
@@ -709,7 +708,7 @@ impl MineralWidget for CheckButton<'_> {
         let center = row.canvas(frame.zones.visual).center();
         let r = &frame.response;
         paint_checkbox(ui, r.id, center, self.state(), self.error.is_some(), !self.disabled, &t);
-        Control::Checkbox.indication(ui, r, Control::Checkbox.node(ui.rt(), center), self.disabled, &t);
+        Control::Checkbox.indication(ui, r, Control::Checkbox.node(ui.density(), center), self.disabled, &t);
         row.paint_label(ui, frame.zones.visual);
         if let Some(e) = self.error_galley(ui, &t) {
             let x = row.text_x(frame.zones.visual, e.size().x);
@@ -827,8 +826,8 @@ impl MineralWidget for Radio {
         self.mnemonic
     }
 
-    fn min_target(&self, ui: &MineralUi<'_, Self::Kit>) -> MinTarget {
-        crate::adaptive::min_interactive(ui.density())
+    fn min_target(&self, _: &MineralUi<'_, Self::Kit>) -> MinTarget {
+        crate::adaptive::MIN_INTERACTIVE
     }
 
     fn layout(&self, ui: &MineralUi<'_, Material>, c: Constraints, (): &Self::State) -> Measure {
@@ -846,7 +845,7 @@ impl MineralWidget for Radio {
         let center = row.canvas(frame.zones.visual).center();
         let r = &frame.response;
         paint_radio(ui, r.id, center, self.selected || changed, !self.disabled, &t);
-        Control::Radio.indication(ui, r, Control::Radio.node(ui.rt(), center), self.disabled, &t);
+        Control::Radio.indication(ui, r, Control::Radio.node(ui.density(), center), self.disabled, &t);
         row.paint_label(ui, frame.zones.visual);
         WidgetResponse::new(frame.response.clone(), ()).with_changed(changed)
     }
@@ -1099,8 +1098,8 @@ impl MineralWidget for Switch<'_> {
         self.mnemonic
     }
 
-    fn min_target(&self, ui: &MineralUi<'_, Self::Kit>) -> MinTarget {
-        crate::adaptive::min_interactive(ui.density())
+    fn min_target(&self, _: &MineralUi<'_, Self::Kit>) -> MinTarget {
+        crate::adaptive::MIN_INTERACTIVE
     }
 
     fn layout(&self, ui: &MineralUi<'_, Material>, c: Constraints, _: &Self::State) -> Measure {

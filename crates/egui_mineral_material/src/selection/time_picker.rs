@@ -346,7 +346,7 @@ impl Resolved {
         let mode = self.dialog_mode(&Self::state(ctx, state_id));
         let content = self.content_size(mode);
         let toggle = self.mode_toggle(rt, state_id);
-        let actions_h = toggle.footprint(rt, ui.density()).y;
+        let actions_h = toggle.footprint(ui.density()).y;
         let pad = ct::DIALOG_PADDING;
         let headline = &self.headlines[usize::from(mode == Mode::Input)];
         let title = parts::type_wrapped(
@@ -403,7 +403,7 @@ impl Resolved {
 
     fn place_toggle(ui: &mut MineralUi<'_, Material>, id: Id, row: Rect, toggle: IconButton) {
         let rt = ui.rt();
-        let size = toggle.footprint(ui.rt(), ui.density());
+        let size = toggle.footprint(ui.density());
         let x = rt.i18n().direction().start_x(row, Rangef::new(0.0, 0.0 + size.x));
         let slot = Rect::from_min_size(pos2(x, row.center().y - size.y / 2.0), size);
         if rt

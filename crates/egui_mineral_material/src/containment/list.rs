@@ -586,10 +586,12 @@ impl MineralWidget for ListItem {
                 Rect::from_min_size(pos2(x, anchor_y(h) - h / 2.0), vec2(w, h))
             }
         };
-        let lead = self.leading.layout(rt, ui.painter(), max_h, place(dir, start_pad));
+        let lead = self
+            .leading
+            .layout(rt, ui.density(), ui.painter(), max_h, place(dir, start_pad));
         let trail = self
             .trailing
-            .layout(rt, ui.painter(), max_h, place(dir.reversed(), end_pad));
+            .layout(rt, ui.density(), ui.painter(), max_h, place(dir.reversed(), end_pad));
         let controls = self.update_toggles(ui, response, rect, [lead.control, trail.control], clicked);
         let [leading_toggled, trailing_toggled] = controls.each_ref().map(|c| c.as_ref().is_some_and(|c| c.toggled));
         if leading_toggled || trailing_toggled {

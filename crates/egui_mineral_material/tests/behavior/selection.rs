@@ -441,8 +441,5 @@ fn control_rows_fit_list_rows_at_every_density() {
             );
         }
     }
-    assert_eq!(
-        egui_mineral_material::adaptive::min_interactive(Density::new(-1)),
-        egui_mineral::layout::MinTarget::Points(44.0)
-    );
+    assert_eq!(egui_mineral_material::adaptive::min_interactive(Density::new(-1)), 44.0);
 }

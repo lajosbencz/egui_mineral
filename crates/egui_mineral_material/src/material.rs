@@ -134,8 +134,10 @@ impl Material {
         Density::new(self.density.load(Ordering::Relaxed))
     }
 
-    /// Shrinks visuals; the hit targets of `CheckButton`, `Radio`, `Switch` and toolbar actions follow
-    /// ([`adaptive::min_interactive`]), others stay at [`adaptive::MIN_INTERACTIVE`].
+    /// Every component follows it: containers shrink 4dp per step down to their content, and so does every
+    /// minimum hit target ([`Stylekit::min_target`], [`adaptive::min_interactive`]), never below the visual
+    /// box. Prominence and message surfaces (FABs, dialogs, sheets, pickers, snackbars, badges, progress)
+    /// keep their spec size; only their targets shrink.
     pub fn set_density(&self, density: Density) {
         self.density.store(density.step(), Ordering::Relaxed);
     }
@@ -174,6 +176,10 @@ impl Stylekit for Material {
 
     fn style(&self, ctx: &Context, theme: Theme) -> Arc<Style> {
         self.pass_snapshot(ctx.cumulative_pass_nr(), theme).1
+    }
+
+    fn min_target(&self, ui: &MineralUi<'_, Self>, target: f32) -> f32 {
+        ui.density().target(target)
     }
 }
 

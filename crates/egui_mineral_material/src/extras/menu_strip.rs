@@ -1,5 +1,6 @@
 use crate::Material;
 use crate::MaterialExt;
+use crate::MaterialUiExt as _;
 use egui::{Context, CornerRadius, Id, Key, Rangef, Rect, Response, Sense, pos2, vec2};
 use egui_mineral::kit::{
     menubar::{self, BarState},
@@ -119,7 +120,10 @@ impl MenuStrip {
         let id = ui.make_persistent_id(self.salt.id_salt());
         let mut bar = BarState::load(&ctx, id);
         let width = ui.available_width();
-        let (rect, bar_resp) = ui.allocate_exact_size(vec2(width, BAR_H), Sense::hover());
+        let bar_h = ui
+            .density()
+            .dense_to(BAR_H, TypeScale::LabelLarge.line_height() + 2.0 * BAR_INSET);
+        let (rect, bar_resp) = ui.allocate_exact_size(vec2(width, bar_h), Sense::hover());
         ui.painter().rect_filled(rect, 0, t.color.surface_container);
         let enabled = |i: usize| self.menus.get(i).is_some_and(|m| !m.disabled);
         let tab_stop = focus::tab_stop(&ctx, id, bar.open, self.menus.len(), enabled);

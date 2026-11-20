@@ -14,8 +14,8 @@ use egui_mineral::{
     widget::{Availability, MineralWidget, PanGate, WidgetFrame, WidgetResponse},
 };
 
-#[cfg(feature = "extras")]
 use crate::MaterialUiExt as _;
+use crate::adaptive::Density;
 #[cfg(feature = "extras")]
 use crate::extras::NumberField;
 #[cfg(feature = "extras")]
@@ -53,13 +53,18 @@ pub struct ValueSliderState {
     active: Option<usize>,
 }
 
-fn metrics(size: Size) -> sx::SliderMetrics {
-    match size {
+// The handle is dense down to the track with padding.
+fn metrics(size: Size, density: Density) -> sx::SliderMetrics {
+    let m = match size {
         Size::XSmall => sx::XS,
         Size::Small => sx::S,
         Size::Medium => sx::M,
         Size::Large => sx::L,
         Size::XLarge => sx::XL,
+    };
+    sx::SliderMetrics {
+        handle: density.dense_to(m.handle, m.track + crate::adaptive::CONTENT_PAD),
+        ..m
     }
 }
 
@@ -306,11 +311,11 @@ impl<'a> ValueSlider<'a> {
     }
 
     fn outer_icons(&self) -> bool {
-        metrics(self.size).icon.is_none()
+        metrics(self.size, Density::DEFAULT).icon.is_none()
     }
 
-    fn cross(&self) -> f32 {
-        let m = metrics(self.size);
+    fn cross(&self, density: Density) -> f32 {
+        let m = metrics(self.size, density);
         m.handle.max(m.track)
     }
 
@@ -350,8 +355,8 @@ struct PaintCx<'a> {
 }
 
 impl ValueSlider<'_> {
-    fn slider_layout(&self, rt: &Rt, rect: Rect) -> SliderLayout {
-        let m = metrics(self.size);
+    fn slider_layout(&self, rt: &Rt, density: Density, rect: Rect) -> SliderLayout {
+        let m = metrics(self.size, density);
         let full = self.axis.main_range(rect);
         let track_dir = match self.axis {
             Axis::Horizontal => Track::horizontal(rt.i18n().direction()),
@@ -631,13 +636,13 @@ impl MineralWidget for ValueSlider<'_> {
         };
         #[cfg(feature = "extras")]
         let cross = if self.has_value_field() {
-            self.cross()
+            self.cross(ui.density())
                 .max(field_h(ui.density(), TextFieldVariant::Outlined, false))
         } else {
-            self.cross()
+            self.cross(ui.density())
         };
         #[cfg(not(feature = "extras"))]
-        let cross = self.cross();
+        let cross = self.cross(ui.density());
         c.constrain(self.axis.vec2(main, cross)).into()
     }
 
@@ -653,7 +658,7 @@ impl MineralWidget for ValueSlider<'_> {
         let (track, field) = self.split_value_field(rt, frame.zones.visual);
         #[cfg(not(feature = "extras"))]
         let track = frame.zones.visual;
-        let lay = self.slider_layout(rt, track);
+        let lay = self.slider_layout(rt, ui.density(), track);
         let r = &frame.response;
         let before: Vec<f64> = self.values.to_vec();
         for v in self.values.iter_mut() {

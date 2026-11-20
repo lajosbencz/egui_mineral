@@ -7,10 +7,11 @@ use egui_mineral::{
     widget::{Availability, MineralUi},
 };
 
+use crate::MaterialUiExt as _;
 use crate::selection::controls::{self, Control, SwitchLook};
 use crate::spec::tokens::list;
 use crate::widget::{common, parts, row_parts};
-use crate::{Icon, Leading, LeadingPaint, Material, Rt, tokens::Tokens};
+use crate::{Icon, Leading, LeadingPaint, Material, Rt, adaptive::Density, tokens::Tokens};
 
 /// Toggle control in a [`ListSlot`]; the row reports its toggles and Space on the focused row
 /// toggles the leading one first.
@@ -68,10 +69,10 @@ impl ListControl {
     }
 
     // Width along the row, and the gap before the next part.
-    fn extent(self, rt: &Rt) -> (f32, f32) {
+    fn extent(self, density: Density) -> (f32, f32) {
         match self {
             // The minimum interactive slot pads the glyph.
-            Self::Checkbox(_) | Self::Radio(_) => (row_parts::control_slot(rt), 0.0),
+            Self::Checkbox(_) | Self::Radio(_) => (row_parts::control_slot(density), 0.0),
             Self::Switch(_) => (
                 Control::Switch.canvas().x,
                 crate::spec::defaults::list::LEADING_CONTENT_END_PADDING,
@@ -189,13 +190,14 @@ impl ListSlot {
     pub(crate) fn layout(
         &self,
         rt: &Rt,
+        density: Density,
         p: &Painter,
         max_h: f32,
         mut place: impl FnMut(f32, f32, f32) -> Rect,
     ) -> SlotLayout {
         let mut at = 0.0;
         let control = self.control.map(|c| {
-            let (w, gap) = c.extent(rt);
+            let (w, gap) = c.extent(density);
             let center = place(at, w, w.min(max_h)).center();
             at += w + gap;
             center
@@ -321,7 +323,7 @@ impl RowControl {
         clip: Rect,
         disabled: bool,
     ) -> Self {
-        let hit = control.control().node(ui.rt(), center).intersect(clip);
+        let hit = control.control().node(ui.density(), center).intersect(clip);
         let target = row_parts::control_target(ui, row, salt, hit, disabled);
         let toggled = target.clicked();
         Self {
@@ -339,11 +341,11 @@ impl RowControl {
         let node = match control {
             Control::Checkbox => {
                 controls::paint_checkbox(ui, id, center, shown, false, enabled, t);
-                control.node(ui.rt(), center)
+                control.node(ui.density(), center)
             }
             Control::Radio => {
                 controls::paint_radio(ui, id, center, shown == Check::Checked, enabled, t);
-                control.node(ui.rt(), center)
+                control.node(ui.density(), center)
             }
             Control::Switch => controls::paint_switch(
                 ui,

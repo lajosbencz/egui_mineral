@@ -1,5 +1,6 @@
 use crate::Material;
 use crate::MaterialExt;
+use crate::MaterialUiExt as _;
 use egui_mineral::i18n::Sides;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::semantic::StableId;
@@ -45,7 +46,7 @@ pub enum TopAppBarVariant {
 }
 
 // Compose AppBarRow: at most 3 inline actions on compact windows, 5 elsewhere
-use crate::adaptive::MIN_INTERACTIVE_DP;
+use crate::adaptive::Density;
 
 const COMPACT_ACTIONS: usize = 3;
 const MAX_ACTIONS: usize = 5;
@@ -198,13 +199,18 @@ impl<'a> TopAppBar<'a> {
         }
     }
 
-    /// Current height in dp after collapsing by the scroll offset; for padding the content.
-    pub fn bar_height(&self) -> f32 {
-        let collapsed = app_bar_small::CONTAINER_HEIGHT;
+    /// Current height in dp at `density` after collapsing by the scroll offset; for padding the content.
+    /// The action row is 4dp lower per density step, down to its action slots.
+    pub fn bar_height(&self, density: Density) -> f32 {
+        let collapsed = collapsed_height(density);
         if self.search.is_some() {
             return collapsed;
         }
-        (self.expanded_height() - self.offset).max(collapsed)
+        (self.full_height(density) - self.offset).max(collapsed)
+    }
+
+    fn full_height(&self, density: Density) -> f32 {
+        self.expanded_height() - (app_bar_small::CONTAINER_HEIGHT - collapsed_height(density))
     }
 
     // Non-flexible bars have no subtitle token; they take the flexible one
@@ -249,12 +255,13 @@ impl<'a> TopAppBar<'a> {
         let rt = ui.rt();
         let t = rt.tokens();
         let id = ui.make_persistent_id(self.salt.id_salt());
-        let collapsed = app_bar_small::CONTAINER_HEIGHT;
+        let density = ui.density();
+        let collapsed = collapsed_height(density);
         for a in &mut self.actions {
             a.disabled |= self.disabled;
         }
-        let height = self.bar_height();
-        let full = self.expanded_height();
+        let height = self.bar_height(density);
+        let full = self.full_height(density);
         let small = matches!(self.variant, TopAppBarVariant::Small | TopAppBarVariant::CenterAligned);
         // Compose `TopAppBarState.collapsedFraction`.
         let collapse = if full > collapsed && self.search.is_none() {
@@ -291,6 +298,7 @@ impl<'a> TopAppBar<'a> {
         let row = Row {
             rect: Rect::from_min_size(rect.min, vec2(rect.width(), collapsed)),
             dir: rt.i18n().direction(),
+            slot: IconButton::slot(density),
         };
         let mut start = app_bar::LEADING_SPACE;
         if let Some((icon, label)) = &self.navigation {
@@ -300,7 +308,7 @@ impl<'a> TopAppBar<'a> {
                         .clicked()
                 })
                 .inner;
-            start += MIN_INTERACTIVE_DP;
+            start += row.slot;
         }
         let end = self.show_actions(ui, &row, start, &mut out);
         if let Some(query) = self.search.take() {
@@ -327,14 +335,14 @@ impl<'a> TopAppBar<'a> {
             MAX_ACTIONS
         };
         #[expect(clippy::cast_sign_loss, reason = ">= 0")]
-        let fit = ((row.rect.width() - start - end) / MIN_INTERACTIVE_DP).floor().max(0.0) as usize;
+        let fit = ((row.rect.width() - start - end) / row.slot).floor().max(0.0) as usize;
         let shown = inline_actions(self.actions.len(), fit.min(cap));
         if shown < self.actions.len() {
             let label = crate::tr(rt.i18n(), "mineral-app-bar-more");
             let anchor = egui_mineral::layout::child(
                 ui,
                 "overflow",
-                row.slot(row.rect.width() - end - MIN_INTERACTIVE_DP),
+                row.slot(row.rect.width() - end - row.slot),
                 *ui.layout(),
                 |ui| {
                     ui.mineral(
@@ -365,10 +373,10 @@ impl<'a> TopAppBar<'a> {
                 out.clicked = Some(shown + k);
             }
             out.overflow = Some(anchor);
-            end += MIN_INTERACTIVE_DP;
+            end += row.slot;
         }
         for (idx, a) in self.actions.iter().enumerate().take(shown).rev() {
-            let r = row.slot(row.rect.width() - end - MIN_INTERACTIVE_DP);
+            let r = row.slot(row.rect.width() - end - row.slot);
             let resp = egui_mineral::layout::child(ui, ("action", idx), r, *ui.layout(), |ui| {
                 let mut b = IconButton::new(
                     crate::widget::item_salt(&self.salt, a.salt.as_ref(), a.command.as_ref(), idx).child("action"),
@@ -389,7 +397,7 @@ impl<'a> TopAppBar<'a> {
                 }
             }
             out.actions.insert(idx, resp);
-            end += MIN_INTERACTIVE_DP;
+            end += row.slot;
         }
         end
     }
@@ -522,11 +530,16 @@ struct Insets {
 struct Row {
     rect: Rect,
     dir: egui_mineral::i18n::Direction,
+    slot: f32,
+}
+
+fn collapsed_height(density: Density) -> f32 {
+    density.dense_to(app_bar_small::CONTAINER_HEIGHT, IconButton::slot(density))
 }
 
 impl Row {
     fn slot(&self, from_start: f32) -> Rect {
-        crate::widget::parts::action_slot(self.dir, self.rect, from_start)
+        crate::widget::parts::action_slot(self.dir, self.slot, self.rect, from_start)
     }
 }
 

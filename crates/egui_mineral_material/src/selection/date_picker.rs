@@ -2,6 +2,7 @@ use crate::Material;
 use crate::MaterialExt;
 use crate::MaterialUiExt as _;
 use crate::Rt;
+use crate::adaptive::Density;
 use egui::{
     Align, Color32, Context, CornerRadius, Frame, Id, Key, Margin, Pos2, Rangef, Rect, ScrollArea, Sense, Stroke,
     StrokeKind, Ui, UiBuilder, Vec2, pos2, scroll_area::ScrollBarVisibility, vec2,
@@ -32,7 +33,6 @@ use crate::widget::{
 };
 use crate::{Size, actions::IconButton};
 use crate::{
-    adaptive::MIN_INTERACTIVE,
     motion,
     spec::{
         ShapeRole,
@@ -603,7 +603,7 @@ impl Config {
         } else if range {
             // Compose `DatePickerDialog` `heightIn(max)`: the months list takes what the header
             // and the buttons leave.
-            let height = m::CONTAINER_HEIGHT - ui.min_rect().height() - dialog_buttons_height(rt);
+            let height = m::CONTAINER_HEIGHT - ui.min_rect().height() - dialog_buttons_height(ui.density());
             self.range_calendar(ui, mc.grid_id, height, &mut work.range);
         } else {
             self.calendar(ui, mc.grid_id, &mut Sel::Single(&mut work.single));
@@ -662,7 +662,7 @@ impl Config {
             (ui.icons().edit, "mineral-date-to-input")
         };
         let toggle = IconButton::new(self.salt.child("mode"), icon, tr(rt.i18n(), msg));
-        let toggle_size = toggle.footprint(rt, ui.density());
+        let toggle_size = toggle.footprint(ui.density());
         let headline_box = font.line_height() + dp::HEADLINE_BOTTOM_PADDING;
         let row_h = headline_box.max(toggle_size.y + dp::MODE_TOGGLE_PADDING);
         let title_h = title_top + m::HEADER_SUPPORTING_TEXT_FONT.line_height();
@@ -864,7 +864,7 @@ impl Config {
         let density = ui.density();
         let arrow = |ui: &mut Ui, from_end: usize, which: &'static str, icon, msg: &str, disabled: bool| {
             let b = IconButton::new(self.salt.child((which, "month")), icon, tr(rt.i18n(), msg)).disabled(disabled);
-            let size = b.footprint(rt, density);
+            let size = b.footprint(density);
             let offset = size.x * (from_end as f32 + 1.0);
             let x = dir.reversed().start_x(nav, Rangef::new(offset - size.x, offset));
             let slot = Rect::from_min_size(pos2(x, nav.center().y - size.y / 2.0), size);
@@ -902,7 +902,10 @@ impl Config {
         let h = baseline_button::CONTAINER_HEIGHT;
         let x = dir.start_x(nav, Rangef::new(0.0, 0.0 + w));
         let visual = Rect::from_min_size(pos2(x, nav.center().y - h / 2.0), vec2(w, h));
-        let hit = visual.expand2(vec2(0.0, (MIN_INTERACTIVE.points(rt.core()) - h).max(0.0) / 2.0));
+        let hit = visual.expand2(vec2(
+            0.0,
+            (crate::adaptive::min_interactive(ui.density()) - h).max(0.0) / 2.0,
+        ));
         let resp = kit::input::interact(
             ui,
             hit,
@@ -1509,8 +1512,8 @@ const YEAR_PITCH: f32 = m::SELECTION_YEAR_CONTAINER_HEIGHT + dp::YEARS_VERTICAL_
 const SUPPORTING_TOP_PADDING: f32 = 4.0;
 
 // Compose DatePickerDialog
-fn dialog_buttons_height(rt: &Rt) -> f32 {
-    MIN_INTERACTIVE.points(rt.core()).max(baseline_button::CONTAINER_HEIGHT) + dp::DIALOG_BUTTONS_BOTTOM_PADDING
+fn dialog_buttons_height(density: Density) -> f32 {
+    crate::adaptive::min_interactive(density).max(baseline_button::CONTAINER_HEIGHT) + dp::DIALOG_BUTTONS_BOTTOM_PADDING
 }
 
 fn year_range_dates() -> (Date, Date) {

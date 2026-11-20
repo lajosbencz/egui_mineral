@@ -1,7 +1,7 @@
 use crate::Material;
 use crate::MaterialExt;
+use crate::MaterialUiExt as _;
 use crate::Rt;
-use crate::adaptive::MIN_INTERACTIVE_DP;
 use crate::widget::modal_focus::ModalFocus;
 use egui::{
     Color32, Context, CornerRadius, Frame, Id, Key, Margin, Rangef, Rect, ScrollArea, Sense, Shadow, UiBuilder, Vec2,
@@ -628,7 +628,7 @@ impl SideSheet {
         let rt = ui.rt();
         let dir = rt.i18n().direction();
         let edge = self.inner_side(dir).start_x(sheet, Rangef::point(0.0));
-        let hit = MIN_INTERACTIVE_DP / 2.0;
+        let hit = crate::adaptive::resize_edge(ui);
         let rect = Rect::from_x_y_ranges(edge - hit / 2.0..=edge + hit / 2.0, sheet.y_range());
         let range = RangeModel::new(f64::from(self.widths.min), f64::from(self.widths.max));
         let (handle, v) = egui_mineral::splitter::size_handle(
@@ -674,11 +674,8 @@ impl SideSheet {
         let header = self.headline.is_some() || self.close_button;
         if header {
             let (row, _) = ui.allocate_exact_size(vec2(w, SIDE_HEADER_HEIGHT), Sense::hover());
-            let close_w = if self.close_button {
-                SIDE_CLOSE_END + MIN_INTERACTIVE_DP
-            } else {
-                0.0
-            };
+            let close = crate::adaptive::min_interactive(ui.density());
+            let close_w = if self.close_button { SIDE_CLOSE_END + close } else { 0.0 };
             if let Some(h) = &self.headline {
                 let max_w = (w - SIDE_PADDING - close_w).max(0.0);
                 let g = parts::type_wrapped(
@@ -694,7 +691,7 @@ impl SideSheet {
                     .galley(pos2(x, row.center().y - g.size().y / 2.0), g, Color32::PLACEHOLDER);
             }
             if self.close_button {
-                let slot = parts::action_slot(dir.reversed(), row, SIDE_CLOSE_END);
+                let slot = parts::action_slot(dir.reversed(), close, row, SIDE_CLOSE_END);
                 let layout = *ui.layout();
                 *closed = egui_mineral::layout::child(ui, self.salt.child("close"), slot, layout, |ui| {
                     parts::close_button(ui, self.salt.child("close"))
