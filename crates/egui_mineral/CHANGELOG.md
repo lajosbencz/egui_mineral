@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral-v0.6.0...egui_mineral-v0.7.0) - 2026-11-20
+
+### Added
+
+- *(eframe)* egui_mineral_eframe adapter owns the Runtime and runs a MineralApp inside its pass; showcases migrate to it.
+- *(core)* [**breaking**] opt-in spawn-tokio and spawn-wasm Spawner adapters that own their tasks, count setters take plain integers clamped to at least 1, and the prelude exports setup errors. Showcases use the adapters and borrow the runtime per pass; docs record action keys, layout wrappers, the Stylekit openness and the MineralWidget::Kit divergence.
+- *(core)* [**breaking**] MineralUi layout wrappers hand closures a MineralUi, and action items carry an app key reported as action::Clicked (PaletteCommand::key, CommandPaletteResponse::clicked). The prelude exports InitError and Clicked.
+- *(material)* [**breaking**] density applies to every component: Stylekit::min_target shrinks all minimum hit targets 4dp per step, and sliders, top app bar, navigation items, split button, menu strip and status bar containers follow density. Core adds Stylekit::min_target and MineralUi::target; the min-target-points lint guards it.
+- *(material)* [**breaking**] density-following Toolbar heights and CheckButton/Radio/Switch hit targets, TreeView::node_text_style, text_align and tabular_figures on fields, InlineEdit::editing, SideSheet::initial_width. Core: MineralWidget::min_target takes the ui, kit::text::tabular_figures, StatusItem::tabular_figures.
+
+### Other
+
+- Merge remote-tracking branch 'origin/master'
+- *(kits)* [**breaking**] Fluent list options, swatches and tags carry typed app values instead of strings, Material breadcrumbs report Clicked, shared id salts derive from one helper.
+- *(core)* [**breaking**] nav::__private::segment drops its unused field parameter.
+- *(i18n)* reword IntoMessage docs for the restating-doc rule
+- master into typed message ids
+- *(i18n)* [**breaking**] typed message ids generated from the source catalog by i18n::messages!; I18n::tr, kit::tr and ValidationError::localized take them instead of string ids. Stylekit catalogs inherit the core message schema at compile time and unused catalog messages fail dead_code.
+- [**breaking**] typed keys and values: persist::PersistKey<T>, IconFamily as the source of Glyph and IconFont, layout::Fraction, UndoCommand::merge(&Self), MineralUi::with_scoped, TypeId-keyed pass state and Setting<T>. MinTarget::points is crate-private and ColorScheme::role replaces ColorRole::resolve, retiring their lint rules.
+- [**breaking**] typed action keys (action::ActionKey, Clicked::key::<K>), ItemResponses for per-item response values, keyed StatusItem and TagGroup, named Fluent container responses and SemanticNode::shortcut as KeyboardShortcut. No response mixes pub and private fields.
+
 ## [0.6.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral-v0.5.0...egui_mineral-v0.6.0) - 2026-11-19
 
 ### Added
