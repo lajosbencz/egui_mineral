@@ -243,6 +243,7 @@ api-diff base head="HEAD" release="false":
         git show "$1:crates/$2/Cargo.toml" | awk '/^\[features\]/ { f = 1; next } /^\[/ { f = 0 } f && /^[a-z0-9_-]+ *=/ { print $1 }' \
             | grep -v '^unstable' | grep -vx default | sort
     }
+    meta=$(cargo metadata --no-deps --format-version 1)
     for crate in egui_mineral egui_mineral_material egui_mineral_eframe egui_mineral_mcp; do
     base="{{ base }}"
     if [ "{{ release }}" = true ]; then
@@ -258,7 +259,7 @@ api-diff base head="HEAD" release="false":
         deny=()
         echo "\`$crate\`: breaking version bump, removals and changes allowed" | tee -a "$summary"
     fi
-    for target in x86_64-unknown-linux-gnu wasm32-unknown-unknown; do
+    for target in $(jq -r --arg c "$crate" '.packages[] | select(.name == $c) | .metadata.docs.rs.targets[]' <<<"$meta"); do
         echo "## \`$crate\` ($target)" | tee -a "$summary"
         echo '```diff' >> "$summary"
         cargo +{{ nightly_version }} public-api -p "$crate" --features "$features" --target "$target" -sss diff "${deny[@]}" "$base..{{ head }}" \
