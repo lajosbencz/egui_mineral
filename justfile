@@ -41,8 +41,8 @@ tools: icu-datagen
     @command -v actionlint >/dev/null || echo "actionlint {{ actionlint_version }} is not on crates.io: https://github.com/rhysd/actionlint"
     @command -v shellcheck >/dev/null || echo "shellcheck is not on crates.io: install it with the system package manager"
 
-# Every blocking check of CI and Hygiene
-ci: check hygiene
+# Every blocking check of CI and Hygiene, including the ones CI runs only on dependency or release pull requests
+ci: check check-deps check-release hygiene
 
 # Fast local loop: format check, default-feature clippy of the libraries, first test leg
 quick: fmt
@@ -64,7 +64,22 @@ check-clippy: clippy
 check-test: test icu-trimmed
 
 # CI "Docs and packaging" job
-check-docs: doc readme-check package versions-check fmt unstable-guard minimal-versions
+check-docs: doc readme-check versions-check fmt unstable-guard
+
+# CI "Docs and packaging" job, pull requests that change a manifest, the lockfile or the toolchain
+check-deps: minimal-versions
+
+# CI "Docs and packaging" job, release pull requests
+check-release: package
+
+# `code=` and `deps=` lines for $GITHUB_OUTPUT: whether <base>..<head> touches anything a build checks, and the manifests, lockfile or toolchain
+changes base head:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    files=$(git diff --name-only "{{ base }}" "{{ head }}")
+    # Prose only: Markdown outside the generated crate READMEs.
+    grep -qvE '^([^/]+|docs/.*)\.md$' <<<"$files" && echo code=true || echo code=false
+    grep -qE '(^|/)Cargo\.toml$|^Cargo\.lock$|^rust-toolchain\.toml$' <<<"$files" && echo deps=true || echo deps=false
 
 fmt:
     cargo fmt --all --check
@@ -190,6 +205,27 @@ versions-check:
     [ -n "$channel" ] && [ "$channel" = "$msrv" ] \
         || { echo "rust-toolchain.toml channel (${channel:-unset}) must match workspace rust-version (${msrv:-unset}): the toolchain is the MSRV"; exit 1; }
 
+# Release PR <branch> (<url>): commits `align-breaking` there and rewrites the versions release-plz planned in the PR body; GH_TOKEN pushes and edits (CI `align` job)
+align-pr branch url:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    versions() { cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.publish == null) | "\(.name) \(.version)"' | sort; }
+    before=$(versions)
+    just align-breaking
+    git diff --quiet && exit 0
+    git config user.name "github-actions[bot]"
+    git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+    git commit -am "chore: align published crates on one breaking version"
+    git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY:?}.git" "HEAD:{{ branch }}"
+    # The PR body lists the versions release-plz planned: `* `crate`: [old -> ]new` and the changelog headings.
+    body=$(gh pr view "{{ url }}" --json body --jq .body)
+    while read -r c old new; do
+      [ "$old" = "$new" ] && continue
+      o=${old//./\\.}
+      body=$(sed -E -e "s/^(\* \`$c\`: (.* -> )?)$o([^0-9.]|$)/\1$new\3/" -e "s/^## \[$o\]\((.*)$c-v$o\)/## [$new](\1$c-v$new)/" <<<"$body")
+    done < <(join <(echo "$before") <(versions))
+    gh pr edit "{{ url }}" --body "$body"
+
 # Raises every published crate to the highest version among them when their breaking versions differ; patches stay per crate
 align-breaking:
     #!/usr/bin/env bash
@@ -248,12 +284,13 @@ spec-build:
 # Builds the rustdoc JSON of HEAD that `api-diff` needs (cache warm-up)
 api-build: (api-diff "HEAD" "HEAD")
 
-# `api-diff-one` for every `api-targets` line; CI runs them as a matrix
-api-diff base head="HEAD" release="false":
+# `api-diff-one` for every `api-targets` line, or only those of <target>; CI runs one job per target
+api-diff base head="HEAD" release="false" target="":
     #!/usr/bin/env bash
     set -euo pipefail
     status=0
     while read -r crate target; do
+        [ -z "{{ target }}" ] || [ "$target" = "{{ target }}" ] || continue
         just api-diff-one "$crate" "$target" "{{ base }}" "{{ head }}" "{{ release }}" || status=1
     done < <(just api-targets)
     exit "$status"

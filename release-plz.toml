@@ -6,7 +6,9 @@ git_tag_enable = true
 git_tag_name = "{{ package }}-v{{ version }}"
 git_release_name = "{{ package }} v{{ version }}"
 release_always = false
-semver_check = true
+# CI already built the merged commit; `Public API diff` gates breaking changes on the release PR.
+semver_check = false
+publish_no_verify = true
 pr_labels = ["release"]
 
 [changelog]
