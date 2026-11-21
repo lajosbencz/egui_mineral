@@ -1,11 +1,12 @@
 //! `TreeView`: selection, keyboard expansion and activation.
 
 use egui::Key;
+use egui_mineral::tree::DropPosition;
 use egui_mineral::tree::TreeData as _;
 use egui_mineral::{expand::Expansion, select::Selection};
 use egui_mineral_material::{
     extras::{TreeDrag, TreeView},
-    spec::TypeScale,
+    spec::{ColorRole, TypeScale},
 };
 
 use crate::support::{Harness, MineralHarness, SCREEN, TreeNode, harness, render};
@@ -152,4 +153,110 @@ fn node_text_style_sets_the_label_role_per_row() {
     });
     assert_eq!(p.text("Docs").height(), folder.line_height());
     assert_eq!(p.text("Notes").height(), TypeScale::BodySmall.line_height());
+}
+
+#[test]
+fn disabled_nodes_neither_select_nor_take_focus() {
+    let roots = vec![
+        TreeNode::leaf(1, "Guide"),
+        TreeNode::leaf(2, "Locked"),
+        TreeNode::leaf(3, "Notes"),
+    ];
+    let mut h = harness(SCREEN, Selection::<u32>::single(), move |ui, selection| {
+        let mut expansion = Expansion::default();
+        TreeView::new("tree", "Files", &roots, &mut expansion)
+            .selection(selection)
+            .node_disabled(|n| *n.key() == 2)
+            .show(ui);
+    });
+    assert!(h.node("tree-2-treeitem").state.disabled);
+    h.click("tree-2-treeitem");
+    assert_eq!(h.state().value.selected().count(), 0, "a disabled row does not select");
+    h.click("tree-1-treeitem");
+    h.press(Key::ArrowDown);
+    assert!(h.focused("tree-3-treeitem"), "ArrowDown skips the disabled row");
+}
+
+#[test]
+fn reveal_expands_the_ancestors_without_taking_focus() {
+    let roots = vec![TreeNode::branch(
+        1,
+        "Docs",
+        vec![TreeNode::branch(2, "Guide", vec![TreeNode::leaf(3, "Intro")])],
+    )];
+    let mut h = harness(
+        SCREEN,
+        (Expansion::<u32>::default(), true),
+        move |ui, (expansion, reveal)| {
+            let mut tree = TreeView::new("tree", "Files", &roots, expansion);
+            if std::mem::take(reveal) {
+                tree = tree.reveal(3);
+            }
+            tree.show(ui);
+        },
+    );
+    h.run();
+    let expansion = &h.state().value.0;
+    assert!(expansion.is_expanded(&1) && expansion.is_expanded(&2));
+    assert!(
+        h.tree().find_key("tree-3-treeitem").is_some(),
+        "the revealed row renders"
+    );
+    assert!(!h.focused("tree-3-treeitem"));
+}
+
+#[test]
+fn foreign_payload_drops_inside_an_accepting_row() {
+    let roots = vec![
+        TreeNode::branch(1, "Docs", vec![TreeNode::leaf(3, "Guide")]),
+        TreeNode::leaf(2, "Notes"),
+    ];
+    let state = (None::<(u32, DropPosition, String)>, egui::Rect::NOTHING);
+    let mut h = harness(SCREEN, state, move |ui, (dropped, source)| {
+        let mut expansion = Expansion::default();
+        let r = TreeView::new("tree", "Files", &roots, &mut expansion)
+            .accept_drop(|_: &String, n: &TreeNode, _| *n.key() == 1)
+            .show(ui);
+        if let Some(d) = r.dropped {
+            *dropped = d.payload::<String>().map(|p| (*d.target(), d.position(), (*p).clone()));
+        }
+        *source = ui
+            .dnd_drag_source(egui::Id::unique("file"), String::from("report.pdf"), |ui| {
+                ui.label("report.pdf")
+            })
+            .response
+            .rect;
+    });
+    let (from, to) = (h.state().value.1.center(), h.rect("tree-1-treeitem").center());
+    h.hover_at(from);
+    h.drag_at(from);
+    h.hover_at(from.lerp(to, 0.5));
+    h.hover_at(to);
+    h.drop_at(to);
+    h.run();
+    assert_eq!(
+        h.state().value.0,
+        Some((1, DropPosition::Inside, String::from("report.pdf")))
+    );
+}
+
+#[test]
+fn unfocused_selection_takes_its_own_container() {
+    let roots = vec![TreeNode::leaf(1, "Guide"), TreeNode::leaf(2, "Notes")];
+    let role = ColorRole::SurfaceContainerHighest;
+    let p = render(|ui| {
+        let mut expansion = Expansion::default();
+        let mut selection = Selection::single();
+        selection.select(1);
+        TreeView::new("tree", "Files", &roots, &mut expansion)
+            .selection(&mut selection)
+            .unfocused_selection_color(role)
+            .show(ui);
+    });
+    let row = p.rect("tree-1-treeitem");
+    assert!(
+        p.filled(role).iter().any(|r| r.contains_rect(row.shrink(1.0))),
+        "{:?}",
+        p.filled(role)
+    );
 }

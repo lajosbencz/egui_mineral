@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use egui::{Key, Rangef, Rect, Sense, Stroke, StrokeKind, Ui, UiBuilder, pos2, text::LayoutJob, vec2};
+use egui::{DragAndDrop, Key, Rangef, Rect, Sense, Stroke, StrokeKind, Ui, UiBuilder, pos2, text::LayoutJob, vec2};
 use egui_mineral::{
     expand::Expansion,
     focus::{self, Typeahead},
@@ -9,7 +9,7 @@ use egui_mineral::{
     layout::{Constraints, Measure},
     select::{Check, Selection, SelectionMode},
     semantic::{self, Action, AgentKey, KeyedSalt, Role, SemanticNode},
-    tree::{self, TreeData, TreeNav, TreeRow},
+    tree::{self, DropAccept, DropPosition, TreeData, TreeDrop, TreeNav, TreeRow},
     widget::{Availability, Interaction, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
 };
 
@@ -17,11 +17,11 @@ use crate::spec::ColorToken::{
     ColorCompoundBrandBackground, ColorCompoundBrandBackgroundHover, ColorCompoundBrandBackgroundPressed,
     ColorCompoundBrandForeground1, ColorCompoundBrandStroke, ColorNeutralForeground2, ColorNeutralForeground2Hover,
     ColorNeutralForeground2Pressed, ColorNeutralForeground3, ColorNeutralForeground3Hover,
-    ColorNeutralForeground3Pressed, ColorNeutralForegroundInverted, ColorNeutralStrokeAccessible,
-    ColorNeutralStrokeAccessibleHover, ColorNeutralStrokeAccessiblePressed, ColorStrokeFocus2, ColorSubtleBackground,
-    ColorSubtleBackgroundHover, ColorSubtleBackgroundLightAlphaHover, ColorSubtleBackgroundLightAlphaPressed,
-    ColorSubtleBackgroundPressed, ColorTransparentBackground, ColorTransparentBackgroundHover,
-    ColorTransparentBackgroundPressed,
+    ColorNeutralForeground3Pressed, ColorNeutralForegroundDisabled, ColorNeutralForegroundInverted,
+    ColorNeutralStrokeAccessible, ColorNeutralStrokeAccessibleHover, ColorNeutralStrokeAccessiblePressed,
+    ColorNeutralStrokeDisabled, ColorStrokeFocus2, ColorSubtleBackground, ColorSubtleBackgroundHover,
+    ColorSubtleBackgroundLightAlphaHover, ColorSubtleBackgroundLightAlphaPressed, ColorSubtleBackgroundPressed,
+    ColorTransparentBackground, ColorTransparentBackgroundHover, ColorTransparentBackgroundPressed,
 };
 use crate::{
     Fluent, FluentExt, Icon, Size,
@@ -290,6 +290,7 @@ struct Row<'a> {
     size: Size,
     appearance: TreeAppearance,
     tab_stop: focus::TabStop,
+    disabled: bool,
 }
 
 struct Spans {
@@ -385,23 +386,22 @@ impl Row<'_> {
             ColorCompoundBrandBackground,
             ColorCompoundBrandBackgroundHover,
             ColorCompoundBrandBackgroundPressed,
-            ColorCompoundBrandBackground,
+            ColorNeutralStrokeDisabled,
         );
         let neutral = Ramp::new(
             ColorNeutralStrokeAccessible,
             ColorNeutralStrokeAccessibleHover,
             ColorNeutralStrokeAccessiblePressed,
-            ColorNeutralStrokeAccessible,
+            ColorNeutralStrokeDisabled,
         );
+        let fixed = |token, off| t.color(if self.disabled { off } else { token });
+        let brand_stroke = fixed(ColorCompoundBrandStroke, ColorNeutralStrokeDisabled);
+        let brand_fg = fixed(ColorCompoundBrandForeground1, ColorNeutralForegroundDisabled);
         if self.selection == TreeSelection::Single {
             let radius = side / 2.0;
             if checked {
-                p.circle_stroke(
-                    center,
-                    radius,
-                    Stroke::new(g::STROKE_WIDTH_THIN, t.color(ColorCompoundBrandStroke)),
-                );
-                p.circle_filled(center, radius * 0.625, t.color(ColorCompoundBrandForeground1));
+                p.circle_stroke(center, radius, Stroke::new(g::STROKE_WIDTH_THIN, brand_stroke));
+                p.circle_filled(center, radius * 0.625, brand_fg);
             } else {
                 p.circle_stroke(center, radius, Stroke::new(g::STROKE_WIDTH_THIN, neutral.pick(s, &t)));
             }
@@ -417,20 +417,20 @@ impl Row<'_> {
                     ui.icons().checkmark,
                     true,
                     crate::spec::defaults::checkbox::GLYPH_MEDIUM,
-                    t.color(ColorNeutralForegroundInverted),
+                    fixed(ColorNeutralForegroundInverted, ColorNeutralForegroundDisabled),
                 );
             }
             Check::Mixed => {
                 p.rect_stroke(
                     rect,
                     radius,
-                    Stroke::new(g::STROKE_WIDTH_THIN, t.color(ColorCompoundBrandStroke)),
+                    Stroke::new(g::STROKE_WIDTH_THIN, brand_stroke),
                     StrokeKind::Inside,
                 );
                 p.rect_filled(
                     Rect::from_center_size(center, vec2(side / 2.0, side / 2.0)),
                     1,
-                    t.color(ColorCompoundBrandForeground1),
+                    brand_fg,
                 );
             }
             Check::Unchecked => {
@@ -460,6 +460,11 @@ impl Row<'_> {
         let cy = rect.center().y;
         let checked = self.check == Check::Checked;
         let gap = if self.small() { d::ICON_GAP_SMALL } else { d::ICON_GAP };
+        let icon_color = if self.disabled {
+            fg
+        } else {
+            t.color(ColorNeutralForeground2)
+        };
         let mut x = content;
         let draw = |ui: &MineralUi<'_, Fluent>, text: &str, ramp: TypeRamp, color, x0: f32, y: f32| {
             let job = LayoutJob::single_section(text.to_owned(), ramp.format(ui.ctx(), color));
@@ -473,14 +478,7 @@ impl Row<'_> {
             ItemLayout::Plain(l) => {
                 if let Some(icon) = l.icon_before {
                     let c = pos2(mid(x + d::ICON_SIZE / 2.0), cy);
-                    paint::icon(
-                        ui.painter(),
-                        c,
-                        icon,
-                        checked,
-                        d::ICON_SIZE,
-                        t.color(ColorNeutralForeground2),
-                    );
+                    paint::icon(ui.painter(), c, icon, checked, d::ICON_SIZE, icon_color);
                     x += d::ICON_SIZE + gap;
                 }
                 x += d::MAIN_PADDING;
@@ -488,14 +486,7 @@ impl Row<'_> {
                 if let Some(icon) = l.icon_after {
                     x += gap;
                     let c = pos2(mid(x + d::ICON_SIZE / 2.0), cy);
-                    paint::icon(
-                        ui.painter(),
-                        c,
-                        icon,
-                        checked,
-                        d::ICON_SIZE,
-                        t.color(ColorNeutralForeground2),
-                    );
+                    paint::icon(ui.painter(), c, icon, checked, d::ICON_SIZE, icon_color);
                 }
             }
             ItemLayout::Persona(l) => {
@@ -541,6 +532,9 @@ impl Row<'_> {
 
     fn input(&self, ui: &MineralUi<'_, Fluent>, r: &egui::Response, selector_hit: Option<Rect>) -> RowOut {
         let mut out = RowOut::default();
+        if self.disabled {
+            return out;
+        }
         let by_pointer = r.interact_pointer_pos();
         if r.clicked() {
             let on_selector = by_pointer.is_some_and(|p| selector_hit.is_some_and(|h| h.contains(p)));
@@ -565,7 +559,7 @@ impl MineralWidget for Row<'_> {
     type State = ();
     type Output = RowOut;
 
-    kit::widget_meta!(salt, no_target);
+    kit::widget_meta!(salt, enabled, no_target);
 
     fn sense(&self) -> Sense {
         focus::roving_sense(Sense::click(), self.tab_stop)
@@ -588,9 +582,10 @@ impl MineralWidget for Row<'_> {
     ) -> WidgetResponse<RowOut> {
         let t = ui.tokens();
         let r = &frame.response;
-        kit::interact::hover_cursor(ui.core(), r, Availability::Enabled);
+        let availability = Availability::disabled_if(self.disabled);
+        kit::interact::hover_cursor(ui.core(), r, availability);
         kit::interact::follow_press(r);
-        let i = Interaction::of(r, Availability::Enabled);
+        let i = Interaction::of(r, availability);
         let s = State::of(i);
         let rect = frame.zones.visual;
         let dir = ui.i18n().direction();
@@ -601,14 +596,14 @@ impl MineralWidget for Row<'_> {
             ColorNeutralForeground2,
             ColorNeutralForeground2Hover,
             ColorNeutralForeground2Pressed,
-            ColorNeutralForeground2,
+            ColorNeutralForegroundDisabled,
         )
         .pick(s, &t);
         let muted = Ramp::new(
             ColorNeutralForeground3,
             ColorNeutralForeground3Hover,
             ColorNeutralForeground3Pressed,
-            ColorNeutralForeground3,
+            ColorNeutralForegroundDisabled,
         )
         .pick(s, &t);
         let spans = self.spans();
@@ -663,7 +658,7 @@ impl Row<'_> {
             Role::TreeItem,
             self.label,
         )
-        .clickable(Availability::Enabled);
+        .clickable(Availability::disabled_if(self.disabled));
         n.state.level = Some(self.depth + 1);
         n.state.focused = focused;
         if self.selection != TreeSelection::None {
@@ -671,6 +666,8 @@ impl Row<'_> {
         }
         if self.branch {
             n.state.expanded = Some(self.expanded);
+        }
+        if self.branch && !self.disabled {
             n.actions.push(if self.expanded {
                 Action::Collapse
             } else {
@@ -682,6 +679,13 @@ impl Row<'_> {
 }
 
 const ROW_SCOPE: &str = "row";
+
+struct Visible<'a, N> {
+    rows: Vec<TreeRow<'a, N>>,
+    stop: usize,
+    reveal: Option<usize>,
+    revealed: bool,
+}
 
 struct Drawn {
     row: usize,
@@ -727,9 +731,12 @@ pub struct TreeResponse<K> {
     pub activated: Option<K>,
     /// Row responses of the visible items.
     pub rows: BTreeMap<K, egui::Response>,
+    /// Foreign payload released on a row; see [`Tree::accept_drop`].
+    pub dropped: Option<TreeDrop<K>>,
 }
 
 type LayoutFn<'a, N> = Box<dyn Fn(&N) -> ItemLayout + 'a>;
+type DisabledFn<'a, N> = Box<dyn Fn(&N) -> bool + 'a>;
 
 /// Fluent `Tree`: nested or flat ([`TreeItem::from_levels`]) items over a [`TreeData`] model, expandable, with
 /// optional checkbox or radio selectors. One row is the Tab stop; Up, Down, Home and End move, Right expands a
@@ -747,6 +754,9 @@ pub struct Tree<'a, N: TreeData> {
     size: Size,
     appearance: TreeAppearance,
     layout: LayoutFn<'a, N>,
+    node_disabled: Option<DisabledFn<'a, N>>,
+    accept: Option<DropAccept<'a, N>>,
+    reveal: Option<N::Key>,
 }
 
 impl<N: TreeData> std::fmt::Debug for Tree<'_, N> {
@@ -791,6 +801,9 @@ impl<'a, N: TreeData> Tree<'a, N> {
             size: Size::Medium,
             appearance: TreeAppearance::default(),
             layout: Box::new(|_| ItemLayout::default()),
+            node_disabled: None,
+            accept: None,
+            reveal: None,
         }
     }
 
@@ -829,6 +842,29 @@ impl<'a, N: TreeData> Tree<'a, N> {
         agent_key(key)
     }
 
+    /// Disables the nodes `node_disabled` names and their descendants: they take no focus, check, activation,
+    /// expansion or drop inside.
+    pub fn node_disabled(mut self, node_disabled: impl Fn(&N) -> bool + 'a) -> Self {
+        self.node_disabled = Some(Box::new(node_disabled));
+        self
+    }
+
+    /// Foreign [`DragAndDrop`] payloads of type `P` drop before, after or inside rows where `accept(payload,
+    /// node, position)` holds; reported in [`TreeResponse::dropped`]. Replaces an earlier `accept_drop`.
+    pub fn accept_drop<P: std::any::Any + Send + Sync>(
+        mut self,
+        accept: impl Fn(&P, &N, DropPosition) -> bool + 'a,
+    ) -> Self {
+        self.accept = Some(DropAccept::new(accept));
+        self
+    }
+
+    /// Expands the ancestors of `key` and scrolls its row into view this pass, leaving focus where it is.
+    pub fn reveal(mut self, key: N::Key) -> Self {
+        self.reveal = Some(key);
+        self
+    }
+
     fn check_of(&self, node: &N) -> Check {
         let Some(set) = self.checked.as_deref() else {
             return Check::Unchecked;
@@ -864,6 +900,7 @@ impl<'a, N: TreeData> Tree<'a, N> {
             size: self.size,
             appearance: self.appearance,
             tab_stop: focus::TabStop::at(i, stop),
+            disabled: row.disabled,
         }
     }
 
@@ -872,13 +909,13 @@ impl<'a, N: TreeData> Tree<'a, N> {
         let rt = ui.rt();
         let ctx = rt.ctx();
         let id = ui.make_persistent_id(self.salt.id_salt());
-        let rows: Vec<TreeRow<'a, N>> = tree::flatten(self.roots, self.expansion);
         let mut state = TreeState::<N::Key>::load(ctx, id);
-        let stop = state
-            .stop
-            .as_ref()
-            .and_then(|k| rows.iter().position(|r| r.node.key() == k))
-            .unwrap_or(0);
+        let Visible {
+            rows,
+            stop,
+            reveal,
+            revealed,
+        } = self.visible(&state);
         let dir = rt.i18n().direction();
         // Row tops from the top of the tree; the last entry is the end of the final gap.
         let mut tops: Vec<f32> = Vec::with_capacity(rows.len() + 1);
@@ -890,6 +927,7 @@ impl<'a, N: TreeData> Tree<'a, N> {
         tops.push(y);
         let total = (y - d::ROW_GAP).max(0.0);
         let mut drawn: Vec<Drawn> = Vec::new();
+        let mut dropped = None;
         let group = ui
             .push_id(self.salt.id_salt(), |ui| {
                 let width = ui.available_width();
@@ -904,16 +942,12 @@ impl<'a, N: TreeData> Tree<'a, N> {
                     .unwrap_or_default()
                     .partition_point(|t| area.min.y + t <= clip.max.y);
                 let visible = first..end.max(first);
+                if let Some(r) = reveal {
+                    ui.scroll_to_rect(rect_of_row(&tops, area, r), None);
+                }
                 // The Tab stop's row is shown wherever it is, so Tab still reaches the tree.
                 let extra = Some(stop).filter(|s| *s < rows.len() && !visible.contains(s));
-                let rect_of = |i: usize| {
-                    let top = tops.get(i).copied().unwrap_or_default();
-                    let bottom = tops.get(i.saturating_add(1)).copied().unwrap_or(top);
-                    Rect::from_min_max(
-                        pos2(area.min.x, area.min.y + top),
-                        pos2(area.max.x, area.min.y + bottom - d::ROW_GAP),
-                    )
-                };
+                let rect_of = |i: usize| rect_of_row(&tops, area, i);
                 let order = (extra.filter(|s| *s < visible.start).into_iter())
                     .chain(visible.clone())
                     .chain(extra.filter(|s| *s >= visible.end));
@@ -936,6 +970,7 @@ impl<'a, N: TreeData> Tree<'a, N> {
                         self.emit_culled(ui, &rows, i, stop, rect_of(i));
                     }
                 }
+                dropped = self.external_drop(rt, ui, area, &rows, &tops);
                 group
             })
             .inner;
@@ -948,7 +983,9 @@ impl<'a, N: TreeData> Tree<'a, N> {
             checked: None,
             activated: None,
             rows: BTreeMap::new(),
+            dropped,
         };
+        out.changed |= revealed;
         self.apply(&rows, &drawn, &mut out);
         if let Some(cur) = drawn.iter().position(|d| d.response.has_focus()) {
             self.navigate(rt, &rows, &drawn, cur, &mut state, &mut out);
@@ -965,6 +1002,84 @@ impl<'a, N: TreeData> Tree<'a, N> {
             out.response.mark_changed();
         }
         out
+    }
+
+    // Rows after the reveal expanded its ancestors; the Tab stop is an enabled row.
+    fn visible(&mut self, state: &TreeState<N::Key>) -> Visible<'a, N> {
+        let revealed = self.expand_revealed();
+        let rows: Vec<TreeRow<'a, N>> = match &self.node_disabled {
+            Some(f) => tree::flatten_with(self.roots, self.expansion, f),
+            None => tree::flatten(self.roots, self.expansion),
+        };
+        let enabled = |i: &usize| rows.get(*i).is_some_and(|r| !r.disabled);
+        let stop = state
+            .stop
+            .as_ref()
+            .and_then(|k| rows.iter().position(|r| r.node.key() == k))
+            .filter(enabled)
+            .or_else(|| (0..rows.len()).find(enabled))
+            .unwrap_or(0);
+        let reveal = self
+            .reveal
+            .as_ref()
+            .and_then(|k| rows.iter().position(|r| r.node.key() == k));
+        Visible {
+            rows,
+            stop,
+            reveal,
+            revealed,
+        }
+    }
+
+    // `true` when an ancestor of the revealed node opened.
+    fn expand_revealed(&mut self) -> bool {
+        let Some(key) = &self.reveal else { return false };
+        let mut opened = false;
+        for k in tree::ancestors(self.roots, key).unwrap_or_default() {
+            if !self.expansion.is_expanded(&k) {
+                self.expansion.expand(k);
+                opened = true;
+            }
+        }
+        opened
+    }
+
+    fn external_drop(
+        &self,
+        rt: &crate::Rt,
+        ui: &Ui,
+        area: Rect,
+        rows: &[TreeRow<'a, N>],
+        tops: &[f32],
+    ) -> Option<TreeDrop<N::Key>> {
+        let accept = self.accept.as_ref()?;
+        let ctx = ui.ctx();
+        let pos = ctx
+            .pointer_interact_pos()
+            .filter(|p| area.contains(*p) && egui_mineral::input::reaches_layer(ctx, ui.layer_id(), *p))?;
+        let i = (0..rows.len()).find(|&i| rect_of_row(tops, area, i).y_range().contains(pos.y))?;
+        let rect = rect_of_row(tops, area, i);
+        let (target, drop) = accept.slot(ctx, rows, i, (pos.y - rect.top()) / rect.height())?;
+        let at = rect_of_row(tops, area, target);
+        let t = rt.tokens();
+        let stroke = Stroke::new(g::STROKE_WIDTH_THICK, t.color(ColorCompoundBrandStroke));
+        let p = ui.painter_at(area);
+        match drop.position() {
+            DropPosition::Before => {
+                p.hline(at.x_range(), at.top(), stroke);
+            }
+            DropPosition::After => {
+                p.hline(at.x_range(), at.bottom(), stroke);
+            }
+            DropPosition::Inside => {
+                p.rect_stroke(at, Radius::Medium.on(at), stroke, StrokeKind::Inside);
+            }
+        }
+        if !ui.input(|i| i.pointer.any_released()) {
+            return None;
+        }
+        DragAndDrop::clear_payload(ctx);
+        Some(drop)
     }
 
     // Same id as the drawn row's, whose child ui scope is `ROW_SCOPE` under `ui`.
@@ -1055,4 +1170,14 @@ impl<'a, N: TreeData> Tree<'a, N> {
         }
         out.changed = true;
     }
+}
+
+// Row `i` from the tops of `Tree::show`, without the gap below it.
+fn rect_of_row(tops: &[f32], area: Rect, i: usize) -> Rect {
+    let top = tops.get(i).copied().unwrap_or_default();
+    let bottom = tops.get(i.saturating_add(1)).copied().unwrap_or(top);
+    Rect::from_min_max(
+        pos2(area.min.x, area.min.y + top),
+        pos2(area.max.x, area.min.y + bottom - d::ROW_GAP),
+    )
 }

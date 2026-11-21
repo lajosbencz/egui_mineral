@@ -27,7 +27,7 @@ use egui_mineral::{
     select::{Check, Selection},
     semantic::{self, Action, Role, SemanticNode, StableId},
     shortcut,
-    tree::{self, DropPosition, TreeData, TreeMove, TreeNav, TreeRow},
+    tree::{self, DropAccept, DropPosition, TreeData, TreeDrop, TreeMove, TreeNav, TreeRow},
     widget::{MineralWidget, WidgetFrame, WidgetResponse},
 };
 
@@ -68,6 +68,7 @@ struct TreeState<K> {
     pending: Option<K>,
     pending_passes: u8,
     stop: Option<K>,
+    focused: bool,
     typeahead: Typeahead,
 }
 
@@ -79,6 +80,7 @@ impl<K> Default for TreeState<K> {
             pending: None,
             pending_passes: 0,
             stop: None,
+            focused: false,
             typeahead: Typeahead::default(),
         }
     }
@@ -119,6 +121,8 @@ pub struct TreeViewResponse<K, A = NoAction> {
     pub clicked: Option<TreeAction<K, A>>,
     /// Drag and drop or Alt+arrow move; apply with [`TreeMove::apply`].
     pub moved: Option<TreeMove<K>>,
+    /// Foreign payload released on a row; see [`TreeView::accept_drop`].
+    pub dropped: Option<TreeDrop<K>>,
 }
 
 impl<K, A> TreeViewResponse<K, A> {
@@ -133,6 +137,7 @@ impl<K, A> TreeViewResponse<K, A> {
             leading_toggled: None,
             clicked: None,
             moved: None,
+            dropped: None,
         }
     }
 }
@@ -186,6 +191,8 @@ struct RowWidget<'a, A> {
     tab_stop: focus::TabStop,
     disabled: bool,
     container: Option<ColorRole>,
+    // Selected container while focus is outside the tree.
+    selected_container: Option<ColorRole>,
     actions: Vec<(A, IconAction)>,
 }
 
@@ -410,7 +417,10 @@ impl<A: ActionValue> MineralWidget for RowWidget<'_, A> {
             disabled: self.disabled,
             dragged: false,
         };
-        let col = RowColors::of(row, &t).container(row, self.container, &t);
+        let mut col = RowColors::of(row, &t).container(row, self.container, &t);
+        if let Some(role) = self.selected_container.filter(|_| self.selected && !self.disabled) {
+            col.container = t.role(role);
+        }
         let shape = row.shape(&t, dir);
         row_parts::paint_container(ui.painter(), rect, row, shape, &col, &t);
         if !self.disabled {
@@ -478,6 +488,7 @@ impl<A: ActionValue> RowWidget<'_, A> {
 type LeadingFn<'a, N> = Box<dyn Fn(&N) -> ListSlot + 'a>;
 type ActionsFn<'a, N, A> = Box<dyn Fn(&N) -> Vec<(A, IconAction)> + 'a>;
 type StyleFn<'a, N> = Box<dyn Fn(&N) -> TypeScale + 'a>;
+type DisabledFn<'a, N> = Box<dyn Fn(&N) -> bool + 'a>;
 
 /// MD3-styled tree (APG treeview keyboard). Rows carry an optional leading [`ListSlot`] (Space
 /// toggles its control on the focused row) and trailing actions. With
@@ -499,7 +510,11 @@ pub struct TreeView<'a, N: TreeData, A = NoAction> {
     actions: Option<ActionsFn<'a, N, A>>,
     reorderable: bool,
     disabled: bool,
+    node_disabled: Option<DisabledFn<'a, N>>,
+    accept: Option<DropAccept<'a, N>>,
+    reveal: Option<N::Key>,
     container: Option<ColorRole>,
+    unfocused_selection: Option<ColorRole>,
 }
 
 impl<N: TreeData, A> std::fmt::Debug for TreeView<'_, N, A> {
@@ -532,7 +547,11 @@ impl<'a, N: TreeData> TreeView<'a, N> {
             actions: None,
             reorderable: false,
             disabled: false,
+            node_disabled: None,
+            accept: None,
+            reveal: None,
             container: None,
+            unfocused_selection: None,
         }
     }
 }
@@ -552,6 +571,36 @@ impl<'a, N: TreeData, A: ActionValue> TreeView<'a, N, A> {
     crate::widget::setters! {
         /// Greys out every row; nothing toggles or selects.
         disabled
+    }
+
+    /// Greys out the nodes `node_disabled` names and their descendants: they take no focus, selection, check,
+    /// action, drag or drop inside.
+    pub fn node_disabled(mut self, node_disabled: impl Fn(&N) -> bool + 'a) -> Self {
+        self.node_disabled = Some(Box::new(node_disabled));
+        self
+    }
+
+    /// Foreign [`DragAndDrop`] payloads of type `P` drop before, after or inside rows where `accept(payload,
+    /// node, position)` holds; reported in [`TreeViewResponse::dropped`]. Replaces an earlier `accept_drop`.
+    pub fn accept_drop<P: std::any::Any + Send + Sync>(
+        mut self,
+        accept: impl Fn(&P, &N, DropPosition) -> bool + 'a,
+    ) -> Self {
+        self.accept = Some(DropAccept::new(accept));
+        self
+    }
+
+    /// Expands the ancestors of `key` and scrolls its row into view this pass, leaving focus where it is.
+    pub fn reveal(mut self, key: N::Key) -> Self {
+        self.reveal = Some(key);
+        self
+    }
+
+    /// Container of selected rows while focus is outside the tree, e.g. [`ColorRole::SurfaceContainerHighest`];
+    /// default the selected container (docs/divergences.md).
+    pub fn unfocused_selection_color(mut self, role: ColorRole) -> Self {
+        self.unfocused_selection = Some(role);
+        self
     }
 
     /// Container of idle and disabled rows, e.g. the surface the tree sits on; default
@@ -585,7 +634,11 @@ impl<'a, N: TreeData, A: ActionValue> TreeView<'a, N, A> {
             actions: Some(Box::new(actions)),
             reorderable: self.reorderable,
             disabled: self.disabled,
+            node_disabled: self.node_disabled,
+            accept: self.accept,
+            reveal: self.reveal,
             container: self.container,
+            unfocused_selection: self.unfocused_selection,
         }
     }
 
@@ -661,12 +714,18 @@ impl<'a, N: TreeData, A: ActionValue> TreeView<'a, N, A> {
     // Off-screen row: tree-only node under the id the drawn row would have.
     fn emit_culled(&self, ui: &Ui, rows: &[TreeRow<'a, N>], (i, rect): (usize, Rect), look: RowLook, i18n: &I18n) {
         let Some(row) = rows.get(i) else { return };
-        let widget = self.row_widget(row, look, focus::TabStop::Skip);
+        let widget = self.row_widget(row, look, focus::TabStop::Skip, true);
         let rid = ui.scope_id().with(widget.id_salt());
         kit::nodes::emit_culled(ui, rid, rect, || widget.node(i18n));
     }
 
-    fn row_widget(&self, row: &TreeRow<'a, N>, look: RowLook, tab_stop: focus::TabStop) -> RowWidget<'a, A> {
+    fn row_widget(
+        &self,
+        row: &TreeRow<'a, N>,
+        look: RowLook,
+        tab_stop: focus::TabStop,
+        focused: bool,
+    ) -> RowWidget<'a, A> {
         let key = row.node.key();
         let expanded = row.has_children && self.expansion.is_expanded(key);
         let salt = self.salt.child(key);
@@ -685,8 +744,9 @@ impl<'a, N: TreeData, A: ActionValue> TreeView<'a, N, A> {
                 ..look
             },
             tab_stop,
-            disabled: self.disabled,
+            disabled: self.disabled || row.disabled,
             container: self.container,
+            selected_container: self.unfocused_selection.filter(|_| !focused),
             actions: self.actions.as_ref().map_or_default(|f| f(row.node)),
         }
     }
@@ -699,7 +759,6 @@ impl<'a, N: TreeData, A: ActionValue> TreeView<'a, N, A> {
         rows: &[TreeRow<'a, N>],
         rendered: &[(usize, Rect)],
     ) -> Option<TreeMove<N::Key>> {
-        let rt = ui.rt();
         let ctx = ui.ctx();
         let payload = DragAndDrop::payload::<TreeDrag<N::Key>>(ctx).filter(|p| p.tree == id)?;
         let pos = ctx.pointer_interact_pos().filter(|p| area.contains(*p))?;
@@ -707,18 +766,66 @@ impl<'a, N: TreeData, A: ActionValue> TreeView<'a, N, A> {
         let tree::DropTarget {
             row: target, change, ..
         } = tree::drop_at(self.roots, rows, &payload.key, i, (pos.y - rect.top()) / rect.height())?;
-        let rect = rect.translate(vec2(0.0, (target as f32 - i as f32) * rect.height()));
-        let t = rt.tokens();
+        self.paint_drop(
+            ui,
+            area,
+            rows,
+            (
+                target,
+                rect.translate(vec2(0.0, (target as f32 - i as f32) * rect.height())),
+            ),
+            change.position,
+        );
+        if !ui.input(|i| i.pointer.any_released()) {
+            return None;
+        }
+        DragAndDrop::clear_payload(ctx);
+        Some(change)
+    }
+
+    fn external_drop(
+        &self,
+        ui: &MineralUi<'_, Material>,
+        area: Rect,
+        rows: &[TreeRow<'a, N>],
+        rendered: &[(usize, Rect)],
+    ) -> Option<TreeDrop<N::Key>> {
+        let accept = self.accept.as_ref().filter(|_| !self.disabled)?;
+        let ctx = ui.ctx();
+        let pos = ctx
+            .pointer_interact_pos()
+            .filter(|p| area.contains(*p) && egui_mineral::input::reaches_layer(ctx, ui.layer_id(), *p))?;
+        let &(i, rect) = rendered.iter().find(|(_, r)| r.y_range().contains(pos.y))?;
+        let (target, drop) = accept.slot(ctx, rows, i, (pos.y - rect.top()) / rect.height())?;
+        let at = rect.translate(vec2(0.0, (target as f32 - i as f32) * rect.height()));
+        self.paint_drop(ui, area, rows, (target, at), drop.position());
+        if !ui.input(|i| i.pointer.any_released()) {
+            return None;
+        }
+        DragAndDrop::clear_payload(ctx);
+        Some(drop)
+    }
+
+    fn paint_drop(
+        &self,
+        ui: &MineralUi<'_, Material>,
+        area: Rect,
+        rows: &[TreeRow<'a, N>],
+        (target, rect): (usize, Rect),
+        position: DropPosition,
+    ) {
+        let t = ui.tokens();
         let p = ui.painter_at(area);
         let stroke = row_parts::drop_indicator(&t);
-        let dir = rt.i18n().direction();
+        let dir = ui.i18n().direction();
         let look = self.look(ui);
-        let from = look.cursor(rect, look.indent * rows[target].depth as f32, dir).x();
+        let depth = rows.get(target).map_or(0, |r| r.depth);
+        let from = look.cursor(rect, look.indent * depth as f32, dir).x();
         let to = dir.reversed().start_x(rect, Rangef::point(look.gap));
         let line = |y: f32| {
             p.hline(egui::Rangef::new(from.min(to), from.max(to)), y, stroke);
         };
-        match change.position {
+        match position {
             DropPosition::Before => line(rect.top()),
             DropPosition::After => line(rect.bottom()),
             DropPosition::Inside => {
@@ -726,11 +833,6 @@ impl<'a, N: TreeData, A: ActionValue> TreeView<'a, N, A> {
                 p.rect_stroke(rect, shape, stroke, StrokeKind::Inside);
             }
         }
-        if !ui.input(|i| i.pointer.any_released()) {
-            return None;
-        }
-        DragAndDrop::clear_payload(ctx);
-        Some(change)
     }
 
     fn drag_preview(ui: &mut MineralUi<'_, Material>, look: RowLook, label: &str, visual: Option<&ListVisual>) {
@@ -922,23 +1024,66 @@ impl<'a, N: TreeData, A: ActionValue> TreeView<'a, N, A> {
         }
     }
 
+    // Pending focus, then the last stop, the first selected row, the first row; disabled rows never.
+    fn tab_stop(rows: &[TreeRow<'a, N>], state: &TreeState<N::Key>, found: [Option<usize>; 3]) -> Option<N::Key> {
+        let enabled = |i: Option<usize>| i.filter(|&i| rows.get(i).is_some_and(|r| !r.disabled));
+        let row = state
+            .pending
+            .as_ref()
+            .and_then(|_| enabled(found[0]))
+            .or_else(|| enabled(found[1]))
+            .or_else(|| enabled(found[2]))
+            .or_else(|| rows.iter().position(|r| !r.disabled))?;
+        rows.get(row).map(|r| r.node.key().clone())
+    }
+
+    // `ui` is at row `i`, the first rendered one.
+    fn scroll_to_row(ui: &mut Ui, row: usize, i: usize, row_h: f32) {
+        let top = ui.cursor().min.y + (row as f32 - i as f32) * row_h;
+        ui.scroll_to_rect(
+            Rect::from_min_size(pos2(ui.cursor().min.x, top), vec2(1.0, row_h)),
+            None,
+        );
+        #[expect(clippy::disallowed_methods, reason = "one pass to apply the pending scroll-to-row")]
+        ui.ctx().request_repaint();
+    }
+
+    // Expands the revealed node's ancestors first; `true` when that opened any.
+    fn visible_rows(&mut self) -> (Vec<TreeRow<'a, N>>, bool) {
+        let mut revealed = false;
+        if let Some(key) = &self.reveal {
+            for k in tree::ancestors(self.roots, key).unwrap_or_default() {
+                if !self.expansion.is_expanded(&k) {
+                    self.expansion.expand(k);
+                    revealed = true;
+                }
+            }
+        }
+        let rows = match &self.node_disabled {
+            Some(f) => tree::flatten_with(self.roots, self.expansion, f),
+            None => tree::flatten(self.roots, self.expansion),
+        };
+        (rows, revealed)
+    }
+
     /// Paints the visible rows, virtualized.
     pub fn show(mut self, ui: &mut MineralUi<'_, Material>) -> TreeViewResponse<N::Key, A> {
         let rt = ui.rt();
         let ctx = rt.ctx();
         let id = ui.make_persistent_id(self.salt.id_salt());
-        let rows: Vec<TreeRow<'a, N>> = tree::flatten(self.roots, self.expansion);
+        let (rows, revealed) = self.visible_rows();
         let mut state = TreeState::<N::Key>::load(ctx, id);
+        let reveal_row = self
+            .reveal
+            .as_ref()
+            .and_then(|k| rows.iter().position(|r| r.node.key() == k));
         let selected = self.selection.as_ref().and_then(|s| s.first().cloned());
         let wanted = [state.pending.as_ref(), state.stop.as_ref(), selected.as_ref()];
         let found = Self::locate(&rows, wanted);
         let pending = Self::pending_row(&mut state, found[0]);
-        let stop = state
-            .pending
-            .clone()
-            .or_else(|| found[1].and(state.stop.clone()))
-            .or_else(|| found[2].and(selected))
-            .or_else(|| rows.first().map(|r| r.node.key().clone()));
+        let scroll_to = pending.or(reveal_row);
+        let had_focus = state.focused;
+        let stop = Self::tab_stop(&rows, &state, found);
         let look = self.look(ui);
         let row_h = look.height;
         let height = self
@@ -969,15 +1114,9 @@ impl<'a, N: TreeData, A: ActionValue> TreeView<'a, N, A> {
                 rows.len(),
                 |ui, i| {
                     if std::mem::take(&mut first)
-                        && let Some(p) = pending
+                        && let Some(p) = scroll_to
                     {
-                        let top = ui.cursor().min.y + (p as f32 - i as f32) * row_h;
-                        ui.scroll_to_rect(
-                            Rect::from_min_size(pos2(ui.cursor().min.x, top), vec2(1.0, row_h)),
-                            None,
-                        );
-                        #[expect(clippy::disallowed_methods, reason = "one pass to apply the pending scroll-to-row")]
-                        ctx.request_repaint();
+                        Self::scroll_to_row(ui, p, i, row_h);
                     }
                     let row = &rows[i];
                     let key = row.node.key();
@@ -986,8 +1125,9 @@ impl<'a, N: TreeData, A: ActionValue> TreeView<'a, N, A> {
                     } else {
                         focus::TabStop::Skip
                     };
-                    let w = self.row_widget(row, look, tab_stop);
-                    let r = self.row_response(&mut rt.ui(ui), w, key, id, reorderable.then_some(dim));
+                    let w = self.row_widget(row, look, tab_stop, had_focus);
+                    let drag = (reorderable && !row.disabled).then_some(dim);
+                    let r = self.row_response(&mut rt.ui(ui), w, key, id, drag);
                     rendered.push((i, r.rect));
                     if pending == Some(i) {
                         ctx.memory_mut(|m| m.request_focus(r.id));
@@ -1009,6 +1149,8 @@ impl<'a, N: TreeData, A: ActionValue> TreeView<'a, N, A> {
         if reorderable {
             out.moved = self.drop_target(ui, id, area, &rows, &rendered);
         }
+        out.dropped = self.external_drop(ui, area, &rows, &rendered);
+        state.focused = focused.is_some();
 
         self.apply_events(&rows, events, &mut out);
         if let Some((cur, fid)) = focused {
@@ -1017,7 +1159,7 @@ impl<'a, N: TreeData, A: ActionValue> TreeView<'a, N, A> {
         }
         self.expand_drop_target(&mut out);
         state.store(ctx, id);
-        if out.expanded.is_some() || out.collapsed.is_some() {
+        if revealed || out.expanded.is_some() || out.collapsed.is_some() {
             out.changed = true;
         }
         if out.changed {

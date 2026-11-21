@@ -1,7 +1,7 @@
 // docs/rules.md rule 10: indices here outlive the frame.
 #![deny(clippy::indexing_slicing)]
 #![warn(clippy::arithmetic_side_effects)]
-use std::{collections::BTreeSet, fmt::Debug, hash::Hash};
+use std::{any::Any, collections::BTreeSet, fmt::Debug, hash::Hash, sync::Arc};
 
 use egui::Key;
 
@@ -21,6 +21,9 @@ pub struct TreeRow<'a, N> {
     pub expanded: bool,
     /// Row index of the parent in the same row list; `None` for roots.
     pub parent: Option<usize>,
+    /// Disabled itself or under a disabled ancestor (see [`flatten_with`]): keyboard focus skips it, it
+    /// takes no moves and no drops inside.
+    pub disabled: bool,
 }
 
 /// Node of a tree model; the model is borrowed, never copied.
@@ -47,6 +50,16 @@ pub trait TreeData: Sized {
 pub trait TreeDataMut: TreeData {
     /// Loaded children, edited by [`TreeMove::apply`].
     fn children_mut(&mut self) -> &mut Vec<Self>;
+}
+
+/// Keys of the ancestors of the node with `key`, root first; `None` when no node has it. Expanding them
+/// makes the node visible.
+pub fn ancestors<N: TreeData>(roots: &[N], key: &N::Key) -> Option<Vec<N::Key>> {
+    let path = path_of(roots, key)?;
+    let (_, parents) = path.split_last()?;
+    (1..=parents.len())
+        .map(|n| node_at(roots, parents.get(..n)?).map(|p| p.key().clone()))
+        .collect()
 }
 
 /// Node with `key`, depth-first.
@@ -207,18 +220,12 @@ pub struct DropTarget<K> {
     pub change: TreeMove<K>,
 }
 
-/// Drop of `node` at `frac` (0 top, 1 bottom) of visible row `row`: outer quarters insert
-/// before/after, the middle nests into nodes that accept children (halves otherwise). Below an
-/// expanded row is before its first child.
-pub fn drop_at<N: TreeData>(
-    roots: &[N],
-    rows: &[TreeRow<'_, N>],
-    node: &N::Key,
-    row: usize,
-    frac: f32,
-) -> Option<DropTarget<N::Key>> {
+/// Drop slot at `frac` (0 top, 1 bottom) of visible row `row`, as the row the indicator marks and the
+/// position relative to it: outer quarters insert before/after, the middle nests into enabled nodes that
+/// accept children (halves otherwise). Below an expanded row is before its first child.
+pub fn drop_slot<N: TreeData>(rows: &[TreeRow<'_, N>], row: usize, frac: f32) -> Option<(usize, DropPosition)> {
     let r = rows.get(row)?;
-    let position = if r.node.accepts_children() {
+    let position = if r.node.accepts_children() && !r.disabled {
         match frac {
             f if f < 0.25 => DropPosition::Before,
             f if f > 0.75 => DropPosition::After,
@@ -229,18 +236,113 @@ pub fn drop_at<N: TreeData>(
     } else {
         DropPosition::After
     };
-    let (row, position) = match position {
+    Some(match position {
         DropPosition::After if r.expanded && rows.get(row.saturating_add(1)).is_some_and(|n| n.parent == Some(row)) => {
             (row.saturating_add(1), DropPosition::Before)
         }
         p => (row, p),
-    };
+    })
+}
+
+/// Drop of `node` at `frac` of visible row `row` ([`drop_slot`]), when the move is valid.
+pub fn drop_at<N: TreeData>(
+    roots: &[N],
+    rows: &[TreeRow<'_, N>],
+    node: &N::Key,
+    row: usize,
+    frac: f32,
+) -> Option<DropTarget<N::Key>> {
+    let (row, position) = drop_slot(rows, row, frac)?;
     let m = TreeMove {
         node: node.clone(),
         target: rows.get(row)?.node.key().clone(),
         position,
     };
     m.valid(roots).then_some(DropTarget { row, change: m })
+}
+
+type Payload = Arc<dyn Any + Send + Sync>;
+type AcceptFn<'a, N> = Box<dyn Fn(&egui::Context, &N, DropPosition) -> Option<Payload> + 'a>;
+
+/// Foreign [`egui::DragAndDrop`] payload dropped on a tree row.
+#[derive(Clone)]
+pub struct TreeDrop<K> {
+    target: K,
+    position: DropPosition,
+    payload: Payload,
+}
+
+impl<K: Debug> Debug for TreeDrop<K> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TreeDrop")
+            .field("target", &self.target)
+            .field("position", &self.position)
+            .finish_non_exhaustive()
+    }
+}
+
+impl<K> TreeDrop<K> {
+    /// Row the drop is relative to.
+    pub const fn target(&self) -> &K {
+        &self.target
+    }
+
+    /// Where relative to [`Self::target`].
+    pub const fn position(&self) -> DropPosition {
+        self.position
+    }
+
+    /// `None` when the payload is not a `P`.
+    pub fn payload<P: Any + Send + Sync>(&self) -> Option<Arc<P>> {
+        Arc::clone(&self.payload).downcast().ok()
+    }
+}
+
+/// Which foreign payloads of type `P` a tree takes, and where: kits test it against the hovered
+/// [`drop_slot`].
+pub struct DropAccept<'a, N: TreeData> {
+    accept: AcceptFn<'a, N>,
+}
+
+impl<N: TreeData> Debug for DropAccept<'_, N> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DropAccept").finish_non_exhaustive()
+    }
+}
+
+impl<'a, N: TreeData> DropAccept<'a, N> {
+    /// `accept` gets the payload in flight, the target node and the slot position.
+    pub fn new<P: Any + Send + Sync>(accept: impl Fn(&P, &N, DropPosition) -> bool + 'a) -> Self {
+        Self {
+            accept: Box::new(move |ctx, node, position| {
+                let payload = egui::DragAndDrop::payload::<P>(ctx)?;
+                let accepted: Payload = payload.clone();
+                accept(&payload, node, position).then_some(accepted)
+            }),
+        }
+    }
+
+    /// Drop the payload in flight would make at `frac` of visible row `row` ([`drop_slot`]), with the row
+    /// the indicator marks; `None` when nothing acceptable is dragged there.
+    pub fn slot(
+        &self,
+        ctx: &egui::Context,
+        rows: &[TreeRow<'_, N>],
+        row: usize,
+        frac: f32,
+    ) -> Option<(usize, TreeDrop<N::Key>)> {
+        let (at, position) = drop_slot(rows, row, frac)?;
+        let node = rows.get(at)?.node;
+        let payload = (self.accept)(ctx, node, position)?;
+        Some((
+            at,
+            TreeDrop {
+                target: node.key().clone(),
+                position,
+                payload,
+            },
+        ))
+    }
 }
 
 fn sibling<N>(rows: &[TreeRow<'_, N>], i: usize, mut steps: impl Iterator<Item = usize>) -> Option<usize> {
@@ -251,8 +353,8 @@ fn sibling<N>(rows: &[TreeRow<'_, N>], i: usize, mut steps: impl Iterator<Item =
 }
 
 /// Keyboard move of visible row `current` (Alt+arrow): Up/Down before the previous / after the
-/// next sibling, backward after the parent, forward into the previous sibling. Horizontal arrows
-/// flip in RTL.
+/// next sibling, backward after the parent, forward into the previous enabled sibling. Horizontal
+/// arrows flip in RTL. Disabled rows do not move.
 pub fn move_key<N: TreeData>(
     roots: &[N],
     rows: &[TreeRow<'_, N>],
@@ -260,7 +362,7 @@ pub fn move_key<N: TreeData>(
     key: Key,
     dir: Direction,
 ) -> Option<TreeMove<N::Key>> {
-    let row = rows.get(current)?;
+    let row = rows.get(current).filter(|r| !r.disabled)?;
     let prev = || sibling(rows, current, (0..current).rev());
     let (target, position) = match key {
         Key::ArrowUp => (prev()?, DropPosition::Before),
@@ -268,7 +370,10 @@ pub fn move_key<N: TreeData>(
             sibling(rows, current, current.saturating_add(1)..rows.len())?,
             DropPosition::After,
         ),
-        Key::ArrowLeft | Key::ArrowRight if key == dir.forward_key() => (prev()?, DropPosition::Inside),
+        Key::ArrowLeft | Key::ArrowRight if key == dir.forward_key() => (
+            prev().filter(|&p| rows.get(p).is_some_and(|r| !r.disabled))?,
+            DropPosition::Inside,
+        ),
         Key::ArrowLeft | Key::ArrowRight => (row.parent?, DropPosition::After),
         _ => return None,
     };
@@ -280,21 +385,32 @@ pub fn move_key<N: TreeData>(
     m.valid(roots).then_some(m)
 }
 
-/// Visible rows: roots, plus the children of expanded nodes, depth-first.
+/// Visible rows: roots, plus the children of expanded nodes, depth-first; none disabled.
 pub fn flatten<'a, N: TreeData>(roots: &'a [N], expansion: &Expansion<N::Key>) -> Vec<TreeRow<'a, N>> {
-    let mut out = Vec::new();
+    flatten_with(roots, expansion, |_| false)
+}
+
+/// [`flatten`], with the nodes `disabled` names and their descendants [`TreeRow::disabled`].
+pub fn flatten_with<'a, N: TreeData>(
+    roots: &'a [N],
+    expansion: &Expansion<N::Key>,
+    disabled: impl Fn(&N) -> bool,
+) -> Vec<TreeRow<'a, N>> {
+    let mut out: Vec<TreeRow<'a, N>> = Vec::new();
     let mut stack: Vec<(&'a N, usize, Option<usize>)> = roots.iter().rev().map(|n| (n, 0, None)).collect();
     while let Some((node, depth, parent)) = stack.pop() {
         let kids = node.children();
         let has_children = !kids.is_empty() || node.lazy();
         let expanded = has_children && expansion.is_expanded(node.key());
         let idx = out.len();
+        let inherited = parent.and_then(|p| out.get(p)).is_some_and(|p| p.disabled);
         out.push(TreeRow {
             node,
             depth,
             has_children,
             expanded,
             parent,
+            disabled: inherited || disabled(node),
         });
         if expanded {
             stack.extend(kids.iter().rev().map(|c| (c, depth.saturating_add(1), Some(idx))));
@@ -315,23 +431,22 @@ pub enum TreeNav {
     Collapse(usize),
 }
 
-/// <https://www.w3.org/WAI/ARIA/apg/patterns/treeview/>; horizontal arrows flip in RTL.
+/// <https://www.w3.org/WAI/ARIA/apg/patterns/treeview/>; horizontal arrows flip in RTL. Focus moves skip
+/// disabled rows.
 pub fn on_key<N>(rows: &[TreeRow<'_, N>], current: usize, key: Key, dir: Direction) -> Option<TreeNav> {
     let row = rows.get(current)?;
     let fwd = dir.forward_key();
+    let enabled = |i: &usize| rows.get(*i).is_some_and(|r| !r.disabled);
+    let next = current.saturating_add(1);
     Some(match key {
-        Key::ArrowDown if current.saturating_add(1) < rows.len() => TreeNav::Focus(current.saturating_add(1)),
-        Key::ArrowUp if current > 0 => TreeNav::Focus(current.saturating_sub(1)),
-        Key::Home => TreeNav::Focus(0),
-        Key::End => TreeNav::Focus(rows.len().saturating_sub(1)),
+        Key::ArrowDown => TreeNav::Focus((next..rows.len()).find(enabled)?),
+        Key::ArrowUp => TreeNav::Focus((0..current).rev().find(enabled)?),
+        Key::Home => TreeNav::Focus((0..rows.len()).find(enabled)?),
+        Key::End => TreeNav::Focus((0..rows.len()).rev().find(enabled)?),
         Key::ArrowLeft | Key::ArrowRight if key == fwd => match (row.has_children, row.expanded) {
             (true, false) => TreeNav::Expand(current),
-            (true, true)
-                if rows
-                    .get(current.saturating_add(1))
-                    .is_some_and(|r| r.parent == Some(current)) =>
-            {
-                TreeNav::Focus(current.saturating_add(1))
+            (true, true) if rows.get(next).is_some_and(|r| r.parent == Some(current)) && enabled(&next) => {
+                TreeNav::Focus(next)
             }
             _ => return None,
         },
@@ -485,5 +600,72 @@ mod tests {
         mv(1, 2, DropPosition::Inside).apply(&mut roots);
         mv(9, 1, DropPosition::After).apply(&mut roots);
         assert_eq!(keys(&roots), before);
+    }
+
+    #[test]
+    fn disabled_nodes_disable_their_subtree_and_focus_skips_them() {
+        let roots = vec![
+            N(1, vec![]),
+            N(2, vec![N(3, vec![]), N(4, vec![])]),
+            N(5, vec![N(6, vec![])]),
+            N(7, vec![]),
+        ];
+        let mut exp = Expansion::default();
+        exp.expand(2);
+        exp.expand(5);
+        let rows = flatten_with(&roots, &exp, |n| n.0 == 2 || n.0 == 6);
+        let off: Vec<u32> = rows.iter().filter(|r| r.disabled).map(|r| r.node.0).collect();
+        assert_eq!(off, [2, 3, 4, 6]);
+        let ltr = Direction::Ltr;
+        assert_eq!(
+            on_key(&rows, 0, Key::ArrowDown, ltr),
+            Some(TreeNav::Focus(4)),
+            "skips 2, 3 and 4"
+        );
+        assert_eq!(on_key(&rows, 4, Key::ArrowUp, ltr), Some(TreeNav::Focus(0)));
+        assert_eq!(
+            on_key(&rows, 4, Key::ArrowRight, ltr),
+            None,
+            "the first child is disabled"
+        );
+        assert_eq!(on_key(&rows, 6, Key::ArrowDown, ltr), None);
+        assert_eq!(
+            move_key(&roots, &rows, 1, Key::ArrowDown, ltr),
+            None,
+            "disabled rows do not move"
+        );
+        assert_eq!(
+            drop_slot(&rows, 1, 0.5),
+            Some((2, DropPosition::Before)),
+            "no drop inside a disabled node"
+        );
+    }
+
+    #[test]
+    fn ancestors_lists_the_path_root_first() {
+        let roots = vec![N(1, vec![N(2, vec![N(3, vec![])])]), N(4, vec![])];
+        assert_eq!(ancestors(&roots, &3), Some(vec![1, 2]));
+        assert_eq!(ancestors(&roots, &4), Some(vec![]));
+        assert_eq!(ancestors(&roots, &9), None);
+    }
+
+    #[test]
+    fn drop_accept_filters_by_payload_type_and_slot() {
+        let ctx = egui::Context::default();
+        let roots = vec![N(1, vec![N(2, vec![])]), N(3, vec![])];
+        let rows = flatten(&roots, &Expansion::default());
+        let accept = DropAccept::new(|p: &String, n: &N, pos| p == "file" && (n.0 != 3 || pos != DropPosition::Inside));
+        assert!(accept.slot(&ctx, &rows, 0, 0.5).is_none(), "nothing in flight");
+        egui::DragAndDrop::set_payload(&ctx, 7u8);
+        assert!(accept.slot(&ctx, &rows, 0, 0.5).is_none(), "foreign type");
+        egui::DragAndDrop::set_payload(&ctx, String::from("file"));
+        let (row, drop) = accept.slot(&ctx, &rows, 0, 0.5).expect("accepted");
+        assert_eq!((row, *drop.target(), drop.position()), (0, 1, DropPosition::Inside));
+        assert_eq!(drop.payload::<String>().as_deref().map(String::as_str), Some("file"));
+        assert!(drop.payload::<u8>().is_none());
+        assert_eq!(
+            accept.slot(&ctx, &rows, 1, 0.9).map(|(_, d)| d.position()),
+            Some(DropPosition::After)
+        );
     }
 }

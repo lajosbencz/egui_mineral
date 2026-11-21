@@ -4,6 +4,7 @@ use egui_mineral::{
     layout::Axis,
     select::{Check, Selection, SelectionMode},
     semantic::{Action, Role},
+    tree::{DropPosition, TreeData as _},
 };
 use egui_mineral_fluent::actions::PushButton;
 use egui_mineral_fluent::icons::{ICON_MORE_HORIZONTAL, ICON_PIN, ICON_SHARE};
@@ -633,6 +634,71 @@ fn flat_levels_nest_into_branches() {
     h.run();
     let levels = ["x", "y", "z", "w"].map(|k| h.node(&format!("t-{k}-treeitem")).state.level);
     assert_eq!(levels, [1, 2, 3, 1].map(Some));
+}
+
+#[test]
+fn disabled_tree_items_skip_focus_and_do_not_activate() {
+    let roots = files();
+    let state = (Expansion::<String>::default(), Vec::<String>::new());
+    let mut h = harness(state, move |ui, (open, activated)| {
+        let r = Tree::items("t", "Files", &roots, open)
+            .node_disabled(|n| n.key() == "a")
+            .show(ui);
+        activated.extend(r.activated);
+    });
+    h.run();
+    assert!(h.node("t-a-treeitem").state.disabled);
+    assert!(!h.node("t-a-treeitem").actions.contains(&Action::Expand));
+    h.click("t-a-treeitem");
+    assert!(h.state().value.1.is_empty(), "a disabled item does not activate");
+    h.click("t-b-treeitem");
+    h.press(Key::Home);
+    assert!(h.focused("t-b-treeitem"), "Home skips the disabled first item");
+}
+
+#[test]
+fn tree_reveal_opens_the_path_without_focus() {
+    let roots = files();
+    let mut h = harness((Expansion::<String>::default(), true), move |ui, (open, reveal)| {
+        let mut tree = Tree::items("t", "Files", &roots, open);
+        if std::mem::take(reveal) {
+            tree = tree.reveal("a2x".to_owned());
+        }
+        tree.show(ui);
+    });
+    h.run();
+    let open = &h.state().value.0;
+    assert!(open.is_expanded(&"a".to_owned()) && open.is_expanded(&"a2".to_owned()));
+    assert!(!h.focused("t-a2x-treeitem"));
+}
+
+#[test]
+fn tree_takes_a_foreign_drop_inside_a_branch() {
+    let roots = files();
+    let state = (None::<(String, DropPosition)>, egui::Rect::NOTHING);
+    let mut h = harness(state, move |ui, (dropped, source)| {
+        let mut open = Expansion::default();
+        let r = Tree::items("t", "Files", &roots, &mut open)
+            .accept_drop(|_: &u32, _: &TreeItem, _| true)
+            .show(ui);
+        if let Some(d) = r.dropped
+            && d.payload::<u32>().is_some()
+        {
+            *dropped = Some((d.target().clone(), d.position()));
+        }
+        *source = ui
+            .dnd_drag_source(egui::Id::unique("chip"), 7_u32, |ui| ui.label("chip"))
+            .response
+            .rect;
+    });
+    let (from, to) = (h.state().value.1.center(), h.rect("t-a-treeitem").center());
+    h.hover_at(from);
+    h.drag_at(from);
+    h.hover_at(from.lerp(to, 0.5));
+    h.hover_at(to);
+    h.drop_at(to);
+    h.run();
+    assert_eq!(h.state().value.0, Some(("a".to_owned(), DropPosition::Inside)));
 }
 
 struct Grid {
