@@ -464,8 +464,13 @@ impl<'a> Carousel<'a> {
         let rt = ui.rt();
         let vertical = self.layout.vertical();
         let width = ui.available_width();
-        // The strip owns drags (pans), the items clicks; egui hit-tests the two apart.
-        let sense = if self.disabled { Sense::hover() } else { Sense::drag() };
+        // The strip owns drags (pans), the items clicks; egui hit-tests the two apart. CLICK defers `dragged` to
+        // a decided drag, so a click on an item does not flash the grabbing cursor.
+        let sense = if self.disabled {
+            Sense::hover()
+        } else {
+            Sense::click_and_drag()
+        };
         let (rect, response) = ui.allocate_exact_size(vec2(width, self.height), sense);
         let mut out = CarouselResponse {
             response,

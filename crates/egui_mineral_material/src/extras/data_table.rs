@@ -832,6 +832,24 @@ impl<K: ItemKey> TableView<'_, '_, K> {
         for c in 0..self.table.columns.len() {
             self.header_cell(ui, st, pass, hrect, c);
         }
+        // After every cell: a grip straddles the edge, so the next header would cover its end half.
+        if self.table.disabled {
+            return;
+        }
+        let rt = ui.rt();
+        for (c, col) in self.table.columns.iter().enumerate().filter(|(_, col)| col.resizable) {
+            resize_handle(
+                &rt.ui(ui),
+                self.t,
+                self.id,
+                &self.table.salt,
+                c,
+                col,
+                &self.geo,
+                hrect,
+                &mut st.widths,
+            );
+        }
     }
 
     fn select_all(&self, ui: &mut MineralUi<'_, Material>, st: &mut TableState, pass: &mut Pass, hrect: Rect) {
@@ -947,19 +965,6 @@ impl<K: ItemKey> TableView<'_, '_, K> {
             }
             n
         });
-        if col.resizable && !disabled {
-            resize_handle(
-                &rt.ui(ui),
-                self.t,
-                self.id,
-                &self.table.salt,
-                c,
-                col,
-                &self.geo,
-                hrect,
-                &mut st.widths,
-            );
-        }
     }
 
     fn body<'d>(
@@ -1340,13 +1345,14 @@ fn resize_handle(
     // The core splitter's hit width for the same gesture.
     let hit = crate::adaptive::resize_edge(ui);
     let rect = Rect::from_center_size(pos2(edge, header.center().y), vec2(hit, header.height()));
-    let r = ui.interact(rect, id.with(("resize", c)), Sense::drag());
+    // CLICK keeps a click on the grip from sorting the header beneath.
+    let r = ui.interact(rect, id.with(("resize", c)), Sense::click_and_drag());
     let model = RangeModel::new(f64::from(col.min_width), MAX_COLUMN_WIDTH).step(f64::from(crate::adaptive::grid(2)));
     let w = widths.width(c);
     let track = Track::horizontal(rt.i18n().direction());
     let mut next = w;
-    if r.dragged() {
-        next = w + track.sign() * r.drag_delta().x;
+    if let Some((start, travel)) = egui_mineral::input::drag_from_start(&r, w) {
+        next = start + track.sign() * travel.x;
     }
     next = model.drive(rt.core(), r.id, f64::from(next), track) as f32;
     if (next - w).abs() > f32::EPSILON {

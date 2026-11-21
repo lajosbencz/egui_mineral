@@ -411,6 +411,46 @@ mod table {
     }
 
     #[test]
+    fn resize_grip_clicks_do_not_sort_and_drags_track_the_pointer() {
+        use egui_mineral::table::{ColumnSize, ColumnWidths};
+        let size = |width| ColumnSize { width, min: 40.0 };
+        let mut h = harness(
+            (SortState::default(), ColumnWidths::new([size(120.0), size(80.0)])),
+            |ui, (sort, widths)| {
+                let both = [
+                    TableColumn::new("Name").sortable(true),
+                    TableColumn::new("Rank").sortable(true),
+                ];
+                Table::new("t", "People", both)
+                    .sort(sort)
+                    .resizable(widths)
+                    .show(ui, NAMES.len(), |ui, row, col| {
+                        ui.mineral(Text::new((("cell", row), col), NAMES[row]));
+                    });
+            },
+        );
+        h.run();
+        let at = h.rect("t-header-0").right_center();
+        h.click_at(at);
+        let unsorted = |h: &Harness<'_, (SortState, ColumnWidths)>| {
+            (h.state().value.0.order(0), h.state().value.0.order(1)) == (None, None)
+        };
+        assert!(unsorted(&h), "the grip owns its click, over either header");
+        h.hover_at(at);
+        h.drag_at(at);
+        h.hover_at(at + egui::vec2(30.0, 0.0));
+        h.hover_at(at + egui::vec2(64.0, 0.0));
+        h.drop_at(at + egui::vec2(64.0, 0.0));
+        h.run();
+        assert_eq!(
+            h.state().value.1.width(0),
+            184.0,
+            "the travel before the drag decision counts"
+        );
+        assert!(unsorted(&h));
+    }
+
+    #[test]
     fn sortable_header_cycles_and_orders_the_rows() {
         let mut h = table(false);
         h.run();

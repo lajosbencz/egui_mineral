@@ -1,0 +1,19 @@
+id: drag-only-sense
+language: rust
+severity: error
+message: A drag-only `Sense` counts as dragged on press, before the pointer moves, and lets clicks fall through to widgets beneath. Use `Sense::click_and_drag()` (or `Sense::CLICK | Sense::DRAG`) so egui waits for a decided drag; ignore with a reason where press must start the drag.
+files:
+  - crates/**/src/**
+  - examples/**
+rule:
+  any:
+    - kind: call_expression
+      has:
+        field: function
+        kind: scoped_identifier
+        regex: (^|::)Sense::drag$
+    - kind: scoped_identifier
+      regex: (^|::)Sense::DRAG$
+      not:
+        inside:
+          kind: binary_expression

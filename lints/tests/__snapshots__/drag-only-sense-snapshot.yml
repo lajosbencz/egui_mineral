@@ -1,0 +1,28 @@
+id: drag-only-sense
+snapshots:
+  "fn f(ui: &Ui, rect: Rect, id: Id) {\n    ui.interact(rect, id, Sense::DRAG);\n}\n":
+    labels:
+    - source: Sense::DRAG
+      style: primary
+      start: 62
+      end: 73
+  "fn f(ui: &Ui, rect: Rect, id: Id) {\n    ui.interact(rect, id, Sense::drag());\n}\n":
+    labels:
+    - source: Sense::drag()
+      style: primary
+      start: 62
+      end: 75
+    - source: Sense::drag
+      style: secondary
+      start: 62
+      end: 73
+  "fn f(ui: &Ui, rect: Rect, id: Id) {\n    ui.interact(rect, id, egui::Sense::drag());\n}\n":
+    labels:
+    - source: egui::Sense::drag()
+      style: primary
+      start: 62
+      end: 81
+    - source: egui::Sense::drag
+      style: secondary
+      start: 62
+      end: 79

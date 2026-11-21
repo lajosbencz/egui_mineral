@@ -832,11 +832,16 @@ fn header<K: ItemKey>(
             }
             n
         });
-        if let Some(widths) = tb.widths.as_mut() {
-            let edge = geo.cell(row, x + w, 0.0).left_center();
+        x += w;
+    }
+    // After every cell: a grip straddles the edge, so the next header would cover its end half.
+    if let Some(widths) = tb.widths.as_mut() {
+        let mut x = geo.selection;
+        for c in 0..tb.columns.len() {
+            x += geo.column(c);
+            let edge = geo.cell(row, x, 0.0).left_center();
             resize_handle(ui, id.with(("resize", c)), edge, geo, c, widths);
         }
-        x += w;
     }
 }
 
@@ -849,15 +854,16 @@ fn resize_handle(
     widths: &mut ColumnWidths,
 ) {
     let handle = Rect::from_center_size(edge, vec2(d::RESIZE_HANDLE, geo.height));
-    let r = ui.interact(handle, id, Sense::drag());
+    // CLICK keeps a click on the grip from sorting the header beneath.
+    let r = ui.interact(handle, id, Sense::click_and_drag());
     if r.hovered() || r.dragged() {
         ui.ctx().set_cursor_icon(CursorIcon::ResizeHorizontal);
         let line = Rect::from_center_size(edge, vec2(d::RESIZE_LINE, geo.height));
         ui.painter()
             .rect_filled(line, 0.0, ui.tokens().color(ColorNeutralStroke1));
     }
-    if r.dragged() {
-        widths.set(c, widths.width(c) + r.drag_delta().x * geo.dir.sign());
+    if let Some((start, travel)) = egui_mineral::input::drag_from_start(&r, widths.width(c)) {
+        widths.set(c, start + travel.x * geo.dir.sign());
     }
 }
 

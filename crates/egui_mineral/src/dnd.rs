@@ -48,8 +48,9 @@ fn drag_source_at<K, T: Send + Sync + 'static, R>(
     let ctx = rt.ctx();
     let dragged = ctx.is_being_dragged(id);
     let InnerResponse { inner, response } = ui
-        // Not focusable: `Sense::drag()` would add an invisible Tab stop; keyboard moves belong to the content.
-        .scope_builder(UiBuilder::new().scope_id(id).sense(Sense::DRAG), |ui| {
+        // Not focusable: keyboard moves belong to the content. CLICK makes egui wait for a decided drag instead
+        // of dragging on press, so a click on the contents shows no preview.
+        .scope_builder(UiBuilder::new().scope_id(id).sense(Sense::CLICK | Sense::DRAG), |ui| {
             add_contents(&mut rt.ui(ui), dragged)
         });
     let grab = id.with("mineral::dnd_grab");
@@ -297,5 +298,45 @@ mod tests {
             0,
         );
         assert_eq!(moved, Some(Reorder { from: 1, to: 0 }), "item 3 is now at index 1");
+    }
+
+    #[test]
+    fn a_press_is_no_drag_until_the_pointer_travels() {
+        // (dragged, clicked, contents rect)
+        let mut h = crate::test_support::harness(
+            |ui, s: &mut (bool, u32, egui::Rect)| {
+                let r = drag_source(
+                    ui,
+                    "src",
+                    || 7u8,
+                    |_| (),
+                    |ui, _| {
+                        let rect = ui.allocate_exact_size(egui::vec2(100.0, 20.0), egui::Sense::hover()).0;
+                        ui.interact(rect, ui.scope_id().with("row"), egui::Sense::click())
+                    },
+                );
+                s.0 = r.dragged;
+                s.1 += u32::from(r.inner.clicked());
+                s.2 = r.inner.rect;
+            },
+            (false, 0, egui::Rect::NOTHING),
+        );
+        h.step();
+        let at = h.state().value.2.center();
+        h.input_mut().events.extend(crate::test_support::press(at));
+        h.step();
+        h.step();
+        assert!(!h.state().value.0, "pressed, not dragged");
+        assert!(!egui::DragAndDrop::has_any_payload(&h.ctx), "no payload on a press");
+        h.event(crate::input::synth::pointer_up(at, egui::PointerButton::Primary));
+        h.step();
+        assert_eq!(h.state().value.1, 1, "the contents keep the click");
+        h.input_mut().events.extend(crate::test_support::press(at));
+        h.step();
+        h.event(Event::PointerMoved(egui::pos2(at.x, at.y + 30.0)));
+        h.step();
+        h.step();
+        assert!(h.state().value.0, "dragged past the click distance");
+        assert!(egui::DragAndDrop::has_payload_of_type::<u8>(&h.ctx));
     }
 }

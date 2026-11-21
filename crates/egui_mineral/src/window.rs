@@ -44,6 +44,8 @@ pub fn resize_handle(ui: &Ui, rect: Rect, id: Id, toward: ResizeDirection) -> Op
     if !can_resize(ui.ctx()) {
         return None;
     }
+    // The platform resize needs the button still down, so it starts on press like OS window grips.
+    // ast-grep-ignore: drag-only-sense
     let r = ui.interact(rect, id, Sense::DRAG);
     if r.hovered() || r.dragged() {
         ui.ctx().set_cursor_icon(resize_cursor(toward));

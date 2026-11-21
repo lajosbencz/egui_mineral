@@ -1,0 +1,23 @@
+id: drag-only-sense
+valid:
+  - |
+    fn f(ui: &Ui, rect: Rect, id: Id) {
+        ui.interact(rect, id, Sense::click_and_drag());
+    }
+  - |
+    fn f(ui: &Ui, rect: Rect, id: Id) {
+        ui.interact(rect, id, Sense::CLICK | Sense::DRAG);
+    }
+invalid:
+  - |
+    fn f(ui: &Ui, rect: Rect, id: Id) {
+        ui.interact(rect, id, Sense::drag());
+    }
+  - |
+    fn f(ui: &Ui, rect: Rect, id: Id) {
+        ui.interact(rect, id, egui::Sense::drag());
+    }
+  - |
+    fn f(ui: &Ui, rect: Rect, id: Id) {
+        ui.interact(rect, id, Sense::DRAG);
+    }

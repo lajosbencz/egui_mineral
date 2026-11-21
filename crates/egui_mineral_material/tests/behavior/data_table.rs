@@ -253,3 +253,24 @@ fn stick_to_end_follows_appended_rows() {
     }
     assert!(shown_rows(&h).contains(&199), "{:?}", shown_rows(&h));
 }
+
+#[test]
+fn resize_grip_clicks_do_not_sort_and_drags_track_the_pointer() {
+    let mut h = names_table(&[]);
+    let at = h.rect("tbl-0-resize").center();
+    h.click_at(at);
+    assert_eq!(h.state().value.sort_changed, 0, "the grip owns its click");
+    let before = h.rect("tbl-0-header").width();
+    h.hover_at(at);
+    h.drag_at(at);
+    h.hover_at(at + egui::vec2(30.0, 0.0));
+    h.hover_at(at + egui::vec2(64.0, 0.0));
+    h.drop_at(at + egui::vec2(64.0, 0.0));
+    h.run();
+    let grown = h.rect("tbl-0-header").width() - before;
+    assert!(
+        (grown - 64.0).abs() <= 8.0,
+        "the travel before the drag decision counts: {grown}"
+    );
+    assert_eq!(h.state().value.sort_changed, 0);
+}

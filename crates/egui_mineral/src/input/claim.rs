@@ -180,7 +180,7 @@ mod tests {
                         .auto_shrink([false; 2])
                         .show(ui, |ui| {
                             let (rect, _) = ui.allocate_exact_size(vec2(200.0, 100.0), Sense::hover());
-                            let r = ui.interact(rect, ui.make_persistent_id("pannable"), Sense::drag());
+                            let r = ui.interact(rect, ui.make_persistent_id("pannable"), Sense::click_and_drag());
                             if let Some(f) = p.claim.update(&rt.ui(ui), axis, &r) {
                                 let step = -axis.main(f.delta);
                                 let over = p.pos + step - (p.pos + step).clamp(0.0, RANGE);
