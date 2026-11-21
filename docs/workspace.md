@@ -6,7 +6,7 @@ Module map, config, commands and release. Overview: [WORKSPACE.md](../WORKSPACE.
 
 | Path | Owns |
 |---|---|
-| [`crates/egui_mineral/src/input`](../crates/egui_mineral/src/input) | IAL: egui events -> `UnifiedInputEvent`, pure `GestureRecognizer`, `Pull` gesture, hold repeat, `Debounce` |
+| [`crates/egui_mineral/src/input`](../crates/egui_mineral/src/input) | IAL: egui events -> `UnifiedInputEvent`, occlusion-aware hit tests (`reaches_layer`, `events_on`), pure `GestureRecognizer`, `Pull` gesture, hold repeat, `Debounce` |
 | [`crates/egui_mineral/src/layout`](../crates/egui_mineral/src/layout) | `Constraints`, `Axis`, `Measure`/`Zones` box model, `Flow` rows and `flex` (egui_taffy), safe areas, breakpoints |
 | [`crates/egui_mineral/src/perf`](../crates/egui_mineral/src/perf) | `VirtualList`, `HeightIndex`, `size_or_discard`, `ShapeCache` |
 | [`crates/egui_mineral/src/widget.rs`](../crates/egui_mineral/src/widget.rs) | `MineralWidget` trait, `MineralUi` and its `mineral` driver, `SizeExt` size overrides |

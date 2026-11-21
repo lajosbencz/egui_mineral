@@ -203,7 +203,9 @@ impl MineralWidget for FileDropZone {
         let ctx = rt.ctx();
         let t = rt.tokens();
         let rect = frame.zones.visual;
-        let over = |p: Option<Pos2>| p.is_none_or(|p| rect.contains(p));
+        let over = |p: Option<Pos2>| {
+            p.is_none_or(|p| rect.contains(p) && egui_mineral::input::reaches_layer(ctx, frame.response.layer_id, p))
+        };
         let (hovered_files, dropped_files, pointer) = ctx.input(|i| {
             (
                 !i.raw.hovered_files.is_empty(),

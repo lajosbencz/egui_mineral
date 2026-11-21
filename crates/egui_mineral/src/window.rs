@@ -182,10 +182,9 @@ fn close_control<K: Stylekit>(rt: &Runtime<K>, ui: &mut Ui, salt: &KeyedSalt, vi
     let glyph = rt.kit().chrome_icon(ChromeIcon::Close);
     submit(ui, close_shapes(ui, visual, &response, glyph));
     let layer = response.layer_id;
-    // No MineralUi in a window root.
+    // No MineralUi in a window root; `hit` grows with the modality this pass, `tap_on` tests the previous one.
     let tapped = rt.core().input().gestures().any(|g| {
-        matches!(g, Gesture::Tap { pos }
-            if hit.contains(*pos) && rt.ctx().layer_id_at(*pos).is_none_or(|l| l == layer))
+        matches!(g, Gesture::Tap { pos } if hit.contains(*pos) && crate::input::reaches_layer(rt.ctx(), layer, *pos))
     });
     if tapped {
         // doc(hidden) on egui 0.37; see `InputContext::tap_on`.

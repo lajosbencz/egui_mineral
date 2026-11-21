@@ -214,8 +214,9 @@ impl Composite for DatePicker<'_> {
         let output = *out.output();
         let visual = out.zones().visual;
         let response = out.into_response();
-        let clicked =
-            ctx.input(|i| i.pointer.primary_clicked() && i.pointer.interact_pos().is_some_and(|p| visual.contains(p)));
+        let clicked = ctx
+            .input(|i| i.pointer.primary_clicked().then(|| i.pointer.interact_pos()).flatten())
+            .is_some_and(|p| visual.contains(p) && egui_mineral::input::reaches_layer(ctx, response.layer_id, p));
         if clicked && !self.disabled {
             st.open = true;
         }

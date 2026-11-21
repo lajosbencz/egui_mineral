@@ -245,6 +245,16 @@ impl InputContext {
         self.pan.filter(|p| hit(r, p.origin, Sense::senses_drag))
     }
 
+    /// Events of this pass aimed inside `r`'s clipped interact rect ([`UnifiedInputEvent::anchor`]) where
+    /// [`reaches_layer`] holds for `r`'s layer; `r`'s own child widgets do not block them. Keys have no anchor
+    /// and are left out.
+    pub fn events_on<'a>(&'a self, r: &'a egui::Response) -> impl Iterator<Item = &'a UnifiedInputEvent> {
+        self.events.iter().filter(|e| {
+            e.anchor()
+                .is_some_and(|pos| r.interact_rect.contains(pos) && reaches_layer(&r.ctx, r.layer_id, pos))
+        })
+    }
+
     /// Gesture events of this pass, in order.
     pub fn gestures(&self) -> impl Iterator<Item = &Gesture> {
         self.events.iter().filter_map(|e| match e {
@@ -269,6 +279,14 @@ impl InputContext {
     }
 }
 
+/// Input at `pos` reaches `layer`: no window or popup above it covers `pos`, and no modal is open above it.
+/// Pair hand-rolled `rect.contains(pos)` checks with it; alone they let input on an overlay reach the
+/// widget below.
+#[must_use]
+pub fn reaches_layer(ctx: &egui::Context, layer: egui::LayerId, pos: Pos2) -> bool {
+    ctx.layer_id_at(pos).is_none_or(|l| l == layer) && ctx.memory(|m| m.allows_interaction(layer))
+}
+
 fn hit(r: &egui::Response, pos: Pos2, takes: impl Fn(&Sense) -> bool) -> bool {
     let own = r.ctx.viewport(|v| {
         let widgets = &v.prev_pass.widgets;
@@ -280,7 +298,7 @@ fn hit(r: &egui::Response, pos: Pos2, takes: impl Fn(&Sense) -> bool) -> bool {
             .any(|o| o.enabled && takes(&o.sense) && o.interact_rect.contains(pos));
         Some(layer == r.layer_id && w.interact_rect.contains(pos) && !covered)
     });
-    own == Some(true) && r.ctx.layer_id_at(pos).is_none_or(|l| l == r.layer_id)
+    own == Some(true) && reaches_layer(&r.ctx, r.layer_id, pos)
 }
 
 #[cfg(test)]
@@ -436,5 +454,56 @@ mod tests {
             });
         }
         assert_eq!(hits, (None, Some(pos)), "only the widget on top takes the tap");
+    }
+
+    // Target at the origin, hit at `pos` on each pass; `above` draws over it after the target.
+    fn events_on_target(above: impl Fn(&Context)) -> usize {
+        let ctx = crate::test_support::ctx();
+        let pos = pos2(10.0, 10.0);
+        let mut a = InputAdapter::default();
+        let rect = Rect::from_min_size(Pos2::ZERO, egui::vec2(40.0, 40.0));
+        let mut got = 0;
+        for events in [
+            vec![],
+            vec![synth::pointer_down(pos, egui::PointerButton::Primary)],
+            vec![synth::pointer_up(pos, egui::PointerButton::Primary)],
+        ] {
+            run(&ctx, input(events), |ui| {
+                let input = process(&mut a, ui.ctx());
+                let target = ui.interact(rect, Id::unique("target"), Sense::click_and_drag());
+                got = input.events_on(&target).count();
+                above(ui.ctx());
+            });
+        }
+        got
+    }
+
+    #[test]
+    fn events_on_reach_an_uncovered_target() {
+        assert!(events_on_target(|_| {}) > 0);
+    }
+
+    #[test]
+    fn events_on_skip_a_target_under_a_window() {
+        let got = events_on_target(|ctx| {
+            // ast-grep-ignore: raw-egui-area
+            egui::Area::new(Id::unique("window"))
+                .fixed_pos(Pos2::ZERO)
+                .show(ctx, |ui| {
+                    ui.allocate_exact_size(egui::vec2(80.0, 80.0), Sense::click());
+                });
+        });
+        assert_eq!(got, 0);
+    }
+
+    #[test]
+    fn events_on_skip_a_target_under_a_modal() {
+        let got = events_on_target(|ctx| {
+            // ast-grep-ignore: raw-egui-area
+            egui::Modal::new(Id::unique("modal")).show(ctx, |ui| {
+                ui.label("dialog");
+            });
+        });
+        assert_eq!(got, 0, "the modal blocks the layer below even outside its frame");
     }
 }

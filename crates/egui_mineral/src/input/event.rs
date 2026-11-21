@@ -91,6 +91,19 @@ pub enum Gesture {
     },
 }
 
+impl Gesture {
+    /// Point the gesture is aimed at: the press for taps, long presses and swipes, the center of a
+    /// pinch, the current position of a pan.
+    #[must_use]
+    pub const fn anchor(&self) -> Pos2 {
+        match *self {
+            Self::Tap { pos } | Self::LongPress { pos } | Self::Pan { pos, .. } => pos,
+            Self::Swipe { start, .. } => start,
+            Self::Pinch { center, .. } => center,
+        }
+    }
+}
+
 /// Primary-pointer pan as seen by one pass, from press origin to release.
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[non_exhaustive]
@@ -135,4 +148,16 @@ pub enum UnifiedInputEvent {
     Gesture(Gesture),
     /// Key press, repeat or release.
     KeyAction(KeyAction),
+}
+
+impl UnifiedInputEvent {
+    /// Screen point the event is aimed at; `None` for keys.
+    #[must_use]
+    pub const fn anchor(&self) -> Option<Pos2> {
+        match self {
+            Self::PointerMoved(p) | Self::PointerDown(p) | Self::PointerUp(p) => Some(p.pos),
+            Self::Gesture(g) => Some(g.anchor()),
+            Self::KeyAction(_) => None,
+        }
+    }
 }

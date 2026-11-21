@@ -21,7 +21,7 @@ use egui_mineral::{
     anchor::{Align, Anchor, SafeTriangle, Side, Surroundings},
     focus::{self, Modality, RovingFocus, Typeahead},
     i18n::Direction,
-    input::{Gesture, HoverIntent},
+    input::{Gesture, HoverIntent, UnifiedInputEvent},
     kit,
     layout::{Axis, Constraints, Measure},
     overlay::Dismiss,
@@ -745,17 +745,12 @@ impl<A: ActionValue> Menu<A> {
 
     fn context_trigger(core: &egui_mineral::runtime::Core, target: &Response, consume: bool) -> Option<Rect> {
         let ctx = &target.ctx;
-        let layer = target.layer_id;
         let at = if target.secondary_clicked() {
             target.interact_pointer_pos()
         } else {
             // Core only, no MineralUi.
-            core.input().gestures().find_map(|g| match g {
-                Gesture::LongPress { pos }
-                    if target.rect.contains(*pos) && ctx.layer_id_at(*pos).is_none_or(|l| l == layer) =>
-                {
-                    Some(*pos)
-                }
+            core.input().events_on(target).find_map(|e| match e {
+                UnifiedInputEvent::Gesture(Gesture::LongPress { pos }) => Some(*pos),
                 _ => None,
             })
         };

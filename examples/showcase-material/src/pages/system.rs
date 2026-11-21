@@ -764,7 +764,7 @@ fn input(ui: &mut MaterialUi<'_>, s: &mut State) {
     let rt = ui.rt();
     let t = rt.tokens();
     let width = ui.available_width().min(480.0);
-    let (rect, _) = ui.allocate_exact_size(vec2(width, 140.0), Sense::click_and_drag());
+    let (rect, area) = ui.allocate_exact_size(vec2(width, 140.0), Sense::click_and_drag());
     ui.painter().rect_filled(rect, 12, t.color.surface_container);
     ui.painter().rect_stroke(
         rect,
@@ -780,10 +780,8 @@ fn input(ui: &mut MaterialUi<'_>, s: &mut State) {
         t.color.on_surface_variant,
     );
     let input = rt.core().input();
-    for e in input.events.iter() {
-        if let UnifiedInputEvent::PointerDown(p) | UnifiedInputEvent::PointerUp(p) = e
-            && rect.contains(p.pos)
-        {
+    for e in input.events_on(&area) {
+        if let UnifiedInputEvent::PointerDown(p) | UnifiedInputEvent::PointerUp(p) = e {
             s.input_kind = Some(p.kind);
         }
         if let Some(line) = describe(e, rect) {

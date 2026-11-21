@@ -8,7 +8,7 @@ pub mod synth;
 mod timing;
 
 pub(crate) use adapter::InputAdapter;
-pub use adapter::InputContext;
+pub use adapter::{InputContext, reaches_layer};
 pub use claim::PanClaim;
 pub use event::{
     Gesture, KeyAction, PanFrame, PointerId, PointerKind, PointerState, SwipeDirection, UnifiedInputEvent,
