@@ -3,7 +3,7 @@ use egui_mineral::semantic::Role;
 use egui_mineral_fluent::{
     actions::PushButton,
     icons::ICON_CUT,
-    navigation::{Menu, MenuItem},
+    navigation::{Menu, MenuItem, MenuUi},
 };
 
 use crate::support::{FluentHarness, Harness, harness};
@@ -304,4 +304,30 @@ fn menu_opened_by_a_menu_pick_survives_the_picking_press() {
     h.run();
     h.click("a-0-menuitem");
     assert!(h.state().value.1, "still open after the picking pass");
+}
+
+#[test]
+fn radio_dot_marks_the_checked_radio_with_a_dot() {
+    use egui_mineral::action::NoAction;
+    let dots = |radio_dot: bool| {
+        let pass = crate::support::render(|ui| {
+            let rt = ui.rt();
+            let trigger = ui.mineral(PushButton::new("trig", "Open")).response().clone();
+            let (mut open, mut size) = (true, 1);
+            Menu::new("m", "Size").radio_dot(radio_dot).show(
+                rt,
+                &trigger,
+                &mut open,
+                |m: &mut MenuUi<'_, '_, NoAction>| {
+                    m.radio_item("Small", &mut size, 0);
+                    m.radio_item("Large", &mut size, 1);
+                },
+            );
+        });
+        pass.flat()
+            .iter()
+            .filter(|s| matches!(s, egui::Shape::Circle(c) if (c.radius - 5.0).abs() < 0.01))
+            .count()
+    };
+    assert_eq!((dots(false), dots(true)), (0, 1));
 }

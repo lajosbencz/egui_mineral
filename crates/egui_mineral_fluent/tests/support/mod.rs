@@ -120,7 +120,7 @@ pub(crate) struct Pass {
 }
 
 impl Pass {
-    fn flat(&self) -> Vec<Shape> {
+    pub(crate) fn flat(&self) -> Vec<Shape> {
         fn walk(s: &Shape, out: &mut Vec<Shape>) {
             match s {
                 Shape::Vec(v) => v.iter().for_each(|s| walk(s, out)),

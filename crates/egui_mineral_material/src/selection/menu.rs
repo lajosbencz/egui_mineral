@@ -219,11 +219,31 @@ impl From<KeyboardShortcut> for MenuTrailing {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Toggle {
+    Check(bool),
+    Radio(bool),
+}
+
+impl Toggle {
+    const fn on(self) -> bool {
+        matches!(self, Self::Check(true) | Self::Radio(true))
+    }
+}
+
+// A level reserves the toggle column once one of its items has a toggle.
+fn has_toggles<A>(entries: &[Entry<A>]) -> bool {
+    entries
+        .iter()
+        .any(|e| matches!(e, Entry::Item(r) if r.item.toggle.is_some()))
+}
+
 /// Item of a [`Menu`]; the menu pairs it with the app value it reports. A label converts.
 #[must_use]
 pub struct MenuItem {
     label: String,
     key: Option<StableId>,
+    toggle: Option<Toggle>,
     leading: Option<Leading>,
     trailing: Option<MenuTrailing>,
     command: Option<ActionId>,
@@ -247,6 +267,7 @@ impl MenuItem {
         Self {
             label: label.into(),
             key: None,
+            toggle: None,
             leading: None,
             trailing: None,
             command: None,
@@ -293,6 +314,20 @@ impl MenuItem {
     /// [`PlainTooltip`](crate::communication::PlainTooltip) on hover; also the item's accessible description.
     pub fn tooltip(mut self, text: impl Into<String>) -> Self {
         self.tooltip = Some(text.into());
+        self
+    }
+
+    /// Checkbox item (`menuitemcheckbox`): a check in the toggle column, before any leading icon, while
+    /// `checked`. Activating it reports it as usual; the app flips the state. Non-MD3.
+    pub fn check(mut self, checked: bool) -> Self {
+        self.toggle = Some(Toggle::Check(checked));
+        self
+    }
+
+    /// Radio item (`menuitemradio`): a dot in the toggle column, before any leading icon, while `checked`.
+    /// Non-MD3.
+    pub fn radio(mut self, checked: bool) -> Self {
+        self.toggle = Some(Toggle::Radio(checked));
         self
     }
 
@@ -624,6 +659,7 @@ impl<A: ActionValue> Menu<A> {
         let format = defaults::menu::ITEM_FONT.format(ctx, Color32::PLACEHOLDER);
         let job = |s: &str, mnemonic| parts::format_job(rt.core(), s, &format, mnemonic);
         let icon = m.icon + m.gap;
+        let toggles = if has_toggles(entries) { icon } else { 0.0 };
         // Jobs read `ctx`, so they are built before the fonts lock.
         let rows: Vec<_> = entries
             .iter()
@@ -643,7 +679,7 @@ impl<A: ActionValue> Menu<A> {
                     (None, false) => (0.0, None),
                 };
                 (
-                    2.0 * d::ITEM_HORIZONTAL_PADDING + lead + trail,
+                    2.0 * d::ITEM_HORIZONTAL_PADDING + toggles + lead + trail,
                     job(&i.label, i.mnemonic),
                     shortcut,
                 )
@@ -1134,6 +1170,7 @@ impl<A: ActionValue> Menu<A> {
         let Entry::Item(row) = &entries[e] else { return };
         let item = &row.item;
         let index = Self::child_base(entries, base, e) - 1;
+        let toggles = has_toggles(entries);
         let resp = ui
             .scope_builder(UiBuilder::new().max_rect(slot), |ui| {
                 let own = crate::widget::action_salt(&self.salt, item.salt.as_ref(), item.command.as_ref(), &row.value);
@@ -1145,6 +1182,7 @@ impl<A: ActionValue> Menu<A> {
                     style: self.style,
                     in_group,
                     expanded: row.has_submenu().then_some(open_child == Some(e)),
+                    toggles,
                 })
             })
             .inner;
@@ -1390,6 +1428,7 @@ struct MenuRow<'a> {
     style: MenuColors,
     in_group: InGroup,
     expanded: Option<bool>,
+    toggles: bool,
 }
 
 impl MenuRow<'_> {
@@ -1475,6 +1514,18 @@ impl MineralWidget for MenuRow<'_> {
         let x = |from_start: f32, w: f32| dir.start_x(rect, Rangef::new(from_start, from_start + w));
         let cy = rect.center().y;
         let mut off = pad;
+        if self.toggles {
+            let c = pos2(x(off, m.icon) + m.icon / 2.0, cy);
+            match item.toggle {
+                Some(Toggle::Check(true)) => common::icon(p, c, ui.icons().check, m.icon, icon),
+                // Compose RadioButton: 10dp dot in a 20dp ring, here in the 24dp icon box.
+                Some(Toggle::Radio(true)) => {
+                    p.circle_filled(c, m.icon * 5.0 / 24.0, icon);
+                }
+                _ => {}
+            }
+            off += m.icon + m.gap;
+        }
         let check = Leading::Icon(ui.icons().check);
         let leading = item
             .leading
@@ -1527,8 +1578,14 @@ impl MineralWidget for MenuRow<'_> {
 
     fn semantics(&self, _: &I18n, _: &WidgetResponse, (): &()) -> Option<SemanticNode> {
         let item = self.item;
-        let mut n = SemanticNode::new(self.key.clone(), Role::MenuItem, &item.label)
-            .clickable(Availability::disabled_if(item.disabled));
+        let role = match item.toggle {
+            Some(Toggle::Check(_)) => Role::MenuItemCheckBox,
+            Some(Toggle::Radio(_)) => Role::MenuItemRadio,
+            None => Role::MenuItem,
+        };
+        let mut n =
+            SemanticNode::new(self.key.clone(), role, &item.label).clickable(Availability::disabled_if(item.disabled));
+        n.state.checked = item.toggle.map(|t| t.on().into());
         n.shortcut = match item.trailing {
             Some(MenuTrailing::Shortcut(s)) => Some(s),
             _ => None,

@@ -156,6 +156,33 @@ fn menu_item_trailing_shortcut_is_exposed_and_icon_is_not() {
     assert!(h.node("menu-1-menu-item").shortcut.is_none());
 }
 
+#[test]
+fn menu_toggles_take_their_own_column_beside_icons_and_shortcuts() {
+    let mut h = still(WIDE, false, |ui, open: &mut bool| {
+        let anchor = ui.mineral(PushButton::new("anchor", "Open")).into_response();
+        Menu::new("menu", "Menu")
+            .item(
+                0,
+                MenuItem::new("Wrap")
+                    .check(true)
+                    .leading(icons::ICON_MAIL)
+                    .trailing(KeyboardShortcut::new(Modifiers::ALT, Key::Z)),
+            )
+            .item(1, MenuItem::new("Small").radio(false))
+            .item(2, MenuItem::new("Large").radio(true))
+            .item(3, MenuItem::new("Plain"))
+            .show(ui.rt(), &anchor, open);
+    });
+    h.click("anchor-button");
+    let wrap = h.node("menu-0-menu-item");
+    assert_eq!(wrap.role, egui::accesskit::Role::MenuItemCheckBox);
+    assert_eq!(wrap.state.checked, Some(true.into()));
+    assert!(wrap.shortcut.is_some(), "icon, check and shortcut on one entry");
+    assert_eq!(h.node("menu-1-menu-item").role, egui::accesskit::Role::MenuItemRadio);
+    assert_eq!(h.node("menu-2-menu-item").state.checked, Some(true.into()));
+    assert_eq!(h.node("menu-3-menu-item").state.checked, None);
+}
+
 fn sliders(disabled: bool, range: RangeModel) -> Harness<'static, (f64, [f64; 2])> {
     let mut h = harness(SCREEN, (50.0, [20.0, 80.0]), move |ui, (value, values)| {
         ui.mineral(ValueSlider::new("one", "Volume", range, value).disabled(disabled));
