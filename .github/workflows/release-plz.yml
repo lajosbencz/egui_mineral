@@ -8,24 +8,29 @@ on:
 permissions: {}
 
 jobs:
+  # `owner`: this repository, not a fork. `release`: also the pushed commit is the merge of a PR labelled `release` (release-plz `pr_labels`).
   gate:
     name: Release merge
-    if: ${{ github.repository_owner == 'lajosbencz' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       pull-requests: read
     outputs:
+      owner: ${{ steps.check.outputs.owner }}
       release: ${{ steps.check.outputs.release }}
     steps:
-      # The pushed commit is the merge of a PR labelled `release` (release-plz `pr_labels`).
       - id: check
         env:
           GH_TOKEN: ${{ github.token }}
           SHA: ${{ github.sha }}
+          OWNER: ${{ github.repository_owner == 'lajosbencz' }}
         run: |
-          release=$(gh api "repos/$GITHUB_REPOSITORY/commits/$SHA/pulls" --jq \
-            'any(.[]; .merged_at != null and .merge_commit_sha == env.SHA and any(.labels[]; .name == "release"))')
+          release=false
+          if [ "$OWNER" = true ]; then
+            release=$(gh api "repos/$GITHUB_REPOSITORY/commits/$SHA/pulls" --jq \
+              'any(.[]; .merged_at != null and .merge_commit_sha == env.SHA and any(.labels[]; .name == "release"))')
+          fi
+          echo "owner=$OWNER" >> "$GITHUB_OUTPUT"
           echo "release=$release" >> "$GITHUB_OUTPUT"
 
   release:
@@ -91,7 +96,8 @@ jobs:
   pr:
     name: Release PR
     needs: [gate, release]
-    if: ${{ !cancelled() && github.repository_owner == 'lajosbencz' && needs.gate.result == 'success' && needs.release.result != 'failure' }}
+    # A skipped `release` fails the implicit success(), so the condition is explicit.
+    if: ${{ !cancelled() && needs.gate.outputs.owner == 'true' && needs.release.result != 'failure' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     # Holds RELEASE_APP_PRIVATE_KEY (master only); `release` reads its copy in crates-io.
@@ -127,8 +133,8 @@ jobs:
   align:
     name: Align breaking versions
     needs: pr
-    # The implicit success() fails on the skipped `release` upstream of `pr`; release-plz outputs `{}` without a PR.
-    if: ${{ !cancelled() && needs.pr.result == 'success' && contains(needs.pr.outputs.pr, 'head_branch') }}
+    # `!cancelled()`: see `pr`. release-plz outputs `{}` without a PR.
+    if: ${{ !cancelled() && contains(needs.pr.outputs.pr, 'head_branch') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: release
@@ -151,35 +157,12 @@ jobs:
         with:
           ref: ${{ steps.branch.outputs.head }}
           persist-credentials: false
-      - run: rustup toolchain install
-      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+      - uses: ./.github/actions/setup # zizmor: ignore[self-repository] actionlint does not parse `$/` yet
         with:
-          tool: just@1.59.0
-          fallback: none
-      - id: pins
-        run: echo "cargo-edit=$(just --evaluate cargo_edit_version)" >> "$GITHUB_OUTPUT"
-      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
-        with:
-          tool: cargo-edit@${{ steps.pins.outputs.cargo-edit }}
+          tools: cargo-edit=cargo_edit_version
           fallback: cargo-install
       - env:
           BRANCH: ${{ steps.branch.outputs.head }}
           URL: ${{ steps.branch.outputs.url }}
-          TOKEN: ${{ steps.app.outputs.token }}
-        run: |
-          versions() { cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.publish == null) | "\(.name) \(.version)"' | sort; }
-          before=$(versions)
-          just align-breaking
-          git diff --quiet && exit 0
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -am "chore: align published crates on one breaking version"
-          git push "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:${BRANCH}"
-          # The PR body lists the versions release-plz planned: `* `crate`: [old -> ]new` and the changelog headings.
-          body=$(GH_TOKEN=$TOKEN gh pr view "$URL" --json body --jq .body)
-          while read -r c old new; do
-            [ "$old" = "$new" ] && continue
-            o=${old//./\\.}
-            body=$(sed -E -e "s/^(\* \`$c\`: (.* -> )?)$o([^0-9.]|$)/\1$new\3/" -e "s/^## \[$o\]\((.*)$c-v$o\)/## [$new](\1$c-v$new)/" <<<"$body")
-          done < <(join <(echo "$before") <(versions))
-          GH_TOKEN=$TOKEN gh pr edit "$URL" --body "$body"
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+        run: just align-pr "$BRANCH" "$URL"

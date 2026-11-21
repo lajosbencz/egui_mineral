@@ -46,10 +46,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+      - uses: ./.github/actions/setup # zizmor: ignore[self-repository] actionlint does not parse `$/` yet
         with:
-          tool: just@1.59.0
-          fallback: none
+          rust: "false"
       # Not in install-action: checked against its published digest.
       - name: ast-grep
         run: |
@@ -67,16 +66,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+      - uses: ./.github/actions/setup # zizmor: ignore[self-repository] actionlint does not parse `$/` yet
         with:
-          tool: just@1.59.0
-          fallback: none
-      - id: pins
-        run: echo "machete=$(just --evaluate machete_version)" >> "$GITHUB_OUTPUT"
-      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
-        with:
-          tool: cargo-machete@${{ steps.pins.outputs.machete }}
-          fallback: none
+          rust: "false"
+          tools: cargo-machete=machete_version
       - run: just machete
 
   workflows:
@@ -87,16 +80,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+      - uses: ./.github/actions/setup # zizmor: ignore[self-repository] actionlint does not parse `$/` yet
         with:
-          tool: just@1.59.0
-          fallback: none
-      - id: pins
-        run: echo "zizmor=$(just --evaluate zizmor_version)" >> "$GITHUB_OUTPUT"
-      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
-        with:
-          tool: shellcheck,zizmor@${{ steps.pins.outputs.zizmor }}
-          fallback: none
+          rust: "false"
+          tools: shellcheck,zizmor=zizmor_version
       - name: actionlint and zizmor
         run: |
           version=$(just --evaluate actionlint_version)

@@ -26,6 +26,8 @@ Module map, config, commands and release. Overview: [WORKSPACE.md](../WORKSPACE.
 | [`crates/egui_mineral_fluent/src`](../crates/egui_mineral_fluent/src) | `Fluent` stylekit (`Rt`, `FluentExt`: tokens, light/dark/system preference, high contrast, brand ramp), `theme` (`Tokens`, `Scheme`, `Elevation`, `Radius`), `typography` (`TypeRamp`, Fluent typographyStyles), `fonts` (icon font, `install_semibold`), `icon`/`icons` (generated Fluent UI System Icons consts), `catalog` (feature `unstable-catalog`), `spec` (feature `unstable-spec`: generated v9 `tokens` and hand-ported `defaults` from the `use*Styles.styles.ts` files), `prelude` |
 | [`crates/egui_mineral_fluent/src/{actions,inputs,feedback,surfaces,navigation,data}`](../crates/egui_mineral_fluent/src) | Components by Fluent 2 category |
 | [`crates/egui_mineral_fluent/src/widget`](../crates/egui_mineral_fluent/src/widget) | Private shared internals (focus indicator, shadows, state ramps, vocabulary `Size`, `IconPosition`, `ButtonAppearance`) |
+| [`tools/md3_tokens`](../tools/md3_tokens) | MD3 token generator: `fetch.sh` fetches the Compose Material3 token sources at the androidx SHA in `PIN` (gitignored), the binary writes `spec/tokens` |
+| [`tools/material_symbols`](../tools/material_symbols) | Writes the Material stylekit's `icons.rs` from `egui_material_icons` |
 | [`tools/fluent_tokens`](../tools/fluent_tokens) | Fluent token and icon generator: `fetch.sh` fetches fluentui and fluentui-system-icons at the SHAs in `PIN` (gitignored), the binary writes `spec/tokens` and `icons.rs` |
 
 ## Config
@@ -40,6 +42,7 @@ Module map, config, commands and release. Overview: [WORKSPACE.md](../WORKSPACE.
 | [`.config/nextest.toml`](../.config/nextest.toml) | Test profiles (`ci`) |
 | [`release-plz.toml`](../release-plz.toml) | Release config |
 | [`.github/workflows`](../.github/workflows) | `ci`, `hygiene`, `showcases`, `pages`, `pages-build`, `release-plz`, `dependabot-automerge` |
+| [`.github/actions/setup`](../.github/actions/setup/action.yml) | Shared job setup: pinned toolchain, rust-cache, `just`, nightly, justfile-pinned tools |
 
 ## Commands
 
@@ -48,19 +51,23 @@ The [`justfile`](../justfile) is the single source of the checks; [`ci.yml`](../
 | Recipe | Runs |
 |---|---|
 | `quick` | fmt check, default-feature clippy of the libraries, first test leg (`just fix`: fmt and `clippy --fix`) |
+| `ci` | `check`, `check-deps`, `check-release` and `hygiene` |
 | `check` | `check-clippy`, `check-test` and `check-docs`, the three parallel CI jobs |
 | `check-clippy` | `clippy`: feature matrix (cargo-hack, native and wasm32) |
 | `check-test` | `test` (nextest legs) and `icu-trimmed` |
-| `check-docs` | `doc` (doctests, rustdoc, docs.rs build from each crate's `[package.metadata.docs.rs]`), `readme-check`, `package`, `versions-check` (shared breaking version, toolchain channel equals `rust-version`), `fmt`, `unstable-guard` (no published crate enables an `unstable-*` feature), `minimal-versions` |
+| `check-docs` | `doc` (doctests, rustdoc, docs.rs build from each crate's `[package.metadata.docs.rs]`), `readme-check`, `versions-check` (shared breaking version, toolchain channel equals `rust-version`), `fmt`, `unstable-guard` (no published crate enables an `unstable-*` feature) |
+| `check-deps` | `minimal-versions`; CI runs it when a manifest, the lockfile or the toolchain changes |
+| `check-release` | `package` (`--no-verify`); CI runs it on release PRs |
+| `changes <base> <head>` | `code=`/`deps=` outputs: CI skips the builds for prose-only PRs (Markdown outside the crate READMEs) |
 | `hygiene` | typos, deny, ast-grep, machete, workflow lints (`just workflows`: actionlint and zizmor; actionlint is a sha-checked binary pinned in the justfile, not on crates.io) |
-| `spec` | non-blocking: regenerated spec must not change |
-| `api-diff <base> [head] [release]` | PRs only: `api-diff-one` per `api-targets` line (published crate x docs.rs target, a CI matrix cell each); fails on removed or changed public API unless the crate's breaking version rises; `release=true` (release-plz PRs) takes each crate's base from its last `<crate>-v*` tag |
+| `spec` | fetches the pinned spec sources (network, authenticated `gh`) and regenerates; non-blocking in CI: the generated files must not change |
+| `api-diff <base> [head] [release] [target]` | `api-diff-one` per `api-targets` line, or those of one target (a CI job per docs.rs target); fails on removed or changed public API unless the crate's breaking version rises; `release=true` (release-plz PRs) takes each crate's base from its last `<crate>-v*` tag |
 | `published` | published crates (no `publish = false`), the list `readme`, `package`, `versions-check` and `bump-breaking` use |
 | `showcases [public_url]` | release trunk build of both showcases, as Pages deploys them |
 
 Pins live in the justfile (`*_version`, `nightly_version`), outside Dependabot. The nightly is the one the docs.rs build, `minimal-versions` and `api-diff` use: at least a week old, bump it by hand after `just doc` and `just api-diff` pass. Crate READMEs (`crates/*/README.md`) are generated from their `lib.rs` docs: edit the docs, then `just readme`.
 
-CI verifies pull requests; ci.yml on master only builds (clippy, test, docs, the spec generators, rustdoc JSON), when manifests, lockfile, toolchain, `justfile` or the workflow change, to save the per-job caches pull requests restore. `showcases.yml` does the same for the trunk builds when `crates/` or `examples/` change. Hygiene runs on pull requests and weekly, the one scheduled job. A merged release PR publishes (`release-plz.yml`), builds Pages alongside and deploys it after a successful publish, then refreshes the release PR; its align job raises the other crates' breaking versions on it and rewrites its description to match. The release app's private key (`RELEASE_APP_PRIVATE_KEY`) is an environment secret, never a repo one: `release` (master only) for the release PR and align jobs, `crates-io` for publishing.
+CI verifies pull requests, skipping the builds when only prose changed (`just changes`); jobs share `.github/actions/setup` (pinned toolchain, rust-cache, `just`, justfile-pinned tools); ci.yml on master only builds (clippy, test, docs, the spec generators, rustdoc JSON), when manifests, lockfile, toolchain, `justfile` or the workflow change, to save the per-job caches pull requests restore. `showcases.yml` does the same for the trunk builds when `crates/` or `examples/` change; `pages-build.yml` restores that cache. Hygiene runs on pull requests and weekly, the one scheduled job. A merged release PR publishes (`release-plz.yml`), builds Pages alongside and deploys it after a successful publish, then refreshes the release PR; its align job (`just align-pr`) raises the other crates' breaking versions on it and rewrites its description to match. Publishing skips the build (`publish_no_verify`): CI built the merged commit. release-plz's `semver_check` is off: versions follow the conventional commits, and the `Public API diff` of the release PR fails when a breaking change lacks a breaking version. The release app's private key (`RELEASE_APP_PRIVATE_KEY`) is an environment secret, never a repo one: `release` (master only) for the release PR and align jobs, `crates-io` for publishing.
 
 Not in CI: `cargo bench -p egui_mineral`, `cargo run -p showcase-material`, `cargo run -p showcase-fluent` (F12: inspector), `just hotpatch` (showcase-material under `dx` with `egui_mineral/unstable-hotpatch`: edits inside UI functions apply live, struct layout changes need a restart; any app can pass that feature to `dx serve --hotpatch` on the command line).
 

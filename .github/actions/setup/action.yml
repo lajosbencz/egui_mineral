@@ -1,0 +1,88 @@
+name: Setup
+description: Pinned toolchain, rust-cache, just and the justfile-pinned tools. The checkout comes first, it holds this action.
+inputs:
+  rust:
+    description: install the rust-toolchain.toml toolchain
+    required: false
+    default: "true"
+  profile:
+    description: rustup profile; default the toolchain file's
+    required: false
+    default: ""
+  cache-key:
+    description: rust-cache shared key; empty skips the cache
+    required: false
+    default: ""
+  cache-save:
+    description: auto (save on push), true or false
+    required: false
+    default: auto
+  linux-deps:
+    description: install eframe's Linux windowing headers
+    required: false
+    default: "false"
+  nightly:
+    description: install the justfile nightly with these extra targets (space-separated); empty skips it
+    required: false
+    default: ""
+  tools:
+    description: install-action tools, comma-separated; `name=var` takes the version from the justfile variable
+    required: false
+    default: ""
+  fallback:
+    description: install-action fallback for the tools
+    required: false
+    default: none
+runs:
+  using: composite
+  steps:
+    # rust-cache hashes every installed toolchain into its key, and runner images preinstall a varying stable.
+    - if: ${{ inputs.rust == 'true' }}
+      shell: bash
+      env:
+        PROFILE: ${{ inputs.profile }}
+      run: |
+        rustup toolchain install ${PROFILE:+--profile "$PROFILE"}
+        pinned=$(rustup show active-toolchain | cut -d' ' -f1)
+        rustup toolchain list --quiet | grep -vx "$pinned" | xargs -r -n1 rustup toolchain uninstall
+        rustup toolchain list
+    - if: ${{ inputs.cache-key != '' }}
+      uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      with:
+        shared-key: ${{ inputs.cache-key }}
+        save-if: ${{ inputs.cache-save == 'true' || (inputs.cache-save == 'auto' && github.event_name == 'push') }}
+    - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+      with:
+        tool: just@1.59.0
+        fallback: none
+    - if: ${{ inputs.linux-deps == 'true' }}
+      shell: bash
+      run: just linux-deps
+    # After rust-cache, so the nightly stays out of its key.
+    - if: ${{ inputs.nightly != '' }}
+      shell: bash
+      env:
+        TARGETS: ${{ inputs.nightly }}
+      run: |
+        args=()
+        for t in $TARGETS; do args+=(--target "$t"); done
+        rustup toolchain install "$(just --evaluate nightly_version)" --profile minimal "${args[@]}"
+    - id: tools
+      if: ${{ inputs.tools != '' }}
+      shell: bash
+      env:
+        TOOLS: ${{ inputs.tools }}
+      run: |
+        list=()
+        for t in ${TOOLS//,/ }; do
+          case $t in
+            *=*) list+=("${t%%=*}@$(just --evaluate "${t#*=}")") ;;
+            *) list+=("$t") ;;
+          esac
+        done
+        echo "list=$(IFS=,; echo "${list[*]}")" >> "$GITHUB_OUTPUT"
+    - if: ${{ inputs.tools != '' }}
+      uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+      with:
+        tool: ${{ steps.tools.outputs.list }}
+        fallback: ${{ inputs.fallback }}

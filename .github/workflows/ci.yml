@@ -1,6 +1,7 @@
 name: CI
 
 # Pull requests verify; the ruleset keeps them up to date with master, so merges are not verified again.
+# Pull requests that change only prose skip the builds; skipped jobs pass the required `CI result`.
 # A push to master that changes what the caches are keyed on only builds (clippy, test, docs, spec generators, rustdoc JSON), saving the caches pull requests restore.
 on:
   pull_request:
@@ -27,36 +28,53 @@ env:
   CARGO_PROFILE_TEST_DEBUG: line-tables-only
 
 jobs:
+  # `just changes`: pushes and manual runs build everything.
+  changes:
+    name: Changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.diff.outputs.code || 'true' }}
+      deps: ${{ steps.diff.outputs.deps || 'true' }}
+    steps:
+      - if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # The merge commit and its base parent.
+          fetch-depth: 2
+      - if: ${{ github.event_name == 'pull_request' }}
+        uses: ./.github/actions/setup # zizmor: ignore[self-repository] actionlint does not parse `$/` yet
+        with:
+          rust: "false"
+      - id: diff
+        if: ${{ github.event_name == 'pull_request' }}
+        run: just changes HEAD^1 HEAD | tee -a "$GITHUB_OUTPUT"
+
   # `just check-clippy` locally: the feature matrix, native and wasm32.
   clippy:
     name: Clippy
+    needs: changes
+    if: ${{ needs.changes.outputs.code == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: ./.github/actions/rust-toolchain # zizmor: ignore[self-repository] actionlint does not parse `$/` yet
-      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - uses: ./.github/actions/setup # zizmor: ignore[self-repository] actionlint does not parse `$/` yet
         with:
-          shared-key: clippy
-          save-if: ${{ github.event_name == 'push' }}
-      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
-        with:
-          tool: just@1.59.0
-          fallback: none
-      - run: just linux-deps
-      - id: pins
-        run: echo "hack=$(just --evaluate hack_version)" >> "$GITHUB_OUTPUT"
-      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
-        with:
-          tool: cargo-hack@${{ steps.pins.outputs.hack }}
+          cache-key: clippy
+          linux-deps: "true"
+          tools: cargo-hack=hack_version
           fallback: cargo-install
       - run: just check-clippy
 
   # `just check-test` locally: nextest legs and the ICU4X trimmed-data test.
   test:
     name: Test
+    needs: changes
+    if: ${{ needs.changes.outputs.code == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
@@ -65,144 +83,110 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: ./.github/actions/rust-toolchain # zizmor: ignore[self-repository] actionlint does not parse `$/` yet
-      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - uses: ./.github/actions/setup # zizmor: ignore[self-repository] actionlint does not parse `$/` yet
         with:
-          shared-key: test
-          save-if: ${{ github.event_name == 'push' }}
-      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
-        with:
-          tool: cargo-nextest,just@1.59.0
-          fallback: none
+          cache-key: test
+          tools: cargo-nextest
       - run: just icu-datagen
       - run: just check-test
 
-  # `just check-docs` locally: rustdoc and the docs.rs build, READMEs, package, versions, fmt, hotpatch guard, minimal versions.
+  # `just check-docs` locally: rustdoc and the docs.rs build, READMEs, versions, fmt, unstable guard;
+  # `check-deps` (minimal versions) when a manifest, the lockfile or the toolchain changed, `check-release` (package) on release PRs.
   docs:
     name: Docs and packaging
+    needs: changes
+    if: ${{ needs.changes.outputs.code == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: ./.github/actions/rust-toolchain # zizmor: ignore[self-repository] actionlint does not parse `$/` yet
-      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - uses: ./.github/actions/setup # zizmor: ignore[self-repository] actionlint does not parse `$/` yet
         with:
-          shared-key: docs
-          save-if: ${{ github.event_name == 'push' }}
-      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
-        with:
-          tool: just@1.59.0
-          fallback: none
-      - run: just linux-deps
-      - id: pins
-        run: echo "rdme=$(just --evaluate rdme_version)" >> "$GITHUB_OUTPUT"
-      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
-        with:
-          tool: cargo-rdme@${{ steps.pins.outputs.rdme }}
+          cache-key: docs
+          linux-deps: "true"
+          nightly: wasm32-unknown-unknown
+          tools: cargo-rdme=rdme_version
           fallback: cargo-install
-      # The docs.rs build, minimal-versions and rustdoc JSON.
-      - run: rustup toolchain install "$(just --evaluate nightly_version)" --profile minimal --target wasm32-unknown-unknown
       - run: just check-docs
+      - if: ${{ needs.changes.outputs.deps == 'true' }}
+        run: just check-deps
+      - if: ${{ startsWith(github.head_ref, 'release-plz-') }}
+        run: just check-release
 
-  # Fails when specs change, never blocks merging
+  # Fails when specs change, never blocks merging; a push only builds the generators.
   spec:
     name: Generated spec
+    needs: changes
+    if: ${{ needs.changes.outputs.code == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: ./.github/actions/rust-toolchain # zizmor: ignore[self-repository] actionlint does not parse `$/` yet
-      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - uses: ./.github/actions/setup # zizmor: ignore[self-repository] actionlint does not parse `$/` yet
         with:
-          save-if: ${{ github.event_name == 'push' }}
-      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
-        with:
-          tool: just@1.59.0
-          fallback: none
-      - run: just linux-deps
-      - if: ${{ github.event_name == 'push' }}
-        run: just spec-build
-      - if: ${{ github.event_name != 'push' }}
-        run: just spec
-        env:
+          cache-key: spec
+          linux-deps: "true"
+      - env:
           GH_TOKEN: ${{ github.token }}
+          RECIPE: ${{ github.event_name == 'push' && 'spec-build' || 'spec' }}
+        run: just "$RECIPE"
 
-  # `just api-targets`: one cell per published crate and docs.rs target
+  # The docs.rs targets of the published crates (`just api-targets`).
   api-targets:
     name: Public API targets
+    needs: changes
+    if: ${{ needs.changes.outputs.code == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
-      cells: ${{ steps.cells.outputs.cells }}
+      targets: ${{ steps.targets.outputs.targets }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+      - uses: ./.github/actions/setup # zizmor: ignore[self-repository] actionlint does not parse `$/` yet
         with:
-          tool: just@1.59.0
-          fallback: none
-      - id: cells
-        run: |
-          echo "cells=$(just api-targets | jq -Rnc '[inputs | split(" ") | {crate: .[0], target: .[1]}]')" >> "$GITHUB_OUTPUT"
+          rust: "false"
+      - id: targets
+        run: echo "targets=$(just api-targets | cut -d' ' -f2 | sort -u | jq -Rnc '[inputs]')" >> "$GITHUB_OUTPUT"
 
-  # `just api-diff-one`: removed or changed public API vs the PR base (release PRs: the crate's last release tag) fails unless the breaking version rises
+  # `just api-diff`, one job per docs.rs target over every published crate: removed or changed public API vs the PR base
+  # (release PRs: each crate's last release tag) fails unless the breaking version rises. A push only builds HEAD.
   public-api:
-    name: Public API diff (${{ matrix.crate }}, ${{ matrix.target }})
+    name: Public API diff (${{ matrix.target }})
     needs: api-targets
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJSON(needs.api-targets.outputs.cells) }}
+        target: ${{ fromJSON(needs.api-targets.outputs.targets) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 0
-      - uses: ./.github/actions/rust-toolchain # zizmor: ignore[self-repository] actionlint does not parse `$/` yet
-      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - uses: ./.github/actions/setup # zizmor: ignore[self-repository] actionlint does not parse `$/` yet
         with:
-          key: ${{ matrix.crate }}-${{ matrix.target }}
-          save-if: ${{ github.event_name == 'push' }}
-      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
-        with:
-          tool: just@1.59.0
-          fallback: none
-      # cargo-public-api builds rustdoc JSON with nightly.
-      - env:
-          TARGET: ${{ matrix.target }}
-        run: rustup toolchain install "$(just --evaluate nightly_version)" --profile minimal --target "$TARGET"
-      - id: pins
-        run: echo "public-api=$(just --evaluate public_api_version)" >> "$GITHUB_OUTPUT"
-      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
-        with:
-          tool: cargo-public-api@${{ steps.pins.outputs.public-api }}
+          cache-key: public-api-${{ matrix.target }}
+          nightly: ${{ matrix.target }}
+          tools: cargo-public-api=public_api_version
           fallback: cargo-install
-      - if: ${{ github.event_name == 'push' }}
-        env:
-          CRATE: ${{ matrix.crate }}
+      - env:
+          BASE: ${{ github.event.pull_request.base.sha || 'HEAD' }}
+          HEAD: ${{ github.event.pull_request.head.sha || 'HEAD' }}
+          RELEASE: ${{ startsWith(github.head_ref, 'release-plz-') }}
           TARGET: ${{ matrix.target }}
-        run: just api-diff-one "$CRATE" "$TARGET" HEAD HEAD
-      - if: ${{ github.event_name == 'pull_request' }}
-        name: Diff against base
-        env:
-          CRATE: ${{ matrix.crate }}
-          TARGET: ${{ matrix.target }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          HEAD_REF: ${{ github.head_ref }}
-        run: just api-diff-one "$CRATE" "$TARGET" "$BASE_SHA" "$HEAD_SHA" "$([[ $HEAD_REF == release-plz-* ]] && echo true || echo false)"
+        run: just api-diff "$BASE" "$HEAD" "$RELEASE" "$TARGET"
 
   result:
     name: CI result
     if: ${{ always() }}
-    needs: [clippy, test, docs, spec, api-targets, public-api]
+    needs: [changes, clippy, test, docs, spec, api-targets, public-api]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
