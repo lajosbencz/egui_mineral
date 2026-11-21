@@ -1,0 +1,14 @@
+egui_mineral
+Copyright the egui_mineral contributors. Licensed under GPL-3.0-or-later (LICENSE).
+
+This product includes data derived from Fluent UI React v9 (microsoft/fluentui), Copyright (c) Microsoft
+Corporation, licensed under the MIT License (LICENSE-MIT). The generated files are
+crates/egui_mineral_fluent/src/spec/tokens/*.rs; each names its microsoft/fluentui commit. tools/fluent_tokens/fetch.sh
+fetches the unmodified sources at the commit in tools/fluent_tokens/PIN. crates/egui_mineral_fluent/src/spec/defaults/*.rs carry
+values from the Fluent UI React v9 component styles (packages/react-components), same copyright and
+license; each names its source.
+
+This product includes the Fluent UI System Icons font (microsoft/fluentui-system-icons),
+crates/egui_mineral_fluent/assets/FluentSystemIcons-Resizable.ttf and the glyph constants generated from it
+in crates/egui_mineral_fluent/src/icons.rs, Copyright (c) 2020 Microsoft Corporation, licensed under the MIT
+License (LICENSE-MIT), fetched the same way.

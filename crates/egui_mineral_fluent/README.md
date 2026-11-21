@@ -88,3 +88,5 @@ cargo add egui_mineral_fluent --no-default-features --features platform-clipboar
 ```
 
 <!-- cargo-rdme end -->
+
+License: [GPL-3.0-or-later](https://github.com/lajosbencz/egui_mineral/blob/master/LICENSE) AND [MIT](https://github.com/lajosbencz/egui_mineral/blob/master/crates/egui_mineral_fluent/LICENSE-MIT) for data and the icon font derived from Fluent UI ([NOTICE](https://github.com/lajosbencz/egui_mineral/blob/master/crates/egui_mineral_fluent/NOTICE))

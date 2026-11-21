@@ -1,17 +1,17 @@
 [package]
 name = "egui_mineral_fluent"
 description = "Fluent 2 (Fluent UI React v9) stylekit for egui_mineral"
-version.workspace = true
+version = "0.8.0"
 edition.workspace = true
 rust-version.workspace = true
-license.workspace = true
+# Ships MIT data and fonts derived from Fluent UI (LICENSE-MIT, NOTICE).
+license = "GPL-3.0-or-later AND MIT"
 repository.workspace = true
 homepage.workspace = true
 readme = "README.md"
 keywords.workspace = true
 categories.workspace = true
 exclude = ["clippy.toml"]
-publish = false
 
 [package.metadata.docs.rs]
 features = ["icu", "persist-fs", "persist-json", "persist-toml", "bundled-icons", "extras", "unstable-catalog", "unstable-spec"]
