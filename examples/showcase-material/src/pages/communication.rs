@@ -354,16 +354,19 @@ fn tour(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     ui.add_space(120.0);
     let r = Tour::new("tour", &mut s.tour_step)
         .step(
+            0,
             TourStep::new(s.tour_rects[0], "Create")
                 .supporting("Starts a new document.")
                 .side(Side::Bottom),
         )
         .step(
+            1,
             TourStep::new(s.tour_rects[1], "Settings")
                 .supporting("Tweaks how the app behaves.")
                 .side(Side::Bottom),
         )
         .step(
+            2,
             TourStep::new(s.tour_rects[2], "Quick add")
                 .supporting("A shortcut for the most common action.")
                 .side(Side::Top),

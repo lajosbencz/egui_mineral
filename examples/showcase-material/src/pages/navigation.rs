@@ -36,6 +36,13 @@ pub(crate) const TOPICS: &[&str] = &[
 ];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, egui_mineral::semantic::KeySalt)]
+enum Campaign {
+    Target,
+    AdGroup,
+    Ad,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, egui_mineral::semantic::KeySalt)]
 enum StatusAction {
     Branch,
     ResetZoom,
@@ -96,7 +103,7 @@ pub(crate) struct State {
     page_wide: usize,
     crumbs: usize,
     steps_h: Steps,
-    steps_v: Steps,
+    steps_v: Steps<Campaign>,
     steps_free: Steps,
     bar_query: String,
     back_query: String,
@@ -141,9 +148,9 @@ impl Default for State {
             page: 2,
             page_wide: 9,
             crumbs: 0,
-            steps_h: Steps::new(4).optional_step(2),
-            steps_v: Steps::new(3),
-            steps_free: Steps::new(4).non_linear(true).disable_step(3),
+            steps_h: Steps::new(0..4).optional_step(&2),
+            steps_v: Steps::new([Campaign::Target, Campaign::AdGroup, Campaign::Ad]),
+            steps_free: Steps::new(0..4).non_linear(true).disable_step(&3),
             bar_query: String::new(),
             back_query: String::new(),
             view_query: String::new(),
@@ -909,7 +916,7 @@ fn paging(ui: &mut MaterialUi<'_>, s: &mut State) {
     });
 }
 
-fn step_buttons(ui: &mut MaterialUi<'_>, steps: &mut Steps, id: &'static str) {
+fn step_buttons<K: egui_mineral::select::ItemKey>(ui: &mut MaterialUi<'_>, steps: &mut Steps<K>, id: &'static str) {
     super::row(ui, |row| {
         if row
             .mineral(PushButton::new((id, "back"), "Back").variant(ButtonVariant::Text))
@@ -924,7 +931,7 @@ fn step_buttons(ui: &mut MaterialUi<'_>, steps: &mut Steps, id: &'static str) {
             .mineral(
                 PushButton::new((id, "skip"), "Skip")
                     .variant(ButtonVariant::Tonal)
-                    .disabled(!steps.is_optional(steps.current())),
+                    .disabled(!steps.current().is_some_and(|k| steps.is_optional(k))),
             )
             .clicked()
         {
@@ -943,39 +950,46 @@ fn stepper(ui: &mut MaterialUi<'_>, s: &mut State) {
     super::section(ui, TOPICS[10], Some(<Stepper<'static>>::META), |ui| {
         caption(ui, TypeScale::LabelMedium, "Horizontal, linear, step 3 optional");
         Stepper::new("nav-step-h", &mut s.steps_h)
-            .step("Account")
-            .step(StepLabel::new("Profile").supporting("Name and photo"))
-            .step("Preferences")
-            .step("Review")
+            .step(0, "Account")
+            .step(1, StepLabel::new("Profile").supporting("Name and photo"))
+            .step(2, "Preferences")
+            .step(3, "Review")
             .show(ui, |ui, i| {
                 ui.label(format!("Content of step {}", i + 1));
             });
         step_buttons(ui, &mut s.steps_h, "nav-step-h-btn");
-        let mut err = s.steps_h.status(1) == egui_mineral::steps::StepStatus::Error;
+        let mut err = s.steps_h.status(&1) == egui_mineral::steps::StepStatus::Error;
         if ui
             .mineral(CheckButton::new("nav-step-error", "Profile step in error", &mut err))
             .changed()
         {
-            s.steps_h.set_error(1, err);
+            s.steps_h.set_error(&1, err);
         }
         ui.add_space(8.0);
         caption(ui, TypeScale::LabelMedium, "Vertical");
         Stepper::new("nav-step-v", &mut s.steps_v)
             .axis(Axis::Vertical)
-            .step(StepLabel::new("Select campaign").supporting("Choose a target"))
-            .step("Create ad group")
-            .step("Create ad")
-            .show(ui, |ui, i| {
-                ui.label(format!("Vertical content {}", i + 1));
+            .step(
+                Campaign::Target,
+                StepLabel::new("Select campaign").supporting("Choose a target"),
+            )
+            .step(Campaign::AdGroup, "Create ad group")
+            .step(Campaign::Ad, "Create ad")
+            .show(ui, |ui, step| {
+                ui.label(match step {
+                    Campaign::Target => "Pick the campaign to extend.",
+                    Campaign::AdGroup => "Name the ad group and its budget.",
+                    Campaign::Ad => "Write the ad copy.",
+                });
             });
         step_buttons(ui, &mut s.steps_v, "nav-step-v-btn");
         ui.add_space(8.0);
         caption(ui, TypeScale::LabelMedium, "Non-linear, last step disabled");
         Stepper::new("nav-step-free", &mut s.steps_free)
-            .step("One")
-            .step("Two")
-            .step("Three")
-            .step("Four")
+            .step(0, "One")
+            .step(1, "Two")
+            .step(2, "Three")
+            .step(3, "Four")
             .show(ui, |ui, i| {
                 ui.label(format!("Free content {}", i + 1));
             });

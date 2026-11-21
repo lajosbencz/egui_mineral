@@ -4,6 +4,7 @@ use crate::Rt;
 use crate::msg;
 use egui::{Id, Layout, Order, Rect, Sense, Stroke, StrokeKind};
 use egui_mineral::overlay::Dismiss;
+use egui_mineral::select::ItemKey;
 use egui_mineral::semantic::{KeyedSalt, SemanticNode, StableId};
 use egui_mineral::widget::MineralUi;
 use egui_mineral::{
@@ -80,15 +81,16 @@ pub struct TourResponse {
 /// the open state: `None` is closed.
 #[derive(Debug)]
 #[must_use = "call .show(..) or .show_modal(..)"]
-pub struct Tour<'a> {
+pub struct Tour<'a, K = usize> {
     salt: KeyedSalt,
-    step: &'a mut Option<usize>,
-    steps: Vec<TourStep>,
+    step: &'a mut Option<K>,
+    steps: Vec<(K, TourStep)>,
 }
 
-impl<'a> Tour<'a> {
-    /// `step` is the bound current index; `None` hides the tour. Agent key prefix `<id_salt>`.
-    pub fn new(id_salt: impl Into<KeyedSalt>, step: &'a mut Option<usize>) -> Self {
+impl<'a, K: ItemKey> Tour<'a, K> {
+    /// `step` is the bound current step; `None` hides the tour, a key without a step is reported and closes it.
+    /// Agent key prefix `<id_salt>`.
+    pub fn new(id_salt: impl Into<KeyedSalt>, step: &'a mut Option<K>) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
             salt: id_salt,
@@ -102,15 +104,15 @@ impl<'a> Tour<'a> {
         agent_key(salt)
     }
 
-    /// Appends one step.
-    pub fn step(mut self, step: impl Into<TourStep>) -> Self {
-        self.steps.push(step.into());
+    /// Appends step `key`; steps run in the order appended.
+    pub fn step(mut self, key: K, step: impl Into<TourStep>) -> Self {
+        self.steps.push((key, step.into()));
         self
     }
 
-    /// Appends steps.
-    pub fn steps(mut self, steps: impl IntoIterator<Item = impl Into<TourStep>>) -> Self {
-        self.steps.extend(steps.into_iter().map(Into::into));
+    /// Appends steps, as [`Self::step`].
+    pub fn steps(mut self, steps: impl IntoIterator<Item = (K, impl Into<TourStep>)>) -> Self {
+        self.steps.extend(steps.into_iter().map(|(k, s)| (k, s.into())));
         self
     }
 
@@ -195,10 +197,11 @@ impl<'a> Tour<'a> {
     fn run(self, rt: &Rt, mask: bool) -> TourResponse {
         let ctx = rt.ctx();
         let hidden = TourResponse::default();
-        let Some(index) = *self.step else {
+        let Some(current) = self.step.as_ref() else {
             return hidden;
         };
-        let Some(step) = self.steps.get(index) else {
+        let Some((index, (_, step))) = self.steps.iter().enumerate().find(|(_, (k, _))| k == current) else {
+            kit::sanitize::report(format_args!("Tour: the bound step has no TourStep"));
             *self.step = None;
             return hidden;
         };
@@ -238,13 +241,13 @@ impl<'a> Tour<'a> {
         if kit::layer::consume_escape(ctx) {
             dismissed = Some(Dismiss::Escape);
         }
-        let before = *self.step;
+        let before = self.step.clone();
         match next {
             Some(n) if n >= count => {
                 finished = true;
                 *self.step = None;
             }
-            Some(n) => *self.step = Some(n),
+            Some(n) => *self.step = self.steps.get(n).map(|(k, _)| k.clone()),
             None if dismissed.is_some() => *self.step = None,
             None => {}
         }

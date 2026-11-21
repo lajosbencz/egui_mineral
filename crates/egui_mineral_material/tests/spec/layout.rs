@@ -168,12 +168,12 @@ fn full_width_composites_fit_every_window_class() {
     type Add = fn(&mut Mui<'_>);
     let cases: [(&str, Add); 5] = [
         ("stepper", |ui| {
-            let mut steps = Steps::new(4);
+            let mut steps = Steps::new(0..4);
             Stepper::new("st", &mut steps)
-                .step("Account")
-                .step(StepLabel::new("Profile").supporting("Name and photo"))
-                .step("Preferences")
-                .step("Review")
+                .step(0, "Account")
+                .step(1, StepLabel::new("Profile").supporting("Name and photo"))
+                .step(2, "Preferences")
+                .step(3, "Review")
                 .show(ui, |ui, i| {
                     ui.label(format!("Content of step {}", i + 1));
                 });

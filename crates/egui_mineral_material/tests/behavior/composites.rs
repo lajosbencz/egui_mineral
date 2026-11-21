@@ -65,22 +65,45 @@ fn hover_card_and_plain_tooltip_show_while_hovered() {
 
 #[test]
 fn stepper_advances_only_to_selectable_steps() {
-    let mut h = still(WIDE, Steps::new(3), |ui, steps| {
+    let mut h = still(WIDE, Steps::new(0..3), |ui, steps| {
         Stepper::new("flow", steps)
-            .step("Account")
-            .step("Plan")
-            .step("Pay")
+            .step(0, "Account")
+            .step(1, "Plan")
+            .step(2, "Pay")
             .show(ui, |ui, i| {
                 ui.label(format!("Step {i}"));
             });
     });
     h.click("flow-2-step");
-    assert_eq!(h.state().value.current(), 0, "a linear flow skips no step");
+    assert_eq!(h.state().value.current(), Some(&0), "a linear flow skips no step");
     assert!(h.state_mut().value.forward());
     h.run();
-    assert_eq!(h.state().value.current(), 1);
+    assert_eq!(h.state().value.current(), Some(&1));
     h.click("flow-0-step");
-    assert_eq!(h.state().value.current(), 0, "completed steps stay reachable");
+    assert_eq!(h.state().value.current(), Some(&0), "completed steps stay reachable");
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, egui_mineral::semantic::KeySalt)]
+enum Wizard {
+    Account,
+    Billing,
+}
+
+#[test]
+fn keyed_stepper_reports_and_shows_step_keys() {
+    let steps = Steps::new([Wizard::Account, Wizard::Billing]).non_linear(true);
+    let mut h = still(WIDE, (steps, None, None), |ui, (steps, picked, shown)| {
+        let r = Stepper::new("w", steps)
+            .step(Wizard::Billing, "Billing")
+            .step(Wizard::Account, "Account")
+            .show(ui, |_, step| *shown = Some(*step));
+        *picked = picked.or(r.selected);
+    });
+    h.run();
+    assert_eq!(h.state().value.2, Some(Wizard::Account), "flow order, not label order");
+    h.click("w-billing-step");
+    assert_eq!(h.state().value.1, Some(Wizard::Billing));
+    assert_eq!(h.state().value.0.current(), Some(&Wizard::Billing));
 }
 
 #[test]
@@ -266,11 +289,11 @@ fn sibling_steppers_scope_their_content_apart() {
     let mut h = still(WIDE, Vec::new(), |ui, ids: &mut Vec<egui::Id>| {
         ids.clear();
         for salt in ["a", "b"] {
-            let mut steps = Steps::new(2);
+            let mut steps = Steps::new(0..2);
             Stepper::new(salt, &mut steps)
                 .axis(egui_mineral::layout::Axis::Vertical)
-                .step("One")
-                .step("Two")
+                .step(0, "One")
+                .step(1, "Two")
                 .show(ui, |ui, _| ids.push(ui.scope_id()));
         }
     });
@@ -282,12 +305,12 @@ fn sibling_steppers_scope_their_content_apart() {
 
 #[test]
 fn two_steppers_in_one_parent_keep_separate_headers() {
-    let mut h = still(WIDE, (Steps::new(3), Steps::new(3)), |ui, (a, b)| {
+    let mut h = still(WIDE, (Steps::new(0..3), Steps::new(0..3)), |ui, (a, b)| {
         for (salt, steps) in [("a", a), ("b", b)] {
             Stepper::new(salt, steps)
-                .step("One")
-                .step("Two")
-                .step("Three")
+                .step(0, "One")
+                .step(1, "Two")
+                .step(2, "Three")
                 .show(ui, |_, _| {});
         }
     });
@@ -295,5 +318,8 @@ fn two_steppers_in_one_parent_keep_separate_headers() {
     h.state_mut().value.1.forward();
     h.run();
     h.click("a-0-step");
-    assert_eq!((h.state().value.0.current(), h.state().value.1.current()), (0, 1));
+    assert_eq!(
+        (h.state().value.0.current(), h.state().value.1.current()),
+        (Some(&0), Some(&1))
+    );
 }

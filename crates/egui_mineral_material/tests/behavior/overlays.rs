@@ -204,8 +204,8 @@ fn tour_advances_finishes_and_dismisses() {
     let mut h = still(WIDE, (Some(0), false, None), |ui, (step, finished, dismissed)| {
         let target = ui.mineral(PushButton::new("target", "Target")).into_response().rect;
         let r = Tour::new("tour", step)
-            .step(TourStep::new(target, "One"))
-            .step(TourStep::new(target, "Two"))
+            .step(0, TourStep::new(target, "One"))
+            .step(1, TourStep::new(target, "Two"))
             .show(ui.rt());
         *finished |= r.finished;
         *dismissed = dismissed.or(r.dismissed);

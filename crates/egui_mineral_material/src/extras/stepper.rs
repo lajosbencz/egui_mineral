@@ -24,7 +24,7 @@ use crate::widget::{
     indication, parts,
     row_parts::{self, RowColors, RowState},
 };
-use egui_mineral::select::SelectionResponse;
+use egui_mineral::select::{ItemKey, SelectionResponse};
 
 use crate::containment::ListLines;
 use crate::{
@@ -248,23 +248,25 @@ impl MineralWidget for StepHeader<'_> {
 /// Step progress over a [`Steps`] model; non-MD3 (MUI `Stepper` pattern).
 #[derive(Debug)]
 #[must_use = "call .show(..)"]
-pub struct Stepper<'a> {
+pub struct Stepper<'a, K = usize> {
     salt: KeyedSalt,
     label: Option<String>,
-    steps: &'a mut Steps,
+    steps: &'a mut Steps<K>,
+    entries: Vec<(K, StepLabel)>,
     labels: Vec<StepLabel>,
     axis: Axis,
     disabled: bool,
 }
 
-impl<'a> Stepper<'a> {
+impl<'a, K: ItemKey> Stepper<'a, K> {
     /// `steps` is the bound step model; agent key prefix `<id_salt>`.
-    pub fn new(id_salt: impl Into<KeyedSalt>, steps: &'a mut Steps) -> Self {
+    pub fn new(id_salt: impl Into<KeyedSalt>, steps: &'a mut Steps<K>) -> Self {
         let id_salt: KeyedSalt = id_salt.into();
         Self {
             salt: id_salt,
             label: None,
             steps,
+            entries: Vec::new(),
             labels: Vec::new(),
             axis: Axis::Horizontal,
             disabled: false,
@@ -282,16 +284,25 @@ impl<'a> Stepper<'a> {
         self
     }
 
-    /// Appends the label of the next step.
-    pub fn step(mut self, label: impl Into<StepLabel>) -> Self {
-        self.labels.push(label.into());
+    /// Label of `step`; steps show in the [`Steps`] flow order, a step without a label is reported and blank.
+    pub fn step(mut self, step: K, label: impl Into<StepLabel>) -> Self {
+        self.entries.push((step, label.into()));
         self
     }
 
-    /// Appends the labels of the next steps.
-    pub fn steps(mut self, labels: impl IntoIterator<Item = impl Into<StepLabel>>) -> Self {
-        self.labels.extend(labels.into_iter().map(Into::into));
+    /// Labels of several steps, as [`Self::step`].
+    pub fn steps(mut self, labels: impl IntoIterator<Item = (K, impl Into<StepLabel>)>) -> Self {
+        self.entries.extend(labels.into_iter().map(|(k, l)| (k, l.into())));
         self
+    }
+
+    fn key(&self, i: usize) -> &K {
+        &self.steps.keys()[i]
+    }
+
+    fn current_index(&self) -> usize {
+        let current = self.steps.current();
+        self.steps.keys().iter().position(|k| Some(k) == current).unwrap_or(0)
     }
 
     /// Default [`Axis::Horizontal`].
@@ -306,7 +317,7 @@ impl<'a> Stepper<'a> {
     }
 
     fn header_h(&self, density: Density, i: usize) -> f32 {
-        let lines = if self.steps.is_optional(i) || self.labels[i].description.is_some() {
+        let lines = if self.steps.is_optional(self.key(i)) || self.labels[i].description.is_some() {
             ListLines::Two
         } else {
             ListLines::One
@@ -317,16 +328,16 @@ impl<'a> Stepper<'a> {
     fn header(&self, rt: &Rt, i: usize, label_w: f32, height: f32) -> StepHeader<'_> {
         let fmt = rt.i18n().format();
         StepHeader {
-            salt: self.salt.child(("step", i)),
-            key: StableId::of(&self.salt, (i, "step")),
+            salt: self.salt.child(("step", self.key(i).clone())),
+            key: StableId::of(&self.salt, (self.key(i).clone(), "step")),
             label: &self.labels[i],
             number: fmt.count(i + 1),
-            status: self.steps.status(i),
+            status: self.steps.status(self.key(i)),
             optional: self
                 .steps
-                .is_optional(i)
+                .is_optional(self.key(i))
                 .then(|| crate::tr(rt.i18n(), msg::STEP_OPTIONAL)),
-            selectable: !self.disabled && self.steps.can_select(i) && i != self.steps.current(),
+            selectable: !self.disabled && self.steps.can_select(self.key(i)) && i != self.current_index(),
             label_w,
             full_width: self.axis == Axis::Vertical,
             height,
@@ -364,7 +375,7 @@ impl<'a> Stepper<'a> {
     fn horizontal(
         &self,
         ui: &mut MineralUi<'_, Material>,
-        content: &mut dyn FnMut(&mut MineralUi<'_, Material>, usize),
+        content: &mut dyn FnMut(&mut MineralUi<'_, Material>, &K),
         pass: &mut StepPass,
     ) {
         let rt = ui.rt();
@@ -421,14 +432,14 @@ impl<'a> Stepper<'a> {
         });
         ui.add_space(crate::adaptive::grid(4));
         if n > 0 && !self.steps.is_finished() {
-            content(ui, current);
+            content(ui, self.key(current));
         }
     }
 
     fn vertical(
         &self,
         ui: &mut MineralUi<'_, Material>,
-        content: &mut dyn FnMut(&mut MineralUi<'_, Material>, usize),
+        content: &mut dyn FnMut(&mut MineralUi<'_, Material>, &K),
         pass: &mut StepPass,
     ) {
         let rt = ui.rt();
@@ -452,7 +463,7 @@ impl<'a> Stepper<'a> {
                     UiBuilder::new().max_rect(rect).id_salt(pass.id.with(("content", i))),
                     |ui| {
                         ui.add_space(crate::adaptive::grid(2));
-                        content(&mut rt.ui(ui), i);
+                        content(&mut rt.ui(ui), self.key(i));
                         ui.add_space(crate::adaptive::grid(4));
                     },
                 );
@@ -466,29 +477,44 @@ impl<'a> Stepper<'a> {
         }
     }
 
-    /// `content(ui, index)` fills the current step's body.
+    /// `content(ui, step)` fills the current step's body.
     pub fn show(
         self,
         ui: &mut MineralUi<'_, Material>,
-        mut content: impl FnMut(&mut MineralUi<'_, Material>, usize),
-    ) -> SelectionResponse<usize> {
+        mut content: impl FnMut(&mut MineralUi<'_, Material>, &K),
+    ) -> SelectionResponse<K> {
         let rt = ui.rt();
         let out = ui.scope(|ui| self.run(&mut rt.ui(ui), &mut content));
         SelectionResponse::changed_to(out.response, out.inner)
     }
 
     fn run(
-        self,
+        mut self,
         ui: &mut MineralUi<'_, Material>,
-        content: &mut dyn FnMut(&mut MineralUi<'_, Material>, usize),
-    ) -> Option<usize> {
+        content: &mut dyn FnMut(&mut MineralUi<'_, Material>, &K),
+    ) -> Option<K> {
+        let entries = std::mem::take(&mut self.entries);
+        self.labels = self
+            .steps
+            .keys()
+            .iter()
+            .map(|k| {
+                entries.iter().find(|(e, _)| e == k).map_or_else(
+                    || {
+                        kit::sanitize::report(format_args!("Stepper: a step has no label"));
+                        StepLabel::new("")
+                    },
+                    |(_, l)| l.clone(),
+                )
+            })
+            .collect();
         let rt = ui.rt();
         let ctx = rt.ctx();
         let t = rt.tokens();
         let id = ui.make_persistent_id(self.salt.id_salt());
         let dir = rt.i18n().direction();
-        let n = self.labels.len().min(self.steps.count());
-        let current = self.steps.current();
+        let n = self.steps.count();
+        let current = self.current_index();
         let mut out = None;
         semantic::emit_parent(ctx, id, || {
             let name = crate::tr_or(rt.i18n(), self.label.as_deref(), msg::STEPPER);
@@ -499,7 +525,7 @@ impl<'a> Stepper<'a> {
         let line = Stroke::new(divider::THICKNESS, t.role(divider::COLOR));
         let ids = Vec::with_capacity(n);
         let stops: Vec<usize> = (0..n)
-            .filter(|&i| !self.disabled && (i == current || self.steps.can_select(i)))
+            .filter(|&i| !self.disabled && (i == current || self.steps.can_select(self.key(i))))
             .collect();
         let tab = focus::tab_stop(
             ctx,
@@ -529,10 +555,11 @@ impl<'a> Stepper<'a> {
         RovingFocus::new(self.axis)
             .wrap(false)
             .update_group(rt.core(), id, &ids, |i| enabled[i]);
-        if let Some(i) = selected
-            && self.steps.select(i)
-        {
-            out = Some(i);
+        if let Some(i) = selected {
+            let key = self.key(i).clone();
+            if self.steps.select(&key) {
+                out = Some(key);
+            }
         }
         let rect = Rect::from_min_max(start, pos2(start.x + ui.available_width().max(0.0), ui.cursor().min.y));
         kit::nodes::remember_rect(ctx, id, rect);

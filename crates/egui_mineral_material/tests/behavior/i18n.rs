@@ -137,7 +137,7 @@ mod mirror {
 
     fn composites(ui: &mut Mui<'_>) {
         let (mut tab, mut chosen, mut selected) = (0, vec![1], Some(0));
-        let mut steps = Steps::new(3);
+        let mut steps = Steps::new(0..3);
         let mut expansion = Expansion::default();
         expansion.expand(1);
         let mut selection = Selection::multiple();
@@ -165,8 +165,8 @@ mod mirror {
         );
         SettingRow::new("row", "Label").supporting("Help").show_value(ui, "On");
         Stepper::new("flow", &mut steps)
-            .step("Account")
-            .step("Plan")
+            .step(0, "Account")
+            .step(1, "Plan")
             .show(ui, |ui, i| {
                 ui.label(format!("Step {i}"));
             });
