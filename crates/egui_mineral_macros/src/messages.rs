@@ -227,6 +227,16 @@ struct Scope<'a> {
 }
 
 impl Scope<'_> {
+    fn tag(&self) -> syn::Result<String> {
+        let stem = std::path::Path::new(self.relative)
+            .file_stem()
+            .and_then(std::ffi::OsStr::to_str)
+            .unwrap_or_default();
+        stem.parse::<unic_langid::LanguageIdentifier>()
+            .map(|id| id.to_string())
+            .map_err(|e| self.error(format!("file name `{stem}` is not a BCP 47 tag: {e}")))
+    }
+
     fn error(&self, text: impl std::fmt::Display) -> Error {
         Error::new(self.at, format!("{}: {text}", self.relative))
     }
@@ -284,18 +294,21 @@ impl Scope<'_> {
         })
     }
 
-    fn tail(&self, export: Option<&Ident>, exported: &[TokenStream2]) -> TokenStream2 {
-        let Self { relative, vis, .. } = self;
+    fn tail(&self, export: Option<&Ident>, exported: &[TokenStream2]) -> syn::Result<TokenStream2> {
+        let Self {
+            relative, vis, i18n, ..
+        } = self;
         let tracked = quote!(::core::include_str!(
             ::core::concat!(::core::env!("CARGO_MANIFEST_DIR"), "/", #relative)
         ));
         let Some(export) = export else {
-            return quote! {
-                /// FTL source of the catalog the messages come from.
-                #vis const SOURCE: &str = #tracked;
-            };
+            let tag = self.tag()?;
+            return Ok(quote! {
+                /// Catalog the messages come from, tagged by its file name.
+                #vis const CATALOG: #i18n::Catalog = #i18n::__private::catalog(#tag, #tracked);
+            });
         };
-        quote! {
+        Ok(quote! {
             const _: &str = #tracked;
 
             /// Message ids a catalog must cover: `messages!(mod msg = "locales/en-US.ftl", inherit = <this macro>)`.
@@ -305,7 +318,7 @@ impl Scope<'_> {
                     $crate::i18n::messages! { @[#(#exported)*] $($input)* }
                 };
             }
-        }
+        })
     }
 }
 
@@ -393,7 +406,7 @@ pub(crate) fn expand(input: &Input) -> syn::Result<TokenStream2> {
         exported.push(quote!(#id (#(#args)*)));
     }
 
-    let tail = scope.tail(input.export.as_ref(), &exported);
+    let tail = scope.tail(input.export.as_ref(), &exported)?;
     let Input {
         attrs,
         vis: module_vis,

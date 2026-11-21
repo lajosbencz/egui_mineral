@@ -19,7 +19,8 @@ use crate::support::{MineralHarness, Mui, SCREEN, build, builder, harness, min_i
 const KEYS: [&str; 4] = ["f-field", "o-field", "ib-button", "b-button"];
 
 fn rows(locale: &'static str) -> (HashMap<&'static str, Rect>, Rect, u64) {
-    let setup = move |rt: &egui_mineral_material::Rt| rt.i18n().set_locale(locale).expect("locale");
+    let setup =
+        move |rt: &egui_mineral_material::Rt| rt.i18n().set_locale(&locale.parse().expect("tag")).expect("locale");
     let long = "A long label that wraps inside its flex item at the row width. ".repeat(4);
     let mut h = build(
         builder(SCREEN),

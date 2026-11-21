@@ -53,7 +53,10 @@ fn sorted_order_follows_a_locale_switch() {
     });
     h.click("tbl-0-header");
     assert_eq!(shown_rows(&h), [1, 0], "en: a-umlaut sorts with a");
-    h.rt().i18n().set_locale("sv").expect("sv ICU data");
+    h.rt()
+        .i18n()
+        .set_locale(&egui_mineral::i18n::locale!("sv"))
+        .expect("sv ICU data");
     h.run();
     assert_eq!(shown_rows(&h), [0, 1], "sv: a-umlaut sorts after z");
 }

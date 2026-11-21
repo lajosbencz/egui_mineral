@@ -258,6 +258,22 @@ fn expand(input: &DeriveInput) -> syn::Result<TokenStream2> {
     })
 }
 
+/// `Locale` from a BCP 47 tag literal checked at compile time; documented at `egui_mineral::i18n::locale`.
+#[proc_macro]
+pub fn locale(input: TokenStream) -> TokenStream {
+    let tag = parse_macro_input!(input as syn::LitStr);
+    let host = host();
+    match tag.value().parse::<unic_langid::LanguageIdentifier>() {
+        Ok(id) => {
+            let canonical = id.to_string();
+            quote::quote_spanned!(tag.span()=> #host::i18n::__private::locale(#canonical)).into()
+        }
+        Err(e) => Error::new(tag.span(), format!("not a BCP 47 tag: {e}"))
+            .into_compile_error()
+            .into(),
+    }
+}
+
 /// Typed message ids of a Fluent catalog; documented at `egui_mineral::i18n::messages`.
 #[proc_macro]
 pub fn messages(input: TokenStream) -> TokenStream {

@@ -2,15 +2,15 @@
 //! [`AsciiFormat`]. Message ids are items [`messages!`] generates from the source catalog.
 //!
 //! ```
-//! use egui_mineral::i18n::{AsciiFormat, Catalog, DateFields, DateLength, I18n, LocaleFormat};
+//! use egui_mineral::i18n::{AsciiFormat, DateFields, DateLength, I18n, LocaleFormat};
 //!
 //! // hello = Hello
 //! // greet = Hello { $name }
 //! egui_mineral::i18n::messages!(mod msg = "tests/locales/en-US.ftl");
 //!
 //! let ctx = egui::Context::default();
-//! let catalogs = [Catalog::new("en-US", msg::SOURCE)];
-//! let i18n = I18n::with_format(&ctx, "und".into(), AsciiFormat::default(), &catalogs)?;
+//! let catalogs = [msg::CATALOG];
+//! let i18n = I18n::with_format(&ctx, egui_mineral::i18n::locale!("und"), AsciiFormat::default(), &catalogs)?;
 //! assert_eq!(i18n.tr(msg::HELLO), "Hello");
 //! assert_eq!(i18n.tr(msg::Greet { name: "Ann".into() }), "Hello Ann");
 //!
@@ -47,6 +47,17 @@ type SystemFormat = IcuFormat;
 #[cfg(not(feature = "icu"))]
 type SystemFormat = AsciiFormat;
 
+#[cfg(feature = "icu")]
+fn system_format(locale: &Locale) -> Result<SystemFormat, I18nError> {
+    IcuFormat::new(locale)
+}
+
+#[cfg(not(feature = "icu"))]
+#[expect(clippy::unnecessary_wraps, reason = "same signature as the ICU build")]
+fn system_format(locale: &Locale) -> Result<SystemFormat, I18nError> {
+    Ok(AsciiFormat::new(locale))
+}
+
 use egui::Rangef;
 use std::{
     borrow::Cow,
@@ -61,12 +72,23 @@ use unic_langid::LanguageIdentifier;
 
 #[cfg(feature = "icu")]
 pub use self::icu::IcuFormat;
+/// [`Locale`] of a BCP 47 tag literal, checked at compile time: `i18n.set_locale(&locale!("de-AT"))`.
+///
+/// ```
+/// assert_eq!(egui_mineral::i18n::locale!("DE-at").to_string(), "de-AT");
+/// ```
+///
+/// ```compile_fail
+/// let _ = egui_mineral::i18n::locale!("not a tag!");
+/// ```
+pub use egui_mineral_macros::locale;
 /// Typed message ids of a Fluent catalog: `messages!(mod msg = "locales/en-US.ftl")` reads the source-language
 /// catalog at that path, relative to the crate root, and declares the module `msg` with one item per message.
 ///
 /// - A message without arguments is a `const` [`Message`]: `greeting-title` is `GREETING_TITLE`.
 /// - A message with arguments is a struct with one [`Arg`] field per `$variable` that is an [`IntoMessage`]: `unread-count = { $count } unread` is `UnreadCount { count }`.
-/// - `SOURCE` is the file's text, for [`Catalog::new`].
+/// - `CATALOG` is the file's [`Catalog`], its locale taken from the file name (`en-US.ftl`), which must be a
+///   BCP 47 tag.
 ///
 /// A message id or argument the catalog lacks does not compile. The module takes attributes and a visibility
 /// (`pub(crate) mod msg = ..`); unless it is `pub`, rustc's `dead_code` lint reports every message no code uses. Translations in other locales are not read; a
@@ -78,17 +100,17 @@ pub use self::icu::IcuFormat;
 ///   `egui_mineral_material::egui_mineral`.
 /// - `inherit = path`: the catalog must also define the messages of the `export` macro at `path` (a stylekit
 ///   passes `egui_mineral::core_messages`), using no argument they lack; no items are emitted for them.
-/// - `export = name`: emits the macro `name` at the crate root for `inherit` instead of `SOURCE`; the file is an
+/// - `export = name`: emits the macro `name` at the crate root for `inherit` instead of `CATALOG`; the file is an
 ///   argument schema whose text another crate ships.
 ///
 /// ```
-/// use egui_mineral::i18n::{AsciiFormat, Catalog, I18n};
+/// use egui_mineral::i18n::{AsciiFormat, I18n};
 ///
 /// egui_mineral::i18n::messages!(mod msg = "tests/locales/en-US.ftl");
 ///
 /// let ctx = egui::Context::default();
-/// let catalogs = [Catalog::new("en-US", msg::SOURCE)];
-/// let i18n = I18n::with_format(&ctx, "en-US".into(), AsciiFormat::default(), &catalogs)?;
+/// let catalogs = [msg::CATALOG];
+/// let i18n = I18n::with_format(&ctx, egui_mineral::i18n::locale!("en-US"), AsciiFormat::default(), &catalogs)?;
 /// assert_eq!(i18n.tr(msg::Unread { count: 2.into() }), "2 unread messages");
 /// # Ok::<(), egui_mineral::i18n::I18nError>(())
 /// ```
@@ -422,7 +444,18 @@ impl<'a, const N: usize> IntoMessage<'a, N> for Message<'a, N> {
 
 #[doc(hidden)]
 pub mod __private {
-    use super::{Arg, Message};
+    use super::{Arg, Catalog, Cow, Locale, Message};
+
+    pub fn locale(tag: &'static str) -> Locale {
+        tag.parse().unwrap_or_default()
+    }
+
+    pub const fn catalog(locale: &'static str, ftl: &'static str) -> Catalog {
+        Catalog {
+            locale: Cow::Borrowed(locale),
+            ftl: Cow::Borrowed(ftl),
+        }
+    }
 
     pub const fn message<'a, const N: usize>(id: &'static str, args: [(&'static str, Arg<'a>); N]) -> Message<'a, N> {
         Message { id, args }
@@ -438,11 +471,52 @@ messages!(
 
 /// App message catalog for one locale.
 pub trait Localizer: Send + Sync {
-    /// BCP 47 tag of the primary catalog.
-    fn locale(&self) -> &str;
+    /// Locale of the primary catalog.
+    fn locale(&self) -> &Locale;
     /// `None` when the message is missing. Messages without arguments are cached until the locale, localizer or
     /// catalogs change.
     fn message(&self, id: &str, args: &Args<'_>) -> Option<String>;
+}
+
+/// BCP 47 language identifier, built with [`str::parse`]; the default is the CLDR root `und`. Serializes as its
+/// tag.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
+pub struct Locale(LanguageIdentifier);
+
+impl std::str::FromStr for Locale {
+    type Err = I18nError;
+
+    fn from_str(tag: &str) -> Result<Self, I18nError> {
+        tag.parse().map(Self).map_err(|e| I18nError::Locale {
+            tag: tag.to_owned(),
+            source: Some(Box::new(e)),
+        })
+    }
+}
+
+impl std::fmt::Display for Locale {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl serde::Serialize for Locale {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        s.collect_str(self)
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for Locale {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let tag = <Cow<'de, str>>::deserialize(d)?;
+        tag.parse().map_err(serde::de::Error::custom)
+    }
+}
+
+impl Locale {
+    pub(crate) fn id(&self) -> &LanguageIdentifier {
+        &self.0
+    }
 }
 
 /// Failure selecting a locale or loading a message catalog.
@@ -488,7 +562,7 @@ impl std::error::Error for Messages {}
 
 /// [`Localizer`] over Fluent bundles with locale fallback.
 pub struct FluentLocalizer {
-    locale: String,
+    locale: Locale,
     bundles: Vec<FluentBundle<FluentResource>>,
 }
 
@@ -522,7 +596,7 @@ impl FluentLocalizer {
         }
         let locale = bundles
             .first()
-            .map(|b| b.locales[0].to_string())
+            .map(|b| Locale(b.locales[0].clone()))
             .ok_or_else(|| I18nError::Locale {
                 tag: String::new(),
                 source: None,
@@ -532,7 +606,7 @@ impl FluentLocalizer {
 }
 
 impl Localizer for FluentLocalizer {
-    fn locale(&self) -> &str {
+    fn locale(&self) -> &Locale {
         &self.locale
     }
 
@@ -556,8 +630,6 @@ impl Localizer for FluentLocalizer {
     }
 }
 
-const ROOT: &str = "und";
-
 /// Library catalog: FTL source for one locale; a library's first catalog is its source language.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[non_exhaustive]
@@ -567,18 +639,11 @@ pub struct Catalog {
 }
 
 impl Catalog {
-    /// Catalog of BCP 47 `locale` from the embedded source `ftl`.
-    pub const fn new(locale: &'static str, ftl: &'static str) -> Self {
+    /// Catalog of `locale` from the runtime-loaded source `ftl`; embedded catalogs are
+    /// [`messages!`]'s `CATALOG`.
+    pub fn owned(locale: &Locale, ftl: impl Into<String>) -> Self {
         Self {
-            locale: Cow::Borrowed(locale),
-            ftl: Cow::Borrowed(ftl),
-        }
-    }
-
-    /// Catalog of BCP 47 `locale` from the runtime-loaded source `ftl`.
-    pub fn owned(locale: impl Into<String>, ftl: impl Into<String>) -> Self {
-        Self {
-            locale: Cow::Owned(locale.into()),
+            locale: Cow::Owned(locale.to_string()),
             ftl: Cow::Owned(ftl.into()),
         }
     }
@@ -595,7 +660,7 @@ impl Catalog {
 }
 
 struct State {
-    locale: String,
+    locale: Locale,
     app: Option<Arc<dyn Localizer>>,
     format: Arc<dyn LocaleFormat>,
     sources: Vec<Catalog>,
@@ -614,7 +679,7 @@ impl State {
     }
 }
 
-fn negotiate(sources: &[Catalog], locale: &str) -> Result<Option<Arc<FluentLocalizer>>, I18nError> {
+fn negotiate(sources: &[Catalog], locale: &Locale) -> Result<Option<Arc<FluentLocalizer>>, I18nError> {
     let parsed: Vec<(LanguageIdentifier, &Catalog)> = sources
         .iter()
         .map(|catalog| {
@@ -633,7 +698,7 @@ fn negotiate(sources: &[Catalog], locale: &str) -> Result<Option<Arc<FluentLocal
     };
     let fallback = fallback.clone();
     let available: Vec<LanguageIdentifier> = parsed.iter().map(|(lang, _)| lang.clone()).collect();
-    let requested: Vec<LanguageIdentifier> = locale.parse().into_iter().collect();
+    let requested = [locale.0.clone()];
     let mut order: Vec<LanguageIdentifier> = fluent_langneg::negotiate_languages(
         &requested,
         &available,
@@ -670,7 +735,7 @@ impl I18n {
     /// [`I18nError::Locale`] when the root locale fails to load, [`I18nError::Resource`] when a catalog does not
     /// parse.
     pub fn new(ctx: &egui::Context, catalogs: &[Catalog]) -> Result<Self, I18nError> {
-        let system = system_locale().and_then(|l| match SystemFormat::new(&l) {
+        let system = system_locale().and_then(|l| match system_format(&l) {
             Ok(f) => Some((l, f)),
             Err(error) => {
                 tracing::warn!(target: "egui_mineral", tag = %l, %error, "system locale unsupported, using root");
@@ -679,7 +744,7 @@ impl I18n {
         });
         let (locale, format) = match system {
             Some(found) => found,
-            None => (ROOT.to_owned(), SystemFormat::new(ROOT)?),
+            None => (Locale::default(), system_format(&Locale::default())?),
         };
         Self::with_format(ctx, locale, format, catalogs)
     }
@@ -687,17 +752,13 @@ impl I18n {
     /// `format` for `locale`, e.g. a fixed-locale [`AsciiFormat`].
     ///
     /// # Errors
-    /// [`I18nError::Locale`] when `locale` does not parse, [`I18nError::Resource`] when a catalog does not parse.
+    /// [`I18nError::Resource`] when a catalog does not parse.
     pub fn with_format(
         ctx: &egui::Context,
-        locale: String,
+        locale: Locale,
         format: impl LocaleFormat + 'static,
         catalogs: &[Catalog],
     ) -> Result<Self, I18nError> {
-        locale.parse::<LanguageIdentifier>().map_err(|e| I18nError::Locale {
-            tag: locale.clone(),
-            source: Some(Box::new(e)),
-        })?;
         for catalog in catalogs {
             FluentLocalizer::new([catalog])?;
         }
@@ -727,16 +788,17 @@ impl I18n {
         self.ctx.request_repaint();
     }
 
-    /// Switches formatting, direction and messages to `tag`.
+    /// Switches formatting, direction and messages to `locale`.
     ///
     /// # Errors
-    /// [`I18nError::Locale`] when `tag` does not parse; a locale without baked ICU4X data formats as CLDR root.
-    pub fn set_locale(&self, tag: &str) -> Result<(), I18nError> {
-        self.switch(tag, None)
+    /// [`I18nError::Locale`] when its formatting data fails to load; a locale without baked ICU4X data formats as
+    /// CLDR root.
+    pub fn set_locale(&self, locale: &Locale) -> Result<(), I18nError> {
+        self.switch(locale, None)
     }
 
-    fn switch(&self, tag: &str, app: Option<&Arc<dyn Localizer>>) -> Result<(), I18nError> {
-        let format: Arc<dyn LocaleFormat> = Arc::new(SystemFormat::new(tag)?);
+    fn switch(&self, tag: &Locale, app: Option<&Arc<dyn Localizer>>) -> Result<(), I18nError> {
+        let format: Arc<dyn LocaleFormat> = Arc::new(system_format(tag)?);
         // Negotiation parses catalogs: it runs outside the state lock and retries when state changed meanwhile.
         loop {
             let (sources, generation) = self.with(|s| (s.sources.clone(), s.generation));
@@ -766,7 +828,7 @@ impl I18n {
     /// # Errors
     /// As [`Self::set_locale`] for the locale of `localizer`.
     pub fn set_localizer(&self, localizer: impl Localizer + 'static) -> Result<(), I18nError> {
-        let tag = localizer.locale().to_owned();
+        let tag = localizer.locale().clone();
         let app: Arc<dyn Localizer> = Arc::new(localizer);
         self.switch(&tag, Some(&app))
     }
@@ -824,8 +886,8 @@ impl I18n {
         self.with(|s| s.generation)
     }
 
-    /// Active locale tag.
-    pub fn locale(&self) -> String {
+    /// Active locale.
+    pub fn locale(&self) -> Locale {
         self.with(|s| s.locale.clone())
     }
 
@@ -885,9 +947,9 @@ impl I18n {
     }
 }
 
-/// OS locale tag; `None` when unknown or not a valid language identifier.
-pub fn system_locale() -> Option<String> {
-    sys_locale::get_locale().filter(|l| l.parse::<LanguageIdentifier>().is_ok())
+/// OS locale; `None` when unknown or not a valid language identifier.
+pub fn system_locale() -> Option<Locale> {
+    sys_locale::get_locale().and_then(|l| l.parse().ok())
 }
 
 #[cfg(test)]
@@ -930,11 +992,11 @@ mod tests {
     fn errors_carry_their_cause() {
         use std::error::Error;
 
-        let bad_tag = FluentLocalizer::new([&Catalog::new("not a tag!", "a = b")]).unwrap_err();
+        let bad_tag = FluentLocalizer::new([&__private::catalog("not a tag!", "a = b")]).unwrap_err();
         assert!(matches!(&bad_tag, I18nError::Locale { tag, .. } if tag == "not a tag!"));
         assert!(bad_tag.source().is_some(), "the parser error is the source");
 
-        let bad_ftl = FluentLocalizer::new([&Catalog::new("en", "= no id")]).unwrap_err();
+        let bad_ftl = FluentLocalizer::new([&__private::catalog("en", "= no id")]).unwrap_err();
         assert!(matches!(bad_ftl, I18nError::Resource(_)));
         assert!(bad_ftl.source().is_some());
 
@@ -946,8 +1008,8 @@ mod tests {
     #[test]
     fn fallback_and_args() {
         let l = FluentLocalizer::new(&[
-            Catalog::new("de", "hello = Hallo { $name }!"),
-            Catalog::new("en", "hello = Hello { $name }!\nbye = Bye"),
+            __private::catalog("de", "hello = Hallo { $name }!"),
+            __private::catalog("en", "hello = Hello { $name }!\nbye = Bye"),
         ])
         .unwrap();
         assert_eq!(
@@ -967,30 +1029,32 @@ mod tests {
             "mineral-submit",
             "no catalog: the id"
         );
-        i18n.add_resource(&Catalog::new(
+        i18n.add_resource(&__private::catalog(
             "en-US",
             "mineral-submit = Submit\nmineral-number = Enter a number\nmineral-percent = { NUMBER($value, maximumFractionDigits: 0) }%",
         ))
         .unwrap();
-        i18n.add_resource(&Catalog::new("de", "mineral-submit = Absenden"))
+        i18n.add_resource(&__private::catalog("de", "mineral-submit = Absenden"))
             .unwrap();
-        assert!(i18n.add_resource(&Catalog::owned("fr", "broken = {")).is_err());
-        assert!(i18n.set_locale("not a tag!").is_err());
-        i18n.set_locale("de-AT").unwrap();
+        assert!(
+            i18n.add_resource(&Catalog::owned(&crate::i18n::locale!("fr"), "broken = {"))
+                .is_err()
+        );
+        i18n.set_locale(&crate::i18n::locale!("de-AT")).unwrap();
         assert_eq!(i18n.lookup("mineral-submit", &[]), "Absenden");
         assert_eq!(
             i18n.lookup("mineral-number", &[]),
             "Enter a number",
             "source catalog fills gaps"
         );
-        i18n.set_locale("fr").unwrap();
+        i18n.set_locale(&crate::i18n::locale!("fr")).unwrap();
         assert_eq!(i18n.lookup("mineral-submit", &[]), "Submit");
         assert_eq!(
             i18n.lookup("mineral-percent", &[("value", 42.4.into())]),
             "42%",
             "builtin NUMBER"
         );
-        i18n.set_locale("ar").unwrap();
+        i18n.set_locale(&crate::i18n::locale!("ar")).unwrap();
         assert_eq!(i18n.direction(), Direction::Rtl);
     }
 
@@ -999,8 +1063,9 @@ mod tests {
         use std::sync::atomic::{AtomicUsize, Ordering};
         struct Counting(Arc<AtomicUsize>, &'static str);
         impl Localizer for Counting {
-            fn locale(&self) -> &'static str {
-                "en"
+            fn locale(&self) -> &Locale {
+                static EN: std::sync::LazyLock<Locale> = std::sync::LazyLock::new(|| crate::i18n::locale!("en"));
+                &EN
             }
             fn message(&self, id: &str, args: &Args<'_>) -> Option<String> {
                 self.0.fetch_add(1, Ordering::Relaxed);
@@ -1027,7 +1092,7 @@ mod tests {
     #[test]
     fn added_catalog_repaints() {
         let ctx = egui::Context::default();
-        let i18n = I18n::new(&ctx, &[Catalog::new("en-US", "greeting = One")]).unwrap();
+        let i18n = I18n::new(&ctx, &[__private::catalog("en-US", "greeting = One")]).unwrap();
         for _ in 0..8 {
             if !ctx.has_requested_repaint() {
                 break;
@@ -1035,7 +1100,8 @@ mod tests {
             ctx.run_ui(egui::RawInput::default(), |_| {}).textures_delta.clear();
         }
         assert!(!ctx.has_requested_repaint(), "settled");
-        i18n.add_resource(&Catalog::new("en-US", "farewell = Two")).unwrap();
+        i18n.add_resource(&__private::catalog("en-US", "farewell = Two"))
+            .unwrap();
         assert!(ctx.has_requested_repaint(), "a new catalog repaints");
         assert_eq!(i18n.lookup("farewell", &[]), "Two");
     }
@@ -1043,7 +1109,16 @@ mod tests {
     #[test]
     fn invalid_catalog_fails_construction() {
         let ctx = egui::Context::default();
-        assert!(I18n::new(&ctx, &[Catalog::new("en", "broken = {")]).is_err());
-        assert!(I18n::with_format(&ctx, "not a tag!".into(), AsciiFormat::default(), &[]).is_err());
+        assert!(I18n::new(&ctx, &[__private::catalog("en", "broken = {")]).is_err());
+    }
+
+    #[test]
+    fn locale_parses_canonical_tags_and_round_trips() {
+        assert!("not a tag!".parse::<Locale>().is_err());
+        let de: Locale = "DE-at".parse().unwrap();
+        assert_eq!(de.to_string(), "de-AT");
+        assert_eq!(Locale::default().to_string(), "und");
+        let tag = serde::de::value::StrDeserializer::<serde::de::value::Error>::new("de-AT");
+        assert_eq!(<Locale as serde::Deserialize>::deserialize(tag).unwrap(), de);
     }
 }

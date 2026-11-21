@@ -21,8 +21,8 @@ pub(crate) fn runtime(ctx: &egui::Context, theme: egui::Theme) -> Arc<Rt> {
 }
 
 pub(crate) fn runtime_with(ctx: &egui::Context, theme: egui::Theme, kit: Fluent) -> Arc<Rt> {
-    let format = IcuFormat::new("en-US").expect("en-US ICU data");
-    let i18n = I18n::with_format(ctx, "en-US".into(), format, &[]).expect("i18n");
+    let format = IcuFormat::new(&egui_mineral::i18n::locale!("en-US")).expect("en-US ICU data");
+    let i18n = I18n::with_format(ctx, egui_mineral::i18n::locale!("en-US"), format, &[]).expect("i18n");
     let rt = Runtime::with_i18n(ctx, kit, i18n).expect("fluent runtime");
     rt.core().set_preference(theme.into());
     rt.set_collect_semantics(true);

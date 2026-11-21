@@ -37,7 +37,7 @@ impl Stylekit for Kit {
         Policies::baseline()
     }
     fn catalogs(&self) -> &'static [Catalog] {
-        static CATALOGS: [Catalog; 1] = [Catalog::new("en-US", msg::SOURCE)];
+        static CATALOGS: [Catalog; 1] = [msg::CATALOG];
         &CATALOGS
     }
     fn setup(&self, _: &egui::Context) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {

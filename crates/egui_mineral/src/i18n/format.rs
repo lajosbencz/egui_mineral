@@ -103,8 +103,8 @@ pub(super) const ASCII_DIGITS: [char; 10] = ['0', '1', '2', '3', '4', '5', '6', 
 
 /// Locale-aware formatting and calendar data; `IcuFormat` (feature `icu`) and [`AsciiFormat`](super::AsciiFormat) implement it.
 pub trait LocaleFormat: Send + Sync {
-    /// BCP 47 locale tag, e.g. `en-US`.
-    fn tag(&self) -> &str;
+    /// Locale it formats for.
+    fn locale(&self) -> &super::Locale;
     /// Writing direction of the locale's script.
     fn direction(&self) -> Direction;
     /// First column of calendar grids.

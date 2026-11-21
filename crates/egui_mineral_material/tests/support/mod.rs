@@ -74,8 +74,8 @@ pub(crate) fn run(ctx: &egui::Context, raw: RawInput, add: impl FnMut(&mut egui:
 }
 
 pub(crate) fn runtime(ctx: &egui::Context, theme: egui::Theme) -> Arc<Rt> {
-    let format = IcuFormat::new("en-US").expect("en-US ICU data");
-    let i18n = I18n::with_format(ctx, "en-US".into(), format, &[]).expect("i18n");
+    let format = IcuFormat::new(&egui_mineral::i18n::locale!("en-US")).expect("en-US ICU data");
+    let i18n = I18n::with_format(ctx, egui_mineral::i18n::locale!("en-US"), format, &[]).expect("i18n");
     let rt = Runtime::with_i18n(ctx, Material::default(), i18n).expect("material runtime");
     rt.core().set_preference(theme.into());
     rt.set_collect_semantics(true);
@@ -380,8 +380,8 @@ struct Directed {
 }
 
 impl LocaleFormat for Directed {
-    fn tag(&self) -> &str {
-        self.inner.tag()
+    fn locale(&self) -> &egui_mineral::i18n::Locale {
+        self.inner.locale()
     }
     fn direction(&self) -> Direction {
         self.direction
@@ -436,7 +436,7 @@ impl LocaleFormat for Directed {
 pub(crate) fn render_directed(direction: Direction, size: Vec2, mut add: impl FnMut(&mut Mui<'_>)) -> Pass {
     let setup = Box::new(move |rt: &Rt| {
         rt.core().motion().set_reduced(true);
-        let inner = IcuFormat::new("en-US").expect("en-US ICU data");
+        let inner = IcuFormat::new(&egui_mineral::i18n::locale!("en-US")).expect("en-US ICU data");
         rt.i18n().set_format(Directed { inner, direction });
     });
     inspect(size, setup, |ui| {

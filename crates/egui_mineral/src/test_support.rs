@@ -51,12 +51,14 @@ pub(crate) fn ctx() -> Context {
     Context::default()
 }
 
+#[cfg(feature = "icu")]
 pub(crate) fn en_us() -> impl LocaleFormat + 'static {
-    #[cfg(feature = "icu")]
-    let format = crate::i18n::IcuFormat::new("en-US");
-    #[cfg(not(feature = "icu"))]
-    let format = crate::i18n::AsciiFormat::new("en-US");
-    format.unwrap()
+    crate::i18n::IcuFormat::new(&crate::i18n::locale!("en-US")).unwrap()
+}
+
+#[cfg(not(feature = "icu"))]
+pub(crate) fn en_us() -> impl LocaleFormat + 'static {
+    crate::i18n::AsciiFormat::new(&crate::i18n::locale!("en-US"))
 }
 
 pub(crate) fn runtime(ctx: &Context) -> Arc<Runtime<TestKit>> {
@@ -64,7 +66,7 @@ pub(crate) fn runtime(ctx: &Context) -> Arc<Runtime<TestKit>> {
 }
 
 pub(crate) fn runtime_with(ctx: &Context, policies: Policies) -> Arc<Runtime<TestKit>> {
-    let i18n = I18n::with_format(ctx, "en-US".into(), en_us(), &[]).unwrap();
+    let i18n = I18n::with_format(ctx, crate::i18n::locale!("en-US"), en_us(), &[]).unwrap();
     Runtime::with_i18n(ctx, TestKit(policies), i18n).unwrap()
 }
 

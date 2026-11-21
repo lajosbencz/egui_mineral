@@ -132,7 +132,16 @@ pub(crate) const THEMES: [(egui::ThemePreference, &str); 3] = [
     (egui::ThemePreference::Dark, "Dark"),
 ];
 
-pub(crate) const LOCALES: [&str; 5] = ["en-US", "de-DE", "hu-HU", "ja-JP", "ar-EG"];
+pub(crate) static LOCALES: std::sync::LazyLock<[egui_mineral::i18n::Locale; 5]> = std::sync::LazyLock::new(|| {
+    use egui_mineral::i18n::locale;
+    [
+        locale!("en-US"),
+        locale!("de-DE"),
+        locale!("hu-HU"),
+        locale!("ja-JP"),
+        locale!("ar-EG"),
+    ]
+});
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(try_from = "RawSettings")]

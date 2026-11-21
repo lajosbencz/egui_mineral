@@ -790,17 +790,19 @@ proptest! {
     }
 }
 
-fn locale(tag: &str) -> Box<dyn LocaleFormat> {
-    #[cfg(feature = "icu")]
-    let format = egui_mineral::i18n::IcuFormat::new(tag);
-    #[cfg(not(feature = "icu"))]
-    let format = egui_mineral::i18n::AsciiFormat::new(tag);
-    Box::new(format.expect("valid locale"))
+#[cfg(feature = "icu")]
+fn locale(locale: &egui_mineral::i18n::Locale) -> Box<dyn LocaleFormat> {
+    Box::new(egui_mineral::i18n::IcuFormat::new(locale).expect("locale data"))
 }
 
-static EN_US: LazyLock<Box<dyn LocaleFormat>> = LazyLock::new(|| locale("en-US"));
-static JA_JP: LazyLock<Box<dyn LocaleFormat>> = LazyLock::new(|| locale("ja-JP"));
-static DE_DE: LazyLock<Box<dyn LocaleFormat>> = LazyLock::new(|| locale("de-DE"));
+#[cfg(not(feature = "icu"))]
+fn locale(locale: &egui_mineral::i18n::Locale) -> Box<dyn LocaleFormat> {
+    Box::new(egui_mineral::i18n::AsciiFormat::new(locale))
+}
+
+static EN_US: LazyLock<Box<dyn LocaleFormat>> = LazyLock::new(|| locale(&egui_mineral::i18n::locale!("en-US")));
+static JA_JP: LazyLock<Box<dyn LocaleFormat>> = LazyLock::new(|| locale(&egui_mineral::i18n::locale!("ja-JP")));
+static DE_DE: LazyLock<Box<dyn LocaleFormat>> = LazyLock::new(|| locale(&egui_mineral::i18n::locale!("de-DE")));
 
 fn orders() -> impl Strategy<Value = [DatePart; 3]> {
     Just([DatePart::Year, DatePart::Month, DatePart::Day]).prop_shuffle()

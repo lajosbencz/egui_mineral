@@ -430,7 +430,7 @@ mod tests {
             |ui, panes: &mut (Rect, Rect, Fraction)| {
                 let i18n = ui.core().i18n();
                 if i18n.direction() == Direction::Ltr {
-                    i18n.set_locale("ar").unwrap();
+                    i18n.set_locale(&crate::i18n::locale!("ar")).unwrap();
                 }
                 let r = Splitter::new("s", "Split").show(ui, |ui| ui.max_rect(), |ui| ui.max_rect());
                 *panes = (r.first, r.second, r.fraction);

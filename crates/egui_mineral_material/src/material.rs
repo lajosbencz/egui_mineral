@@ -163,7 +163,7 @@ impl Stylekit for Material {
     }
 
     fn catalogs(&self) -> &'static [Catalog] {
-        static CATALOGS: [Catalog; 1] = [Catalog::new("en-US", crate::msg::SOURCE)];
+        static CATALOGS: [Catalog; 1] = [crate::msg::CATALOG];
         &CATALOGS
     }
 

@@ -2,10 +2,10 @@ use jiff::civil::{Date, Time, Weekday};
 
 #[cfg(not(feature = "icu"))]
 use fluent_bundle::FluentValue;
-use unic_langid::{CharacterDirection, LanguageIdentifier};
+use unic_langid::CharacterDirection;
 
 use super::{
-    Direction, I18nError,
+    Direction, Locale,
     format::{ASCII_DIGITS, DateFields, DateLength, DatePart, DayPeriod, HourCycle, ListKind, LocaleFormat, NameWidth},
 };
 
@@ -39,28 +39,21 @@ const WEEKDAYS: [&str; 7] = [
 /// feature.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct AsciiFormat {
-    tag: String,
+    locale: Locale,
     direction: Direction,
 }
 
 impl AsciiFormat {
-    /// For BCP 47 `tag`.
-    ///
-    /// # Errors
-    /// [`I18nError::Locale`] when `tag` does not parse.
-    pub fn new(tag: &str) -> Result<Self, I18nError> {
-        let id: LanguageIdentifier = tag.parse().map_err(|e| I18nError::Locale {
-            tag: tag.into(),
-            source: Some(Box::new(e)),
-        })?;
-        let direction = match id.character_direction() {
+    /// For `locale`.
+    pub fn new(locale: &Locale) -> Self {
+        let direction = match locale.id().character_direction() {
             CharacterDirection::RTL => Direction::Rtl,
             CharacterDirection::LTR | CharacterDirection::TTB => Direction::Ltr,
         };
-        Ok(Self {
-            tag: id.to_string(),
+        Self {
+            locale: locale.clone(),
             direction,
-        })
+        }
     }
 }
 
@@ -68,7 +61,7 @@ impl AsciiFormat {
 impl Default for AsciiFormat {
     fn default() -> Self {
         Self {
-            tag: super::ROOT.to_owned(),
+            locale: Locale::default(),
             direction: Direction::Ltr,
         }
     }
@@ -103,8 +96,8 @@ fn group_thousands(int: &str) -> String {
 }
 
 impl LocaleFormat for AsciiFormat {
-    fn tag(&self) -> &str {
-        &self.tag
+    fn locale(&self) -> &Locale {
+        &self.locale
     }
 
     fn direction(&self) -> Direction {
@@ -283,14 +276,19 @@ mod tests {
 
     #[test]
     fn keeps_the_tag_and_script_direction() {
-        let ar = AsciiFormat::new("ar-EG").unwrap();
-        assert_eq!((ar.tag(), ar.direction()), ("ar-EG", Direction::Rtl));
-        assert_eq!(AsciiFormat::new("en-US").unwrap().direction(), Direction::Ltr);
+        let ar = AsciiFormat::new(&crate::i18n::locale!("ar-EG"));
         assert_eq!(
-            AsciiFormat::new("ar-Latn").unwrap().direction(),
+            (ar.locale().to_string(), ar.direction()),
+            ("ar-EG".into(), Direction::Rtl)
+        );
+        assert_eq!(
+            AsciiFormat::new(&crate::i18n::locale!("en-US")).direction(),
+            Direction::Ltr
+        );
+        assert_eq!(
+            AsciiFormat::new(&crate::i18n::locale!("ar-Latn")).direction(),
             Direction::Ltr,
             "script wins"
         );
-        assert!(AsciiFormat::new("not a tag!").is_err());
     }
 }

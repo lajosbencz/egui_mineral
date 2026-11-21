@@ -24,7 +24,17 @@ use egui_mineral_fluent::{
 use crate::FluentUi;
 
 // The pages workflow bakes ICU4X data for these only.
-pub(crate) const LOCALES: [&str; 5] = ["en-US", "de-DE", "hu-HU", "ja-JP", "ar-EG"];
+pub(crate) static LOCALES: std::sync::LazyLock<[egui_mineral_fluent::egui_mineral::i18n::Locale; 5]> =
+    std::sync::LazyLock::new(|| {
+        use egui_mineral_fluent::egui_mineral::i18n::locale;
+        [
+            locale!("en-US"),
+            locale!("de-DE"),
+            locale!("hu-HU"),
+            locale!("ja-JP"),
+            locale!("ar-EG"),
+        ]
+    });
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, egui_mineral_fluent::prelude::KeySalt)]
 pub(crate) enum Page {

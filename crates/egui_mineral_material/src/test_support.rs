@@ -7,10 +7,10 @@ use crate::{Material, Rt};
 
 pub(crate) fn runtime(ctx: &Context) -> Arc<Rt> {
     #[cfg(feature = "icu")]
-    let format = egui_mineral::i18n::IcuFormat::new("en-US").expect("en-US ICU data");
+    let format = egui_mineral::i18n::IcuFormat::new(&egui_mineral::i18n::locale!("en-US")).expect("en-US ICU data");
     #[cfg(not(feature = "icu"))]
-    let format = egui_mineral::i18n::AsciiFormat::new("en-US").expect("en-US tag");
-    let i18n = I18n::with_format(ctx, "en-US".into(), format, &[]).expect("i18n");
+    let format = egui_mineral::i18n::AsciiFormat::new(&egui_mineral::i18n::locale!("en-US"));
+    let i18n = I18n::with_format(ctx, egui_mineral::i18n::locale!("en-US"), format, &[]).expect("i18n");
     let rt = Runtime::with_i18n(ctx, Material::default(), i18n).expect("material runtime");
     rt.core().set_preference(egui::ThemePreference::Light);
     rt

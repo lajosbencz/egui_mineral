@@ -280,7 +280,7 @@ fn modal_picker_footer_tabs_in_reading_order_in_both_directions() {
     for (locale, rtl) in [("en-US", false), ("ar-EG", true)] {
         let setup = move |rt: &egui_mineral_material::Rt| {
             rt.core().motion().set_reduced(true);
-            rt.i18n().set_locale(locale).expect("locale");
+            rt.i18n().set_locale(&locale.parse().expect("tag")).expect("locale");
         };
         let mut h = build(builder(WIDE), Some(Box::new(setup)), true, |ui, open: &mut bool| {
             let mut value = Some(Date::constant(2025, 6, 10));

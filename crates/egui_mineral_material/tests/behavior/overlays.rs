@@ -293,7 +293,10 @@ fn time_picker_dial_value_uses_locale_digits() {
         TimePicker::new("tp", "Time", time).show_modal(ui.rt(), open);
     });
     h.run();
-    h.rt().i18n().set_locale("ar-EG").expect("locale");
+    h.rt()
+        .i18n()
+        .set_locale(&egui_mineral::i18n::locale!("ar-EG"))
+        .expect("locale");
     h.run();
     let shown = h.node("tp-hour-dial").value.expect("value");
     assert!(!shown.is_ascii(), "{shown:?} not in ar-EG digits");

@@ -145,7 +145,9 @@ impl Shell {
         });
         rt.kit().set_density(rt.ctx(), Density::new(s.density));
         if self.applied.as_ref().is_none_or(|a| a.locale != s.locale) {
-            rt.i18n().set_locale(LOCALES[s.locale]).expect("LOCALES are valid tags");
+            rt.i18n()
+                .set_locale(&LOCALES[s.locale])
+                .expect("LOCALES have formatting data");
         }
         self.applied = Some(s.clone());
     }
@@ -644,7 +646,10 @@ mod tests {
             egui::vec2(40.0, 40.0),
             egui::vec2(4000.0, 3000.0),
         ];
-        let rtl = LOCALES.iter().position(|l| *l == "ar-EG").expect("an RTL locale");
+        let rtl = LOCALES
+            .iter()
+            .position(|l| *l == egui_mineral::i18n::locale!("ar-EG"))
+            .expect("an RTL locale");
         let fresh = |locale, density, zoom| {
             let ctx = egui::Context::default();
             ctx.set_zoom_factor(zoom);

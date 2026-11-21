@@ -24,7 +24,7 @@ use crate::i18n::Direction;
 /// [`LocaleFormat`] backed by ICU4X and CLDR data.
 #[derive(Debug)]
 pub struct IcuFormat {
-    tag: String,
+    locale: super::Locale,
     direction: Direction,
     first_weekday: Weekday,
     hour_cycle: HourCycle,
@@ -178,12 +178,13 @@ fn names(tag: &str, prefs: DateTimeFormatterPreferences) -> Result<Names, I18nEr
 }
 
 impl IcuFormat {
-    /// Loads ICU4X data for BCP 47 `tag`; without baked data for it, CLDR root's.
+    /// Loads ICU4X data for `id`; without baked data for it, CLDR root's.
     ///
     /// # Errors
-    /// [`I18nError::Locale`] when `tag` does not parse or load, formats no digit or decimal separator,
+    /// [`I18nError::Locale`] when its data does not load, formats no digit or decimal separator,
     /// or has no numeric date pattern.
-    pub fn new(tag: &str) -> Result<Self, I18nError> {
+    pub fn new(id: &super::Locale) -> Result<Self, I18nError> {
+        let tag = &id.to_string();
         let locale = Locale::try_from_str(tag).map_err(|e| err(tag, e))?;
         let prefs: DateTimeFormatterPreferences = (&locale).into();
         let with_hc = |hc| {
@@ -255,7 +256,7 @@ impl IcuFormat {
         ];
 
         let mut this = Self {
-            tag: tag.to_owned(),
+            locale: id.clone(),
             direction,
             first_weekday,
             hour_cycle,
@@ -294,8 +295,8 @@ impl IcuFormat {
 }
 
 impl LocaleFormat for IcuFormat {
-    fn tag(&self) -> &str {
-        &self.tag
+    fn locale(&self) -> &super::Locale {
+        &self.locale
     }
 
     fn direction(&self) -> Direction {
@@ -449,7 +450,7 @@ mod tests {
             ),
         ];
         for (locale, weekday, cycle, order, direction) in cases {
-            let f = IcuFormat::new(locale).unwrap();
+            let f = IcuFormat::new(&locale.parse().unwrap()).unwrap();
             assert_eq!(
                 (f.first_weekday(), f.hour_cycle(), f.date_order(), f.direction()),
                 (weekday, cycle, order, direction),
@@ -480,18 +481,23 @@ mod tests {
             ("fr-FR", "1.500", 1.5),
             ("en-US", "1,500.5", 1500.5),
         ] {
-            let f = IcuFormat::new(locale).unwrap();
+            let f = IcuFormat::new(&locale.parse().unwrap()).unwrap();
             assert_eq!(f.parse_number(text), Some(n), "{locale} {text}");
         }
-        let de = IcuFormat::new("de-DE").unwrap();
+        let de = IcuFormat::new(&crate::i18n::locale!("de-DE")).unwrap();
         assert_eq!(de.parse_number("1.23.4"), None);
         assert_eq!(de.grouping_separator(), Some('.'));
-        assert_eq!(IcuFormat::new("en-US").unwrap().grouping_separator(), Some(','));
+        assert_eq!(
+            IcuFormat::new(&crate::i18n::locale!("en-US"))
+                .unwrap()
+                .grouping_separator(),
+            Some(',')
+        );
     }
 
     #[test]
     fn out_of_range_arguments_are_total() {
-        let f = IcuFormat::new("en-US").unwrap();
+        let f = IcuFormat::new(&crate::i18n::locale!("en-US")).unwrap();
         assert_eq!(f.month_name(0, NameWidth::Wide), f.month_name(1, NameWidth::Wide));
         assert_eq!(f.month_name(40, NameWidth::Wide), f.month_name(12, NameWidth::Wide));
         assert_ne!(f.month_year(2024, -1), "");
@@ -502,7 +508,7 @@ mod tests {
 
     #[test]
     fn parse_date_accepts_years_one_to_9999() {
-        let f = IcuFormat::new("de-DE").unwrap();
+        let f = IcuFormat::new(&crate::i18n::locale!("de-DE")).unwrap();
         assert_eq!(f.parse_date("1.1.0001"), Date::new(1, 1, 1).ok());
         assert_eq!(f.parse_date("31.12.9999"), Date::new(9999, 12, 31).ok());
         assert_eq!(f.parse_date("1.1.0000"), None);

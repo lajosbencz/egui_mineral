@@ -172,7 +172,7 @@ fn theme(ui: &mut MaterialUi<'_>, shared: &mut Shared) {
     let mut locale = Some(s.locale);
     ui.mineral(
         Select::optional("set-locale", "Locale", &mut locale)
-            .items(LOCALES.into_iter().enumerate())
+            .items(LOCALES.iter().map(ToString::to_string).enumerate())
             .preferred_width(240.0),
     );
     if let Some(l) = locale {
@@ -543,7 +543,7 @@ fn locale(ui: &mut MaterialUi<'_>, s: &mut State) {
         .collect();
     let months: Vec<String> = (1..=12).map(|m| f.month_name(m, NameWidth::Wide)).collect();
     let rows: Vec<(&str, String)> = vec![
-        ("Tag", f.tag().to_owned()),
+        ("Locale", f.locale().to_string()),
         (
             "Direction",
             format!("{:?}{}", f.direction(), if rtl { " (UI mirrored)" } else { "" }),

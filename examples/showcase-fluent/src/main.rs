@@ -6,7 +6,7 @@ use egui::{CentralPanel, Color32, Key, KeyboardShortcut, Modifiers, Panel, scrol
 use egui_mineral_eframe::{EframeApp, MineralApp};
 use egui_mineral_fluent::{
     egui_mineral::{
-        i18n::{Catalog, messages},
+        i18n::messages,
         runtime::{InitError, Runtime},
     },
     prelude::*,
@@ -116,7 +116,7 @@ struct Shell {
 
 fn new_app(ctx: &egui::Context) -> Result<App, InitError> {
     let rt = Runtime::new(ctx, kit(ctx))?;
-    rt.i18n().add_resource(&Catalog::new("en-US", msg::SOURCE))?;
+    rt.i18n().add_resource(&msg::CATALOG)?;
     let shell = Shell {
         page: Page::Foundations,
         inspector: Inspector::default(),
@@ -155,7 +155,9 @@ impl Shell {
             kit.set_brand(ctx, *brand);
         }
         if self.applied.as_ref().is_none_or(|a| a.locale != s.locale) {
-            rt.i18n().set_locale(LOCALES[s.locale]).expect("LOCALES are valid tags");
+            rt.i18n()
+                .set_locale(&LOCALES[s.locale])
+                .expect("LOCALES have formatting data");
         }
         self.applied = Some(s.clone());
     }
@@ -201,7 +203,7 @@ impl Shell {
                 s.brand = (s.brand + 1) % brands.len();
             }
             if ui
-                .mineral(PushButton::new("locale", LOCALES[s.locale]).icon(icons::ICON_LOCAL_LANGUAGE))
+                .mineral(PushButton::new("locale", LOCALES[s.locale].to_string()).icon(icons::ICON_LOCAL_LANGUAGE))
                 .clicked()
             {
                 s.locale = (s.locale + 1) % LOCALES.len();
@@ -406,7 +408,10 @@ mod tests {
             egui::vec2(40.0, 40.0),
             egui::vec2(4000.0, 3000.0),
         ];
-        let rtl = LOCALES.iter().position(|l| *l == "ar-EG").expect("an RTL locale");
+        let rtl = LOCALES
+            .iter()
+            .position(|l| *l == egui_mineral_fluent::egui_mineral::i18n::locale!("ar-EG"))
+            .expect("an RTL locale");
         let fresh = |locale, high_contrast, zoom| {
             let ctx = egui::Context::default();
             ctx.set_zoom_factor(zoom);
