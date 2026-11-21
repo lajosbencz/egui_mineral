@@ -6,11 +6,11 @@ use egui::emath::Numeric;
 use egui_mineral::date::Date;
 #[cfg(feature = "extras")]
 use egui_mineral::form::Blank;
-use egui_mineral::form::{FieldCtx, FieldSpec, Form, FormFooter, FormResponse, FormUi};
+use egui_mineral::form::{FieldCtx, FieldSpec, Form, FormFooter, FormResponse, FormRow, FormUi, LabelSlot};
 #[cfg(feature = "extras")]
 use egui_mineral::range::RangeModel;
 use egui_mineral::select::{ItemKey, Selection};
-use egui_mineral::semantic::KeyedSalt;
+use egui_mineral::semantic::{self, KeySalt, KeyedSalt, Role, SemanticNode, StableId};
 use egui_mineral::widget::MineralUi;
 
 use crate::actions::PushButton;
@@ -49,6 +49,9 @@ impl<T> FormExt<T> for Form<'_, T> {
 /// Typed fields of a Material form; sealed. `build` adds the spec's required flag, help text and validators; a
 /// required field's label gets a `*`.
 pub trait FormUiExt: sealed::Sealed {
+    /// Title small heading of the fields that follow; a [`Role::Heading`] node keyed `<form salt>-<salt>`.
+    fn section(&mut self, salt: impl KeySalt, title: &str) -> egui::Response;
+
     /// [`TextField`]; masked and multi-row per [`FieldSpec::masked`] and [`FieldSpec::rows`]. Enter in a single
     /// row submits.
     fn text(
@@ -110,6 +113,11 @@ pub trait FormUiExt: sealed::Sealed {
 }
 
 impl FormUiExt for FormUi<'_, '_, Material> {
+    fn section(&mut self, salt: impl KeySalt, title: &str) -> egui::Response {
+        let key = StableId::of(self.form_salt(), salt);
+        self.row(FormRow::Section, |ui, _| heading(ui, key, title))
+    }
+
     fn text(
         &mut self,
         salt: impl Into<KeyedSalt>,
@@ -119,8 +127,10 @@ impl FormUiExt for FormUi<'_, '_, Material> {
     ) -> egui::Response {
         self.field(salt, &build(FieldSpec::new(label)), value, |ui, f| {
             let (error, label) = decor(ui, f);
+            let visible = own_label(f);
             let spec = f.spec();
             let mut tf = TextField::new(f.salt(), label, f.value())
+                .label_visible(visible)
                 .masked(spec.is_masked())
                 .rows(spec.row_count())
                 .maybe_error(error);
@@ -150,15 +160,18 @@ impl FormUiExt for FormUi<'_, '_, Material> {
     ) -> egui::Response {
         self.field(salt, &build(FieldSpec::new(label)), value, |ui, f| {
             let (error, label) = decor(ui, f);
+            let visible = own_label(f);
             let spec = f.spec();
             let has_error = error.is_some();
             let salt = f.salt();
             let rt = ui.rt();
             let (response, changed, lost_focus) = ui
                 .scope(|ui| {
-                    let r = rt
-                        .ui(ui)
-                        .mineral(CheckButton::new(salt, label, f.value()).maybe_error(error));
+                    let r = rt.ui(ui).mineral(
+                        CheckButton::new(salt, label, f.value())
+                            .maybe_error(error)
+                            .label_visible(visible),
+                    );
                     if let Some(h) = spec.supporting_text().filter(|_| !has_error) {
                         let t = rt.tokens();
                         parts::type_label(ui, h, m::SUPPORTING_FONT, t.role(m::SUPPORTING_COLOR), 0);
@@ -181,9 +194,11 @@ impl FormUiExt for FormUi<'_, '_, Material> {
     ) -> egui::Response {
         self.field(salt, &build(FieldSpec::new(label)), value, |ui, f| {
             let (error, label) = decor(ui, f);
+            let visible = own_label(f);
             let spec = f.spec();
             let options = options.into_iter().map(|(k, l)| (k, l.into()));
             let mut select = Select::optional(f.salt(), label, f.value())
+                .label_visible(visible)
                 .items(options)
                 .maybe_error(error);
             if let Some(h) = spec.supporting_text() {
@@ -205,9 +220,11 @@ impl FormUiExt for FormUi<'_, '_, Material> {
     ) -> egui::Response {
         self.field(salt, &build(FieldSpec::new(label)), value, |ui, f| {
             let (error, label) = decor(ui, f);
+            let visible = own_label(f);
             let spec = f.spec();
             let options = options.into_iter().map(|(k, l)| (k, l.into()));
             let mut select = Select::multi(f.salt(), label, f.value())
+                .label_visible(visible)
                 .items(options)
                 .maybe_error(error);
             if let Some(h) = spec.supporting_text() {
@@ -228,8 +245,10 @@ impl FormUiExt for FormUi<'_, '_, Material> {
     ) -> egui::Response {
         self.field(salt, &build(FieldSpec::new(label)), value, |ui, f| {
             let (error, label) = decor(ui, f);
+            let visible = own_label(f);
             let spec = f.spec();
             let mut picker = DatePicker::new(f.salt(), label, f.value())
+                .label_visible(visible)
                 .input_mode(DisplayMode::Input)
                 .maybe_error(error);
             if let Some(h) = spec.supporting_text() {
@@ -253,8 +272,11 @@ impl FormUiExt for FormUi<'_, '_, Material> {
         let range = range.into();
         self.field(salt, &build(FieldSpec::new(label)), value, |ui, f| {
             let (error, label) = decor(ui, f);
+            let visible = own_label(f);
             let spec = f.spec();
-            let mut field = crate::extras::NumberField::new(f.salt(), label, range, f.value()).maybe_error(error);
+            let mut field = crate::extras::NumberField::new(f.salt(), label, range, f.value())
+                .maybe_error(error)
+                .label_visible(visible);
             if let Some(h) = spec.supporting_text() {
                 field = field.supporting(h);
             }
@@ -263,6 +285,33 @@ impl FormUiExt for FormUi<'_, '_, Material> {
             r.into_response()
         })
     }
+}
+
+// Title small, as a form grid section.
+pub(crate) fn heading(ui: &mut MineralUi<'_, Material>, key: StableId, title: &str) -> egui::Response {
+    let color = ui.tokens().color.on_surface_variant;
+    let g = parts::type_wrapped(
+        ui.painter(),
+        title,
+        crate::spec::TypeScale::TitleSmall,
+        color,
+        ui.available_width(),
+        0,
+    );
+    let width = ui.available_width();
+    let (rect, r) = ui.allocate_exact_size(egui::vec2(width, g.size().y), egui::Sense::hover());
+    let x = ui.i18n().direction().start_x(rect, egui::Rangef::new(0.0, g.size().x));
+    ui.painter()
+        .galley(egui::pos2(x, rect.top()), g, egui::Color32::PLACEHOLDER);
+    semantic::emit(ui.ctx(), Some(r.id), r.rect, || {
+        SemanticNode::new(key, Role::Heading, title)
+    });
+    r
+}
+
+// Material has no horizontal field layout: a label column falls back to the field's own label.
+fn own_label<V: ?Sized>(f: &FieldCtx<'_, V>) -> bool {
+    f.label_slot() != LabelSlot::External
 }
 
 // Shown error text and the label, starred when required.

@@ -1,9 +1,9 @@
 use egui::emath::Numeric;
 use egui_mineral::date::Date;
-use egui_mineral::form::{Blank, FieldCtx, FieldSpec, Form, FormFooter, FormResponse, FormUi};
+use egui_mineral::form::{Blank, FieldCtx, FieldSpec, Form, FormFooter, FormResponse, FormRow, FormUi, LabelSlot};
 use egui_mineral::range::RangeModel;
 use egui_mineral::select::{ItemKey, Selection};
-use egui_mineral::semantic::KeyedSalt;
+use egui_mineral::semantic::{self, KeySalt, KeyedSalt, Role, SemanticNode, StableId};
 use egui_mineral::widget::MineralUi;
 
 use crate::Fluent;
@@ -42,6 +42,9 @@ impl<T> FormExt<T> for Form<'_, T> {
 /// Typed fields of a Fluent form, each control in a [`Field`] carrying its label, hint and error; sealed. `build`
 /// adds the spec's required flag, help text and validators.
 pub trait FormUiExt: sealed::Sealed {
+    /// `subtitle2` heading of the fields that follow; a [`Role::Heading`] node keyed `<form salt>-<salt>`.
+    fn section(&mut self, salt: impl KeySalt, title: &str) -> egui::Response;
+
     /// [`Input`], or a [`Textarea`] past one [`FieldSpec::rows`]; [`FieldSpec::masked`] makes it a password input.
     /// Enter in an [`Input`] submits.
     fn text(
@@ -102,6 +105,11 @@ pub trait FormUiExt: sealed::Sealed {
 }
 
 impl FormUiExt for FormUi<'_, '_, Fluent> {
+    fn section(&mut self, salt: impl KeySalt, title: &str) -> egui::Response {
+        let key = StableId::of(self.form_salt(), salt);
+        self.row(FormRow::Section, |ui, _| heading(ui, key, title))
+    }
+
     fn text(
         &mut self,
         salt: impl Into<KeyedSalt>,
@@ -151,8 +159,11 @@ impl FormUiExt for FormUi<'_, '_, Fluent> {
     ) -> egui::Response {
         self.field(salt, &build(FieldSpec::new(label)), value, |ui, f| {
             let label = f.spec().label();
-            let r = wrapped(ui, f, false, |ui, salt, checked, _| {
-                ui.mineral(Checkbox::new(salt, label, checked)).into_response()
+            // In a label column the column carries the label, not the box.
+            let own = f.label_slot() == LabelSlot::Own;
+            let r = wrapped(ui, f, !own, |ui, salt, checked, _| {
+                ui.mineral(Checkbox::new(salt, label, checked).label_visible(own))
+                    .into_response()
             });
             pick(f, &r);
             r
@@ -258,6 +269,7 @@ fn wrapped<V: ?Sized>(
     if labeled {
         field = field.label(spec.label());
     }
+    field = field.placed(f.label_slot());
     if let Some(h) = spec.supporting_text() {
         field = field.hint(h);
     }
@@ -266,6 +278,26 @@ fn wrapped<V: ?Sized>(
     }
     let value = f.value();
     field.show(ui, |ui, cx| control(ui, salt, value, cx)).inner
+}
+
+// Fluent Subtitle2, as a form grid section.
+pub(crate) fn heading(ui: &mut MineralUi<'_, Fluent>, key: StableId, title: &str) -> egui::Response {
+    use crate::{FluentExt as _, spec::ColorToken::ColorNeutralForeground1, typography::TypeRamp};
+    let color = ui.tokens().color(ColorNeutralForeground1);
+    let mut job = egui::text::LayoutJob::single_section(title.to_owned(), TypeRamp::Subtitle2.format(ui.ctx(), color));
+    job.wrap.max_width = ui.available_width();
+    let galley = ui.painter().layout_job(job);
+    let width = ui.available_width();
+    let (rect, r) = ui.allocate_exact_size(egui::vec2(width, galley.size().y), egui::Sense::hover());
+    let x = ui
+        .i18n()
+        .direction()
+        .start_x(rect, egui::Rangef::new(0.0, galley.size().x));
+    ui.painter().galley(egui::pos2(x, rect.top()), galley, color);
+    semantic::emit(ui.ctx(), Some(r.id), r.rect, || {
+        SemanticNode::new(key, Role::Heading, title)
+    });
+    r
 }
 
 // A pick commits the field, as a blur does for text.

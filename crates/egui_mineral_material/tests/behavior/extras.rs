@@ -10,7 +10,7 @@ use egui_mineral_material::{
     selection::{Menu, MenuItem},
 };
 
-use crate::support::{MineralHarness, SCREEN, dismissals, harness, render, render_directed};
+use crate::support::{MineralHarness, SCREEN, WIDE, dismissals, harness, render, render_directed};
 use egui_mineral_material::{spec::ColorRole, text_inputs::Elide};
 
 #[test]
@@ -467,7 +467,7 @@ fn status_item_with_tabular_figures_keeps_its_text_and_place() {
 fn form_grid_aligns_controls_past_the_widest_label() {
     use egui_mineral_material::{extras::FormGrid, text_inputs::TextField};
     let mut h = harness(
-        SCREEN,
+        WIDE,
         (String::new(), String::new()),
         |ui, (a, b): &mut (String, String)| {
             FormGrid::new("g").show(ui, |g| {
@@ -492,6 +492,46 @@ fn form_grid_aligns_controls_past_the_widest_label() {
     );
     assert_eq!(h.node("g-conn").role, egui_mineral::semantic::Role::Heading);
     assert_eq!(h.node("db-field").name, "Database name", "the label names the control");
+}
+
+#[test]
+fn form_grid_stacks_labels_above_controls_when_narrow() {
+    use egui_mineral_material::{extras::FormGrid, text_inputs::TextField};
+    let mut a = String::new();
+    let p = render(|ui| {
+        FormGrid::new("g").show(ui, |g| {
+            g.row("Host", |ui, label| {
+                ui.mineral(TextField::new("host", label, &mut a).label_visible(false))
+            });
+        });
+    });
+    let (label, field) = (p.text("Host"), p.rect("host-field"));
+    assert!(label.bottom() <= field.top(), "label above the control");
+    assert!((label.left() - field.left()).abs() < 1.0, "one start edge");
+}
+
+#[test]
+fn form_grid_places_typed_form_fields_in_its_columns() {
+    use egui_mineral::form::{Form, FormState};
+    use egui_mineral_material::{extras::FormGrid, prelude::*};
+    let (mut state, mut value) = (FormState::default(), (String::new(), false));
+    let p = crate::support::render_on(WIDE, |ui| {
+        Form::new("f", &mut state, &mut value).show(ui, |f, v| {
+            FormGrid::new("g").show_form(f, |f| {
+                f.section("acct", "Account");
+                f.text("name", "Name", &mut v.0, |s| s.required(true));
+                f.check("terms", "Accept", &mut v.1, |s| s);
+            });
+        });
+    });
+    let (label, field) = (p.text("Name*"), p.rect("f-name-field"));
+    assert!(
+        label.right() < field.left(),
+        "the grid paints the label beside the field"
+    );
+    assert!(p.text("Accept").right() < p.rect("f-terms-checkbox").left());
+    assert_eq!(p.node("f-name-field").name, "Name*", "the field keeps its name");
+    assert_eq!(p.node("f-acct").role, egui_mineral::semantic::Role::Heading);
 }
 
 #[test]

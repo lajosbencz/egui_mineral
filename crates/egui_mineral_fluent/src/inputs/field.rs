@@ -190,9 +190,33 @@ impl Field {
             .map_or(0.0, |l| self.field_label(l).natural_width(ui))
     }
 
-    // `label_width` whose label column is `natural` wide.
-    pub(crate) fn label_share(ui: &MineralUi<'_, Fluent>, natural: f32) -> f32 {
-        natural + g::SPACING_HORIZONTAL_M + ui.spacing().item_spacing.x
+    // Gap from the label column to the control.
+    pub(crate) fn label_gap(ui: &MineralUi<'_, Fluent>) -> f32 {
+        g::SPACING_HORIZONTAL_M + ui.spacing().item_spacing.x
+    }
+
+    // Natural width of `label` as a field label.
+    #[cfg(feature = "extras")]
+    pub(crate) fn natural_label_width(ui: &MineralUi<'_, Fluent>, label: &str, required: bool) -> f32 {
+        Self::new("").label(label).required(required).label_natural_width(ui)
+    }
+
+    #[cfg(feature = "extras")]
+    pub(crate) fn row_label(&self) -> (String, bool) {
+        (self.label.clone().unwrap_or_default(), self.required)
+    }
+
+    // Applies a placement's label slot.
+    pub(crate) fn placed(mut self, slot: egui_mineral::form::LabelSlot) -> Self {
+        use egui_mineral::form::LabelSlot;
+        match slot {
+            LabelSlot::Column(w) => self.axis(Axis::Horizontal).label_width(w),
+            LabelSlot::External => {
+                self.label = None;
+                self
+            }
+            _ => self,
+        }
     }
 
     fn show_label(&self, ui: &mut MineralUi<'_, Fluent>, text: &str) {
@@ -295,7 +319,7 @@ impl Field {
                         .clamp(0.0, total);
                     ui.scope_builder(UiBuilder::new().layout(dir.row().with_cross_align(Align::Min)), |ui| {
                         if let Some(label) = &self.label {
-                            let column = (share - Self::label_share(&rt.ui(ui), 0.0)).max(0.0);
+                            let column = (share - Self::label_gap(&rt.ui(ui))).max(0.0);
                             ui.allocate_ui_with_layout(vec2(column, 0.0), dir.column(), |ui| {
                                 ui.set_min_width(column);
                                 self.show_label(&mut rt.ui(ui), label);

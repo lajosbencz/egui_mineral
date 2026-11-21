@@ -6,6 +6,7 @@ use egui_mineral_fluent::extras::{
 };
 
 use crate::support::{FluentHarness, FluentUi, harness};
+use egui_mineral::layout::StackBelow;
 
 fn pane(disabled: bool) -> impl FnMut(&mut FluentUi<'_>, &mut f32) {
     move |ui, fraction| {
@@ -264,7 +265,7 @@ fn command_palette_exposes_semantics_and_escape_dismisses() {
 #[test]
 fn form_grid_aligns_controls_past_the_widest_label() {
     let mut h = harness((String::new(), String::new()), |ui, (a, b)| {
-        FormGrid::new("g").show(ui, |g| {
+        FormGrid::new("g").stack_below(StackBelow::Never).show(ui, |g| {
             g.section("conn", "Connection");
             g.field(
                 egui_mineral_fluent::inputs::Field::new("host").label("Host"),
@@ -288,6 +289,52 @@ fn form_grid_aligns_controls_past_the_widest_label() {
         "full rows start at the edge"
     );
     assert_eq!(h.node("g-conn").role, egui_mineral::semantic::Role::Heading);
+}
+
+#[test]
+fn form_grid_stacks_fields_vertically_when_narrow() {
+    use egui_mineral_fluent::inputs::{Field, Input};
+    let mut h = harness(String::new(), |ui, a| {
+        FormGrid::new("g").show(ui, |g| {
+            g.field(Field::new("host").label("Host"), |ui, _| {
+                ui.mineral(Input::new("host", "Host", a))
+            });
+        });
+    });
+    h.run();
+    let (label, input) = (h.rect("host-label"), h.rect("host-input"));
+    assert!(label.bottom() <= input.top(), "label above the control");
+    assert!((label.left() - input.left()).abs() < 1.0, "one start edge");
+}
+
+#[test]
+fn form_grid_places_typed_form_fields_in_its_columns() {
+    use egui_mineral::form::{Form, FormState};
+    use egui_mineral_fluent::inputs::{FormExt, FormUiExt};
+    let mut h = harness(
+        (FormState::default(), (String::new(), false)),
+        |ui, (state, value): &mut (FormState, (String, bool))| {
+            Form::new("f", state, value).show(ui, |f, v| {
+                FormGrid::new("g").stack_below(StackBelow::Never).show_form(f, |f| {
+                    f.section("acct", "Account");
+                    f.text("name", "Name", &mut v.0, |s| s.required(true));
+                    f.check("terms", "Accept", &mut v.1, |s| s);
+                });
+            });
+        },
+    );
+    h.run();
+    let (input, check) = (h.rect("f-name-input"), h.rect("f-terms-checkbox"));
+    assert!(
+        h.rect("f-name-field-label").right() < input.left(),
+        "label beside the input"
+    );
+    assert!(
+        h.rect("f-terms-field-label").right() < check.left(),
+        "the column carries the checkbox label"
+    );
+    assert!((input.left() - check.left()).abs() < 1.0, "one control column");
+    assert_eq!(h.node("f-acct").role, egui_mineral::semantic::Role::Heading);
 }
 
 #[test]

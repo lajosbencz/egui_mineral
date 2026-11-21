@@ -195,6 +195,31 @@ impl<O> Deref for WidgetResponse<O> {
     }
 }
 
+/// Result of showing a control that carries its [`egui::Response`]; containers that label or wire controls
+/// they host take it.
+pub trait AsResponse {
+    /// Response of the control.
+    fn as_response(&self) -> &egui::Response;
+}
+
+impl AsResponse for egui::Response {
+    fn as_response(&self) -> &egui::Response {
+        self
+    }
+}
+
+impl<O> AsResponse for WidgetResponse<O> {
+    fn as_response(&self) -> &egui::Response {
+        &self.response
+    }
+}
+
+impl<R> AsResponse for egui::InnerResponse<R> {
+    fn as_response(&self) -> &egui::Response {
+        &self.response
+    }
+}
+
 /// Pointer and focus state of an element, read by stylekit state layers.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[non_exhaustive]

@@ -3,6 +3,7 @@
 //! and the footer through [`Form::show_with`]. [`FormState`] keeps only per-field meta state (dirty, touched,
 //! errors) and the submission; the values stay in `T`, so a submit hands back nothing to extract.
 
+mod placement;
 mod validators;
 
 use std::{borrow::Cow, collections::HashMap, sync::Arc};
@@ -17,6 +18,7 @@ use crate::{
     semantic::KeyedSalt,
     widget::MineralUi,
 };
+pub use placement::{FieldPlacement, FormRow, LabelSlot, PlaceRender};
 pub use validators::{MaxLength, MinLength, NumberRange, Required};
 
 /// Field or form error; [`Self::message`] resolves the text for display. Built with [`Self::new`] or
@@ -456,6 +458,7 @@ pub struct FieldCtx<'a, V: ?Sized> {
     state: &'a mut FieldState,
     refresh: bool,
     submit: bool,
+    label: LabelSlot,
 }
 
 impl<V: ?Sized> std::fmt::Debug for FieldCtx<'_, V> {
@@ -473,6 +476,11 @@ impl<'a, V: ?Sized> FieldCtx<'a, V> {
     /// Declaration of the field.
     pub fn spec(&self) -> &'a FieldSpec<V> {
         self.spec
+    }
+
+    /// Where the field shows its label; [`LabelSlot::Own`] outside a [`FieldPlacement`].
+    pub fn label_slot(&self) -> LabelSlot {
+        self.label
     }
 
     /// Bound value; call [`Self::changed`] after an edit.
@@ -522,6 +530,7 @@ pub struct FormUi<'u, 's, K> {
     locale: &'u dyn LocaleFormat,
     seen: Vec<Id>,
     submit: bool,
+    placement: Option<&'u mut dyn FieldPlacement<K>>,
 }
 
 crate::kit::opaque_debug!(FormUi<'_, '_, K>);
@@ -537,14 +546,50 @@ impl<'s, K> FormUi<'_, 's, K> {
         self.salt
     }
 
-    /// Field `salt` bound to `value`: `render` shows its input and reports edits through the [`FieldCtx`], then
-    /// `spec` validates the value of this pass.
+    /// Lays out the rows `add` places through `placement`, e.g. a kit form grid; fields keep their state.
+    pub fn placed<R>(
+        &mut self,
+        placement: &mut dyn FieldPlacement<K>,
+        add: impl FnOnce(&mut FormUi<'_, 's, K>) -> R,
+    ) -> R {
+        let mut nested = FormUi {
+            ui: &mut *self.ui,
+            salt: self.salt,
+            state: &mut *self.state,
+            locale: self.locale,
+            seen: std::mem::take(&mut self.seen),
+            submit: false,
+            placement: Some(placement),
+        };
+        let r = add(&mut nested);
+        let FormUi { seen, submit, .. } = nested;
+        self.seen = seen;
+        self.submit |= submit;
+        r
+    }
+
+    /// Non-field `row` laid out by the placement, e.g. a heading or content spanning the form; `add` shows it,
+    /// told where a [`FormRow::Field`] label goes.
+    pub fn row(
+        &mut self,
+        row: FormRow<'_>,
+        add: impl FnOnce(&mut MineralUi<'_, K>, LabelSlot) -> egui::Response,
+    ) -> egui::Response {
+        match self.placement.as_deref_mut() {
+            Some(p) => p.place(self.ui, row, Box::new(add)),
+            None => add(self.ui, LabelSlot::Own),
+        }
+    }
+
+    /// Field `salt` bound to `value`: `render` shows its input, in the ui and [`FieldCtx::label_slot`] the
+    /// placement gives it, and reports edits through the [`FieldCtx`]; then `spec` validates the value of this
+    /// pass.
     pub fn field<V: Blank + ?Sized>(
         &mut self,
         salt: impl Into<KeyedSalt>,
         spec: &FieldSpec<V>,
         value: &mut V,
-        render: impl FnOnce(&mut MineralUi<'s, K>, &mut FieldCtx<'_, V>) -> egui::Response,
+        render: impl FnOnce(&mut MineralUi<'_, K>, &mut FieldCtx<'_, V>) -> egui::Response,
     ) -> egui::Response {
         let salt = salt.into();
         let id = field_id(&salt);
@@ -557,8 +602,23 @@ impl<'s, K> FormUi<'_, 's, K> {
             state,
             refresh: false,
             submit: false,
+            label: LabelSlot::Own,
         };
-        let response = render(self.ui, &mut ctx);
+        let row = FormRow::Field {
+            label: spec.label(),
+            required: spec.is_required(),
+        };
+        let response = match self.placement.as_deref_mut() {
+            Some(p) => p.place(
+                self.ui,
+                row,
+                Box::new(|ui, slot| {
+                    ctx.label = slot;
+                    render(ui, &mut ctx)
+                }),
+            ),
+            None => render(self.ui, &mut ctx),
+        };
         let FieldCtx {
             value,
             state,
@@ -674,6 +734,7 @@ impl<'a, T> Form<'a, T> {
                 locale: locale.as_ref(),
                 seen: Vec::new(),
                 submit: false,
+                placement: None,
             };
             let inner = add(&mut form, self.value);
             let FormUi { seen, submit, .. } = form;

@@ -9,7 +9,7 @@ mod combobox;
 mod date_picker;
 mod dropdown;
 mod field;
-mod form;
+pub(crate) mod form;
 mod info_label;
 mod input;
 mod label;
