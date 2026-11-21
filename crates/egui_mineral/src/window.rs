@@ -1,8 +1,10 @@
 use egui::{
-    Frame, Id, LayerId, Margin, Rect, Sense, TextStyle, Ui, UiBuilder, Vec2, ViewportBuilder, ViewportId, pos2, vec2,
+    CursorIcon, Frame, Id, LayerId, Margin, Pos2, Rect, Response, Sense, TextStyle, Ui, UiBuilder, Vec2,
+    ViewportBuilder, ViewportCommand, ViewportId, pos2, vec2, viewport::ResizeDirection,
 };
 
 use crate::{
+    i18n::Direction,
     icon::Icon,
     input::Gesture,
     kit::paint::GlyphShape,
@@ -12,6 +14,113 @@ use crate::{
     semantic::{KeyedSalt, Role, SemanticNode, StableId},
     widget::{Availability, MineralUi},
 };
+
+// Points.
+const GRIP_PITCH: f32 = 4.0;
+
+/// Radius of a [`grip_dots`] dot, in points.
+pub const GRIP_DOT: f32 = 1.0;
+
+/// Viewport neither maximized nor fullscreen, so the platform can resize it.
+pub fn can_resize(ctx: &egui::Context) -> bool {
+    ctx.input(|i| {
+        let v = i.viewport();
+        v.maximized != Some(true) && v.fullscreen != Some(true)
+    })
+}
+
+/// Bottom corner at the reading end, where a status bar grip sits.
+pub const fn end_corner(dir: Direction) -> ResizeDirection {
+    match dir {
+        Direction::Ltr => ResizeDirection::SouthEast,
+        Direction::Rtl => ResizeDirection::SouthWest,
+    }
+}
+
+/// Resize handle over `rect` toward `toward`: hovering shows the resize cursor and a drag hands the resize
+/// of the viewport to the platform (`ViewportCommand::BeginResize`). `None` while it cannot resize
+/// ([`can_resize`]).
+pub fn resize_handle(ui: &Ui, rect: Rect, id: Id, toward: ResizeDirection) -> Option<Response> {
+    if !can_resize(ui.ctx()) {
+        return None;
+    }
+    let r = ui.interact(rect, id, Sense::DRAG);
+    if r.hovered() || r.dragged() {
+        ui.ctx().set_cursor_icon(resize_cursor(toward));
+    }
+    if r.drag_started() {
+        ui.ctx().send_viewport_cmd(ViewportCommand::BeginResize(toward));
+    }
+    Some(r)
+}
+
+/// Resize handles `width` points deep along every edge and corner of the viewport, for frameless windows;
+/// corners take `2 * width` along each edge. Nothing while it cannot resize.
+pub fn resize_border(ui: &Ui, id: Id, width: f32) {
+    use ResizeDirection as D;
+    let r = ui.ctx().viewport_rect();
+    let (w, c) = (width, 2.0 * width);
+    let (x, y) = (r.x_range(), r.y_range());
+    let edges = [
+        (
+            D::North,
+            Rect::from_x_y_ranges(x.min + c..=x.max - c, y.min..=y.min + w),
+        ),
+        (
+            D::South,
+            Rect::from_x_y_ranges(x.min + c..=x.max - c, y.max - w..=y.max),
+        ),
+        (D::West, Rect::from_x_y_ranges(x.min..=x.min + w, y.min + c..=y.max - c)),
+        (D::East, Rect::from_x_y_ranges(x.max - w..=x.max, y.min + c..=y.max - c)),
+        (D::NorthWest, Rect::from_min_max(r.min, r.min + vec2(c, c))),
+        (
+            D::NorthEast,
+            Rect::from_min_max(pos2(x.max - c, y.min), pos2(x.max, y.min + c)),
+        ),
+        (
+            D::SouthWest,
+            Rect::from_min_max(pos2(x.min, y.max - c), pos2(x.min + c, y.max)),
+        ),
+        (D::SouthEast, Rect::from_min_max(r.max - vec2(c, c), r.max)),
+    ];
+    for (toward, rect) in edges {
+        if resize_handle(ui, rect, id.with(("resize", toward as u8)), toward).is_none() {
+            return;
+        }
+    }
+}
+
+fn resize_cursor(toward: ResizeDirection) -> CursorIcon {
+    match toward {
+        ResizeDirection::North => CursorIcon::ResizeNorth,
+        ResizeDirection::South => CursorIcon::ResizeSouth,
+        ResizeDirection::East => CursorIcon::ResizeEast,
+        ResizeDirection::West => CursorIcon::ResizeWest,
+        ResizeDirection::NorthEast => CursorIcon::ResizeNorthEast,
+        ResizeDirection::SouthEast => CursorIcon::ResizeSouthEast,
+        ResizeDirection::NorthWest => CursorIcon::ResizeNorthWest,
+        ResizeDirection::SouthWest => CursorIcon::ResizeSouthWest,
+    }
+}
+
+/// Centers of a resize grip's dots, [`GRIP_DOT`] in radius, in the bottom corner of `rect` at the reading
+/// end: a 3x3 lower triangle on a 4-point pitch.
+pub fn grip_dots(rect: Rect, dir: Direction) -> impl Iterator<Item = Pos2> {
+    let inset = GRIP_PITCH / 2.0;
+    (0..3u8).flat_map(move |row| {
+        ((2 - row)..3).map(move |col| {
+            let (dx, dy) = (
+                f32::from(2 - col) * GRIP_PITCH + inset,
+                f32::from(2 - row) * GRIP_PITCH + inset,
+            );
+            let x = match dir {
+                Direction::Ltr => rect.right() - dx,
+                Direction::Rtl => rect.left() + dx,
+            };
+            pos2(x, rect.bottom() - dy)
+        })
+    })
+}
 
 /// Native viewport window description; shows contents in a separate OS window.
 #[derive(Clone, Debug)]
@@ -495,5 +604,78 @@ mod tests {
             });
         });
         assert_eq!(stack.keys(), &[2]);
+    }
+
+    fn begun(out: &egui::FullOutput) -> Vec<ResizeDirection> {
+        out.viewport_output
+            .get(&ViewportId::ROOT)
+            .into_iter()
+            .flat_map(|v| &v.commands)
+            .filter_map(|c| match c {
+                ViewportCommand::BeginResize(d) => Some(*d),
+                _ => None,
+            })
+            .collect()
+    }
+
+    // Drags from `at` and returns the resize directions sent.
+    fn drag<S>(h: &mut egui_kittest::Harness<'_, S>, at: Pos2) -> Vec<ResizeDirection> {
+        h.hover_at(at);
+        h.drag_at(at);
+        h.step();
+        let mut sent = begun(h.output());
+        for d in [6.0, 12.0] {
+            h.hover_at(at + vec2(d, d));
+            h.step();
+            sent.extend(begun(h.output()));
+        }
+        h.drop_at(at + vec2(12.0, 12.0));
+        h.run();
+        sent
+    }
+
+    fn set_window<S>(h: &mut egui_kittest::Harness<'_, S>, maximized: bool, fullscreen: bool) {
+        let info = h.input_mut().viewports.entry(ViewportId::ROOT).or_default();
+        info.maximized = Some(maximized);
+        info.fullscreen = Some(fullscreen);
+        h.run();
+    }
+
+    #[test]
+    fn resize_handles_hand_the_drag_to_the_platform_unless_maximized_or_fullscreen() {
+        let rect = Rect::from_min_size(pos2(10.0, 10.0), vec2(20.0, 20.0));
+        let mut h = crate::test_support::harness(
+            move |ui, shown: &mut bool| {
+                *shown = resize_handle(ui, rect, Id::unique("grip"), end_corner(Direction::Rtl)).is_some();
+            },
+            false,
+        );
+        h.run();
+        assert_eq!(drag(&mut h, rect.center()), vec![ResizeDirection::SouthWest]);
+        assert!(h.state().value);
+        for (maximized, fullscreen) in [(true, false), (false, true)] {
+            set_window(&mut h, maximized, fullscreen);
+            assert!(
+                !h.state().value,
+                "no handle at maximized {maximized}, fullscreen {fullscreen}"
+            );
+            assert_eq!(drag(&mut h, rect.center()), Vec::new());
+        }
+    }
+
+    #[test]
+    fn resize_border_covers_every_edge_and_corner() {
+        use ResizeDirection as D;
+        let mut h = crate::test_support::harness(|ui, (): &mut ()| resize_border(ui, Id::unique("border"), 4.0), ());
+        h.run();
+        let r = h.ctx.viewport_rect();
+        for (at, toward) in [
+            (r.left_center() + vec2(1.0, 0.0), D::West),
+            (r.left_top() + vec2(1.0, 1.0), D::NorthWest),
+            (r.center_bottom() - vec2(0.0, 1.0), D::South),
+            (r.right_top() + vec2(-1.0, 1.0), D::NorthEast),
+        ] {
+            assert_eq!(drag(&mut h, at), vec![toward]);
+        }
     }
 }

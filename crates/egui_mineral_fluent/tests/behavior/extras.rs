@@ -390,6 +390,17 @@ fn status_bar_tone_and_grip() {
         "{commands:?}"
     );
     h.drop_at(corner);
+    h.input_mut()
+        .viewports
+        .entry(egui::ViewportId::ROOT)
+        .or_default()
+        .maximized = Some(true);
+    h.run();
+    let (rect, end) = (h.rect("status-status-bar"), h.rect("status-0-status-item"));
+    assert!(
+        end.right() > rect.right() - rect.height(),
+        "maximized, the grip gives its corner back"
+    );
     assert_eq!(
         crate::support::render(|ui| bar(ui, false)).fills(TINT).len(),
         1,

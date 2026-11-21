@@ -97,7 +97,8 @@ impl<A: ActionValue> StatusBar<A> {
         self
     }
 
-    /// Window resize grip in the bottom corner at the reading end; a drag resizes the viewport. Default off.
+    /// Window resize grip in the bottom corner at the reading end ([`egui_mineral::window::resize_handle`]);
+    /// hidden while the window is maximized or fullscreen. Default off.
     pub fn grip(mut self, grip: bool) -> Self {
         self.grip = grip;
         self
@@ -171,7 +172,8 @@ impl<A: ActionValue> StatusBar<A> {
         );
 
         let content_of = |it: &StatusItem| t.tone(it.tone_kind()).map_or(bar_content, |c| c.1);
-        let grip_w = if self.grip { rect.height() } else { 0.0 };
+        let grip_on = self.grip && egui_mineral::window::can_resize(ui.ctx());
+        let grip_w = if grip_on { rect.height() } else { 0.0 };
         let grip = slot(rect, dir, true, 0.0, grip_w);
         let rect = slot(rect, dir, false, 0.0, rect.width() - grip_w);
         let mut galleys: Vec<_> = self
@@ -211,11 +213,11 @@ impl<A: ActionValue> StatusBar<A> {
                 clicked.clone_from(&self.items[i].2);
             }
         }
-        if self.grip {
-            egui_mineral::status::resize_grip(ui, grip, id.with("grip"));
-            for c in egui_mineral::status::grip_dots(grip.shrink(crate::adaptive::grid(1)), dir) {
+        if grip_on {
+            egui_mineral::window::resize_handle(ui, grip, id.with("grip"), egui_mineral::window::end_corner(dir));
+            for c in egui_mineral::window::grip_dots(grip.shrink(crate::adaptive::grid(1)), dir) {
                 ui.painter()
-                    .circle_filled(c, egui_mineral::status::GRIP_DOT, bar_content);
+                    .circle_filled(c, egui_mineral::window::GRIP_DOT, bar_content);
             }
         }
         semantic::emit(ui.ctx(), Some(response.id), response.rect, || {

@@ -1,62 +1,10 @@
 //! Status bar data: items a stylekit's status bar lays out with `kit::strip` and paints.
 
-use crate::tone::Tone;
-use egui::{CursorIcon, Id, Pos2, Rect, Response, Sense, ViewportCommand, pos2, viewport::ResizeDirection};
-
 use crate::{
-    i18n::Direction,
     icon::Icon,
     layout::{Elide, Fraction},
-    widget::MineralUi,
+    tone::Tone,
 };
-
-// Points.
-const GRIP_PITCH: f32 = 4.0;
-
-/// Window resize grip over `rect`, at the reading end of a status bar: a drag hands the resize of the viewport
-/// to the platform toward the bottom end corner. The kit paints [`grip_dots`].
-pub fn resize_grip<K>(ui: &MineralUi<'_, K>, rect: Rect, id: Id) -> Response {
-    let r = ui.interact(rect, id, Sense::DRAG);
-    let rtl = ui.i18n().direction() == Direction::Rtl;
-    if r.hovered() || r.dragged() {
-        ui.ctx().set_cursor_icon(if rtl {
-            CursorIcon::ResizeSouthWest
-        } else {
-            CursorIcon::ResizeSouthEast
-        });
-    }
-    if r.drag_started() {
-        let corner = if rtl {
-            ResizeDirection::SouthWest
-        } else {
-            ResizeDirection::SouthEast
-        };
-        ui.ctx().send_viewport_cmd(ViewportCommand::BeginResize(corner));
-    }
-    r
-}
-
-/// Centers of a [`resize_grip`]'s dots, [`GRIP_DOT`] in radius, in the bottom corner of `rect` at the
-/// reading end: a 3x3 lower triangle on a 4-point pitch.
-pub fn grip_dots(rect: Rect, dir: Direction) -> impl Iterator<Item = Pos2> {
-    let inset = GRIP_PITCH / 2.0;
-    (0..3u8).flat_map(move |row| {
-        ((2 - row)..3).map(move |col| {
-            let (dx, dy) = (
-                f32::from(2 - col) * GRIP_PITCH + inset,
-                f32::from(2 - row) * GRIP_PITCH + inset,
-            );
-            let x = match dir {
-                Direction::Ltr => rect.right() - dx,
-                Direction::Rtl => rect.left() + dx,
-            };
-            pos2(x, rect.bottom() - dy)
-        })
-    })
-}
-
-/// Radius of a [`grip_dots`] dot, in points.
-pub const GRIP_DOT: f32 = 1.0;
 
 /// Progress indicator of a [`StatusItem`]: the fraction done, `None` for indeterminate.
 #[derive(Clone, Copy, Debug, PartialEq)]
