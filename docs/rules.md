@@ -31,6 +31,7 @@ Other files cite them as `docs/rules.md rule N`.
    Dependencies must be GPL-3.0 compatible (`deny.toml` allow list).
    No GPL-2.0-only, EPL, CDDL, SSPL.
 9. The core never requires Tokio, because it lacks full wasm32-unknown-unknown support, and never starts or owns a runtime.
+   `egui_mineral_mcp` needs Tokio (rmcp, axum) and is native only; apps run its server future on their executor.
    Apps supply a `Spawner`: their own, or a core adapter (`spawn::ThreadSpawner`, or opt-in over their executor: `spawn-tokio`, `spawn-wasm`).
 10. Library code never panics, whatever the input:
     caller arguments, layout sizes, text, pointer, key and AccessKit input, agent requests, app data that changes between frames, persisted state, timing. 

@@ -74,6 +74,8 @@ clippy:
     # eframe needs a renderer, and winit a Linux windowing backend
     cargo hack clippy -p egui_mineral_eframe --feature-powerset --at-least-one-of glow,wgpu --at-least-one-of wayland,x11 --all-targets -- -D warnings
     cargo hack clippy -p egui_mineral_eframe --feature-powerset --at-least-one-of glow,wgpu --target wasm32-unknown-unknown -- -D warnings
+    # Native only: Tokio networking
+    cargo clippy -p egui_mineral_mcp --all-targets -- -D warnings
     cargo clippy --workspace --all-targets --all-features -- -D warnings
     cargo clippy -p showcase-material --target wasm32-unknown-unknown -- -D warnings
     cargo clippy -p showcase-fluent --target wasm32-unknown-unknown -- -D warnings
@@ -141,7 +143,7 @@ doc:
     done
 
 # Published crates; their READMEs are generated from the crate docs
-readme_crates := "egui_mineral egui_mineral_material egui_mineral_macros egui_mineral_eframe"
+readme_crates := "egui_mineral egui_mineral_material egui_mineral_macros egui_mineral_eframe egui_mineral_mcp"
 
 # Regenerates the crate READMEs from their `lib.rs` docs (intra-doc links: docs/blockers.md)
 readme:
@@ -153,7 +155,7 @@ readme-check:
 
 # Unverified: verification resolves sibling crates from crates.io, which lacks unreleased APIs. Dirty: runs before committing.
 package:
-    cargo package --no-verify --allow-dirty -p egui_mineral -p egui_mineral_macros -p egui_mineral_material -p egui_mineral_eframe
+    cargo package --no-verify --allow-dirty -p egui_mineral -p egui_mineral_macros -p egui_mineral_material -p egui_mineral_eframe -p egui_mineral_mcp
 
 # Published crates share 0.MINOR (MAJOR from 1.0); the pinned toolchain is the workspace MSRV
 versions-check:
@@ -229,7 +231,7 @@ api-diff base head="HEAD" release="false":
         git show "$1:crates/$2/Cargo.toml" | awk '/^\[features\]/ { f = 1; next } /^\[/ { f = 0 } f && /^[a-z0-9_-]+ *=/ { print $1 }' \
             | grep -v '^unstable' | grep -vx default | sort
     }
-    for crate in egui_mineral egui_mineral_material egui_mineral_eframe; do
+    for crate in egui_mineral egui_mineral_material egui_mineral_eframe egui_mineral_mcp; do
     base="{{ base }}"
     if [ "{{ release }}" = true ]; then
         base=$(git describe --tags --abbrev=0 --match "$crate-v*" "{{ base }}" 2>/dev/null || echo "{{ base }}")

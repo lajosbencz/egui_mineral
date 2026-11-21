@@ -1,0 +1,28 @@
+[package]
+name = "egui_mineral_mcp"
+description = "MCP server for egui_mineral apps: agents snapshot the semantic tree and act on widgets over Streamable HTTP"
+version = "0.7.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords = ["egui", "mcp", "agent", "accessibility", "testing"]
+categories.workspace = true
+
+[dependencies]
+egui_mineral.workspace = true
+egui.workspace = true
+rmcp.workspace = true
+axum.workspace = true
+tokio = { workspace = true, features = ["net"] }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["io-util", "rt", "time"] }
+
+[lints]
+workspace = true

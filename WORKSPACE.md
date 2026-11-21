@@ -11,6 +11,7 @@ app  ->  egui_mineral_material (opinionated MD3 stylekit)
 | [`crates/egui_mineral`](crates/egui_mineral) | yes | Headless core |
 | [`crates/egui_mineral_macros`](crates/egui_mineral_macros) | yes | `#[derive(Route)]` |
 | [`crates/egui_mineral_eframe`](crates/egui_mineral_eframe) | yes | eframe adapter: owns the runtime, runs the app's pass |
+| [`crates/egui_mineral_mcp`](crates/egui_mineral_mcp) | yes | MCP server over the agent API (Streamable HTTP, Tokio) |
 | [`crates/egui_mineral_material`](crates/egui_mineral_material) | yes | Material Design 3 stylekit |
 | [`crates/egui_mineral_fluent`](crates/egui_mineral_fluent) | no | Fluent stylekit |
 | [`examples/showcase-material`](examples/showcase-material) | no | Demo of features, Material |

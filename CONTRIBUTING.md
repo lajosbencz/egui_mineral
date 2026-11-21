@@ -21,6 +21,7 @@ The tooling is the styleguide, CI runs all of it:
 | [docs/rules.md](docs/rules.md) | Hard rules and their enforcement |
 | [docs/conventions.md](docs/conventions.md) | API shape, naming, components, i18n, keyboard, accessibility |
 | [docs/testing.md](docs/testing.md) | What to test, harnesses, test rules |
+| [docs/agents.md](docs/agents.md) | Agent API, snapshot formats, MCP server |
 | [docs/workspace.md](docs/workspace.md) | Layers, crates |
 | [docs/blockers.md](docs/blockers.md) | Gaps blocked upstream |
 | [docs/divergences.md](docs/divergences.md) | Deliberate divergences from stylekit specs |

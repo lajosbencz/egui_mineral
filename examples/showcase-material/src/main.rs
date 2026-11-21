@@ -57,7 +57,10 @@ struct Shell {
 fn new_app(ctx: &egui::Context) -> Result<App, Box<dyn std::error::Error + Send + Sync>> {
     let rt = Runtime::new(ctx, Material::from_icon_fonts(ICON_FONTS.fonts()))?;
     #[cfg(not(target_arch = "wasm32"))]
-    let executor = tokio::runtime::Builder::new_multi_thread().enable_time().build()?;
+    let executor = tokio::runtime::Builder::new_multi_thread()
+        .enable_io()
+        .enable_time()
+        .build()?;
     #[cfg(not(target_arch = "wasm32"))]
     let spawner = Arc::new(AppSpawner::new(executor.handle().clone()));
     #[cfg(target_arch = "wasm32")]
@@ -67,6 +70,8 @@ fn new_app(ctx: &egui::Context) -> Result<App, Box<dyn std::error::Error + Send 
         o.zoom_with_keyboard = false;
         o.quit_shortcuts.clear();
     });
+    #[cfg(not(target_arch = "wasm32"))]
+    serve_mcp(&rt, &spawner);
     let (bus, mut handle) = Bus::<Cmd, Evt>::new(ctx);
     spawner.spawn_future(async move {
         while let Some(cmd) = handle.commands.next().await {
@@ -118,6 +123,31 @@ fn new_app(ctx: &egui::Context) -> Result<App, Box<dyn std::error::Error + Send 
         _executor: executor,
     };
     Ok(EframeApp::new(rt, shell))
+}
+
+// `MINERAL_MCP_TOKEN` enables the endpoint; `MINERAL_MCP_ADDR` defaults to 127.0.0.1:7878.
+#[cfg(not(target_arch = "wasm32"))]
+fn serve_mcp(rt: &Arc<Rt>, spawner: &AppSpawner) {
+    let Ok(token) = std::env::var("MINERAL_MCP_TOKEN") else {
+        return;
+    };
+    let addr = std::env::var("MINERAL_MCP_ADDR").unwrap_or_else(|_| "127.0.0.1:7878".to_owned());
+    let server = match egui_mineral_mcp::Server::new(Arc::clone(rt), token) {
+        Ok(s) => s,
+        Err(e) => return tracing::warn!("MCP disabled: {e}"),
+    };
+    spawner.spawn_future(async move {
+        let outcome = match tokio::net::TcpListener::bind(&addr).await {
+            Ok(listener) => {
+                tracing::info!("MCP at http://{addr}/mcp");
+                server.serve(listener).await
+            }
+            Err(e) => Err(e),
+        };
+        if let Err(e) = outcome {
+            tracing::warn!("MCP on {addr}: {e}");
+        }
+    });
 }
 
 impl Shell {

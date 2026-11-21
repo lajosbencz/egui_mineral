@@ -195,13 +195,17 @@ impl SemanticTree {
         self.nodes.iter().find(|n| n.id.key() == key)
     }
 
-    /// First node with `key` followed by its descendants.
-    pub fn subtree(&self, key: &str) -> Option<&[SemanticNode]> {
+    /// First node with `key` and its descendants, as a tree rooted at that node.
+    pub fn subtree(&self, key: &str) -> Option<SemanticTree> {
         let start = self.nodes.iter().position(|n| n.id.key() == key)?;
         let depth = self.nodes.get(start)?.depth;
         let rest = self.nodes.get(start + 1..).unwrap_or_default();
         let len = rest.iter().position(|n| n.depth <= depth).unwrap_or(rest.len());
-        self.nodes.get(start..=start + len)
+        let nodes = self.nodes.get(start..=start + len)?.iter().cloned().map(|mut n| {
+            n.depth -= depth;
+            n
+        });
+        Some(SemanticTree { nodes: nodes.collect() })
     }
 }
 
@@ -543,7 +547,8 @@ mod tests {
         let depths: Vec<_> = tree.nodes.iter().map(|n| (n.id.key(), n.depth)).collect();
         assert_eq!(depths, [("trigger", 0), ("option", 1)]);
         let sub = tree.subtree("trigger").expect("subtree");
-        assert_eq!(sub.len(), 2, "the trigger and its popup");
+        let keys: Vec<_> = sub.nodes.iter().map(|n| (n.id.key(), n.depth)).collect();
+        assert_eq!(keys, [("trigger", 0), ("option", 1)], "the trigger and its popup");
     }
 
     #[test]
