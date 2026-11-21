@@ -26,7 +26,7 @@ Module map, config, commands and release. Overview: [WORKSPACE.md](../WORKSPACE.
 | [`crates/egui_mineral_fluent/src`](../crates/egui_mineral_fluent/src) | `Fluent` stylekit (`Rt`, `FluentExt`: tokens, light/dark/system preference, high contrast, brand ramp), `theme` (`Tokens`, `Scheme`, `Elevation`, `Radius`), `typography` (`TypeRamp`, Fluent typographyStyles), `fonts` (icon font, `install_semibold`), `icon`/`icons` (generated Fluent UI System Icons consts), `catalog` (feature `unstable-catalog`), `spec` (feature `unstable-spec`: generated v9 `tokens` and hand-ported `defaults` from the `use*Styles.styles.ts` files), `prelude` |
 | [`crates/egui_mineral_fluent/src/{actions,inputs,feedback,surfaces,navigation,data}`](../crates/egui_mineral_fluent/src) | Components by Fluent 2 category |
 | [`crates/egui_mineral_fluent/src/widget`](../crates/egui_mineral_fluent/src/widget) | Private shared internals (focus indicator, shadows, state ramps, vocabulary `Size`, `IconPosition`, `ButtonAppearance`) |
-| [`tools/fluent_tokens`](../tools/fluent_tokens) | Fluent token and icon generator: `fetch.sh` vendors fluentui and fluentui-system-icons at pinned SHAs, the binary writes `spec/tokens` and `icons.rs` |
+| [`tools/fluent_tokens`](../tools/fluent_tokens) | Fluent token and icon generator: `fetch.sh` fetches fluentui and fluentui-system-icons at the SHAs in `PIN` (gitignored), the binary writes `spec/tokens` and `icons.rs` |
 
 ## Config
 

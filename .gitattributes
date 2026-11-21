@@ -1,6 +1,4 @@
-crates/egui_mineral_material/src/spec/generated/** linguist-generated=true
-tools/md3_tokens/vendor/** linguist-vendored=true
+crates/egui_mineral_material/src/spec/tokens/** linguist-generated=true
+crates/egui_mineral_material/src/icons.rs linguist-generated=true
 crates/egui_mineral_fluent/src/spec/tokens/** linguist-generated=true
-tools/fluent_tokens/vendor/** linguist-vendored=true
-tools/fluent_tokens/vendor-icons/** linguist-vendored=true
 crates/egui_mineral_fluent/src/icons.rs linguist-generated=true

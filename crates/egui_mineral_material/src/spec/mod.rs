@@ -12,8 +12,8 @@
 //! [`ElevationLevel`], easings as [`CubicBezier`](egui_mineral::motion::CubicBezier).
 //!
 //! [`tokens`] comes from `tools/md3_tokens` at androidx commit [`tokens::SOURCE_COMMIT`]; do not edit it.
-//! Regenerate with `tools/md3_tokens/fetch.sh [sha]` (vendors the sources) and
-//! `cargo run -p md3_tokens -- generate` (offline, deterministic). The token sources are Apache-2.0
+//! Regenerate with `just spec`: it fetches the sources pinned in `tools/md3_tokens/PIN`, then runs the offline,
+//! deterministic generator; `tools/md3_tokens/fetch.sh <sha>` re-pins. The token sources are Apache-2.0
 //! (The Android Open Source Project); see `NOTICE` and `LICENSE-APACHE`.
 #![cfg_attr(
     not(feature = "unstable-spec"),

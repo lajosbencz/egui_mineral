@@ -2,7 +2,7 @@
 //!
 //! Also generates its `icons` module from the vendored Fluent UI System Icons codepoint map.
 //!
-//! `fetch.sh [sha] [icons-sha]` vendors the sources into `vendor/<sha>/` and `vendor-icons/<icons-sha>/`;
+//! `fetch.sh` fetches the sources at the commits in `PIN` into `vendor/<sha>/` and `vendor-icons/<icons-sha>/`;
 //! `generate` is offline and deterministic.
 
 mod emit;

@@ -128,6 +128,8 @@ jobs:
         run: just spec-build
       - if: ${{ github.event_name != 'push' }}
         run: just spec
+        env:
+          GH_TOKEN: ${{ github.token }}
 
   # `just api-targets`: one cell per published crate and docs.rs target
   api-targets:

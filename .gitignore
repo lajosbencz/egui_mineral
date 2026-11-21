@@ -32,3 +32,6 @@ desktop.ini
 /examples/showcase-fluent/dist
 /examples/showcase-material/dist
 /examples/showcase-fluent/dist
+/tools/md3_tokens/vendor
+/tools/fluent_tokens/vendor
+/tools/fluent_tokens/vendor-icons

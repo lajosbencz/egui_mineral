@@ -1,5 +1,5 @@
 [files]
-extend-exclude = ["tools/fluent_tokens/vendor", "tools/fluent_tokens/vendor-icons", "crates/egui_mineral_fluent/src/icons.rs", "crates/egui_mineral_material/src/icons.rs"]
+extend-exclude = ["crates/egui_mineral_fluent/src/icons.rs", "crates/egui_mineral_material/src/icons.rs"]
 
 [default.extend-identifiers]
 Writeable = "Writeable"

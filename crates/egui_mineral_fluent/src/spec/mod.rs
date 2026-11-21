@@ -11,9 +11,9 @@
 //! [`Color32`](egui::Color32), easings as [`CubicBezier`](egui_mineral::motion::CubicBezier), shadows as [`Shadow`].
 //!
 //! [`tokens`] comes from `tools/fluent_tokens` at microsoft/fluentui commit [`tokens::SOURCE_COMMIT`]; do not edit
-//! it. Regenerate with `tools/fluent_tokens/fetch.sh [sha]` (vendors the sources, including the component style
-//! files `defaults` cites) and `cargo run -p fluent_tokens -- generate` (offline, deterministic). The sources are
-//! MIT (Microsoft Corporation); see `NOTICE`.
+//! it. Regenerate with `just spec`: it fetches the sources pinned in `tools/fluent_tokens/PIN`, including the
+//! component style files `defaults` cites, then runs the offline, deterministic generator;
+//! `tools/fluent_tokens/fetch.sh <sha>` re-pins. The sources are MIT (Microsoft Corporation); see `NOTICE`.
 #![cfg_attr(
     not(feature = "unstable-spec"),
     doc = "",

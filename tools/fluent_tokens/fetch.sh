@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Vendors the Fluent UI React v9 token sources and component style files at a microsoft/fluentui commit
-# into vendor/<sha>/, and the Fluent UI System Icons resizable font's codepoint map at a
-# microsoft/fluentui-system-icons commit into vendor-icons/<sha>/ with the font in the crate's assets/,
-# replacing any previous pins. Usage: fetch.sh [sha] [icons-sha]  (default: current head of each).
+# Fetches the Fluent UI React v9 token sources and component style files at the microsoft/fluentui commit in
+# PIN into vendor/<sha>/, and the Fluent UI System Icons resizable font's codepoint map at the
+# microsoft/fluentui-system-icons commit in PIN into vendor-icons/<sha>/ (both gitignored) with the font in the
+# crate's assets/, replacing any other commits. Usage: fetch.sh [sha|latest] [icons-sha|latest]  (arguments
+# re-pin, a missing icons-sha keeps its pin; without arguments present pinned dirs are kept).
 # Needs gh (authenticated) and curl.
 set -euo pipefail
 
@@ -11,9 +12,21 @@ icons_repo=microsoft/fluentui-system-icons
 icons_font=FluentSystemIcons-Resizable
 here=$(cd "$(dirname "$0")" && pwd)
 assets=$here/../../crates/egui_mineral_fluent/assets
+pin() { sed -n "s/^$1=//p" "$here/PIN"; }
+fluentui=$(pin fluentui)
+icons=$(pin icons)
 
-sha=${1:-$(gh api "repos/$repo/commits/master" --jq .sha)}
-icons_sha=${2:-$(gh api "repos/$icons_repo/commits/main" --jq .sha)}
+if [[ $# -eq 0 && -d $here/vendor/$fluentui && -d $here/vendor-icons/$icons ]]; then
+    exit 0
+fi
+resolve() {
+    case $1 in
+        latest) gh api "repos/$2/commits/$3" --jq .sha ;;
+        *) echo "$1" ;;
+    esac
+}
+sha=$(resolve "${1:-$fluentui}" "$repo" master)
+icons_sha=$(resolve "${2:-$icons}" "$icons_repo" main)
 for s in "$sha" "$icons_sha"; do
     if [[ ! $s =~ ^[0-9a-f]{40}$ ]]; then
         echo "not a full commit sha: $s" >&2
@@ -51,5 +64,6 @@ mkdir -p "$here/vendor" "$here/vendor-icons" "$assets"
 mv "$tmp/$sha" "$here/vendor/$sha"
 mv "$tmp/icons/$icons_sha/$icons_font.ttf" "$assets/$icons_font.ttf"
 mv "$tmp/icons/$icons_sha" "$here/vendor-icons/$icons_sha"
-echo "vendored $(wc -l <"$tmp/tokens") token files and $(wc -l <"$tmp/styles") style files at $sha"
-echo "vendored $icons_font at $icons_repo@$icons_sha"
+printf '%s\nfluentui=%s\nicons=%s\n' "$(head -1 "$here/PIN")" "$sha" "$icons_sha" >"$here/PIN"
+echo "fetched $(wc -l <"$tmp/tokens") token files and $(wc -l <"$tmp/styles") style files at $sha"
+echo "fetched $icons_font at $icons_repo@$icons_sha"

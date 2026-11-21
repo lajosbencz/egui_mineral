@@ -217,10 +217,12 @@ minimal-versions:
     trap 'cp "$lock" Cargo.lock; rm -f "$lock"' EXIT
     cargo +{{ nightly_version }} check --workspace --all-features -Z direct-minimal-versions
 
-# Regenerates the MD3 and Fluent specs and the Material Symbols icons; fails when it changed (non-blocking in CI)
+# Fetches the pinned sources, regenerates the MD3 and Fluent specs and the Material Symbols icons; fails when it changed (non-blocking in CI)
 spec:
     #!/usr/bin/env bash
     set -euo pipefail
+    tools/md3_tokens/fetch.sh
+    tools/fluent_tokens/fetch.sh
     cargo run -p md3_tokens -- generate
     cargo run -p fluent_tokens -- generate
     cargo run -p material_symbols -- generate

@@ -1,6 +1,6 @@
 //! Generates `egui_mineral_material`'s `spec::tokens` modules from the vendored Compose Material3 token sources.
 //!
-//! `fetch.sh [sha]` vendors the sources into `vendor/<sha>/`; `generate` is offline and deterministic.
+//! `fetch.sh` fetches the sources at the commit in `PIN` into `vendor/<sha>/`; `generate` is offline and deterministic.
 
 mod emit;
 mod kotlin;
