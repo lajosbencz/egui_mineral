@@ -126,7 +126,8 @@ jobs:
   align:
     name: Align breaking versions
     needs: pr
-    if: ${{ needs.pr.outputs.pr != '' }}
+    # The implicit success() fails on the skipped `release` upstream of `pr`.
+    if: ${{ !cancelled() && needs.pr.result == 'success' && needs.pr.outputs.pr != '' }}
     permissions: {}
     # actionlint does not parse `$/` yet.
     uses: ./.github/workflows/release-align.yml # zizmor: ignore[self-repository]
