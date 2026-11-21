@@ -62,8 +62,11 @@ jobs:
     name: Pages
     needs: gate
     if: ${{ needs.gate.outputs.release == 'true' }}
+    # The ceiling for every job of pages.yml, its skipped workflow_dispatch deploy included; each job narrows it.
     permissions:
       contents: read
+      pages: write
+      id-token: write
     # actionlint does not parse `$/` yet.
     uses: ./.github/workflows/pages.yml # zizmor: ignore[self-repository]
 
