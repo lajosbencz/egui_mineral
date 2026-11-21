@@ -354,7 +354,7 @@ impl Indicator {
                     self.content_width,
                     motion::DEFAULT_SPATIAL,
                 ),
-                primary::ACTIVE_INDICATOR_SHAPE,
+                t.shape.follow_extra_small(primary::ACTIVE_INDICATOR_SHAPE),
             ),
             TabsVariant::Secondary => (tab_w, egui::CornerRadius::ZERO),
         };

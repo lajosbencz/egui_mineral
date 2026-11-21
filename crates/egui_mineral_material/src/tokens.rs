@@ -62,6 +62,24 @@ impl Default for Shape {
     }
 }
 
+impl Shape {
+    // A radius the spec fixes (Compose RoundedCornerShape(n.dp)), scaled by `extra_small` over its 4dp default:
+    // the default theme paints `spec`, a sharper or rounder scale carries it along.
+    pub(crate) fn follow_extra_small(&self, spec: egui::CornerRadius) -> egui::CornerRadius {
+        let base = u16::from(corner(ShapeScale::ExtraSmall)).max(1);
+        let scale = |r: u8| {
+            let v = (u16::from(r) * u16::from(self.extra_small) + base / 2) / base;
+            u8::try_from(v).unwrap_or(u8::MAX)
+        };
+        egui::CornerRadius {
+            nw: scale(spec.nw),
+            ne: scale(spec.ne),
+            sw: scale(spec.sw),
+            se: scale(spec.se),
+        }
+    }
+}
+
 fn corner(scale: ShapeScale) -> u8 {
     #[expect(clippy::cast_possible_truncation, clippy::cast_sign_loss, reason = "clamped to u8")]
     scale
@@ -284,5 +302,21 @@ impl Tokens {
             spread: 0,
             color: self.color.shadow.gamma_multiply(0.25),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fixed_spec_radii_follow_the_extra_small_step() {
+        let spec = egui::CornerRadius::same(3);
+        let mut shape = Shape::default();
+        assert_eq!(shape.follow_extra_small(spec), spec, "default theme paints the spec");
+        shape.extra_small = 8;
+        assert_eq!(shape.follow_extra_small(spec), egui::CornerRadius::same(6));
+        shape.extra_small = 0;
+        assert_eq!(shape.follow_extra_small(spec), egui::CornerRadius::ZERO);
     }
 }

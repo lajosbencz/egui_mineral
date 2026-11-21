@@ -351,15 +351,15 @@ fn advance_check(rt: &crate::Rt, id: Id, m: &mut CheckMotion, state: Check) -> [
 }
 
 // Compose drawBox
-fn paint_box(p: &egui::Painter, bx: Rect, colors: CheckColors) {
-    let r = CornerRadius::from(cbx::RADIUS);
+fn paint_box(p: &egui::Painter, bx: Rect, colors: CheckColors, shape: &crate::tokens::Shape) {
+    let r = shape.follow_extra_small(CornerRadius::from(cbx::RADIUS));
     if colors.fill == colors.border {
         p.rect_filled(bx, r, colors.fill);
     } else {
         let w = cbx::STROKE_WIDTH;
         p.rect_filled(
             bx.shrink(w),
-            CornerRadius::from((cbx::RADIUS - w).max(0.0)),
+            CornerRadius::from((f32::from(r.nw) - w).max(0.0)),
             colors.fill,
         );
         p.rect_stroke(bx, r, Stroke::new(w, colors.border), StrokeKind::Inside);
@@ -446,7 +446,7 @@ pub(crate) fn paint_checkbox(
     );
     let [draw, gravity] = check_motion(rt, id, state);
     let bx = Rect::from_center_size(center, Vec2::splat(cbx::BOX_SIZE));
-    paint_box(ui.painter(), bx, colors);
+    paint_box(ui.painter(), bx, colors, &t.shape);
     paint_check(ui.painter(), bx, draw, gravity, colors.mark);
 }
 
