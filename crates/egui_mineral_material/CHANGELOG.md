@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral_material-v0.7.0...egui_mineral_material-v0.8.0) - 2026-11-21
+
+### Added
+
+- *(core)* [**breaking**] AgentHandle::snapshot returns the SemanticTree, act_then_snapshot returns the tree after the UI reacted, NotFound lists similar keys, and Runtime::viewports lists viewports; SemanticTree serializes as nested JSON.
+- *(core)* [**breaking**] semantic tree nests by egui's widget hierarchy, widget parts and popup owners, replacing emit_parent and hand-set depth; containers emit with their Ui id so AccessKit gets their roles, and tree items carry level.
+- *(material)* field tooltip setter, NumberField leading icon, container_color on TreeView and ListItem.
+
+### Other
+
+- drop comments that restate code and the stale speedup figure; keep invariants, quirks and spec pointers.
+- [**breaking**] Steps<K>, Stepper<K> and Tour<K> key flows by app values like Selection<K>; step labels, responses and the bound tour step carry keys, not indices.
+- *(core)* [**breaking**] typed i18n::Locale replaces locale strings in I18n, Localizer, LocaleFormat and both formats; locale! checks tags at compile time and messages! emits msg::CATALOG tagged by its file name.
+- *(material)* [**breaking**] Menu::show binds open: &mut bool like every click-anchored popup, so apps can open it from code; hover and context popups keep internal state.
+- [**breaking**] Stylekit::chrome_icon(ChromeIcon) replaces the window_close shape hook; core paints the kit's glyph or its vector cross, both kits supply their close/dismiss icon.
+- [**breaking**] both kits build with new() or from_icon_fonts(fonts) plus with_icons(IconSet) and with_* start values; Material::set_density takes the Context and repaints.
+- *(core)* [**breaking**] forms take numbers (Blank for numeric primitives, NumberRange over Numeric, kit FormUiExt::number), Form::check becomes Form::rule, FormState::field/field_mut, CheckError is opaque and finish_submit takes per-field errors.
+- [**breaking**] NumberField, ValueSlider and Fluent Slider and SpinButton bind any emath::Numeric with typed format closures; core adds RangeModel::for_numeric and range::to_numeric.
+- *(core)* [**breaking**] forms bind the app's value: Form<T> fields bind &mut V parts through the kits' FormUiExt with typed Validator<V>s and Fn(&T) rules, FormState keeps only meta state; FieldValue, FormValues, FieldKind and FieldOption are removed.
+- *(core)* [**breaking**] CommandPalette and StatusBar pair entries with typed values (action/actions, trailing_action), ActionKey, Clicked and the item key setters are removed, and the action docs describe typed actions.
+- *(material)* [**breaking**] Menu, MenuStrip, SplitButton, Dialog, FullScreenDialog, ButtonGroup, FabMenu and Breadcrumbs report typed item values; submenus move to Menu::submenu, default_action takes a value, MenuPath is removed.
+- *(material)* [**breaking**] icon and text action collections pair each action with a typed app value (app bar, toolbars, tree view, alert, rich tooltip, snackbar), reported as clicked: Option<A> and ItemResponses<A, T> keyed by value.
+- *(core)* [**breaking**] roving focus takes focus::Items (count plus enabled) instead of loose len/enabled, kit::menubar::adjacent steps toward a layout::Edge, and kit::scroll::page takes named PageBars.
+- *(core)* [**breaking**] SortState is opaque behind column/by/clear/cycle so it can grow multi-column sort, and kit::command_palette::Shortcuts is a non_exhaustive builder.
+- *(material)* [**breaking**] drop the root and prelude SelectionResponse re-exports; the core prelude already provides it.
+- [**breaking**] value-keyed ids and agent keys for every value collection with one ItemKey bound, typed Combobox/Carousel/TransferList bindings, kit modules renamed off core names, and typed Form values (FieldValue, FormValues, checkbox/select/date kinds).
+- [**breaking**] bindings are new/optional/multi with item(value, x) builders, accordions, lists and tables key state by app keys (table::Rows<K>), and Material Combobox/Search report values; adds #[derive(KeySalt)], Fluent FormExt, own dnd/child responses and constructors for non_exhaustive ComboList, PullInput, Surroundings and OverflowItem.
+- [**breaking**] selection groups bind item values through kit::choice::Choice and return a generic SelectionResponse<K>; index binding, bound constructors and stale-index clamping are removed.
+- [**breaking**] non_exhaustive on growth-prone enums and configs, Fluent tokens only under spec, KeyKind agent kinds checked at compile time, DockedToolbar/FloatingToolbar constructors, EframeApp::show removed.
+
 ## [0.7.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral_material-v0.6.0...egui_mineral_material-v0.7.0) - 2026-11-20
 
 ### Added

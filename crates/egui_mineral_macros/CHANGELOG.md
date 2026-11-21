@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral_macros-v0.7.0...egui_mineral_macros-v0.8.0) - 2026-11-21
+
+### Other
+
+- drop comments that restate code and the stale speedup figure; keep invariants, quirks and spec pointers.
+- *(core)* [**breaking**] typed i18n::Locale replaces locale strings in I18n, Localizer, LocaleFormat and both formats; locale! checks tags at compile time and messages! emits msg::CATALOG tagged by its file name.
+- [**breaking**] value-keyed ids and agent keys for every value collection with one ItemKey bound, typed Combobox/Carousel/TransferList bindings, kit modules renamed off core names, and typed Form values (FieldValue, FormValues, checkbox/select/date kinds).
+- [**breaking**] bindings are new/optional/multi with item(value, x) builders, accordions, lists and tables key state by app keys (table::Rows<K>), and Material Combobox/Search report values; adds #[derive(KeySalt)], Fluent FormExt, own dnd/child responses and constructors for non_exhaustive ComboList, PullInput, Surroundings and OverflowItem.
+
 ## [0.7.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral_macros-v0.6.0...egui_mineral_macros-v0.7.0) - 2026-11-20
 
 ### Other
