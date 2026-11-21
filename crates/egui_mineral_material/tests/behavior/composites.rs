@@ -204,20 +204,32 @@ fn split_pane_divider_moves_by_key() {
 }
 
 #[test]
-fn collapsed_split_pane_expands_on_enter() {
+fn split_pane_collapses_either_pane_by_enter_and_expands_on_double_click() {
     use egui_mineral::splitter::Pane;
-    let mut h = still(WIDE, Some(Pane::Second), |ui, collapsed| {
-        let r = SplitPane::new("sp", "Panes")
-            .collapse(*collapsed)
-            .show(ui, |ui| ui.label("A"), |ui| ui.label("B"));
-        if r.reset {
-            *collapsed = None;
+    for pane in [Pane::First, Pane::Second] {
+        let mut h = still(WIDE, (None::<Pane>, 0u32), move |ui, (collapsed, resets)| {
+            let r = SplitPane::new("sp", "Panes")
+                .collapse(*collapsed)
+                .collapsible(Some(pane))
+                .show(ui, |ui| ui.label("A"), |ui| ui.label("B"));
+            if let Some(c) = r.collapse {
+                *collapsed = c.state();
+            }
+            *resets += u32::from(r.reset);
+        });
+        let handle = h.widget("sp-splitter");
+        h.ctx.memory_mut(|m| m.request_focus(handle));
+        h.press(Key::Enter);
+        assert_eq!(h.state().value, (Some(pane), 0), "Enter collapses {pane:?}");
+        let at = h.rect("sp-splitter").center();
+        h.hover_at(at);
+        for _ in 0..2 {
+            h.drag_at(at);
+            h.drop_at(at);
         }
-    });
-    let handle = h.widget("sp-splitter");
-    h.ctx.memory_mut(|m| m.request_focus(handle));
-    h.press(Key::Enter);
-    assert_eq!(h.state().value, None);
+        h.run();
+        assert_eq!(h.state().value, (None, 1), "a double click expands and resets");
+    }
 }
 
 #[test]

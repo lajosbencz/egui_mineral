@@ -22,6 +22,26 @@ pub enum Pane {
     Second,
 }
 
+/// Change of a [`Splitter`]'s collapse state the user asked for; the app stores [`Self::state`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum CollapseRequest {
+    /// Collapse this pane.
+    Collapse(Pane),
+    /// Show both panes.
+    Expand,
+}
+
+impl CollapseRequest {
+    /// Value for [`Splitter::collapse`].
+    pub const fn state(self) -> Option<Pane> {
+        match self {
+            Self::Collapse(p) => Some(p),
+            Self::Expand => None,
+        }
+    }
+}
+
 /// Two-pane splitter behavior (drag, keyboard, fraction); paints nothing, the stylekit draws the handle.
 #[derive(Clone, Debug)]
 #[must_use = "call .show(..)"]
@@ -38,6 +58,7 @@ pub struct Splitter {
     jump: Option<f64>,
     disabled: bool,
     collapse: Option<Pane>,
+    collapsible: Option<Pane>,
 }
 
 /// Result of [`Splitter::show`]; `handle_rect` and `hit_rect` for painting.
@@ -56,8 +77,13 @@ pub struct SplitterResponse<A, B> {
     pub hit_rect: Rect,
     /// Share of the split length before the handle; persisted per id, kept while a pane is collapsed.
     pub fraction: Fraction,
-    /// Enter on the focused handle or a double click restored [`Splitter::default_fraction`] this pass.
+    /// Double click, or Enter without [`Splitter::collapsible`], restored [`Splitter::default_fraction`] this
+    /// pass.
     pub reset: bool,
+    /// Collapse change the user asked for this pass, to store and pass back to [`Splitter::collapse`]: Enter
+    /// on a [`Splitter::collapsible`] handle toggles its pane, a drag or double click on a collapsed handle
+    /// expands.
+    pub collapse: Option<CollapseRequest>,
 }
 
 impl Splitter {
@@ -76,14 +102,22 @@ impl Splitter {
             jump: None,
             disabled: false,
             collapse: None,
+            collapsible: None,
         }
     }
 
     /// Collapses `pane` to nothing, past its minimum, and puts the handle at that edge; `None` shows both.
-    /// The collapsed pane's closure still runs, invisible. Drags and arrow keys are ignored while collapsed;
-    /// Enter and double click report [`SplitterResponse::reset`], so the app can expand.
+    /// The collapsed pane's closure still runs, invisible and disabled. Arrow keys are ignored while collapsed;
+    /// a drag or double click asks to expand ([`SplitterResponse::collapse`]), the drag moving the split.
     pub fn collapse(mut self, pane: Option<Pane>) -> Self {
         self.collapse = pane;
+        self
+    }
+
+    /// Enter on the focused handle collapses `pane` and restores it (APG window splitter), reported in
+    /// [`SplitterResponse::collapse`]; default none, Enter resets the split.
+    pub fn collapsible(mut self, pane: Option<Pane>) -> Self {
+        self.collapsible = pane;
         self
     }
 
@@ -158,17 +192,34 @@ impl Splitter {
         range
     }
 
-    // Keys, double click and AccessKit from `v`; whether Enter or double click reset it.
-    fn input(&self, core: &crate::runtime::Core, handle: &Response, range: &RangeModel, v: f32) -> (f64, bool) {
+    // Keys, double click and AccessKit from `v`: the fraction, whether it reset, and a collapse request.
+    fn input(
+        &self,
+        core: &crate::runtime::Core,
+        handle: &Response,
+        range: &RangeModel,
+        v: f32,
+    ) -> (f64, bool, Option<CollapseRequest>) {
         let mut v = f64::from(v);
         if self.disabled {
-            return (v, false);
+            return (v, false, None);
         }
         let ctx = core.ctx();
-        let reset = handle.double_clicked()
-            || handle.has_focus() && ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
-        if reset {
-            return (f64::from(self.default_fraction.get()), true);
+        let enter = handle.has_focus() && ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
+        if enter && let Some(pane) = self.collapsible {
+            let toggled = if self.collapse.is_some() {
+                CollapseRequest::Expand
+            } else {
+                CollapseRequest::Collapse(pane)
+            };
+            return (v, false, Some(toggled));
+        }
+        let expand = self.collapse.is_some().then_some(CollapseRequest::Expand);
+        if handle.double_clicked() || enter {
+            return (f64::from(self.default_fraction.get()), true, expand);
+        }
+        if handle.drag_started() && expand.is_some() {
+            return (v, false, expand);
         }
         if self.collapse.is_none() {
             if handle.has_focus() {
@@ -178,7 +229,7 @@ impl Splitter {
                 v = n;
             }
         }
-        (v, false)
+        (v, false, None)
     }
 
     /// Lays out both panes and the handle in the available rect; drag, keys and AccessKit move the split.
@@ -227,7 +278,12 @@ impl Splitter {
         } else {
             Sense::click_and_drag()
         };
-        let handle = ui.interact(span(fraction, gap), id.with("handle"), sense);
+        let shown = |fraction: f32| match self.collapse {
+            Some(Pane::First) => 0.0,
+            Some(Pane::Second) => 1.0,
+            None => fraction,
+        };
+        let handle = ui.interact(span(shown(fraction), gap), id.with("handle"), sense);
         if !self.disabled && (handle.hovered() || handle.dragged()) {
             ui.ctx().set_cursor_icon(if horizontal {
                 CursorIcon::ResizeColumn
@@ -239,22 +295,15 @@ impl Splitter {
             let along = if horizontal { dir.mirror_x(p.x, rect) } else { p.y } - gap / 2.0;
             fraction = range.snap(f64::from((along - lo) / total.max(1.0))) as f32;
         }
-        let (v, reset) = self.input(
-            rt.core(),
-            &handle,
-            &range,
-            if self.collapse.is_some() { stored } else { fraction },
-        );
+        // A drag on a collapsed handle expands it, the split following the pointer.
+        let dragging = handle.dragged() && (self.collapse.is_none() || handle.drag_started());
+        let (v, reset, collapse) = self.input(rt.core(), &handle, &range, if dragging { fraction } else { stored });
         fraction = range.snap(v) as f32;
         if fraction.to_bits() != stored.to_bits() {
             ui.data_mut(|d| d.insert_persisted(id, fraction));
         }
 
-        let shown = match self.collapse {
-            Some(Pane::First) => 0.0,
-            Some(Pane::Second) => 1.0,
-            None => fraction,
-        };
+        let shown = shown(fraction);
         let h = span(shown, self.handle);
         let slot = span(shown, gap);
         let (r1, r2) = if horizontal {
@@ -291,6 +340,7 @@ impl Splitter {
             hit_rect: slot,
             fraction: Fraction::new(fraction),
             reset,
+            collapse,
         }
     }
 }
@@ -562,5 +612,120 @@ mod tests {
         h.state_mut().value.0 = None;
         h.run();
         assert!(h.state().value.1.width() > 100.0, "expands to the kept fraction");
+    }
+
+    struct Split {
+        collapse: Option<super::Pane>,
+        handle: Rect,
+        first: Rect,
+        fraction: f32,
+        resets: u32,
+        button: Option<egui::Id>,
+    }
+
+    fn split(
+        collapsible: Option<super::Pane>,
+        start: Option<super::Pane>,
+    ) -> egui_kittest::Harness<'static, crate::test_support::Run<Split>> {
+        harness(
+            move |ui, out: &mut Split| {
+                let mut button = None;
+                let r = Splitter::new("s", "Split")
+                    .collapse(out.collapse)
+                    .collapsible(collapsible)
+                    .show(
+                        ui,
+                        |ui| {
+                            let rect = Rect::from_min_size(ui.max_rect().min, egui::vec2(20.0, 20.0));
+                            button = Some(ui.interact(rect, ui.scope_id().with("b"), egui::Sense::click()).id);
+                            ui.max_rect()
+                        },
+                        |_| (),
+                    );
+                if let Some(c) = r.collapse {
+                    out.collapse = c.state();
+                }
+                (out.handle, out.first, out.fraction, out.button) =
+                    (r.response.rect, r.first, r.fraction.get(), button);
+                out.resets += u32::from(r.reset);
+            },
+            Split {
+                collapse: start,
+                handle: Rect::NOTHING,
+                first: Rect::NOTHING,
+                fraction: 0.0,
+                resets: 0,
+                button: None,
+            },
+        )
+    }
+
+    #[test]
+    fn enter_toggles_a_collapsible_pane_and_keeps_the_split() {
+        let mut h = split(Some(super::Pane::Second), None);
+        h.run();
+        h.key_press(egui::Key::Tab);
+        h.run();
+        h.key_press(egui::Key::Enter);
+        h.run();
+        assert_eq!(h.state().value.collapse, Some(super::Pane::Second));
+        assert_eq!(h.state().value.fraction, 0.5);
+        h.key_press(egui::Key::Enter);
+        h.run();
+        assert_eq!(
+            (h.state().value.collapse, h.state().value.resets),
+            (None, 0),
+            "restores, no reset"
+        );
+    }
+
+    #[test]
+    fn a_collapsed_handle_sits_at_the_edge_and_expands_on_drag_or_double_click() {
+        let mut h = split(None, Some(super::Pane::First));
+        h.run();
+        let (handle, edge) = (h.state().value.handle, h.state().value.first.left());
+        assert!(
+            handle.left() <= edge + 0.5,
+            "hit zone at the edge, not at the kept fraction"
+        );
+        let at = handle.center();
+        h.hover_at(at);
+        h.drag_at(at);
+        h.hover_at(at + egui::vec2(100.0, 0.0));
+        h.hover_at(at + egui::vec2(200.0, 0.0));
+        h.drop_at(at + egui::vec2(200.0, 0.0));
+        h.run();
+        let s = &h.state().value;
+        assert_eq!(s.collapse, None, "the drag expands");
+        assert!(
+            (s.first.right() - (at.x + 200.0)).abs() < 30.0,
+            "the split follows the pointer: {:?}",
+            s.first
+        );
+        h.state_mut().value.collapse = Some(super::Pane::First);
+        h.run();
+        let at = h.state().value.handle.center();
+        h.hover_at(at);
+        for _ in 0..2 {
+            h.drag_at(at);
+            h.drop_at(at);
+        }
+        h.run();
+        assert_eq!((h.state().value.collapse, h.state().value.resets), (None, 1));
+    }
+
+    #[test]
+    fn collapsing_a_pane_takes_focus_out_of_it() {
+        let mut h = split(None, None);
+        h.run();
+        h.key_press(egui::Key::Tab);
+        h.key_press(egui::Key::Tab);
+        h.run();
+        let button = h.state().value.button;
+        assert_eq!(h.ctx.memory(egui::Memory::focused), button, "the button holds focus");
+        h.state_mut().value.collapse = Some(super::Pane::First);
+        h.run();
+        h.run();
+        assert_ne!(h.ctx.memory(egui::Memory::focused), button);
     }
 }

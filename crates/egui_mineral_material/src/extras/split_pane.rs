@@ -63,10 +63,16 @@ impl SplitPane {
         self
     }
 
-    /// Collapses `pane` and puts the divider at that edge; `None` shows both. Enter or a double click on the
-    /// divider reports [`SplitterResponse::reset`], e.g. to expand. See [`Splitter::collapse`].
+    /// Collapses `pane` and puts the divider at that edge; `None` shows both. A drag or double click on the
+    /// collapsed divider asks to expand in [`SplitterResponse::collapse`]. See [`Splitter::collapse`].
     pub fn collapse(mut self, pane: Option<Pane>) -> Self {
         self.inner = self.inner.collapse(pane);
+        self
+    }
+
+    /// Enter on the focused divider collapses `pane` and restores it; see [`Splitter::collapsible`].
+    pub fn collapsible(mut self, pane: Option<Pane>) -> Self {
+        self.inner = self.inner.collapsible(pane);
         self
     }
 
