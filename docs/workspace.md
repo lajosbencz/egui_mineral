@@ -54,12 +54,13 @@ The [`justfile`](../justfile) is the single source of the checks; [`ci.yml`](../
 | `check-docs` | `doc` (doctests, rustdoc, docs.rs build from each crate's `[package.metadata.docs.rs]`), `readme-check`, `package`, `versions-check` (shared breaking version, toolchain channel equals `rust-version`), `fmt`, `hotpatch-guard`, `minimal-versions` |
 | `hygiene` | typos, deny, ast-grep, machete, workflow lints (`just workflows`: actionlint and zizmor; actionlint is a sha-checked binary pinned in the justfile, not on crates.io) |
 | `spec` | non-blocking: regenerated spec must not change |
-| `api-diff <base> [head] [release]` | PRs only: fails on removed or changed public API unless the crate's breaking version rises; `release=true` (release-plz PRs) takes each crate's base from its last `<crate>-v*` tag |
+| `api-diff <base> [head] [release]` | PRs only: `api-diff-one` per `api-targets` line (published crate x docs.rs target, a CI matrix cell each); fails on removed or changed public API unless the crate's breaking version rises; `release=true` (release-plz PRs) takes each crate's base from its last `<crate>-v*` tag |
+| `published` | published crates (no `publish = false`), the list `readme`, `package`, `versions-check` and `bump-breaking` use |
 | `showcases [public_url]` | release trunk build of both showcases, as Pages deploys them |
 
 Pins live in the justfile (`*_version`, `nightly_version`), outside Dependabot. The nightly is the one the docs.rs build, `minimal-versions` and `api-diff` use: at least a week old, bump it by hand after `just doc` and `just api-diff` pass. Crate READMEs (`crates/*/README.md`) are generated from their `lib.rs` docs: edit the docs, then `just readme`.
 
-CI verifies pull requests; ci.yml on master only builds (clippy, test, docs, the spec generators, rustdoc JSON), when manifests, lockfile, toolchain, `justfile` or the workflow change, to save the per-job caches pull requests restore. `showcases.yml` does the same for the trunk builds when `crates/` or `examples/` change. Hygiene runs on pull requests and weekly, the one scheduled job.
+CI verifies pull requests; ci.yml on master only builds (clippy, test, docs, the spec generators, rustdoc JSON), when manifests, lockfile, toolchain, `justfile` or the workflow change, to save the per-job caches pull requests restore. `showcases.yml` does the same for the trunk builds when `crates/` or `examples/` change. Hygiene runs on pull requests and weekly, the one scheduled job. A merged release PR publishes (`release-plz.yml`), builds Pages alongside and deploys it after a successful publish, then refreshes the release PR; `release-align.yml` raises the other crates' breaking versions on it and rewrites its description to match.
 
 Not in CI: `cargo bench -p egui_mineral`, `cargo run -p showcase-material`, `cargo run -p showcase-fluent` (F12: inspector), `just hotpatch` (showcase-material under `dx` with `egui_mineral/unstable-hotpatch`: edits inside UI functions apply live, struct layout changes need a restart; any app can pass that feature to `dx serve --hotpatch` on the command line).
 

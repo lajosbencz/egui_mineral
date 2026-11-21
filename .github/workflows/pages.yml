@@ -1,17 +1,12 @@
 name: Pages
 
-# The showcases track the released crates; release-plz publishes one release per crate with the App token, so each triggers this.
+# The showcases track the released crates: the release workflow builds them while it publishes and deploys after it.
+# workflow_dispatch builds and deploys by hand.
 on:
-  release:
-    types: [published]
+  workflow_call:
   workflow_dispatch:
 
 permissions: {}
-
-concurrency:
-  group: pages
-  # A multi-crate release publishes several releases in a row: the last one builds.
-  cancel-in-progress: true
 
 env:
   CARGO_TERM_COLOR: always
@@ -52,9 +47,14 @@ jobs:
         with:
           path: site
 
+  # Mirrors the release workflow's Pages deploy.
   deploy:
     name: Deploy
     needs: build
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

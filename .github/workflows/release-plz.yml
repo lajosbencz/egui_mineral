@@ -57,9 +57,41 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ steps.app.outputs.token }}
 
+  # The showcases build from the workspace sources, so they need not wait for crates.io.
+  pages:
+    name: Pages
+    needs: gate
+    if: ${{ needs.gate.outputs.release == 'true' }}
+    permissions:
+      contents: read
+    # actionlint does not parse `$/` yet.
+    uses: ./.github/workflows/pages.yml # zizmor: ignore[self-repository]
+
+  # Only a successful publish deploys the showcases of the merged release.
+  pages-deploy:
+    name: Pages deploy
+    needs: [pages, release]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+
+  # After publishing: a release PR opened while crates.io lacks the new tags proposes the versions being published.
   pr:
     name: Release PR
-    if: ${{ github.repository_owner == 'lajosbencz' }}
+    needs: [gate, release]
+    if: ${{ !cancelled() && github.repository_owner == 'lajosbencz' && needs.gate.result == 'success' && needs.release.result != 'failure' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions: {}

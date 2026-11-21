@@ -24,7 +24,9 @@ jobs:
       - id: branch
         env:
           PR: ${{ inputs.pr }}
-        run: echo "head=$(jq -rn --argjson pr "${PR:-null}" '$pr.head_branch // empty')" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "head=$(jq -rn --argjson pr "${PR:-null}" '$pr.head_branch // empty')" >> "$GITHUB_OUTPUT"
+          echo "url=$(jq -rn --argjson pr "${PR:-null}" '$pr.html_url // empty')" >> "$GITHUB_OUTPUT"
       - if: ${{ steps.branch.outputs.head != '' }}
         id: app
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
@@ -32,6 +34,7 @@ jobs:
           client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
           private-key: ${{ secrets.app-private-key }}
           permission-contents: write
+          permission-pull-requests: write
       - if: ${{ steps.branch.outputs.head != '' }}
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -55,11 +58,22 @@ jobs:
       - if: ${{ steps.branch.outputs.head != '' }}
         env:
           BRANCH: ${{ steps.branch.outputs.head }}
+          URL: ${{ steps.branch.outputs.url }}
           TOKEN: ${{ steps.app.outputs.token }}
         run: |
+          versions() { cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.publish == null) | "\(.name) \(.version)"' | sort; }
+          before=$(versions)
           just align-breaking
           git diff --quiet && exit 0
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -am "chore: align published crates on one breaking version"
           git push "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:${BRANCH}"
+          # The PR body lists the versions release-plz planned: `* `crate`: [old -> ]new` and the changelog headings.
+          body=$(GH_TOKEN=$TOKEN gh pr view "$URL" --json body --jq .body)
+          while read -r c old new; do
+            [ "$old" = "$new" ] && continue
+            o=${old//./\\.}
+            body=$(sed -E -e "s/^(\* \`$c\`: (.* -> )?)$o([^0-9.]|$)/\1$new\3/" -e "s/^## \[$o\]\((.*)$c-v$o\)/## [$new](\1$c-v$new)/" <<<"$body")
+          done < <(join <(echo "$before") <(versions))
+          GH_TOKEN=$TOKEN gh pr edit "$URL" --body "$body"
