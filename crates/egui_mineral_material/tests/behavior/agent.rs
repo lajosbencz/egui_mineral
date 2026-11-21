@@ -10,6 +10,7 @@ use egui_mineral::{
     expand::Expansion,
     range::RangeModel,
     select::Selection,
+    semantic::serialize::agent::to_markdown,
     tree,
 };
 use egui_mineral_material::{
@@ -29,11 +30,14 @@ fn agent_click_and_tap_activate_button() {
     let md = h
         .drive_agent(|agent| {
             futures_executor::block_on(async {
-                let md = agent.snapshot().await?;
+                let md = to_markdown(&*agent.snapshot().await?);
                 agent.act("ok-button", AgentAction::Click).await?;
                 agent.act("ok-button", AgentAction::Tap).await?;
-                let missing = agent.act("nope", AgentAction::Click).await;
-                assert!(matches!(missing, Err(AgentError::NotFound(_))));
+                let missing = agent.act("ok-btn", AgentAction::Click).await;
+                assert!(
+                    matches!(&missing, Err(AgentError::NotFound { similar, .. }) if similar == &["ok-button"]),
+                    "{missing:?}"
+                );
                 let wrong = agent.act("ok-button", AgentAction::Increment).await;
                 assert!(matches!(wrong, Err(AgentError::ActionNotAvailable { .. })));
                 Ok::<_, AgentError>(md)
@@ -56,8 +60,10 @@ fn agent_drives_value_widgets() {
             futures_executor::block_on(async {
                 agent.act("volume-slider", AgentAction::SetValue(42.4.into())).await?;
                 agent.act("volume-slider", AgentAction::Increment).await?;
-                agent.act("agree-checkbox", AgentAction::Click).await?;
-                agent.snapshot().await
+                agent
+                    .act_then_snapshot("agree-checkbox", AgentAction::Click)
+                    .await
+                    .map(|t| to_markdown(&t))
             })
         })
         .expect("agent session");
@@ -81,7 +87,7 @@ fn agent_reaches_culled_widget_and_rejects_non_finite() {
     let md = h
         .drive_agent(|agent| {
             futures_executor::block_on(async {
-                let md = agent.snapshot().await?;
+                let md = to_markdown(&*agent.snapshot().await?);
                 agent.act("far-button", AgentAction::Click).await?;
                 let nan = agent.act("far-button", AgentAction::SetValue(f64::NAN.into())).await;
                 assert!(matches!(nan, Err(AgentError::NonFinite(_))));
@@ -134,7 +140,7 @@ fn checked_rows_survive_paging() {
                 // Plain row click on another page must not clear page 1.
                 agent.act("tbl-8-0-cell", AgentAction::Click).await?;
                 agent.act("tbl-prev-button", AgentAction::Click).await?;
-                agent.snapshot().await
+                agent.snapshot().await.map(|t| to_markdown(&t))
             })
         })
         .expect("agent session");
@@ -170,7 +176,7 @@ fn partial_tree_check_reaches_both_serializers() {
         },
     );
     let md = h
-        .drive_agent(|agent| futures_executor::block_on(agent.snapshot()))
+        .drive_agent(|agent| futures_executor::block_on(agent.snapshot()).map(|t| to_markdown(&t)))
         .expect("agent session");
     let root = md
         .lines()

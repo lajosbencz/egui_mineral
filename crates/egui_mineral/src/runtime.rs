@@ -577,6 +577,13 @@ impl<K> Runtime<K> {
         self.core.input_history.load(Ordering::Relaxed)
     }
 
+    /// Viewports with pass state, [`ViewportId::ROOT`] first.
+    pub fn viewports(&self) -> Vec<ViewportId> {
+        let mut ids: Vec<ViewportId> = self.core.passes.lock().keys().copied().collect();
+        ids.sort_by_key(|&id| id != ViewportId::ROOT);
+        ids
+    }
+
     /// Cloneable handle for async agent hosts acting on `viewport`; safe to send to other threads.
     pub fn agent(&self, viewport: ViewportId) -> AgentHandle {
         self.core.passes.with(viewport, |st| st.agent_handle.clone())

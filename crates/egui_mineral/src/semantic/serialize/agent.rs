@@ -1,18 +1,19 @@
-use crate::{select::Check, semantic::SemanticTree};
+use serde::{Serialize, Serializer};
+
+use crate::{
+    select::Check,
+    semantic::{NumericRange, SemanticNode, SemanticTree},
+};
 
 /// Agent-readable markdown snapshot of `tree`.
 pub fn to_markdown(tree: &SemanticTree) -> String {
-    let mut lines: Vec<String> = Vec::new();
+    let mut out = String::from("# Current UI State\n\n");
     for n in &tree.nodes {
         let pad = "  ".repeat(n.depth);
         let s = &n.state;
         let mut notes: Vec<String> = Vec::new();
         notes.extend(n.value.iter().map(|v| format!("value: {v:?}")));
-        notes.extend(
-            n.shortcut
-                .iter()
-                .map(|shortcut| format!("shortcut: {}", shortcut.format(&egui::ModifierNames::NAMES, false))),
-        );
+        notes.extend(shortcut(n).map(|s| format!("shortcut: {s}")));
         notes.extend(n.access_key.iter().map(|key| format!("access key: {}", key.char())));
         notes.extend(
             s.range
@@ -20,44 +21,121 @@ pub fn to_markdown(tree: &SemanticTree) -> String {
                 .map(|r| format!("range: {} in {}..={}", r.value, r.min, r.max)),
         );
         notes.extend(s.level.iter().map(|l| format!("level: {l}")));
-        notes.extend(s.live.iter().map(|l| format!("live: {l:?}").to_lowercase()));
-        notes.extend(
-            [
-                (s.focused, "focused"),
-                (s.disabled, "disabled"),
-                (s.read_only, "read-only"),
-                (s.required, "required"),
-                (s.invalid, "invalid"),
-                (s.checked == Some(Check::Checked), "checked"),
-                (s.checked == Some(Check::Unchecked), "unchecked"),
-                (s.checked == Some(Check::Mixed), "mixed"),
-                (s.selected == Some(true), "selected"),
-                (s.expanded == Some(true), "expanded"),
-                (s.expanded == Some(false), "collapsed"),
-            ]
-            .into_iter()
-            .filter(|&(on, _)| on)
-            .map(|(_, label)| label.to_owned()),
-        );
-        notes.extend(
-            n.active_descendant
-                .and_then(|a| tree.nodes.iter().find(|d| d.widget_id == Some(a)))
-                .map(|active| format!("active: {}", active.id.key())),
-        );
+        notes.extend(live(n).map(|l| format!("live: {l}")));
+        notes.extend(flags(n).map(str::to_owned));
+        notes.extend(active(tree, n).map(|key| format!("active: {key}")));
         let head = format!("{pad}- [{}] {:?}: {}", n.id, n.role, n.name);
-        let line: String = std::iter::once(head)
-            .chain(notes.iter().map(|note| [" (", note, ")"].concat()))
-            .collect();
-        lines.push(line);
+        out.push_str(&head);
+        for note in notes {
+            out.push_str(&[" (", &note, ")"].concat());
+        }
+        out.push('\n');
         if !n.actions.is_empty() {
             let actions: Vec<_> = n.actions.iter().map(|a| format!("{a:?}")).collect();
-            lines.push(format!("{pad}  Actions: {}", actions.join(", ")));
+            out.push_str(&[&pad, "  Actions: ", &actions.join(", "), "\n"].concat());
         }
     }
-    let mut out = String::from("# Current UI State\n\n");
-    for line in lines {
-        out.push_str(&line);
-        out.push('\n');
+    out
+}
+
+fn flags(n: &SemanticNode) -> impl Iterator<Item = &'static str> {
+    let s = &n.state;
+    [
+        (s.focused, "focused"),
+        (s.disabled, "disabled"),
+        (s.read_only, "read-only"),
+        (s.required, "required"),
+        (s.invalid, "invalid"),
+        (s.checked == Some(Check::Checked), "checked"),
+        (s.checked == Some(Check::Unchecked), "unchecked"),
+        (s.checked == Some(Check::Mixed), "mixed"),
+        (s.selected == Some(true), "selected"),
+        (s.expanded == Some(true), "expanded"),
+        (s.expanded == Some(false), "collapsed"),
+    ]
+    .into_iter()
+    .filter(|&(on, _)| on)
+    .map(|(_, label)| label)
+}
+
+fn shortcut(n: &SemanticNode) -> Option<String> {
+    n.shortcut.map(|s| s.format(&egui::ModifierNames::NAMES, false))
+}
+
+fn live(n: &SemanticNode) -> Option<String> {
+    n.state.live.map(|l| format!("{l:?}").to_lowercase())
+}
+
+fn active<'t>(tree: &'t SemanticTree, n: &SemanticNode) -> Option<&'t str> {
+    let a = n.active_descendant?;
+    tree.nodes.iter().find(|d| d.widget_id == Some(a)).map(|d| d.id.key())
+}
+
+/// Nested JSON with the markdown's names: `{"nodes": [{"key", "role", "name", "value"?, "states"?, "level"?,
+/// "range"?, "live"?, "actions"?, "shortcut"?, "access_key"?, "active"?, "children"?}]}`.
+impl Serialize for SemanticTree {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        #[derive(Serialize)]
+        struct Tree<'a> {
+            nodes: Vec<Node<'a>>,
+        }
+        Tree {
+            nodes: nest(self, &self.nodes),
+        }
+        .serialize(serializer)
+    }
+}
+
+#[derive(Serialize)]
+struct Node<'a> {
+    key: &'a str,
+    role: String,
+    name: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    value: Option<&'a str>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    states: Vec<&'static str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    level: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    range: Option<NumericRange>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    live: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    actions: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    shortcut: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    access_key: Option<char>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    active: Option<&'a str>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    children: Vec<Node<'a>>,
+}
+
+// `nodes` is pre-order with depths, as in `SemanticTree::nodes`.
+fn nest<'a>(tree: &'a SemanticTree, nodes: &'a [SemanticNode]) -> Vec<Node<'a>> {
+    let mut out = Vec::new();
+    let mut rest = nodes;
+    while let Some((n, tail)) = rest.split_first() {
+        let len = tail.iter().position(|d| d.depth <= n.depth).unwrap_or(tail.len());
+        let (kids, next) = tail.split_at(len);
+        out.push(Node {
+            key: n.id.key(),
+            role: format!("{:?}", n.role),
+            name: &n.name,
+            value: n.value.as_deref(),
+            states: flags(n).collect(),
+            level: n.state.level,
+            range: n.state.range,
+            live: live(n),
+            actions: n.actions.iter().map(|a| format!("{a:?}")).collect(),
+            shortcut: shortcut(n),
+            access_key: n.access_key.map(crate::shortcut::Mnemonic::char),
+            active: active(tree, n),
+            children: nest(tree, kids),
+        });
+        rest = next;
     }
     out
 }
@@ -121,6 +199,26 @@ mod tests {
         ] {
             assert!(md.contains(line), "{line} in {md}");
         }
+    }
+
+    #[test]
+    fn json_nests_children_with_the_markdown_names() {
+        let mut parent = SemanticNode::new(StableId::new("list"), Role::List, "Fruit");
+        let mut child = SemanticNode::new(StableId::new("pear"), Role::ListItem, "Pear");
+        child.state.selected = Some(true);
+        child.depth = 1;
+        parent.actions = vec![Action::Focus];
+        let tree = SemanticTree {
+            nodes: vec![parent, child],
+        };
+        let json = serde_json::to_value(&tree).expect("serializes");
+        assert_eq!(
+            json,
+            serde_json::json!({"nodes": [{
+                "key": "list", "role": "List", "name": "Fruit", "actions": ["Focus"],
+                "children": [{"key": "pear", "role": "ListItem", "name": "Pear", "states": ["selected"]}],
+            }]})
+        );
     }
 
     #[test]

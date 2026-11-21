@@ -46,7 +46,7 @@ pub struct SemanticState {
 }
 
 /// Value, bounds and step of a ranged node.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize)]
 pub struct NumericRange {
     /// Current value within `min..=max`.
     pub value: f64,

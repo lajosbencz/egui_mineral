@@ -1,4 +1,6 @@
 use egui::{Context, Event, Key, Modifiers, Pos2, RawInput, Rect, ViewportId, accesskit};
+use std::sync::Arc;
+
 use futures_channel::{
     mpsc::{UnboundedReceiver, UnboundedSender, unbounded},
     oneshot,
@@ -6,7 +8,7 @@ use futures_channel::{
 
 use crate::{
     input::synth,
-    semantic::{Action, SemanticNode, SemanticTree, serialize},
+    semantic::{Action, SemanticNode, SemanticTree},
 };
 
 /// Action an agent performs on a widget, injected as raw egui input.
@@ -97,8 +99,13 @@ pub enum AgentError {
     #[error("UI runtime is gone")]
     Disconnected,
     /// No node in the latest tree has this key.
-    #[error("no node with key `{0}`")]
-    NotFound(String),
+    #[error("no node with key `{key}`; similar: {similar:?}")]
+    NotFound {
+        /// Requested key.
+        key: String,
+        /// Keys of the tree sharing the most `-` segments with `key`, best first.
+        similar: Vec<String>,
+    },
     /// Node lacks the AccessKit action `AgentAction` maps to.
     #[error("node `{key}` does not offer {action:?}; offered: {offered:?}")]
     ActionNotAvailable {
@@ -120,15 +127,22 @@ pub enum AgentError {
     NotOnScreen(String),
 }
 
+type TreeReply = oneshot::Sender<Result<Arc<SemanticTree>, AgentError>>;
+
 enum Request {
-    Snapshot(oneshot::Sender<String>),
+    Snapshot(TreeReply),
     Act(Act),
 }
 
 struct Act {
     key: String,
     action: AgentAction,
-    reply: oneshot::Sender<Result<(), AgentError>>,
+    reply: ActReply,
+}
+
+enum ActReply {
+    Done(oneshot::Sender<Result<(), AgentError>>),
+    Then(TreeReply),
 }
 
 /// Async channel to the app's agent host: snapshot the semantic tree and act on nodes by key.
@@ -140,14 +154,15 @@ pub struct AgentHandle {
 }
 
 impl AgentHandle {
-    /// Agent markdown of the tree collected on the next pass (see [`serialize::agent`]).
+    /// Tree collected on the next pass; [`crate::semantic::serialize::agent`] renders it as markdown, `serde` as
+    /// JSON.
     ///
     /// # Errors
     /// [`AgentError::Disconnected`] when the runtime is gone or drops the request.
-    pub async fn snapshot(&self) -> Result<String, AgentError> {
+    pub async fn snapshot(&self) -> Result<Arc<SemanticTree>, AgentError> {
         let (tx, rx) = oneshot::channel();
         self.request(Request::Snapshot(tx))?;
-        rx.await.map_err(|_| AgentError::Disconnected)
+        rx.await.map_err(|_| AgentError::Disconnected)?
     }
 
     /// Performs `action` on the node with `key` from the latest snapshot; resolves once the
@@ -156,18 +171,33 @@ impl AgentHandle {
     /// # Errors
     /// [`AgentError::NonFinite`] for a NaN or infinite number, [`AgentError::Disconnected`] when the runtime is gone, else the host's rejection (e.g. [`AgentError::NotFound`]).
     pub async fn act(&self, key: impl Into<String>, action: AgentAction) -> Result<(), AgentError> {
+        let (tx, rx) = oneshot::channel();
+        self.send_act(key.into(), action, ActReply::Done(tx))?;
+        rx.await.map_err(|_| AgentError::Disconnected)?
+    }
+
+    /// [`Self::act`], then the tree of the pass after the one that received the input, when the UI has
+    /// reacted to it.
+    ///
+    /// # Errors
+    /// As [`Self::act`].
+    pub async fn act_then_snapshot(
+        &self,
+        key: impl Into<String>,
+        action: AgentAction,
+    ) -> Result<Arc<SemanticTree>, AgentError> {
+        let (tx, rx) = oneshot::channel();
+        self.send_act(key.into(), action, ActReply::Then(tx))?;
+        rx.await.map_err(|_| AgentError::Disconnected)?
+    }
+
+    fn send_act(&self, key: String, action: AgentAction, reply: ActReply) -> Result<(), AgentError> {
         if let AgentAction::SetValue(AgentValue::Number(n)) = action
             && !n.is_finite()
         {
             return Err(AgentError::NonFinite(n));
         }
-        let (reply, rx) = oneshot::channel();
-        self.request(Request::Act(Act {
-            key: key.into(),
-            action,
-            reply,
-        }))?;
-        rx.await.map_err(|_| AgentError::Disconnected)?
+        self.request(Request::Act(Act { key, action, reply }))
     }
 
     fn request(&self, r: Request) -> Result<(), AgentError> {
@@ -179,8 +209,10 @@ impl AgentHandle {
 
 pub(crate) struct AgentHost {
     rx: UnboundedReceiver<Request>,
-    snapshots: Vec<oneshot::Sender<String>>,
+    snapshots: Vec<TreeReply>,
     acts: Vec<Act>,
+    // Injected this pass; answered with the next pass's tree.
+    injected: Vec<TreeReply>,
 }
 
 impl AgentHost {
@@ -191,6 +223,7 @@ impl AgentHost {
                 rx,
                 snapshots: Vec::new(),
                 acts: Vec::new(),
+                injected: Vec::new(),
             },
             AgentHandle {
                 tx,
@@ -210,7 +243,7 @@ impl AgentHost {
     }
 
     pub(crate) fn wants_tree(&self) -> bool {
-        !self.snapshots.is_empty() || !self.acts.is_empty()
+        !self.snapshots.is_empty() || !self.acts.is_empty() || !self.injected.is_empty()
     }
 
     pub(crate) fn inject(&mut self, raw: &mut RawInput, tree: Option<&SemanticTree>, screen: Rect) -> bool {
@@ -222,7 +255,11 @@ impl AgentHost {
                 pointer |= tap.is_some();
                 events(node, tap, &act.action, &mut raw.events);
             });
-            reply(act.reply, result);
+            match (act.reply, result) {
+                (ActReply::Done(tx), result) => reply(tx, result),
+                (ActReply::Then(tx), Ok(())) => self.injected.push(tx),
+                (ActReply::Then(tx), Err(e)) => reply(tx, Err(e)),
+            }
         }
         pointer
     }
@@ -231,14 +268,12 @@ impl AgentHost {
         self.poll();
     }
 
-    pub(crate) fn respond(&mut self, tree: &SemanticTree) {
-        if self.snapshots.is_empty() {
-            return;
-        }
-        let md = serialize::agent::to_markdown(tree);
+    pub(crate) fn respond(&mut self, tree: &Arc<SemanticTree>) {
         for tx in self.snapshots.drain(..) {
-            reply(tx, md.clone());
+            reply(tx, Ok(Arc::clone(tree)));
         }
+        // Acts injected this pass answer with the next tree.
+        self.snapshots.append(&mut self.injected);
     }
 }
 
@@ -248,9 +283,10 @@ fn resolve<'t>(
     act: &Act,
     screen: Rect,
 ) -> Result<(&'t SemanticNode, Option<Pos2>), AgentError> {
-    let node = tree
-        .find_key(&act.key)
-        .ok_or_else(|| AgentError::NotFound(act.key.clone()))?;
+    let node = tree.find_key(&act.key).ok_or_else(|| AgentError::NotFound {
+        key: act.key.clone(),
+        similar: similar_keys(tree, &act.key),
+    })?;
     let need = act.action.requires();
     if !node.actions.contains(&need) {
         return Err(AgentError::ActionNotAvailable {
@@ -270,6 +306,21 @@ fn resolve<'t>(
     visible
         .map(|r| (node, Some(r.center())))
         .ok_or_else(|| AgentError::NotOnScreen(act.key.clone()))
+}
+
+const SIMILAR: usize = 5;
+
+fn similar_keys(tree: &SemanticTree, key: &str) -> Vec<String> {
+    let wanted: Vec<&str> = key.split('-').filter(|s| !s.is_empty()).collect();
+    let mut scored: Vec<(usize, &str)> = tree
+        .nodes
+        .iter()
+        .map(|n| n.id.key())
+        .map(|k| (k.split('-').filter(|s| wanted.contains(s)).count(), k))
+        .filter(|&(score, _)| score > 0)
+        .collect();
+    scored.sort_by_key(|&(score, _)| std::cmp::Reverse(score));
+    scored.into_iter().take(SIMILAR).map(|(_, k)| k.to_owned()).collect()
 }
 
 fn events(node: &SemanticNode, tap: Option<Pos2>, action: &AgentAction, out: &mut Vec<Event>) {
@@ -345,6 +396,9 @@ mod tests {
         let mut act = Box::pin(handle.act("missing", AgentAction::Click));
         assert!((&mut act).now_or_never().is_none());
         while pass() {}
-        assert!(matches!((&mut act).now_or_never(), Some(Err(AgentError::NotFound(_)))));
+        assert!(matches!(
+            (&mut act).now_or_never(),
+            Some(Err(AgentError::NotFound { .. }))
+        ));
     }
 }
