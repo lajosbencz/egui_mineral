@@ -6,40 +6,48 @@
 [![license](https://img.shields.io/crates/l/egui_mineral)](LICENSE)
 [![msrv](https://img.shields.io/crates/msrv/egui_mineral)](rust-toolchain.toml)
 
-A headless, unopinionated behavior core with different stylekits for customization,
-all on top of [egui](https://github.com/emilk/egui).
+A portable, headless, unopinionated behavior core with swappable stylekits, on top of [egui](https://github.com/emilk/egui).
 
-## Portable
+## Why?
 
-It's cross-platform:
+- **Inside and outside:** the core owns input, focus, layout, forms and semantics; stylekits only paint.
+- **Multiple stylekits:** Material 3 (Jetpack Compose tokens), Fluent 2 (Fluent UI React v9).
+- **Ready for agents:** every widget lands in a semantic tree that agents read and act on, in-process or over MCP.
+- **Language and locale:** ICU4X number, date and list formatting.
+- **Platform adapters:** file pickers, clipboard, notifications and persistence, native and in the browser.
+- **Executor-agnostic:** async work is run by the app's spawner (Tokio and wasm adapters included).
+- **Hot patching:** UI edits apply live under `dx serve --hotpatch` with [Dioxus Subsecond](https://docs.rs/subsecond/latest/subsecond/index.html)
 
-- Open in the [browser](https://lajosbencz.github.io/egui_mineral/material/)
-- Or after cloning the repo, run: `cargo run -p showcase-material` or `cargo run -p showcase-fluent`.
+## Demos
+
+### Browser
+
+- [Material](https://lajosbencz.github.io/egui_mineral/material/)
+- [Fluent](https://lajosbencz.github.io/egui_mineral/fluent/)
+
+### Native
+
+- `cargo run -p showcase-material`
+- `cargo run -p showcase-fluent`
 
 ## Release size
-WASM showcase: `8.7 MB` (gzipped: `3.3 MB`).
 
-Savings over a default build, uncompressed WASM:
+Material showcase as WASM: `~9 MB` (gzipped: `~4 MB`).
+
+Possible savings over a default build, uncompressed WASM ([how-to](docs/size.md), stylekit [features]):
 
 | | Feature | Default | Replace with | Saved |
 |--:|---|---|---|--:|
-| 1 | Icon fonts | Material Symbols | a subset of the icons | `3.0 MB` |
-| 2 | Text fonts | egui's bundled fonts | your own fonts | `1.4 MB` |
-| 3 | Locale data | ICU4X, every locale | en-US locale only | `0.8 MB` |
-| 4 | Renderer | wgpu | glow | `2.0 MB` |
+| 1 | Icon fonts | Material Symbols | [a subset of the icons](docs/size.md#icon-fonts) | `3.0 MB` |
+| 2 | Text fonts | egui's bundled fonts | [your own fonts](docs/size.md#text-fonts) | `1.4 MB` |
+| 3 | Locale data | ICU4X, every locale | [en-US locale only](docs/size.md#locale-data) | `0.8 MB` |
+| 4 | Renderer | wgpu | [glow](docs/size.md#renderer) | `2.0 MB` |
 
-How to opt-out:
-
-1. Disable `bundled-icons` and build with `Material::from_icon_fonts` (plus `Material::with_icons` for another icon font). The showcase's [`build.rs`](examples/showcase-material/build.rs) subsets the fonts to the icons it uses.
-2. Disable eframe's `default_fonts` feature and install your own fonts with `egui::Context::set_fonts`.
-3. Set `ICU4X_DATA_DIR` to data for your locales ([`i18n`](https://docs.rs/egui_mineral/latest/egui_mineral/i18n/)), or disable `icu`.
-4. Build eframe without its default features and enable `glow`, as the [showcase](examples/showcase-material/) does.
-
-## Use
+## Quickstart
 
 ```sh
-cargo add egui_mineral_material
 cargo add eframe@0.37
+cargo add egui_mineral_material
 ```
 
 ```rust
@@ -84,10 +92,56 @@ fn main() -> eframe::Result {
 }
 ```
 
-Cargo features: [docs.rs](https://docs.rs/crate/egui_mineral/latest/features).
+Stylekits already forward the core's [features]. A minimal build turns the defaults off and lists what it needs:
+
+```sh
+cargo add egui_mineral_material --no-default-features --features platform-clipboard,spawn-wasm
+```
+
+## Crates
+
+| Crate | | Purpose |
+|---|---|---|
+| [`egui_mineral`](crates/egui_mineral) | [![crates.io](https://img.shields.io/crates/v/egui_mineral.svg)](https://crates.io/crates/egui_mineral) | Behavior core: input, layout, semantics, agents, i18n, persistence, platform |
+| [`egui_mineral_material`](crates/egui_mineral_material) | [![crates.io](https://img.shields.io/crates/v/egui_mineral_material.svg)](https://crates.io/crates/egui_mineral_material) | Material Design 3 stylekit |
+| [`egui_mineral_fluent`](crates/egui_mineral_fluent) | [![crates.io](https://img.shields.io/crates/v/egui_mineral_fluent.svg)](https://crates.io/crates/egui_mineral_fluent) | Fluent 2 stylekit |
+| [`egui_mineral_eframe`](crates/egui_mineral_eframe) | [![crates.io](https://img.shields.io/crates/v/egui_mineral_eframe.svg)](https://crates.io/crates/egui_mineral_eframe) | eframe adapter: owns the runtime, the app implements its UI |
+| [`egui_mineral_mcp`](crates/egui_mineral_mcp) | [![crates.io](https://img.shields.io/crates/v/egui_mineral_mcp.svg)](https://crates.io/crates/egui_mineral_mcp) | MCP server over the agent API (Streamable HTTP, native) |
+| [`egui_mineral_macros`](crates/egui_mineral_macros) | [![crates.io](https://img.shields.io/crates/v/egui_mineral_macros.svg)](https://crates.io/crates/egui_mineral_macros) | Derive and catalog macros |
+
+## Docs
+
+- [agents](docs/agents.md): agent API, snapshot formats, MCP server
+- [divergences](docs/divergences.md): deliberate departures from Material 3 and Fluent 2
+- [blockers](docs/blockers.md): gaps blocked upstream
+- [size](docs/size.md): release size opt-outs
+- [workspace](docs/workspace.md): layers, module map, commands
+- [conventions](docs/conventions.md), [rules](docs/rules.md), [testing](docs/testing.md): for contributors
+
+## Contributing
+
+[CONTRIBUTING.md](CONTRIBUTING.md)
+
+LLM agents start at [AGENTS.md](AGENTS.md)
 
 ## License
 
+### `egui_mineral`
+
 - [LICENSE](LICENSE) - GPL-3.0-or-later
-- [LICENSE-APACHE](crates/egui_mineral_material/LICENSE-APACHE) - Apache-2.0 data derived from Jetpack Compose
+
+### `egui_mineral_material`
+
+Data derived from Jetpack Compose
+
+- [LICENSE-APACHE](crates/egui_mineral_material/LICENSE-APACHE)
 - [NOTICE](crates/egui_mineral_material/NOTICE)
+
+### `egui_mineral_fluent`
+
+Data and icon font derived from Fluent UI
+
+- [LICENSE-MIT](crates/egui_mineral_fluent/LICENSE-MIT)
+- [NOTICE](crates/egui_mineral_fluent/NOTICE)
+
+[features]: https://docs.rs/crate/egui_mineral_material/latest/features
