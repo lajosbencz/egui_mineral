@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral_eframe-v0.7.0...egui_mineral_eframe-v0.8.0) - 2026-11-21
+
+### Added
+
+- *(eframe)* [**breaking**] MineralApp::ui receives the eframe::Frame and raw_input_hook is forwarded; the separate frame hook is removed.
+
+### Fixed
+
+- *(release)* align-breaking renames an aligned crate's unreleased changelog heading and covers egui_mineral_mcp; the eframe changelog names its published 0.7.0.
+
+### Other
+
+- [**breaking**] non_exhaustive on growth-prone enums and configs, Fluent tokens only under spec, KeyKind agent kinds checked at compile time, DockedToolbar/FloatingToolbar constructors, EframeApp::show removed.
+
 ## [0.7.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral_eframe-v0.0.0...egui_mineral_eframe-v0.7.0) - 2026-11-20
 
 ### Added
