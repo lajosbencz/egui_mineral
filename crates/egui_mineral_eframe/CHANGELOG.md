@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.1](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral_eframe-v0.8.0...egui_mineral_eframe-v0.8.1) - 2026-11-21
+
+### Other
+
+- updated the following local packages: egui_mineral
+
 ## [0.8.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral_eframe-v0.7.0...egui_mineral_eframe-v0.8.0) - 2026-11-21
 
 ### Added
