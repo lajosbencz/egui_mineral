@@ -263,7 +263,6 @@ impl AvatarGroup {
             return;
         }
         let t = ui.tokens();
-        let ctx = ui.ctx().clone();
         let (shown, hidden) = self.split();
         let d = rect.height();
         let step = d * GROUP_STEP;
@@ -276,10 +275,8 @@ impl AvatarGroup {
         for (i, a) in self.avatars.iter().take(shown).enumerate() {
             let r = slot(i).shrink(RING_WIDTH / 2.0);
             a.paint_at(ui, r, Some(t.color.surface));
-            semantic::emit(&ctx, None, r, || {
-                let mut n = SemanticNode::new(a.key.id(&a.salt), Role::Image, &a.name);
-                n.depth = 1;
-                n
+            semantic::emit_in(ui, None, r, || {
+                SemanticNode::new(a.key.id(&a.salt), Role::Image, &a.name)
             });
         }
         if hidden > 0 {

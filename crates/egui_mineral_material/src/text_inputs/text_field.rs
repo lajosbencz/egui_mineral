@@ -649,12 +649,8 @@ pub(crate) fn paint_support(
     }
 }
 
-pub(crate) fn emit_part(ctx: &egui::Context, r: &Response, depth: usize, node: impl FnOnce() -> SemanticNode) {
-    semantic::emit(ctx, Some(r.id), r.rect, || {
-        let mut n = node();
-        n.depth = depth;
-        n
-    });
+pub(crate) fn emit_part(ctx: &egui::Context, r: &Response, node: impl FnOnce() -> SemanticNode) {
+    semantic::emit(ctx, Some(r.id), r.rect, node);
 }
 
 pub(crate) fn counter(rt: &Rt, count: usize, max: usize) -> String {
@@ -1264,7 +1260,7 @@ impl TextField<'_> {
             } else {
                 revealed
             };
-            emit_part(ctx, &r, 1, || {
+            emit_part(ctx, &r, || {
                 let msg = if revealed {
                     msg::PASSWORD_HIDE
                 } else {
@@ -1282,7 +1278,7 @@ impl TextField<'_> {
         } else if let Some((icon, label)) = &self.trailing {
             let r = trailing_button(ui, field, trailing_id(base), *icon, colors.trailing, self.disabled);
             out.trailing_clicked = r.clicked();
-            emit_part(ctx, &r, 1, || {
+            emit_part(ctx, &r, || {
                 SemanticNode::new(self.key.id(&self.salt).sub("trailing"), Role::Button, label)
                     .clickable(Availability::disabled_if(self.disabled))
             });

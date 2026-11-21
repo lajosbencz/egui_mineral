@@ -11,7 +11,6 @@ use std::sync::Arc;
 use egui::{Align, Color32, Galley, Layout, Rangef, Rect, Sense, Stroke, Ui, pos2, text::LayoutJob, vec2};
 use egui_mineral::{
     i18n::Direction,
-    kit,
     layout::Constraints,
     semantic::{self, Role, SemanticNode, StableId},
     widget::{Composite, WidgetResponse},
@@ -111,12 +110,6 @@ impl EmptyPlaceholder {
         let rt = ui.rt();
         let t = rt.tokens();
         let ctx = ui.ctx().clone();
-        let id = ui.make_persistent_id(self.salt.id_salt());
-        semantic::emit_parent(&ctx, id, || {
-            let mut n = SemanticNode::new(StableId::of(&self.salt, "empty"), Role::Group, &self.title);
-            n.value.clone_from(&self.description);
-            n
-        });
         let mut clicked = false;
         let r = ui.with_layout(Layout::top_down(Align::Center), |ui| {
             ui.spacing_mut().item_spacing.y = 0.0;
@@ -166,7 +159,11 @@ impl EmptyPlaceholder {
             }
             ui.add_space(defaults::dialog::PADDING);
         });
-        kit::nodes::remember_rect(&ctx, id, r.response.rect);
+        semantic::emit(&ctx, Some(r.response.id), r.response.rect, || {
+            let mut n = SemanticNode::new(StableId::of(&self.salt, "empty"), Role::Group, &self.title);
+            n.value.clone_from(&self.description);
+            n
+        });
         EmptyPlaceholderResponse {
             response: r.response,
             action_clicked: clicked,
@@ -496,7 +493,6 @@ impl DescriptionList {
     }
 
     fn place_cell(&self, ui: &Ui, cols: &Cols, cell: &DescCell, top: f32) {
-        let ctx = ui.ctx();
         let (x0, tw, idx) = (cell.x0, cell.tw, cell.idx);
         let cell_span = egui::Rangef::new(x0, x0 + cols.col_w);
         let place = |from: f32, gw: f32| cols.dir.span_x(cell_span, Rangef::new(from, from + gw));
@@ -517,15 +513,11 @@ impl DescriptionList {
             ui.painter().galley(dp, cell.detail.clone(), Color32::PLACEHOLDER);
         }
         let DescriptionItem { term, detail } = &self.items[cell.idx];
-        semantic::emit(ctx, None, tr, || {
-            let mut n = SemanticNode::new(StableId::of(&self.salt, (idx, "term")), Role::Term, term);
-            n.depth = 1;
-            n
+        semantic::emit_in(ui, None, tr, || {
+            SemanticNode::new(StableId::of(&self.salt, (idx, "term")), Role::Term, term)
         });
-        semantic::emit(ctx, None, dr, || {
-            let mut n = SemanticNode::new(StableId::of(&self.salt, (idx, "definition")), Role::Definition, detail);
-            n.depth = 1;
-            n
+        semantic::emit_in(ui, None, dr, || {
+            SemanticNode::new(StableId::of(&self.salt, (idx, "definition")), Role::Definition, detail)
         });
     }
 
@@ -534,15 +526,6 @@ impl DescriptionList {
         let t = ui.tokens();
         let ctx = ui.ctx().clone();
         let dir = rt.i18n().direction();
-        let id = ui.make_persistent_id(self.salt.id_salt());
-        semantic::emit_parent(&ctx, id, || {
-            let name = crate::tr_or(rt.i18n(), self.label.as_deref(), msg::DESCRIPTION_LIST);
-            SemanticNode::new(
-                StableId::of(&self.salt, "description-list"),
-                Role::DescriptionList,
-                name,
-            )
-        });
         let gap = crate::adaptive::grid(4);
         let total = ui.available_width();
         let col_w = ((total - gap * (self.columns - 1) as f32) / self.columns as f32).max(0.0);
@@ -588,7 +571,14 @@ impl DescriptionList {
             }
         }
         let (rect, response) = ui.allocate_exact_size(vec2(total, y - origin.y), Sense::hover());
-        kit::nodes::remember_rect(&ctx, id, rect);
+        semantic::emit(&ctx, Some(response.id), rect, || {
+            let name = crate::tr_or(rt.i18n(), self.label.as_deref(), msg::DESCRIPTION_LIST);
+            SemanticNode::new(
+                StableId::of(&self.salt, "description-list"),
+                Role::DescriptionList,
+                name,
+            )
+        });
         response
     }
 }
@@ -740,11 +730,6 @@ impl Timeline {
         let t = ui.tokens();
         let ctx = ui.ctx().clone();
         let dir = rt.i18n().direction();
-        let id = ui.make_persistent_id(self.salt.id_salt());
-        semantic::emit_parent(&ctx, id, || {
-            let name = crate::tr_or(rt.i18n(), self.label.as_deref(), msg::TIMELINE);
-            SemanticNode::new(StableId::of(&self.salt, "timeline"), Role::List, name)
-        });
         let total = ui.available_width();
         let origin = ui.cursor().min;
         let gap = defaults::list::LEADING_CONTENT_END_PADDING;
@@ -793,20 +778,22 @@ impl Timeline {
                     gy += h;
                 }
             }
-            semantic::emit(&ctx, None, rect, || {
+            semantic::emit_in(ui, None, rect, || {
                 let mut node = SemanticNode::new(StableId::of(&self.salt, (i, "item")), Role::ListItem, &item.title);
                 node.value = match (&item.time, &item.description) {
                     (Some(tm), Some(d)) => Some(pair(rt, tm, d)),
                     (Some(s), None) | (None, Some(s)) => Some(s.clone()),
                     (None, None) => None,
                 };
-                node.depth = 1;
                 node
             });
             y += item_h;
         }
         let (rect, response) = ui.allocate_exact_size(vec2(total, y - origin.y), Sense::hover());
-        kit::nodes::remember_rect(&ctx, id, rect);
+        semantic::emit(&ctx, Some(response.id), rect, || {
+            let name = crate::tr_or(rt.i18n(), self.label.as_deref(), msg::TIMELINE);
+            SemanticNode::new(StableId::of(&self.salt, "timeline"), Role::List, name)
+        });
         response
     }
 }

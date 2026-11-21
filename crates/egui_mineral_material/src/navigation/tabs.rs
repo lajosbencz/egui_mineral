@@ -177,6 +177,7 @@ impl<'a, K: ItemKey> Tabs<'a, K> {
         let outer_w = ui.available_width();
         let bar = Rect::from_min_size(ui.cursor().min, vec2(outer_w, height));
         let container = ui.interact(bar, id.with("tablist"), Sense::hover());
+        let parts = kit::nodes::parts(ctx, container.id, ui.unique_id());
         let divider_shape = ui.painter().add(Shape::Noop);
         let fixed_w = outer_w / n.max(1) as f32;
         // (tab width, indicator content width) per `TabRowImpl` / `ScrollableTabRowImpl`.
@@ -229,6 +230,7 @@ impl<'a, K: ItemKey> Tabs<'a, K> {
         ui.painter()
             .set(divider_shape, Shape::rect_filled(line, 0.0, t.role(divider::COLOR)));
 
+        drop(parts);
         let response = container;
         semantic::emit(ctx, Some(response.id), bar, || {
             let mut n = SemanticNode::new(StableId::of(&self.salt, "tablist"), Role::TabList, &self.label);

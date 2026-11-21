@@ -210,7 +210,7 @@ impl BottomSheet {
                     .show(ui, |ui| add.take().map(|f| f(&mut rt.ui(ui))))
                     .inner
             });
-            semantic::emit(ui.ctx(), None, framed.response.rect, || {
+            semantic::emit(ui.ctx(), Some(ui.unique_id()), framed.response.rect, || {
                 SemanticNode::new(StableId::of(&self.salt, "bottom-sheet"), Role::Dialog, &name)
             });
             framed.inner
@@ -533,7 +533,7 @@ impl SideSheet {
                     ui.set_max_size(vec2(w, screen.height()));
                     self.body(&mut rt.ui(ui), w, screen.height(), &mut closed, add)
                 });
-            self.emit(ui.ctx(), framed.response.rect, Role::Dialog, name);
+            self.emit(ui, framed.response.rect, Role::Dialog, name);
             if self.resizable && e >= 1.0 {
                 let resized = self.resize_handle(&rt.ui(ui), framed.response.rect, width);
                 if resized.to_bits() != width.to_bits() {
@@ -582,7 +582,7 @@ impl SideSheet {
                 ui.painter().rect_filled(shown, 0, t.role(SIDE_CONTAINER_COLOR));
                 let mut sheet_ui = ui.new_child(UiBuilder::new().max_rect(sheet));
                 let inner = self.body(&mut rt.ui(&mut sheet_ui), w, sheet.height(), &mut closed, add);
-                self.emit(ui.ctx(), shown, Role::Complementary, name);
+                self.emit(ui, shown, Role::Complementary, name);
                 if self.resizable && e >= 1.0 {
                     let resized = self.resize_handle(&rt.ui(ui), sheet, width);
                     if resized.to_bits() != width.to_bits() {
@@ -654,8 +654,8 @@ impl SideSheet {
         v
     }
 
-    fn emit(&self, ctx: &Context, rect: Rect, role: Role, name: &str) {
-        semantic::emit(ctx, None, rect, || {
+    fn emit(&self, ui: &egui::Ui, rect: Rect, role: Role, name: &str) {
+        semantic::emit(ui.ctx(), Some(ui.unique_id()), rect, || {
             SemanticNode::new(StableId::of(&self.salt, "side-sheet"), role, name)
         });
     }

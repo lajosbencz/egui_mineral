@@ -279,8 +279,10 @@ impl ModalPanel<'_> {
                     let surface = ui.allocate_rect(self.rect, Sense::hover());
                     common::elevation(ui.painter(), self.rect, round, self.elevation, &t);
                     ui.painter().rect_filled(self.rect, round, self.fill);
+                    let parts = kit::nodes::parts(ctx, surface.id, ui.unique_id());
                     let target = add(ui, surface.id);
-                    semantic::emit(ctx, None, self.rect, || {
+                    drop(parts);
+                    semantic::emit(ctx, Some(ui.unique_id()), self.rect, || {
                         SemanticNode::new(StableId::of(&self.group.salt, "dialog"), Role::Dialog, &name)
                     });
                     target
@@ -770,6 +772,7 @@ impl<'a, K: ItemKey> NavigationBar<'a, K> {
         };
         let height = dense_height(ui.density(), height, horizontal, bar::LABEL_TEXT_FONT);
         let (rect, response) = ui.allocate_exact_size(vec2(width, height), Sense::hover());
+        let parts = kit::nodes::parts(rt.ctx(), response.id, ui.unique_id());
         ui.painter().rect_filled(rect, 0, t.role(bar::CONTAINER_COLOR));
         let space = if self.flexible {
             bar::ITEM_BETWEEN_SPACE
@@ -807,6 +810,7 @@ impl<'a, K: ItemKey> NavigationBar<'a, K> {
             ui.spacing_mut().item_spacing = vec2(space, 0.0);
             picked = self.group.items(ui, id, &self.items, &self.choice, row).0;
         });
+        drop(parts);
         self.group.emit(rt, response.id, rect, "navigation", None);
         self.choice.pick(response, picked)
     }
@@ -974,6 +978,7 @@ impl<'a, K: ItemKey> NavigationRail<'a, K> {
         };
         let height = ui.available_height();
         let (rect, response) = ui.allocate_exact_size(vec2(width, height), Sense::hover());
+        let parts = kit::nodes::parts(rt.ctx(), response.id, ui.unique_id());
         ui.painter().rect_filled(rect, 0, t.role(rail::CONTAINER_COLOR));
         let trigger_id = trigger_id(id);
         let mut body = RailBody::default();
@@ -994,6 +999,7 @@ impl<'a, K: ItemKey> NavigationRail<'a, K> {
         let (popup, dismissed) = modal.map_or((None, None), |state| {
             self.modal_panel(rt, id, rect, state, modal_open, &mut body)
         });
+        drop(parts);
         self.group.emit(rt, response.id, rect, "navigation", expanded);
         NavigationRailResponse {
             selection: self.choice.pick(response, body.picked),
@@ -1297,6 +1303,7 @@ impl Drawer {
         let width = ui.available_width().min(drawer::CONTAINER_WIDTH);
         let height = ui.available_height();
         let (rect, response) = ui.allocate_exact_size(vec2(width, height), Sense::hover());
+        let parts = kit::nodes::parts(rt.ctx(), response.id, ui.unique_id());
         ui.painter()
             .rect_filled(rect, 0, t.role(drawer::STANDARD_CONTAINER_COLOR));
         let mut picked = None;
@@ -1304,6 +1311,7 @@ impl Drawer {
         egui_mineral::layout::child(ui, scope, rect, rt.i18n().direction().column(), |ui| {
             picked = self.content(ui, id, width, choice).0;
         });
+        drop(parts);
         self.group.emit(rt, response.id, rect, "navigation", None);
         choice.pick(response, picked)
     }

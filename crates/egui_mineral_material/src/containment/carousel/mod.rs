@@ -476,6 +476,7 @@ impl<'a> Carousel<'a> {
             return out;
         }
         let ctx = ui.ctx().clone();
+        let parts = kit::nodes::parts(&ctx, out.response.id, ui.unique_id());
         let id = ui.make_persistent_id(self.salt.id_salt());
         let dir = rt.i18n().direction();
         let track = if vertical {
@@ -514,7 +515,8 @@ impl<'a> Carousel<'a> {
         kit::interact::remember(&ctx, id, items.ids);
         self.arrow_focus(rt, &strip, &mut st, items.focus.or(focused));
 
-        semantic::emit(&ctx, None, rect, || {
+        drop(parts);
+        semantic::emit(&ctx, Some(out.response.id), rect, || {
             let mut n = SemanticNode::new(
                 StableId::of(&self.salt, "carousel"),
                 Role::List,

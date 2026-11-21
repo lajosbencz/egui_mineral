@@ -293,20 +293,13 @@ impl<A: ActionValue> RowWidget<'_, A> {
     fn control_semantics(&self, ui: &Ui, control: Option<&RowControl>, actions: &[Response]) {
         let ctx = ui.ctx();
         if let Some(c) = control {
-            c.emit(
-                ctx,
-                self.key.sub(c.control.kind()),
-                self.label,
-                self.depth + 2,
-                self.disabled,
-            );
+            c.emit(ctx, self.key.sub(c.control.kind()), self.label, self.disabled);
         }
         for ((v, a), r) in self.actions.iter().zip(actions) {
             semantic::emit(ctx, Some(r.id), r.rect, || {
                 let mut n = SemanticNode::new(self.key.sub((v.salt(), "button")), Role::Button, &a.label)
                     .pressable(Availability::disabled_if(self.disabled || a.disabled));
                 n.state.checked = a.selected.map(Check::from);
-                n.depth = self.depth + 2;
                 n
             });
         }
@@ -463,7 +456,7 @@ impl<A: ActionValue> RowWidget<'_, A> {
     fn node(&self, i18n: &I18n) -> SemanticNode {
         let mut n = SemanticNode::new(self.key.clone(), Role::TreeItem, self.label)
             .clickable(Availability::disabled_if(self.disabled));
-        n.depth = self.depth + 1;
+        n.state.level = Some(self.depth + 1);
         n.state.selected = Some(self.selected);
         if self.has_children {
             n.state.expanded = Some(self.expanded);
@@ -954,8 +947,10 @@ impl<'a, N: TreeData, A: ActionValue> TreeView<'a, N, A> {
             .min(row_h * rows.len() as f32);
         let width = ui.available_width();
         let (area, response) = ui.allocate_exact_size(vec2(width, height), Sense::hover());
+        let tree = response.id;
+        let _rows = kit::nodes::parts(ctx, tree, ui.unique_id());
         let mut out = TreeViewResponse::new(response);
-        semantic::emit(ctx, None, area, || {
+        semantic::emit(ctx, Some(tree), area, || {
             let mut n = SemanticNode::new(StableId::of(&self.salt, "tree"), Role::Tree, &self.label);
             n.state.disabled = self.disabled;
             n

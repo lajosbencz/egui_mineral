@@ -345,7 +345,7 @@ impl<W: Clone + Send + Sync + 'static> PickerModal<'_, W> {
             let mut work: W = ctx.data(|d| d.get_temp(work_id)).unwrap_or(self.initial);
             let r = dialog_modal(rt, id, &t, 0.0).show(ctx, |ui| {
                 let (action, name) = body(&mut rt.ui(ui), &mut work);
-                semantic::emit(ui.ctx(), None, ui.min_rect(), || {
+                semantic::emit(ui.ctx(), Some(ui.unique_id()), ui.min_rect(), || {
                     SemanticNode::new(StableId::of(self.salt, "dialog"), Role::Dialog, name)
                 });
                 action.or_else(|| kit::layer::default_action_pressed(ui).then_some(Choice::Confirm))

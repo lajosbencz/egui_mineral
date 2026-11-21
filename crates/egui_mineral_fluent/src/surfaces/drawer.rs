@@ -253,7 +253,7 @@ impl<A: ActionValue> Drawer<A> {
                     elevation: Elevation::E64,
                 };
                 let shown = framed(ui, &t, &look, Margin::ZERO, |ui| self.body(rt, ui, extent, add));
-                semantic::emit(ui.ctx(), None, shown.response.rect, || {
+                semantic::emit(ui.ctx(), Some(ui.unique_id()), shown.response.rect, || {
                     SemanticNode::new(self.key.id(&self.salt), Role::Dialog, &self.label)
                 });
                 shown.inner
@@ -325,7 +325,7 @@ impl<A: ActionValue> Drawer<A> {
                     };
                     ui.painter().rect_filled(edge, 0, t.color(ColorNeutralBackground3));
                 }
-                semantic::emit(ui.ctx(), None, shown, || {
+                semantic::emit(ui.ctx(), Some(ui.unique_id()), shown, || {
                     SemanticNode::new(self.key.id(&self.salt), Role::Complementary, &self.label)
                 });
                 body

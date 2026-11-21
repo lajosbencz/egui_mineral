@@ -379,6 +379,7 @@ impl<'a, A: ActionValue> DockedToolbar<'a, A> {
         let id = ui.make_persistent_id(core.salt.id_salt());
         let (rect, _) = ui.allocate_exact_size(vec2(w, dense_height(docked::CONTAINER_HEIGHT, item)), Sense::hover());
         let response = ui.interact(rect, id, Sense::hover());
+        let parts = egui_mineral::kit::nodes::parts(ui.ctx(), response.id, ui.unique_id());
         let (mut clicked, mut shown) = (None, ItemResponses::default());
         if ui.is_rect_visible(rect) {
             let (fill, palette) = core.container(Kind::Docked);
@@ -419,6 +420,7 @@ impl<'a, A: ActionValue> DockedToolbar<'a, A> {
                 gap,
             );
         }
+        drop(parts);
         announce(ui.ctx(), &response, &core, None);
         ToolbarResponse {
             response,
@@ -536,6 +538,7 @@ impl<'a, A: ActionValue> FloatingToolbar<'a, A> {
         };
         let (rect, _) = ui.allocate_exact_size(size, Sense::hover());
         let response = ui.interact(rect, id, Sense::hover());
+        let parts = egui_mineral::kit::nodes::parts(ui.ctx(), response.id, ui.unique_id());
         let mut out = ToolbarResponse {
             response,
             clicked: None,
@@ -604,6 +607,7 @@ impl<'a, A: ActionValue> FloatingToolbar<'a, A> {
         };
         (out.clicked, out.actions) = self.floating_bar(ui, rect, place, axis, &widths);
         let expanded = self.fab.as_ref().map(|_| self.expanded);
+        drop(parts);
         announce(&ctx, &out.response, &self.core, expanded);
         out
     }

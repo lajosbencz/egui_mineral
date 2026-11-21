@@ -348,6 +348,7 @@ pub(crate) fn show<K: egui_mineral::select::ItemKey>(
                 .inner_margin(Margin::same(LIST_PAD as i8))
                 .shadow(t.shadow(Elevation::E16, ShadowTint::Neutral).ambient)
                 .show(ui, |ui| {
+                    let list = ui.unique_id();
                     ui.set_width(width - frame_pad);
                     ui.spacing_mut().item_spacing = Vec2::new(0.0, ROW_GAP);
                     ScrollArea::vertical()
@@ -365,11 +366,10 @@ pub(crate) fn show<K: egui_mineral::select::ItemKey>(
                             };
                             (clicked, active_id) = rows.draw(ui);
                         });
+                    list
                 });
-            semantic::emit(ctx, Some(panel.response.id), panel.response.rect, || {
-                let mut n = SemanticNode::new(key.sub("listbox"), Role::ListBox, label);
-                n.depth = 1;
-                n
+            semantic::emit(ctx, Some(panel.inner), panel.response.rect, || {
+                SemanticNode::new(key.sub("listbox"), Role::ListBox, label)
             });
         });
     Shown {
@@ -429,7 +429,6 @@ impl<K: egui_mineral::select::ItemKey> Rows<'_, '_, K> {
                         let mut n = SemanticNode::new(option_key(self.key, opt), Role::ListBoxOption, opt.text.clone())
                             .pressable(Availability::disabled_if(opt.disabled));
                         n.state.selected = Some(selected);
-                        n.depth = 2;
                         n
                     });
                     if r.clicked() && !opt.disabled {

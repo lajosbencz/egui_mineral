@@ -455,10 +455,9 @@ impl<'a, K: ItemKey> DataTable<'a, K> {
         st
     }
 
-    fn emit_grid(&self, ctx: &Context, id: Id) {
-        semantic::emit_parent(ctx, id, || {
+    fn emit_grid(&self, ui: &Ui, rect: Rect) {
+        semantic::emit(ui.ctx(), Some(ui.unique_id()), rect, || {
             let mut n = SemanticNode::new(StableId::of(&self.salt, "grid"), Role::Grid, &self.label);
-            n.state.selected = None;
             n.state.disabled = self.disabled;
             n
         });
@@ -603,8 +602,6 @@ impl<'a, K: ItemKey> DataTable<'a, K> {
         #[expect(clippy::cast_sign_loss, reason = ">= 1")]
         let view_rows = (body_h / row_h).floor().max(1.0) as usize;
 
-        self.emit_grid(ctx, id);
-
         let first_body = usize::from(page_rows > 0);
         let stop = st
             .pending
@@ -665,9 +662,8 @@ impl<'a, K: ItemKey> DataTable<'a, K> {
             }
         }
         out.sort = st.sort;
-        kit::nodes::remember_rect(
-            ctx,
-            id,
+        self.emit_grid(
+            ui,
             Rect::from_min_max(start, pos2(start.x + avail_w, ui.cursor().min.y)),
         );
         st.store(ctx, id);
@@ -858,7 +854,6 @@ impl<K: ItemKey> TableView<'_, '_, K> {
                 Role::ColumnHeader,
                 crate::tr(self.rt.i18n(), msg::TABLE_SELECTION),
             );
-            n.depth = 1;
             n.actions.push(Action::Focus);
             n
         });
@@ -913,7 +908,6 @@ impl<K: ItemKey> TableView<'_, '_, K> {
                     },
                 )
             });
-            n.depth = 1;
             n.state.disabled = disabled;
             if !disabled {
                 n.actions.push(Action::Focus);
@@ -1128,7 +1122,6 @@ impl<K: ItemKey> TableView<'_, '_, K> {
             let mut n = SemanticNode::new(StableId::of(&self.table.salt, (key.clone(), "row")), Role::Row, "");
             n.state.selected = self.has_sel().then_some(selected);
             n.state.disabled = self.table.disabled;
-            n.depth = 1;
             n
         });
     }
@@ -1160,14 +1153,12 @@ impl<K: ItemKey> TableView<'_, '_, K> {
         let focus = Interaction::default().with_focused(focus::visible(&r.ctx, r.id));
         common::state_layer(p, cr, self.cell_shape, col.label, focus, self.t);
         semantic::emit(self.ctx, Some(r.id), cr, || {
-            let mut n = SemanticNode::new(
+            SemanticNode::new(
                 StableId::of(&self.table.salt, (key.clone(), c, "cell")),
                 Role::Cell,
                 text.as_ref(),
             )
-            .clickable(Availability::disabled_if(disabled));
-            n.depth = 2;
-            n
+            .clickable(Availability::disabled_if(disabled))
         });
     }
 }
@@ -1325,11 +1316,10 @@ fn resize_handle(
         let name = rt.i18n().tr(msg::TableResize {
             column: (&col.title).into(),
         });
-        let mut n = SemanticNode::new(StableId::of(salt, (c, "resize")), Role::Splitter, name)
+
+        SemanticNode::new(StableId::of(salt, (c, "resize")), Role::Splitter, name)
             .value(rt.i18n().format().integer(widths.width(c).round() as i64))
-            .ranged(model.numeric(f64::from(widths.width(c))), Availability::Enabled);
-        n.depth = 1;
-        n
+            .ranged(model.numeric(f64::from(widths.width(c))), Availability::Enabled)
     });
 }
 
@@ -1339,7 +1329,6 @@ fn check_semantics(rt: &Rt, r: &Response, id: StableId, name_id: crate::Msg, sta
         let name = crate::tr(rt.i18n(), name_id);
         let mut n = SemanticNode::new(id, Role::CheckBox, name).clickable(Availability::disabled_if(disabled));
         n.state.checked = Some(state);
-        n.depth = 2;
         n
     });
 }

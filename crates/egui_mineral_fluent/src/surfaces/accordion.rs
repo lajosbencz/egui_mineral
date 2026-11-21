@@ -409,7 +409,7 @@ impl<'a, K: ItemKey> Accordion<'a, K> {
             (inner, aui.toggled)
         });
         let response = scope.response;
-        semantic::emit(ui.ctx(), None, response.rect, || {
+        semantic::emit(ui.ctx(), Some(response.id), response.rect, || {
             SemanticNode::new(key, Role::Group, crate::tr(rt.i18n(), msg::ACCORDION))
         });
         let (inner, toggled) = scope.inner;
@@ -517,7 +517,9 @@ impl<K: ItemKey> AccordionUi<'_, '_, K> {
         }
         let (rect, _) = self.ui.allocate_exact_size(vec2(w, measured * k), Sense::hover());
         let key = egui_mineral::agent_key!("panel").id(&item_salt);
-        semantic::emit(&ctx, None, rect, || SemanticNode::new(key, Role::Region, &item.title));
+        semantic::emit(&ctx, Some(child.unique_id()), rect, || {
+            SemanticNode::new(key, Role::Region, &item.title)
+        });
         AccordionItemResponse {
             response,
             inner: Some(inner),

@@ -4,12 +4,14 @@ pub mod serialize;
 mod key;
 
 pub use egui::accesskit::{Action, Live, Role};
-use egui::{Context, Id, KeyboardShortcut, Rect};
+use std::collections::HashMap;
+
+use egui::{Context, Id, KeyboardShortcut, LayerId, Rect, WidgetRects};
 pub use egui_mineral_macros::KeySalt;
 pub use key::{AgentKey, KeyKind, KeyParts, KeySalt, KeyedSalt, StableId};
 
 use crate::{
-    kit::nodes::{RECT_KEY, push, wanted},
+    kit::nodes::{push_from, wanted},
     select::Check,
     shortcut::Mnemonic,
     widget::Availability,
@@ -39,6 +41,8 @@ pub struct SemanticState {
     pub range: Option<NumericRange>,
     /// `Some` for live regions screen readers announce on change.
     pub live: Option<Live>,
+    /// 1-based level of a tree item in its data hierarchy (ARIA `aria-level`); rows of a tree are siblings.
+    pub level: Option<usize>,
 }
 
 /// Value, bounds and step of a ranged node.
@@ -80,7 +84,7 @@ pub struct SemanticNode {
     pub shortcut: Option<KeyboardShortcut>,
     /// Mnemonic letter that activates the node while its menu or dialog is active.
     pub access_key: Option<Mnemonic>,
-    /// Indent level in the agent markdown; 0 for top-level nodes.
+    /// Ancestors in the [`SemanticTree`]; set when the tree is built.
     pub depth: usize,
 }
 
@@ -173,10 +177,15 @@ impl SemanticNode {
 }
 
 /// Nodes of one pass, built only when an agent or inspector asks.
+///
+/// A node's parent is the nearest node up egui's widget hierarchy (`WidgetRect::parent_id`), so a container
+/// node uses the id of the `Ui` holding its children. A popup layer continues at its owner
+/// ([`own_layer`](crate::kit::nodes::own_layer)).
 #[derive(Clone, Debug, Default, PartialEq)]
 #[non_exhaustive]
 pub struct SemanticTree {
-    /// Emission order: children before the parents emitted by [`emit_parent`].
+    /// Pre-order, siblings in emission order: each node is followed by its descendants, which have a greater
+    /// [`SemanticNode::depth`].
     pub nodes: Vec<SemanticNode>,
 }
 
@@ -184,6 +193,15 @@ impl SemanticTree {
     /// First node with `key`.
     pub fn find_key(&self, key: &str) -> Option<&SemanticNode> {
         self.nodes.iter().find(|n| n.id.key() == key)
+    }
+
+    /// First node with `key` followed by its descendants.
+    pub fn subtree(&self, key: &str) -> Option<&[SemanticNode]> {
+        let start = self.nodes.iter().position(|n| n.id.key() == key)?;
+        let depth = self.nodes.get(start)?.depth;
+        let rest = self.nodes.get(start + 1..).unwrap_or_default();
+        let len = rest.iter().position(|n| n.depth <= depth).unwrap_or(rest.len());
+        self.nodes.get(start..=start + len)
     }
 }
 
@@ -201,6 +219,50 @@ impl<'a> IntoIterator for &'a SemanticTree {
 pub(crate) struct Collector {
     pub(crate) wanted: bool,
     pub(crate) tree: SemanticTree,
+    // Per node: where the hierarchy walk starts when its widget id has no `WidgetRect` this pass.
+    pub(crate) anchors: Vec<Option<Id>>,
+    // Per node: innermost widget scope open when it was pushed.
+    pub(crate) in_scope: Vec<Option<usize>>,
+    pub(crate) owners: HashMap<LayerId, Id>,
+    pub(crate) scopes: Vec<Scope>,
+    pub(crate) open: Vec<usize>,
+}
+
+// A widget's `update`: a walk from a node pushed inside it that reaches `ui` before any node nests under
+// `widget`, so the widget's parts nest under it although egui places them beside it.
+#[derive(Clone, Copy)]
+pub(crate) struct Scope {
+    widget: Id,
+    ui: Id,
+    outer: Option<usize>,
+}
+
+pub(crate) fn enter(ctx: &Context, id: Id, ui: Id) -> Option<usize> {
+    Pass::with(ctx, |c| {
+        c.wanted.then(|| {
+            let i = c.scopes.len();
+            c.scopes.push(Scope {
+                widget: id,
+                ui,
+                outer: c.open.last().copied(),
+            });
+            c.open.push(i);
+            i
+        })
+    })
+}
+
+// `id` replaces the owner's id when its node uses another response than the one the scope opened with.
+pub(crate) fn leave(ctx: &Context, i: Option<usize>, id: Option<Id>) {
+    let Some(i) = i else { return };
+    Pass::with(ctx, |c| {
+        if let Some(pos) = c.open.iter().rposition(|&o| o == i) {
+            c.open.truncate(pos);
+        }
+        if let (Some(s), Some(id)) = (c.scopes.get_mut(i), id) {
+            s.widget = id;
+        }
+    });
 }
 
 pub(crate) type Pass = crate::runtime::PassScope<Collector>;
@@ -210,7 +272,7 @@ pub(crate) fn begin_pass(ctx: &Context, wanted: bool) {
         ctx,
         Collector {
             wanted,
-            tree: SemanticTree::default(),
+            ..Collector::default()
         },
     );
 }
@@ -219,36 +281,34 @@ pub(crate) fn collecting(ctx: &Context) -> bool {
     Pass::read(ctx, |c| c.is_some_and(|c| c.wanted))
 }
 
-/// Builds `node` only when [`wanted`], then writes it to AccessKit (with an `id`) and the tree.
+/// Builds `node` only when [`wanted`], then writes it to AccessKit (with an `id`) and the tree. `id` is the
+/// widget's, or for a container the id of the `Ui` holding its children; a node without one has no parent.
 pub fn emit(ctx: &Context, id: Option<Id>, rect: Rect, node: impl FnOnce() -> SemanticNode) {
     if wanted(ctx, id) {
-        write(ctx, id, rect, node);
+        write(ctx, id, rect, None, node);
     }
 }
 
-fn write(ctx: &Context, id: Option<Id>, rect: Rect, node: impl FnOnce() -> SemanticNode) {
+/// [`emit`] of a node with no widget this pass, nested under `ui`'s nearest node.
+pub fn emit_in(ui: &egui::Ui, id: Option<Id>, rect: Rect, node: impl FnOnce() -> SemanticNode) {
+    if wanted(ui.ctx(), id) {
+        write(ui.ctx(), id, rect, Some(ui.unique_id()), node);
+    }
+}
+
+fn write(ctx: &Context, id: Option<Id>, rect: Rect, anchor: Option<Id>, node: impl FnOnce() -> SemanticNode) {
     let mut node = node();
     node.rect = rect;
     node.widget_id = id;
     if let Some(id) = id {
         serialize::accesskit::write(ctx, id, &node);
     }
-    push(ctx, node);
-}
-
-/// [`emit`] over the rect [`remember_rect`](crate::kit::nodes::remember_rect) stored for `id`: parents emit
-/// after their children.
-pub fn emit_parent(ctx: &Context, id: Id, node: impl FnOnce() -> SemanticNode) {
-    if wanted(ctx, Some(id)) {
-        let rect = ctx
-            .data(|d| d.get_temp::<Rect>(id.with(RECT_KEY)))
-            .unwrap_or(Rect::NOTHING);
-        write(ctx, Some(id), rect, node);
-    }
+    push_from(ctx, node, anchor);
 }
 
 pub(crate) fn end_pass(ctx: &Context) -> Option<SemanticTree> {
-    let tree = Pass::take(ctx).filter(|c| c.wanted).map(|c| c.tree)?;
+    let collected = Pass::take(ctx).filter(|c| c.wanted)?;
+    let tree = ctx.viewport(|v| nest(collected, &v.this_pass.widgets));
     let mut seen = std::collections::HashSet::with_capacity(tree.nodes.len());
     for n in &tree.nodes {
         if !seen.insert(n.id.key()) {
@@ -259,6 +319,124 @@ pub(crate) fn end_pass(ctx: &Context) -> Option<SemanticTree> {
         }
     }
     Some(tree)
+}
+
+// egui bounds its own parent walks the same way, against id clashes forming a cycle.
+const MAX_WALK: usize = 1000;
+
+fn nest(c: Collector, widgets: &WidgetRects) -> SemanticTree {
+    let mut by_widget = HashMap::new();
+    for (i, n) in c.tree.nodes.iter().enumerate() {
+        if let Some(id) = n.widget_id {
+            by_widget.entry(id).or_insert(i);
+        }
+    }
+    let count = c.tree.nodes.len();
+    let mut children = vec![Vec::new(); count];
+    let mut roots = Vec::new();
+    let mut parents = Vec::with_capacity(count);
+    for (i, n) in c.tree.nodes.iter().enumerate() {
+        let start = n
+            .widget_id
+            .filter(|&id| widgets.get(id).is_some())
+            .or_else(|| c.anchors.get(i).copied().flatten());
+        let walk = Walk {
+            own: n.widget_id,
+            scope: c.in_scope.get(i).copied().flatten(),
+            by_widget: &by_widget,
+            widgets,
+            c: &c,
+        };
+        parents.push(start.and_then(|s| walk.ancestor(s)));
+    }
+    // Reading order: a subtree sorts by its first emitted node, so a parent emitted after its children
+    // keeps their place.
+    let mut first: Vec<usize> = (0..count).collect();
+    for i in 0..count {
+        let mut p = parents.get(i).copied().flatten();
+        for _ in 0..MAX_WALK {
+            let Some(at) = p.and_then(|p| first.get_mut(p)) else {
+                break;
+            };
+            *at = (*at).min(i);
+            p = p.and_then(|p| parents.get(p).copied().flatten());
+        }
+    }
+    for (i, p) in parents.iter().enumerate() {
+        match p.and_then(|p| children.get_mut(p)) {
+            Some(siblings) => siblings.push(i),
+            None => roots.push(i),
+        }
+    }
+    let order = |i: &usize| first.get(*i).copied().unwrap_or(*i);
+    roots.sort_by_key(order);
+    for kids in &mut children {
+        kids.sort_by_key(order);
+    }
+    let mut slots: Vec<Option<SemanticNode>> = c.tree.nodes.into_iter().map(Some).collect();
+    let mut nodes = Vec::with_capacity(count);
+    let mut stack: Vec<(usize, usize)> = Vec::new();
+    // Nodes in a parent cycle are reached by none of the roots; they become roots after them.
+    for root in roots.into_iter().chain(0..count) {
+        stack.push((root, 0));
+        while let Some((i, depth)) = stack.pop() {
+            let Some(mut node) = slots.get_mut(i).and_then(Option::take) else {
+                continue;
+            };
+            node.depth = depth;
+            nodes.push(node);
+            if let Some(kids) = children.get(i) {
+                stack.extend(kids.iter().rev().map(|&k| (k, depth + 1)));
+            }
+        }
+    }
+    SemanticTree { nodes }
+}
+
+struct Walk<'a> {
+    own: Option<Id>,
+    scope: Option<usize>,
+    by_widget: &'a HashMap<Id, usize>,
+    widgets: &'a WidgetRects,
+    c: &'a Collector,
+}
+
+impl Walk<'_> {
+    fn node(&self, id: Id) -> Option<usize> {
+        (Some(id) != self.own)
+            .then(|| self.by_widget.get(&id).copied())
+            .flatten()
+    }
+
+    fn scope_at(&self, ui: Id) -> Option<usize> {
+        let mut s = self.scope;
+        for _ in 0..MAX_WALK {
+            let scope = self.c.scopes.get(s?)?;
+            if scope.ui == ui
+                && let Some(i) = self.node(scope.widget)
+            {
+                return Some(i);
+            }
+            s = scope.outer;
+        }
+        None
+    }
+
+    fn ancestor(&self, start: Id) -> Option<usize> {
+        let mut id = start;
+        for _ in 0..MAX_WALK {
+            if let Some(i) = self.node(id).or_else(|| self.scope_at(id)) {
+                return Some(i);
+            }
+            let w = self.widgets.get(id)?;
+            id = if w.parent_id == id {
+                *self.c.owners.get(&w.layer_id)?
+            } else {
+                w.parent_id
+            };
+        }
+        None
+    }
 }
 
 #[cfg(test)]
@@ -280,6 +458,92 @@ mod tests {
             count += 1;
         }
         assert_eq!(count, 2);
+    }
+
+    fn tree_of(add: impl Fn(&mut egui::Ui)) -> Vec<(String, usize)> {
+        use crate::test_support::{ctx, input, run, runtime};
+
+        let ctx = ctx();
+        let rt = runtime(&ctx);
+        rt.set_collect_semantics(true);
+        let out = run(&ctx, input(vec![]), |ui| rt.pass(ui, |ui| add(ui)));
+        drop(out);
+        let tree = rt.tree(egui::ViewportId::ROOT).expect("tree collected");
+        tree.nodes.iter().map(|n| (n.id.key().to_owned(), n.depth)).collect()
+    }
+
+    fn node(ui: &egui::Ui, id: Option<egui::Id>, key: &'static str) {
+        super::emit(ui.ctx(), id, egui::Rect::ZERO, || {
+            super::SemanticNode::new(super::StableId::new(key), super::Role::Group, key)
+        });
+    }
+
+    fn keyed(nodes: &[(&str, usize)]) -> Vec<(String, usize)> {
+        nodes.iter().map(|&(k, d)| (k.to_owned(), d)).collect()
+    }
+
+    #[test]
+    fn a_container_nests_the_nodes_of_its_ui_wherever_it_emits() {
+        let tree = tree_of(|ui| {
+            ui.scope(|ui| {
+                let b = ui.interact(egui::Rect::ZERO, egui::Id::unique("b"), egui::Sense::click());
+                node(ui, Some(b.id), "button");
+                super::emit_in(ui, None, egui::Rect::ZERO, || {
+                    super::SemanticNode::new(super::StableId::new("text"), super::Role::Label, "t")
+                });
+                node(ui, Some(ui.unique_id()), "group");
+            });
+            node(ui, Some(egui::Id::unique("unplaced")), "unplaced");
+        });
+        assert_eq!(
+            tree,
+            keyed(&[("group", 0), ("button", 1), ("text", 1), ("unplaced", 0)])
+        );
+    }
+
+    #[test]
+    fn parts_beside_their_owner_nest_under_it() {
+        let tree = tree_of(|ui| {
+            let owner = ui.interact(egui::Rect::ZERO, egui::Id::unique("o"), egui::Sense::hover());
+            let parts = crate::kit::nodes::parts(ui.ctx(), owner.id, ui.unique_id());
+            let p = ui.interact(egui::Rect::ZERO, egui::Id::unique("p"), egui::Sense::click());
+            node(ui, Some(p.id), "part");
+            drop(parts);
+            let s = ui.interact(egui::Rect::ZERO, egui::Id::unique("s"), egui::Sense::click());
+            node(ui, Some(s.id), "sibling");
+            node(ui, Some(owner.id), "owner");
+        });
+        assert_eq!(tree, keyed(&[("owner", 0), ("part", 1), ("sibling", 0)]));
+    }
+
+    #[test]
+    fn a_popup_nests_under_its_trigger() {
+        use crate::{
+            anchor::{Align, Anchor, Side},
+            overlay::Popup,
+            test_support::{ctx, input, run, runtime},
+        };
+
+        let ctx = ctx();
+        let rt = runtime(&ctx);
+        rt.set_collect_semantics(true);
+        let out = run(&ctx, input(vec![]), |ui| {
+            rt.pass(ui, |ui| {
+                let trigger = ui.interact(egui::Rect::ZERO, egui::Id::unique("t"), egui::Sense::click());
+                node(ui, Some(trigger.id), "trigger");
+                let mut open = true;
+                Popup::new("p", Anchor::new(Side::Bottom, Align::Start)).show(&rt, &trigger, &mut open, |ui, _| {
+                    let o = ui.interact(egui::Rect::ZERO, egui::Id::unique("o"), egui::Sense::click());
+                    node(ui, Some(o.id), "option");
+                });
+            });
+        });
+        drop(out);
+        let tree = rt.tree(egui::ViewportId::ROOT).expect("tree collected");
+        let depths: Vec<_> = tree.nodes.iter().map(|n| (n.id.key(), n.depth)).collect();
+        assert_eq!(depths, [("trigger", 0), ("option", 1)]);
+        let sub = tree.subtree("trigger").expect("subtree");
+        assert_eq!(sub.len(), 2, "the trigger and its popup");
     }
 
     #[test]

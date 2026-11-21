@@ -276,7 +276,7 @@ impl Composite for InlineEdit<'_> {
             if submitted || cancelled {
                 st.cancel = None;
             }
-            crate::text_inputs::text_field::emit_part(&ctx, te, 0, || {
+            crate::text_inputs::text_field::emit_part(&ctx, te, || {
                 SemanticNode::new(StableId::of(&self.salt, "field"), Role::TextInput, &self.label)
                     .editable(Availability::Enabled)
             });

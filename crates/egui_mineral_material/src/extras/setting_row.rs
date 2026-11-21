@@ -166,7 +166,7 @@ impl SettingRow {
             perf::store_size(ctx, memo, col.response.rect.size());
             (response, col.inner)
         };
-        self.emit_supporting(ctx, response.rect);
+        self.emit_supporting(ui, response.rect);
         SettingRowResponse {
             response,
             inner,
@@ -230,7 +230,7 @@ impl SettingRow {
             n.value = Some(value);
             n
         });
-        self.emit_supporting(ctx, response.rect);
+        self.emit_supporting(ui, response.rect);
         SettingRowResponse {
             response,
             inner: (),
@@ -238,9 +238,9 @@ impl SettingRow {
         }
     }
 
-    fn emit_supporting(&self, ctx: &egui::Context, rect: Rect) {
+    fn emit_supporting(&self, ui: &egui::Ui, rect: Rect) {
         if let Some(s) = &self.supporting {
-            semantic::emit(ctx, None, rect, || {
+            semantic::emit_in(ui, None, rect, || {
                 SemanticNode::new(self.key.id(&self.salt).sub("supporting"), Role::Label, s)
             });
         }

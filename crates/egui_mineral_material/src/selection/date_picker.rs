@@ -1276,6 +1276,9 @@ impl Config {
             &focus::Items::new(month_days.len(), |i| env.limits.contains(month_days[i])),
         );
         let mut day_ids = Vec::with_capacity(month_days.len());
+        let grid_rect = Rect::from_min_max(pos2(body.left(), grid_top), body.max);
+        let mut grid_ui = ui.new_child(UiBuilder::new().max_rect(grid_rect));
+        let grid_ui = rt.ui(&mut grid_ui);
         for (row, week) in grid.weeks().enumerate() {
             let top = grid_top + dp::CELL_SIZE * row as f32;
             for (col, d) in week.iter().copied().enumerate() {
@@ -1283,7 +1286,7 @@ impl Config {
                     continue;
                 }
                 let cell = Rect::from_min_size(pos2(col_x(body.left(), col, env.dir), top), Vec2::splat(dp::CELL_SIZE));
-                let resp = self.day(ui, &env, cell, d, sel, focus::TabStop::at(day_index(d), stop));
+                let resp = self.day(&grid_ui, &env, cell, d, sel, focus::TabStop::at(day_index(d), stop));
                 day_ids.push((day_index(d), resp.id));
                 if resp.has_focus() {
                     focused_date = Some(d);
@@ -1295,9 +1298,8 @@ impl Config {
             }
         }
         kit::interact::remember(ctx, id, day_ids);
-        let grid_rect = Rect::from_min_max(pos2(body.left(), grid_top), body.max);
         let title = loc.month_year(v.year, v.month);
-        semantic::emit(ctx, None, grid_rect, || {
+        semantic::emit(ctx, Some(grid_ui.unique_id()), grid_rect, || {
             let mut n = SemanticNode::new(StableId::of(&self.salt, "grid"), Role::Grid, &title);
             n.state.disabled = self.disabled;
             n
@@ -1382,9 +1384,9 @@ impl Config {
         let mut picked = false;
         let mut focused = None;
         let mut shown_first = 0;
+        let mut months = ui.new_child(UiBuilder::new().id_salt("months").max_rect(list));
         let out = {
-            let ui = &mut ui.new_child(UiBuilder::new().id_salt("months").max_rect(list));
-            scroll.show_viewport(ui, |ui, viewport| {
+            scroll.show_viewport(&mut months, |ui, viewport| {
                 ui.set_height(count as f32 * MONTH_ITEM_H);
                 let origin = ui.max_rect().min;
                 let at = |y: f32| {
@@ -1441,7 +1443,7 @@ impl Config {
         }
         let shown = add_months(first, month_count(shown_first));
         let title = env.loc.month_year(shown.year(), shown.month());
-        semantic::emit(rt.ctx(), None, list, || {
+        semantic::emit(rt.ctx(), Some(months.unique_id()), list, || {
             let mut n = SemanticNode::new(StableId::of(&self.salt, "grid"), Role::Grid, &title);
             n.state.disabled = self.disabled;
             n

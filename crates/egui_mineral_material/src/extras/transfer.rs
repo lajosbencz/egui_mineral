@@ -11,7 +11,6 @@ use egui_mineral::widget::Composite;
 use egui_mineral::widget::MineralUi;
 use egui_mineral::{
     focus::RovingFocus,
-    kit,
     layout::{Axis, Constraints},
     perf::VirtualList,
     select::ItemKey,
@@ -177,9 +176,8 @@ impl<'a, K: ItemKey> TransferList<'a, K> {
         row_parts::height(density, ListLines::Two)
     }
 
-    fn emit_group(&self, rt: &Rt, id: egui::Id) {
-        let ctx = rt.ctx();
-        semantic::emit_parent(ctx, id, || {
+    fn emit_group(&self, rt: &Rt, container: &egui::Response) {
+        semantic::emit(rt.ctx(), Some(container.id), container.rect, || {
             let name = crate::tr_or(rt.i18n(), self.label.as_deref(), msg::TRANSFER);
             let mut n = SemanticNode::new(StableId::of(&self.salt, "transfer"), Role::Group, name);
             n.state.disabled = self.disabled;
@@ -356,7 +354,6 @@ impl<K: ItemKey> Composite for TransferList<'_, K> {
         let rt = ui.rt();
         let base = ui.make_persistent_id(self.salt.id_salt());
         let state_id = base.with("transfer");
-        self.emit_group(rt, base);
         let mut st = TransferState::load(rt.ctx(), state_id);
         let len = self.values.len();
         // Unknown and repeated values are dropped; repeats would share row ids.
@@ -434,7 +431,7 @@ impl<K: ItemKey> Composite for TransferList<'_, K> {
             self.apply(m, &source, &mut st);
         }
         st.store(rt.ctx(), state_id);
-        kit::nodes::remember_rect(rt.ctx(), base, inner.response.rect);
+        self.emit_group(rt, &inner.response);
         let response = inner.response;
         WidgetResponse::new(response, ()).with_changed(moved.is_some())
     }

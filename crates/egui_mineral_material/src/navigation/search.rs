@@ -612,7 +612,7 @@ impl<K> SearchSuggestions<'_, K> {
                             view_divider(ui, rect.width(), &t);
                         }
                     });
-                semantic::emit(ui.ctx(), None, framed.response.rect, || {
+                semantic::emit(ui.ctx(), Some(ui.unique_id()), framed.response.rect, || {
                     SemanticNode::new(
                         StableId::of(&self.salt, "suggestions"),
                         Role::ListBox,

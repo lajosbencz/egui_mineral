@@ -113,6 +113,7 @@ pub struct Popup {
     return_focus: Option<Id>,
     size: Option<Vec2>,
     anchor_rect: Option<Rect>,
+    owner: Option<Id>,
 }
 
 /// Placed popup contents with the [`Placement`] they landed on.
@@ -186,6 +187,7 @@ impl Popup {
             return_focus: None,
             size: None,
             anchor_rect: None,
+            owner: None,
         }
     }
 
@@ -237,6 +239,12 @@ impl Popup {
         self
     }
 
+    /// Widget or `Ui` whose semantic and AccessKit node holds the popup's nodes; the trigger in [`Self::show`].
+    pub fn owner(mut self, owner: Id) -> Self {
+        self.owner = Some(owner);
+        self
+    }
+
     /// Places and shows the area against `anchor_rect` with no open state, dismissal or trigger.
     pub fn show_at<K, R>(
         self,
@@ -277,7 +285,13 @@ impl Popup {
         if let Some(name) = &self.name {
             area = area.accessible_name(name.clone());
         }
+        if let Some(owner) = self.owner {
+            area = area.accessibility_parent(owner);
+        }
         let InnerResponse { inner, response } = area.show(ctx, |ui| add(&mut rt.ui(ui), &placement));
+        if let Some(owner) = self.owner {
+            crate::kit::nodes::own_layer(ctx, response.layer_id, owner);
+        }
         if let Some(parent) = parent {
             crate::kit::layer::keep_above(ctx, response.layer_id, parent);
         }
@@ -359,7 +373,7 @@ impl Popup {
 
     /// Shows the content while `open`; clears `open` on Escape or an outside press.
     pub fn show<K, R>(
-        self,
+        mut self,
         rt: &Runtime<K>,
         trigger: &Response,
         open: &mut bool,
@@ -367,6 +381,7 @@ impl Popup {
     ) -> OverlayResponse<R> {
         let ctx = rt.ctx();
         let id = trigger.id.with_salt(self.salt);
+        self.owner.get_or_insert(trigger.id);
         let out = self.show_open(
             rt,
             id,

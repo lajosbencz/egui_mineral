@@ -478,10 +478,9 @@ impl<K: ItemKey> TagPicker<'_, K> {
             let name = rt.i18n().tr(msg::TagPickerRemove {
                 label: value_text.into(),
             });
-            let mut n = SemanticNode::new(self.key.id(&self.salt).sub((value, "dismiss")), Role::Button, &name)
-                .clickable(Availability::disabled_if(self.disabled));
-            n.depth = 1;
-            n
+
+            SemanticNode::new(self.key.id(&self.salt).sub((value, "dismiss")), Role::Button, &name)
+                .clickable(Availability::disabled_if(self.disabled))
         });
         resp.clicked() && !self.disabled
     }

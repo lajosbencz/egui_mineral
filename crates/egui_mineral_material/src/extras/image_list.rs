@@ -296,10 +296,9 @@ impl<'a> ImageList<'a> {
             },
             |f| f(i),
         );
-        let mut n = SemanticNode::new(StableId::of(&self.salt, (i, "tile")), Role::GridCell, name)
-            .clickable(Availability::disabled_if(self.disabled));
-        n.depth = 1;
-        n
+
+        SemanticNode::new(StableId::of(&self.salt, (i, "tile")), Role::GridCell, name)
+            .clickable(Availability::disabled_if(self.disabled))
     }
 
     /// `tiles` counts and keys the tiles; `tile` fills each tile's ui by index, usually with an [`ImageTile`].
@@ -317,16 +316,11 @@ impl<'a> ImageList<'a> {
         let id = ui.make_persistent_id(self.salt.id_salt());
         let dir = rt.i18n().direction();
         let availability = Availability::disabled_if(self.disabled);
-        semantic::emit_parent(&ctx, id, || {
-            let name = crate::tr_or(rt.i18n(), self.label.as_deref(), msg::IMAGE_LIST);
-            let mut n = SemanticNode::new(StableId::of(&self.salt, "image-list"), Role::Grid, name);
-            n.state.disabled = self.disabled;
-            n
-        });
         let width = ui.available_width();
         let mut st = State::load(&ctx, id);
         let (grid, height) = self.geometry(&mut st, width);
         let (area, response) = ui.allocate_exact_size(vec2(width, height), Sense::hover());
+        let parts = kit::nodes::parts(&ctx, response.id, ui.unique_id());
         let mut activated = None;
         let tab = focus::tab_stop(&ctx, id, None, &focus::Items::new(len, |_| !self.disabled));
         let focused = ctx.memory(egui::Memory::focused);
@@ -399,7 +393,13 @@ impl<'a> ImageList<'a> {
         }
         st.focus = focus_at;
         st.store(&ctx, id);
-        kit::nodes::remember_rect(&ctx, id, area);
+        drop(parts);
+        semantic::emit(&ctx, Some(response.id), area, || {
+            let name = crate::tr_or(rt.i18n(), self.label.as_deref(), msg::IMAGE_LIST);
+            let mut n = SemanticNode::new(StableId::of(&self.salt, "image-list"), Role::Grid, name);
+            n.state.disabled = self.disabled;
+            n
+        });
         ImageListResponse {
             response,
             activated: activated.and_then(|i| tiles.key(i)),

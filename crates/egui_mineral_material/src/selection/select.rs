@@ -212,7 +212,7 @@ impl Listbox<'_> {
                         };
                         let part = part(i);
                         let resp = row.show(&mut rt.ui(ui), base.with(part.id_salt()), width, &m, &t);
-                        text_field::emit_part(ctx, &resp, 2, || row.value_node(key.sub((part, "option"))));
+                        text_field::emit_part(ctx, &resp, || row.value_node(key.sub((part, "option"))));
                         if resp.clicked() {
                             clicked = Some(i);
                         }
@@ -222,7 +222,7 @@ impl Listbox<'_> {
                     });
                 },
             );
-            text_field::emit_part(ctx, &panel.response, 1, || {
+            text_field::emit_part(ctx, &panel.response, || {
                 SemanticNode::new(key.sub("listbox"), Role::ListBox, label)
             });
         });

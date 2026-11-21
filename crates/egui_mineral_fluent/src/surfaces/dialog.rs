@@ -300,7 +300,7 @@ impl<A: ActionValue> Dialog<A> {
         } else {
             Role::Dialog
         };
-        semantic::emit(rt.ctx(), None, shown.rect, || {
+        semantic::emit(rt.ctx(), Some(response.layer_id.id), shown.rect, || {
             SemanticNode::new(self.key.id(&self.salt), role, &self.title)
         });
         DialogResponse {

@@ -664,7 +664,7 @@ impl Row<'_> {
             self.label,
         )
         .clickable(Availability::Enabled);
-        n.depth = self.depth + 1;
+        n.state.level = Some(self.depth + 1);
         n.state.focused = focused;
         if self.selection != TreeSelection::None {
             n.state.checked = Some(self.check);

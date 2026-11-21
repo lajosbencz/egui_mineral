@@ -516,12 +516,6 @@ impl<'a, K: ItemKey> Stepper<'a, K> {
         let n = self.steps.count();
         let current = self.current_index();
         let mut out = None;
-        semantic::emit_parent(ctx, id, || {
-            let name = crate::tr_or(rt.i18n(), self.label.as_deref(), msg::STEPPER);
-            let mut n = SemanticNode::new(StableId::of(&self.salt, "stepper"), Role::Group, name);
-            n.state.disabled = self.disabled;
-            n
-        });
         let line = Stroke::new(divider::THICKNESS, t.role(divider::COLOR));
         let ids = Vec::with_capacity(n);
         let stops: Vec<usize> = (0..n)
@@ -562,7 +556,12 @@ impl<'a, K: ItemKey> Stepper<'a, K> {
             }
         }
         let rect = Rect::from_min_max(start, pos2(start.x + ui.available_width().max(0.0), ui.cursor().min.y));
-        kit::nodes::remember_rect(ctx, id, rect);
+        semantic::emit(ctx, Some(ui.unique_id()), rect, || {
+            let name = crate::tr_or(rt.i18n(), self.label.as_deref(), msg::STEPPER);
+            let mut n = SemanticNode::new(StableId::of(&self.salt, "stepper"), Role::Group, name);
+            n.state.disabled = self.disabled;
+            n
+        });
         out
     }
 }

@@ -320,7 +320,7 @@ impl ListItem {
             } else {
                 key.sub(("trailing", c.control.kind()))
             };
-            c.emit(ui.ctx(), k, &self.headline, 1, self.disabled);
+            c.emit(ui.ctx(), k, &self.headline, self.disabled);
         }
         controls
     }
@@ -459,14 +459,12 @@ impl ListItem {
                 Edge::End => "end",
             };
             semantic::emit(ui.ctx(), Some(aid), rect, || {
-                let mut n = SemanticNode::new(
+                SemanticNode::new(
                     self.key.id(&self.salt).sub(("swipe", tag, "button")),
                     Role::Button,
                     &a.label,
                 )
-                .pressable(Availability::Enabled);
-                n.depth = 1;
-                n
+                .pressable(Availability::Enabled)
             });
         }
     }

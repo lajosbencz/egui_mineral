@@ -363,12 +363,11 @@ impl RowControl {
         control.indication(ui, &self.target, node, disabled, t);
     }
 
-    pub(crate) fn emit(&self, ctx: &egui::Context, key: StableId, name: &str, depth: usize, disabled: bool) {
+    pub(crate) fn emit(&self, ctx: &egui::Context, key: StableId, name: &str, disabled: bool) {
         semantic::emit(ctx, Some(self.target.id), self.target.rect, || {
             let mut n =
                 SemanticNode::new(key, self.control.role(), name).pressable(Availability::disabled_if(disabled));
             n.state.checked = Some(self.control.state());
-            n.depth = depth;
             n
         });
     }

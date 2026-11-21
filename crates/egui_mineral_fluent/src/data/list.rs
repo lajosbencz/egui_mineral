@@ -151,7 +151,7 @@ impl<'a, K: ItemKey> List<'a, K> {
         });
         let response = scope.response;
         let (inner, activated, changed) = scope.inner;
-        semantic::emit(ui.ctx(), None, response.rect, || {
+        semantic::emit(ui.ctx(), Some(response.id), response.rect, || {
             SemanticNode::new(key, role, crate::tr(rt.i18n(), msg::LIST))
         });
         ListResponse {

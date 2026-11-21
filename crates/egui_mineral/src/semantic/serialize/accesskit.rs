@@ -51,6 +51,9 @@ pub fn write(ctx: &Context, id: Id, node: &SemanticNode) {
         if let Some(live) = s.live {
             b.set_live(live);
         }
+        if let Some(level) = s.level {
+            b.set_level(level);
+        }
         if let Some(shortcut) = shortcut {
             b.set_keyboard_shortcut(shortcut);
         }

@@ -103,16 +103,9 @@ impl Composite for Pagination<'_> {
         let t = ui.tokens();
         let fmt = rt.i18n().format();
         let dir = rt.i18n().direction();
-        let id = ui.make_persistent_id(self.salt.id_salt());
         let total = self.total.max(1);
         let cur = (*self.page).min(total - 1) + 1;
         let mut target = cur;
-        semantic::emit_parent(ctx, id, || {
-            let name = crate::tr_or(rt.i18n(), self.label.as_deref(), msg::PAGINATION);
-            let mut n = SemanticNode::new(StableId::of(&self.salt, "pagination"), Role::Navigation, name);
-            n.state.disabled = self.disabled;
-            n
-        });
         let nav = |ui: &mut egui::Ui, salt: &'static str, icon, msg: crate::Msg, enabled: bool| {
             rt.ui(ui)
                 .mineral(
@@ -179,7 +172,12 @@ impl Composite for Pagination<'_> {
                 target = total;
             }
         });
-        kit::nodes::remember_rect(ctx, id, row.response.rect);
+        semantic::emit(ctx, Some(row.response.id), row.response.rect, || {
+            let name = crate::tr_or(rt.i18n(), self.label.as_deref(), msg::PAGINATION);
+            let mut n = SemanticNode::new(StableId::of(&self.salt, "pagination"), Role::Navigation, name);
+            n.state.disabled = self.disabled;
+            n
+        });
         let changed = target - 1 != *self.page;
         *self.page = target - 1;
         WidgetResponse::new(row.response, ()).with_changed(changed)

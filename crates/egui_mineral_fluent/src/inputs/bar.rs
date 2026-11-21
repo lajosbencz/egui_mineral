@@ -383,14 +383,13 @@ impl Bar {
                     } else {
                         rt.i18n().tr(msg::RangeEnd { label })
                     };
-                    let mut n = self.node(
+
+                    self.node(
                         rt.i18n(),
                         StableId::of(salt, if i == 0 { "slider-start" } else { "slider-end" }),
                         &name,
                         value,
-                    );
-                    n.depth = 1;
-                    n
+                    )
                 });
             }
         }

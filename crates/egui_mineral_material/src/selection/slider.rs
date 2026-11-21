@@ -598,14 +598,13 @@ impl<N: Numeric> ValueSlider<'_, N> {
                 } else {
                     rt.i18n().tr(msg::RangeEnd { label })
                 };
-                let mut n = self.node(
+
+                self.node(
                     rt.i18n(),
                     self.key.id(&self.salt).sub(if i == 0 { "start" } else { "end" }),
                     name,
                     self.values.get(i).copied().unwrap_or_default(),
-                );
-                n.depth = 1;
-                n
+                )
             });
         }
     }

@@ -19,8 +19,11 @@ pub fn to_markdown(tree: &SemanticTree) -> String {
                 .iter()
                 .map(|r| format!("range: {} in {}..={}", r.value, r.min, r.max)),
         );
+        notes.extend(s.level.iter().map(|l| format!("level: {l}")));
+        notes.extend(s.live.iter().map(|l| format!("live: {l:?}").to_lowercase()));
         notes.extend(
             [
+                (s.focused, "focused"),
                 (s.disabled, "disabled"),
                 (s.read_only, "read-only"),
                 (s.required, "required"),
@@ -118,6 +121,16 @@ mod tests {
         ] {
             assert!(md.contains(line), "{line} in {md}");
         }
+    }
+
+    #[test]
+    fn focus_level_and_live_are_labelled() {
+        let mut n = SemanticNode::new(StableId::new("row"), Role::TreeItem, "Row");
+        n.state.focused = true;
+        n.state.level = Some(2);
+        n.state.live = Some(egui::accesskit::Live::Polite);
+        let md = to_markdown(&SemanticTree { nodes: vec![n] });
+        assert!(md.contains("Row (level: 2) (live: polite) (focused)"), "{md}");
     }
 
     #[test]

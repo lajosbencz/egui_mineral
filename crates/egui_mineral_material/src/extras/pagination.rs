@@ -207,16 +207,9 @@ impl Composite for Pagination<'_> {
         let t = rt.tokens();
         let fmt = rt.i18n().format();
         let dir = rt.i18n().direction();
-        let id = ui.make_persistent_id(self.salt.id_salt());
         let total = self.total.max(1);
         let cur = (*self.page).min(total - 1) + 1;
         let mut target = cur;
-        semantic::emit_parent(ctx, id, || {
-            let name = crate::tr_or(rt.i18n(), self.label.as_deref(), msg::PAGINATION);
-            let mut n = SemanticNode::new(StableId::of(&self.salt, "pagination"), Role::Navigation, name);
-            n.state.disabled = self.disabled;
-            n
-        });
         let back = dir.pick(ui.icons().chevron_left, ui.icons().chevron_right);
         let fwd = dir.pick(ui.icons().chevron_right, ui.icons().chevron_left);
         let first = dir.pick(ui.icons().first_page, ui.icons().last_page);
@@ -279,7 +272,12 @@ impl Composite for Pagination<'_> {
                 target = total;
             }
         });
-        kit::nodes::remember_rect(ctx, id, r.response.rect);
+        semantic::emit(ctx, Some(r.response.id), r.response.rect, || {
+            let name = crate::tr_or(rt.i18n(), self.label.as_deref(), msg::PAGINATION);
+            let mut n = SemanticNode::new(StableId::of(&self.salt, "pagination"), Role::Navigation, name);
+            n.state.disabled = self.disabled;
+            n
+        });
         let changed = target - 1 != *self.page;
         *self.page = target - 1;
         let response = r.response;
@@ -490,13 +488,6 @@ impl<K: ItemKey> Breadcrumbs<K> {
         let ctx = rt.ctx();
         let t = rt.tokens();
         let dir = rt.i18n().direction();
-        let id = ui.make_persistent_id(self.salt.id_salt());
-        semantic::emit_parent(ctx, id, || {
-            let name = crate::tr_or(rt.i18n(), self.label.as_deref(), msg::BREADCRUMBS);
-            let mut n = SemanticNode::new(StableId::of(&self.salt, "breadcrumbs"), Role::Navigation, name);
-            n.state.disabled = self.disabled;
-            n
-        });
         let n = self.items.len();
         let collapse = self.collapse(ui);
         let sep = dir.pick(ui.icons().chevron_right, ui.icons().chevron_left);
@@ -561,7 +552,12 @@ impl<K: ItemKey> Breadcrumbs<K> {
                 }
             }
         });
-        kit::nodes::remember_rect(ctx, id, r.response.rect);
+        semantic::emit(ctx, Some(r.response.id), r.response.rect, || {
+            let name = crate::tr_or(rt.i18n(), self.label.as_deref(), msg::BREADCRUMBS);
+            let mut n = SemanticNode::new(StableId::of(&self.salt, "breadcrumbs"), Role::Navigation, name);
+            n.state.disabled = self.disabled;
+            n
+        });
         BreadcrumbsResponse {
             response: r.response,
             clicked: out.and_then(|i| self.items.get(i)).map(|(v, _)| v.clone()),

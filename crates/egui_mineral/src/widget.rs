@@ -616,6 +616,7 @@ fn show<K: Stylekit, W: MineralWidget<Kit = K>>(ui: &mut MineralUi<'_, K>, mut w
         pan,
     };
     let frame_id = frame.response.id;
+    let scope = semantic::enter(&ctx, frame_id, ui.unique_id());
     let mut out = widget.update(ui, &frame, &mut state);
     out.zones = zones;
     // Clones of `frame.response` carry the tap already; only a foreign response needs it.
@@ -623,6 +624,7 @@ fn show<K: Stylekit, W: MineralWidget<Kit = K>>(ui: &mut MineralUi<'_, K>, mut w
         input.tap_on(&mut out.response);
     }
 
+    semantic::leave(&ctx, scope, Some(out.response.id));
     emit_node(&ctx, out.response.id, zones.hit, || {
         node_of(core, &widget, &out, &state, access_key, accelerator)
     });

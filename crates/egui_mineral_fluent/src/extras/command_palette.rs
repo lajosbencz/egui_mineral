@@ -271,14 +271,14 @@ impl<'a, A: ActionValue> CommandPalette<'a, A> {
         let dir = rt.i18n().direction();
         let t = f.t;
         let (rect, _) = ui.allocate_exact_size(vec2(f.width, f.list_h), Sense::hover());
-        semantic::emit(ui.ctx(), None, rect, || {
+        let mut inner = ui.new_child(egui::UiBuilder::new().max_rect(rect));
+        semantic::emit(ui.ctx(), Some(inner.unique_id()), rect, || {
             SemanticNode::new(
                 StableId::of(f.salt, "commands"),
                 Role::ListBox,
                 crate::tr(rt.i18n(), msg::COMMAND_RESULTS),
             )
         });
-        let mut inner = ui.new_child(egui::UiBuilder::new().max_rect(rect));
         let ui = &mut rt.ui(&mut inner);
         if f.rows.is_empty() {
             let format = crate::typography::format(

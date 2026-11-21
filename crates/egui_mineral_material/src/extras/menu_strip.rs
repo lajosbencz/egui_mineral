@@ -131,6 +131,7 @@ impl<A: ActionValue> MenuStrip<A> {
             .density()
             .dense_to(BAR_H, TypeScale::LabelLarge.line_height() + 2.0 * BAR_INSET);
         let (rect, bar_resp) = ui.allocate_exact_size(vec2(width, bar_h), Sense::hover());
+        let parts = kit::nodes::parts(&ctx, bar_resp.id, ui.unique_id());
         ui.painter().rect_filled(rect, 0, t.color.surface_container);
         let enabled = |i: usize| self.menus.get(i).is_some_and(|m| !m.disabled);
         let tab_stop = focus::tab_stop(&ctx, id, bar.open, &focus::Items::new(self.menus.len(), enabled));
@@ -184,6 +185,7 @@ impl<A: ActionValue> MenuStrip<A> {
             );
         }
         bar.settle(&ctx, &ids);
+        drop(parts);
         semantic::emit(&ctx, Some(bar_resp.id), rect, || {
             let name = crate::tr_or(rt.i18n(), self.label.as_deref(), msg::MENU_STRIP);
             let mut n = SemanticNode::new(StableId::of(&self.salt, "menubar"), Role::MenuBar, name);

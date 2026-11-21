@@ -270,7 +270,6 @@ fn emit_button(ui: &MineralUi<'_, Fluent>, r: &Response, key: StableId, name: &s
     semantic::emit(ui.ctx(), Some(r.id), r.rect, || {
         let mut n = SemanticNode::new(key, Role::Button, name).clickable(Availability::disabled_if(off));
         n.state.selected = selected;
-        n.depth = 1;
         n
     });
 }
@@ -345,9 +344,7 @@ impl Run<'_> {
             );
         }
         semantic::emit(ui.ctx(), Some(r.id), tr, || {
-            let mut n = SemanticNode::new(self.key("title"), Role::Button, title).clickable(availability);
-            n.depth = 1;
-            n
+            SemanticNode::new(self.key("title"), Role::Button, title).clickable(availability)
         });
         let mut step = 0;
         for (k, ((off, name), icon)) in nav
@@ -592,7 +589,6 @@ impl Run<'_> {
             if today {
                 n.value = Some("today".to_owned());
             }
-            n.depth = 1;
             n
         });
         Hit {

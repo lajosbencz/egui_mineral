@@ -504,10 +504,13 @@ fn tree_exposes_roles_levels_and_expansion() {
     h.run();
     assert_eq!(h.node("t-tree").role, Role::Tree);
     let a = h.node("t-a-treeitem");
-    assert_eq!((a.role, a.state.expanded, a.depth), (Role::TreeItem, Some(true), 1));
+    assert_eq!(
+        (a.role, a.state.expanded, a.state.level),
+        (Role::TreeItem, Some(true), Some(1))
+    );
     assert_eq!(h.node("t-a2-treeitem").state.expanded, Some(false));
     assert_eq!(h.node("t-a1-treeitem").state.expanded, None);
-    assert_eq!(h.node("t-a1-treeitem").depth, 2);
+    assert_eq!(h.node("t-a1-treeitem").state.level, Some(2));
     assert!(
         h.tree().find_key("t-a2x-treeitem").is_none(),
         "closed branches hide their children"
@@ -577,8 +580,8 @@ fn typing_jumps_to_a_matching_label() {
 
 fn selector(h: &Harness<'_, Files>, key: &str) -> egui::Pos2 {
     let r = h.rect(key);
-    let depth = h.node(key).depth as f32;
-    egui::pos2(r.left() + 24.0 * (depth - 1.0) + 24.0 + 16.0, r.center().y)
+    let level = h.node(key).state.level.unwrap_or(1) as f32;
+    egui::pos2(r.left() + 24.0 * (level - 1.0) + 24.0 + 16.0, r.center().y)
 }
 
 #[test]
@@ -628,8 +631,8 @@ fn flat_levels_nest_into_branches() {
         Tree::items("t", "Flat", &items, open).show(ui);
     });
     h.run();
-    let depths = ["x", "y", "z", "w"].map(|k| h.node(&format!("t-{k}-treeitem")).depth);
-    assert_eq!(depths, [1, 2, 3, 1]);
+    let levels = ["x", "y", "z", "w"].map(|k| h.node(&format!("t-{k}-treeitem")).state.level);
+    assert_eq!(levels, [1, 2, 3, 1].map(Some));
 }
 
 struct Grid {

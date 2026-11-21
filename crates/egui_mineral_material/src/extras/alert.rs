@@ -11,7 +11,7 @@ use egui_mineral::select::ItemKey;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::MineralUi;
 use egui_mineral::{
-    i18n, kit,
+    i18n,
     overlay::Dismiss,
     semantic::{self, Live, Role, SemanticNode, StableId},
 };
@@ -196,7 +196,6 @@ impl<A: ActionValue> Alert<A> {
         let rt = ui.rt();
         let t = ui.tokens();
         let ctx = ui.ctx().clone();
-        let id = ui.make_persistent_id(self.salt.id_salt());
         let dir = rt.i18n().direction();
         let (container, content, accent) = self.severity.colors(&t);
         let surface = t.role(outlined_card::CONTAINER_COLOR);
@@ -221,9 +220,8 @@ impl<A: ActionValue> Alert<A> {
             .stroke(stroke)
             .corner_radius(shape.corner_radius(&t.shape, dir))
             .inner_margin(PADDING);
-        self.emit_semantics(rt, id);
-        let inner = frame.show(ui, |ui| self.row(ui, rt, dir, icon_color, text));
-        let (action, dismissed) = inner.inner;
+        let inner = frame.show(ui, |ui| (ui.unique_id(), self.row(ui, rt, dir, icon_color, text)));
+        let (body, (action, dismissed)) = inner.inner;
         let rect = inner.response.rect;
         if self.variant == AlertVariant::Banner {
             let w = divider::THICKNESS;
@@ -233,7 +231,7 @@ impl<A: ActionValue> Alert<A> {
                 Stroke::new(w, t.role(divider::COLOR)),
             );
         }
-        kit::nodes::remember_rect(&ctx, id, rect);
+        self.emit_semantics(rt, body, rect);
         let clicked = action.and_then(|i| self.actions.get(i)).map(|(v, a)| {
             a.fire(&ctx);
             v.clone()
@@ -245,9 +243,8 @@ impl<A: ActionValue> Alert<A> {
         }
     }
 
-    fn emit_semantics(&self, rt: &Rt, id: egui::Id) {
-        let ctx = rt.ctx();
-        semantic::emit_parent(ctx, id, || {
+    fn emit_semantics(&self, rt: &Rt, id: egui::Id, rect: egui::Rect) {
+        semantic::emit(rt.ctx(), Some(id), rect, || {
             let sev = crate::tr(rt.i18n(), self.severity.message_id());
             let name = self.title.clone().unwrap_or(sev);
             let mut n = SemanticNode::new(StableId::of(&self.salt, "alert"), Role::Alert, name).value(&self.message);
