@@ -511,7 +511,7 @@ pub struct TreeView<'a, N: TreeData, A = NoAction> {
     reorderable: bool,
     disabled: bool,
     node_disabled: Option<DisabledFn<'a, N>>,
-    accept: Option<DropAccept<'a, N>>,
+    accept: DropAccept<'a, N>,
     reveal: Option<N::Key>,
     container: Option<ColorRole>,
     unfocused_selection: Option<ColorRole>,
@@ -548,7 +548,7 @@ impl<'a, N: TreeData> TreeView<'a, N> {
             reorderable: false,
             disabled: false,
             node_disabled: None,
-            accept: None,
+            accept: DropAccept::default(),
             reveal: None,
             container: None,
             unfocused_selection: None,
@@ -581,12 +581,13 @@ impl<'a, N: TreeData, A: ActionValue> TreeView<'a, N, A> {
     }
 
     /// Foreign [`DragAndDrop`] payloads of type `P` drop before, after or inside rows where `accept(payload,
-    /// node, position)` holds; reported in [`TreeViewResponse::dropped`]. Replaces an earlier `accept_drop`.
+    /// node, position)` holds; reported in [`TreeViewResponse::dropped`]. Each call adds a payload type; the first that
+    /// accepts the payload in flight takes it.
     pub fn accept_drop<P: std::any::Any + Send + Sync>(
         mut self,
         accept: impl Fn(&P, &N, DropPosition) -> bool + 'a,
     ) -> Self {
-        self.accept = Some(DropAccept::new(accept));
+        self.accept.push(accept);
         self
     }
 
@@ -790,7 +791,7 @@ impl<'a, N: TreeData, A: ActionValue> TreeView<'a, N, A> {
         rows: &[TreeRow<'a, N>],
         rendered: &[(usize, Rect)],
     ) -> Option<TreeDrop<N::Key>> {
-        let accept = self.accept.as_ref().filter(|_| !self.disabled)?;
+        let accept = Some(&self.accept).filter(|a| !a.is_empty() && !self.disabled)?;
         let ctx = ui.ctx();
         let pos = ctx
             .pointer_interact_pos()

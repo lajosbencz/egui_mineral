@@ -206,38 +206,51 @@ fn reveal_expands_the_ancestors_without_taking_focus() {
 }
 
 #[test]
-fn foreign_payload_drops_inside_an_accepting_row() {
+fn foreign_payloads_of_each_accepted_type_drop_on_their_rows() {
     let roots = vec![
         TreeNode::branch(1, "Docs", vec![TreeNode::leaf(3, "Guide")]),
         TreeNode::leaf(2, "Notes"),
     ];
-    let state = (None::<(u32, DropPosition, String)>, egui::Rect::NOTHING);
-    let mut h = harness(SCREEN, state, move |ui, (dropped, source)| {
+    // (drag a file or a tag, last drop, drag source)
+    let state = (true, None::<(u32, DropPosition, String)>, egui::Rect::NOTHING);
+    let mut h = harness(SCREEN, state, move |ui, (file, dropped, source)| {
         let mut expansion = Expansion::default();
         let r = TreeView::new("tree", "Files", &roots, &mut expansion)
             .accept_drop(|_: &String, n: &TreeNode, _| *n.key() == 1)
+            .accept_drop(|_: &u32, n: &TreeNode, _| *n.key() == 2)
             .show(ui);
         if let Some(d) = r.dropped {
-            *dropped = d.payload::<String>().map(|p| (*d.target(), d.position(), (*p).clone()));
+            let what = d
+                .payload::<String>()
+                .map(|p| (*p).clone())
+                .or_else(|| d.payload::<u32>().map(|t| format!("tag {t}")));
+            *dropped = what.map(|w| (*d.target(), d.position(), w));
         }
-        *source = ui
-            .dnd_drag_source(egui::Id::unique("file"), String::from("report.pdf"), |ui| {
-                ui.label("report.pdf")
-            })
-            .response
-            .rect;
+        let id = egui::Id::unique("source");
+        *source = if *file {
+            ui.dnd_drag_source(id, String::from("report.pdf"), |ui| ui.label("report.pdf"))
+        } else {
+            ui.dnd_drag_source(id, 7u32, |ui| ui.label("tag"))
+        }
+        .response
+        .rect;
     });
-    let (from, to) = (h.state().value.1.center(), h.rect("tree-1-treeitem").center());
-    h.hover_at(from);
-    h.drag_at(from);
-    h.hover_at(from.lerp(to, 0.5));
-    h.hover_at(to);
-    h.drop_at(to);
-    h.run();
-    assert_eq!(
-        h.state().value.0,
-        Some((1, DropPosition::Inside, String::from("report.pdf")))
-    );
+    for (file, row, expected) in [(true, 1, "report.pdf"), (false, 2, "tag 7")] {
+        h.state_mut().value.0 = file;
+        h.run();
+        let (from, to) = (
+            h.state().value.2.center(),
+            h.rect(&format!("tree-{row}-treeitem")).center(),
+        );
+        h.hover_at(from);
+        h.drag_at(from);
+        h.hover_at(from.lerp(to, 0.5));
+        h.hover_at(to);
+        h.drop_at(to);
+        h.run();
+        let dropped = h.state().value.1.clone();
+        assert_eq!(dropped.map(|d| (d.0, d.2)), Some((row, String::from(expected))));
+    }
 }
 
 #[test]

@@ -673,32 +673,46 @@ fn tree_reveal_opens_the_path_without_focus() {
 }
 
 #[test]
-fn tree_takes_a_foreign_drop_inside_a_branch() {
+fn tree_takes_foreign_drops_of_each_accepted_type() {
     let roots = files();
-    let state = (None::<(String, DropPosition)>, egui::Rect::NOTHING);
-    let mut h = harness(state, move |ui, (dropped, source)| {
+    // (drag a chip or a file name, last drop, drag source)
+    let state = (true, None::<(String, DropPosition, String)>, egui::Rect::NOTHING);
+    let mut h = harness(state, move |ui, (chip, dropped, source)| {
         let mut open = Expansion::default();
         let r = Tree::items("t", "Files", &roots, &mut open)
             .accept_drop(|_: &u32, _: &TreeItem, _| true)
+            .accept_drop(|name: &String, _: &TreeItem, _| name.starts_with("report"))
             .show(ui);
-        if let Some(d) = r.dropped
-            && d.payload::<u32>().is_some()
-        {
-            *dropped = Some((d.target().clone(), d.position()));
+        if let Some(d) = r.dropped {
+            let what = d
+                .payload::<u32>()
+                .map(|c| format!("chip {c}"))
+                .or_else(|| d.payload::<String>().map(|n| (*n).clone()));
+            *dropped = what.map(|w| (d.target().clone(), d.position(), w));
         }
-        *source = ui
-            .dnd_drag_source(egui::Id::unique("chip"), 7_u32, |ui| ui.label("chip"))
-            .response
-            .rect;
+        let id = egui::Id::unique("source");
+        *source = if *chip {
+            ui.dnd_drag_source(id, 7_u32, |ui| ui.label("chip"))
+        } else {
+            ui.dnd_drag_source(id, String::from("report.pdf"), |ui| ui.label("file"))
+        }
+        .response
+        .rect;
     });
-    let (from, to) = (h.state().value.1.center(), h.rect("t-a-treeitem").center());
-    h.hover_at(from);
-    h.drag_at(from);
-    h.hover_at(from.lerp(to, 0.5));
-    h.hover_at(to);
-    h.drop_at(to);
-    h.run();
-    assert_eq!(h.state().value.0, Some(("a".to_owned(), DropPosition::Inside)));
+    for (chip, expected) in [(true, "chip 7"), (false, "report.pdf")] {
+        h.state_mut().value.0 = chip;
+        h.state_mut().value.1 = None;
+        h.run();
+        let (from, to) = (h.state().value.2.center(), h.rect("t-a-treeitem").center());
+        h.hover_at(from);
+        h.drag_at(from);
+        h.hover_at(from.lerp(to, 0.5));
+        h.hover_at(to);
+        h.drop_at(to);
+        h.run();
+        let want = ("a".to_owned(), DropPosition::Inside, expected.to_owned());
+        assert_eq!(h.state().value.1, Some(want));
+    }
 }
 
 struct Grid {

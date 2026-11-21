@@ -298,10 +298,16 @@ impl<K> TreeDrop<K> {
     }
 }
 
-/// Which foreign payloads of type `P` a tree takes, and where: kits test it against the hovered
-/// [`drop_slot`].
+/// Which foreign payloads a tree takes, and where: one acceptor per payload type, tried in order; kits test
+/// them against the hovered [`drop_slot`].
 pub struct DropAccept<'a, N: TreeData> {
-    accept: AcceptFn<'a, N>,
+    accepts: Vec<AcceptFn<'a, N>>,
+}
+
+impl<N: TreeData> Default for DropAccept<'_, N> {
+    fn default() -> Self {
+        Self { accepts: Vec::new() }
+    }
 }
 
 impl<N: TreeData> Debug for DropAccept<'_, N> {
@@ -311,15 +317,18 @@ impl<N: TreeData> Debug for DropAccept<'_, N> {
 }
 
 impl<'a, N: TreeData> DropAccept<'a, N> {
-    /// `accept` gets the payload in flight, the target node and the slot position.
-    pub fn new<P: Any + Send + Sync>(accept: impl Fn(&P, &N, DropPosition) -> bool + 'a) -> Self {
-        Self {
-            accept: Box::new(move |ctx, node, position| {
-                let payload = egui::DragAndDrop::payload::<P>(ctx)?;
-                let accepted: Payload = payload.clone();
-                accept(&payload, node, position).then_some(accepted)
-            }),
-        }
+    /// Adds payloads of type `P`: `accept` gets the payload in flight, the target node and the slot position.
+    pub fn push<P: Any + Send + Sync>(&mut self, accept: impl Fn(&P, &N, DropPosition) -> bool + 'a) {
+        self.accepts.push(Box::new(move |ctx, node, position| {
+            let payload = egui::DragAndDrop::payload::<P>(ctx)?;
+            let accepted: Payload = payload.clone();
+            accept(&payload, node, position).then_some(accepted)
+        }));
+    }
+
+    /// No payload type is accepted.
+    pub fn is_empty(&self) -> bool {
+        self.accepts.is_empty()
     }
 
     /// Drop the payload in flight would make at `frac` of visible row `row` ([`drop_slot`]), with the row
@@ -333,7 +342,7 @@ impl<'a, N: TreeData> DropAccept<'a, N> {
     ) -> Option<(usize, TreeDrop<N::Key>)> {
         let (at, position) = drop_slot(rows, row, frac)?;
         let node = rows.get(at)?.node;
-        let payload = (self.accept)(ctx, node, position)?;
+        let payload = self.accepts.iter().find_map(|a| a(ctx, node, position))?;
         Some((
             at,
             TreeDrop {
@@ -654,10 +663,15 @@ mod tests {
         let ctx = egui::Context::default();
         let roots = vec![N(1, vec![N(2, vec![])]), N(3, vec![])];
         let rows = flatten(&roots, &Expansion::default());
-        let accept = DropAccept::new(|p: &String, n: &N, pos| p == "file" && (n.0 != 3 || pos != DropPosition::Inside));
+        let mut accept = DropAccept::default();
+        assert!(accept.is_empty());
+        accept.push(|p: &String, n: &N, pos| p == "file" && (n.0 != 3 || pos != DropPosition::Inside));
         assert!(accept.slot(&ctx, &rows, 0, 0.5).is_none(), "nothing in flight");
         egui::DragAndDrop::set_payload(&ctx, 7u8);
         assert!(accept.slot(&ctx, &rows, 0, 0.5).is_none(), "foreign type");
+        accept.push(|p: &u8, _: &N, _| *p == 7);
+        let (_, drop) = accept.slot(&ctx, &rows, 0, 0.5).expect("a second payload type");
+        assert_eq!(drop.payload::<u8>().as_deref(), Some(&7));
         egui::DragAndDrop::set_payload(&ctx, String::from("file"));
         let (row, drop) = accept.slot(&ctx, &rows, 0, 0.5).expect("accepted");
         assert_eq!((row, *drop.target(), drop.position()), (0, 1, DropPosition::Inside));

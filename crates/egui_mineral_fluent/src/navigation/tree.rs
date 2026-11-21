@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 use egui::{DragAndDrop, Key, Rangef, Rect, Sense, Stroke, StrokeKind, Ui, UiBuilder, pos2, text::LayoutJob, vec2};
 use egui_mineral::{
     expand::Expansion,
@@ -730,7 +728,7 @@ pub struct TreeResponse<K> {
     /// Item activated (click or Enter) this pass.
     pub activated: Option<K>,
     /// Row responses of the visible items.
-    pub rows: BTreeMap<K, egui::Response>,
+    pub rows: egui_mineral::action::ItemResponses<K, egui::Response>,
     /// Foreign payload released on a row; see [`Tree::accept_drop`].
     pub dropped: Option<TreeDrop<K>>,
 }
@@ -755,7 +753,7 @@ pub struct Tree<'a, N: TreeData> {
     appearance: TreeAppearance,
     layout: LayoutFn<'a, N>,
     node_disabled: Option<DisabledFn<'a, N>>,
-    accept: Option<DropAccept<'a, N>>,
+    accept: DropAccept<'a, N>,
     reveal: Option<N::Key>,
 }
 
@@ -802,7 +800,7 @@ impl<'a, N: TreeData> Tree<'a, N> {
             appearance: TreeAppearance::default(),
             layout: Box::new(|_| ItemLayout::default()),
             node_disabled: None,
-            accept: None,
+            accept: DropAccept::default(),
             reveal: None,
         }
     }
@@ -850,12 +848,13 @@ impl<'a, N: TreeData> Tree<'a, N> {
     }
 
     /// Foreign [`DragAndDrop`] payloads of type `P` drop before, after or inside rows where `accept(payload,
-    /// node, position)` holds; reported in [`TreeResponse::dropped`]. Replaces an earlier `accept_drop`.
+    /// node, position)` holds; reported in [`TreeResponse::dropped`]. Each call adds a payload type; the first that
+    /// accepts the payload in flight takes it.
     pub fn accept_drop<P: std::any::Any + Send + Sync>(
         mut self,
         accept: impl Fn(&P, &N, DropPosition) -> bool + 'a,
     ) -> Self {
-        self.accept = Some(DropAccept::new(accept));
+        self.accept.push(accept);
         self
     }
 
@@ -982,7 +981,7 @@ impl<'a, N: TreeData> Tree<'a, N> {
             collapsed: None,
             checked: None,
             activated: None,
-            rows: BTreeMap::new(),
+            rows: egui_mineral::action::ItemResponses::default(),
             dropped,
         };
         out.changed |= revealed;
@@ -991,7 +990,7 @@ impl<'a, N: TreeData> Tree<'a, N> {
             self.navigate(rt, &rows, &drawn, cur, &mut state, &mut out);
         }
         for (row, d) in drawn.into_iter().filter_map(|d| Some((rows.get(d.row)?, d))) {
-            out.rows.insert(row.node.key().clone(), d.response);
+            out.rows.push(row.node.key().clone(), d.response);
         }
         state.store(ctx, id);
         let (key, label) = (self.key.id(&self.salt), self.label);
@@ -1052,7 +1051,7 @@ impl<'a, N: TreeData> Tree<'a, N> {
         rows: &[TreeRow<'a, N>],
         tops: &[f32],
     ) -> Option<TreeDrop<N::Key>> {
-        let accept = self.accept.as_ref()?;
+        let accept = Some(&self.accept).filter(|a| !a.is_empty())?;
         let ctx = ui.ctx();
         let pos = ctx
             .pointer_interact_pos()
