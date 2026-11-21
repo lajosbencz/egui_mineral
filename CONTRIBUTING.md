@@ -24,6 +24,7 @@ The tooling is the styleguide, CI runs all of it:
 | [docs/agents.md](docs/agents.md) | Agent API, snapshot formats, MCP server |
 | [docs/workspace.md](docs/workspace.md) | Layers, crates |
 | [docs/blockers.md](docs/blockers.md) | Gaps blocked upstream |
+| [docs/size.md](docs/size.md) | Release size opt-outs |
 | [docs/divergences.md](docs/divergences.md) | Deliberate divergences from stylekit specs |
 | [docs/todo.md](docs/todo.md) | Core APIs not yet implemented |
 
