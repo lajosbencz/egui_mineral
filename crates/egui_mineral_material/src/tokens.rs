@@ -19,8 +19,9 @@ fn unit_interval(name: &str, v: f32) -> Result<f32, String> {
     }
 }
 
-/// Corner radius scale in points (Compose `ShapeDefaults`).
+/// Corner radius scale in points (Compose `ShapeDefaults`); missing keys deserialize to the default.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
 #[non_exhaustive]
 pub struct Shape {
     /// [`ShapeScale::None`].
@@ -87,7 +88,7 @@ fn corner(scale: ShapeScale) -> u8 {
         .map_or(u8::MAX, |dp| dp.round().clamp(0.0, f32::from(u8::MAX)) as u8)
 }
 
-/// State-layer opacities (Compose `StateTokens`).
+/// State-layer opacities (Compose `StateTokens`); missing keys deserialize to the default.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(try_from = "StateLayersRaw")]
 #[non_exhaustive]
@@ -109,6 +110,7 @@ pub struct StateLayers {
 }
 
 #[derive(Deserialize)]
+#[serde(default)]
 struct StateLayersRaw {
     hover: f32,
     focus: f32,
@@ -117,6 +119,21 @@ struct StateLayersRaw {
     disabled_container: f32,
     disabled_content: f32,
     scrim: f32,
+}
+
+impl Default for StateLayersRaw {
+    fn default() -> Self {
+        let d = StateLayers::default();
+        Self {
+            hover: d.hover,
+            focus: d.focus,
+            pressed: d.pressed,
+            dragged: d.dragged,
+            disabled_container: d.disabled_container,
+            disabled_content: d.disabled_content,
+            scrim: d.scrim,
+        }
+    }
 }
 
 impl TryFrom<StateLayersRaw> for StateLayers {
@@ -149,7 +166,7 @@ impl Default for StateLayers {
     }
 }
 
-/// MD3 duration scale; serialized as seconds.
+/// MD3 duration scale; serialized as seconds, missing keys deserialize to the default.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(try_from = "DurationsRaw", into = "DurationsRaw")]
 #[non_exhaustive]
@@ -165,18 +182,21 @@ pub struct Durations {
 }
 
 #[derive(Serialize, Deserialize)]
+// `None` takes the exact default; seconds as f32 would round it.
 struct DurationsRaw {
-    short: [f32; 4],
-    medium: [f32; 4],
-    long: [f32; 4],
-    extra_long: [f32; 4],
+    short: Option<[f32; 4]>,
+    medium: Option<[f32; 4]>,
+    long: Option<[f32; 4]>,
+    extra_long: Option<[f32; 4]>,
 }
 
 impl TryFrom<DurationsRaw> for Durations {
     type Error = String;
 
     fn try_from(r: DurationsRaw) -> Result<Self, String> {
-        let check = |name: &str, v: [f32; 4]| -> Result<[Duration; 4], String> {
+        let d = Self::default();
+        let check = |name: &str, v: Option<[f32; 4]>, default| -> Result<[Duration; 4], String> {
+            let Some(v) = v else { return Ok(default) };
             let mut out = [Duration::ZERO; 4];
             for (o, secs) in out.iter_mut().zip(v) {
                 *o = Duration::try_from_secs_f32(secs).map_err(|e| format!("{name}: {secs}: {e}"))?;
@@ -184,17 +204,17 @@ impl TryFrom<DurationsRaw> for Durations {
             Ok(out)
         };
         Ok(Self {
-            short: check("duration.short", r.short)?,
-            medium: check("duration.medium", r.medium)?,
-            long: check("duration.long", r.long)?,
-            extra_long: check("duration.extra_long", r.extra_long)?,
+            short: check("duration.short", r.short, d.short)?,
+            medium: check("duration.medium", r.medium, d.medium)?,
+            long: check("duration.long", r.long, d.long)?,
+            extra_long: check("duration.extra_long", r.extra_long, d.extra_long)?,
         })
     }
 }
 
 impl From<Durations> for DurationsRaw {
     fn from(d: Durations) -> Self {
-        let secs = |v: [Duration; 4]| v.map(|d| d.as_secs_f32());
+        let secs = |v: [Duration; 4]| Some(v.map(|d| d.as_secs_f32()));
         Self {
             short: secs(d.short),
             medium: secs(d.medium),
@@ -235,17 +255,21 @@ impl Default for Durations {
     }
 }
 
-/// Resolved design tokens installed on the context: color, shape, state layers, durations.
+/// Resolved design tokens installed on the context: color, shape, state layers, durations. Only `color` is
+/// required when deserializing.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct Tokens {
     /// Resolved scheme; its theme mode is fixed.
     pub color: ColorScheme,
     /// Corner radii in dp.
+    #[serde(default)]
     pub shape: Shape,
     /// State-layer opacities.
+    #[serde(default)]
     pub state: StateLayers,
     /// Motion durations.
+    #[serde(default)]
     pub duration: Durations,
 }
 

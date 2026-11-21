@@ -187,6 +187,34 @@ mod tests {
         assert!(err.to_string().contains("duration.short"), "{err}");
     }
 
+    #[test]
+    fn toml_sections_and_keys_default_when_missing() {
+        let t = parse(|t| {
+            t.remove("state");
+            t.remove("duration");
+            let shape = t["shape"].as_table_mut().expect("shape");
+            shape.clear();
+            shape.insert("small".into(), 4.into());
+        })
+        .expect("partial tokens");
+        assert_eq!(t.shape.small, 4);
+        assert_eq!(t.shape.medium, Shape::default().medium);
+        assert_eq!((t.state, t.duration), (StateLayers::default(), Durations::default()));
+        let t = parse(|t| {
+            let state = t["state"].as_table_mut().expect("state");
+            state.clear();
+            state.insert("hover".into(), 0.2.into());
+            t["duration"].as_table_mut().expect("duration").remove("long");
+        })
+        .expect("partial sections");
+        assert_eq!((t.state.hover, t.state.focus), (0.2, StateLayers::default().focus));
+        assert_eq!(t.duration.long, Durations::default().long);
+        parse(|t| {
+            t.remove("color");
+        })
+        .expect_err("color is required");
+    }
+
     const SEED: egui::Color32 = egui::Color32::from_rgb(0x20, 0x90, 0x40);
 
     fn current(m: &Material, theme: Theme) -> Tokens {
