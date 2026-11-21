@@ -1,7 +1,7 @@
 use egui::{Key, Modifiers, Rect, vec2};
 use egui_mineral::{
     edit::{self, EditEvent},
-    number::NumberSource,
+    number::{NumberSource, ScrubRate},
     range::{RangeModel, Scale},
 };
 use egui_mineral_material::{extras::NumberField, text_inputs::TextField};
@@ -311,4 +311,70 @@ fn number_field_text_aligns_to_a_reading_order_edge() {
             );
         }
     }
+}
+
+#[test]
+fn optional_number_field_clears_to_none_and_steps_from_blank() {
+    let mut h = field(Some(4.0), |ui, v: &mut Option<f64>| {
+        let range = RangeModel::new(-5.0, 10.0).step(1.0);
+        let r = ui.mineral(NumberField::optional("n", "Offset", range, v));
+        (r.rect, r.output().edit)
+    });
+    focus(&mut h);
+    h.key_press_modifiers(Modifiers::COMMAND, Key::A);
+    h.press(Key::Backspace);
+    assert_eq!(h.state().value.value, None, "blank text binds None");
+    h.press(Key::ArrowUp);
+    assert_eq!(h.state().value.value, Some(0.0), "the first step lands nearest 0");
+}
+
+#[test]
+fn number_field_reports_clamped_input() {
+    let mut h = harness(SCREEN, (5.0, false), |ui, (v, clamped): &mut (f64, bool)| {
+        let r = ui.mineral(NumberField::new("n", "Gain", RangeModel::new(0.0, 10.0).step(1.0), v));
+        *clamped |= r.output().clamped;
+    });
+    let at = h.rect("n-field").center();
+    h.click_at(at);
+    h.key_press_modifiers(Modifiers::COMMAND, Key::A);
+    h.type_text("4");
+    assert!(!h.state().value.1);
+    h.type_text("2");
+    assert!(h.state().value.1, "42 is past the bound");
+    assert_eq!(h.state().value.0, 10.0);
+}
+
+#[test]
+fn select_on_step_lets_typing_replace_the_stepped_text() {
+    let mut h = field(5.0, |ui, v: &mut f64| {
+        let range = RangeModel::new(0.0, 10.0).step(1.0);
+        let r = ui.mineral(NumberField::new("n", "Gain", range, v).select_on_step(true));
+        (r.rect, r.output().edit)
+    });
+    focus(&mut h);
+    h.press(Key::ArrowUp);
+    assert_eq!(h.state().value.value, 6.0);
+    h.type_text("3");
+    assert_eq!(h.state().value.value, 3.0, "the step selected the text");
+}
+
+#[test]
+fn number_field_scrubs_at_a_pixel_rate() {
+    let mut h = harness(SCREEN, 5.0, |ui, v: &mut f64| {
+        let range = RangeModel::new(0.0, 100.0).step(1.0);
+        ui.mineral(
+            NumberField::new("n", "Count", range, v)
+                .scrub(true)
+                .scrub_rate(ScrubRate::pixels(4.0, 50.0)),
+        );
+    });
+    let from = h.rect("n-field").center();
+    h.hover_at(from);
+    h.drag_at(from);
+    for dx in [8.0, 20.0, 40.0] {
+        h.hover_at(from + vec2(dx, 0.0));
+    }
+    h.drop_at(from + vec2(40.0, 0.0));
+    h.run();
+    assert_eq!(h.state().value, 15.0, "40 points at 4 per step");
 }

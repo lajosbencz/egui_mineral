@@ -386,6 +386,11 @@ impl RangeModel {
         self.max
     }
 
+    /// Value-to-track mapping chosen with [`Self::scale`].
+    pub fn scale_kind(&self) -> Scale {
+        self.scale
+    }
+
     /// `None` is continuous.
     pub fn step_size(&self) -> Option<f64> {
         self.step
@@ -539,7 +544,7 @@ impl RangeModel {
         egui::lerp(span, if track.reversed { 1.0 - f } else { f })
     }
 
-    fn arrow_step(&self) -> f64 {
+    pub(crate) fn arrow_step(&self) -> f64 {
         self.increment.or(self.step).unwrap_or(self.span() / 100.0)
     }
 
@@ -681,11 +686,14 @@ impl RangeModel {
     /// Locale number, then plain Rust float syntax; clamped, not snapped. `None` for non-numbers
     /// and non-finite values.
     pub fn parse(&self, text: &str, locale: &dyn LocaleFormat) -> Option<f64> {
+        Self::parse_raw(text, locale).map(|v| self.clamp(v))
+    }
+
+    pub(crate) fn parse_raw(text: &str, locale: &dyn LocaleFormat) -> Option<f64> {
         locale
             .parse_number(text)
             .or_else(|| text.trim().parse().ok())
             .filter(|v: &f64| v.is_finite())
-            .map(|v| self.clamp(v))
     }
 }
 

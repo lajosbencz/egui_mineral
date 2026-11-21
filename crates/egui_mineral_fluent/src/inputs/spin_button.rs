@@ -1,11 +1,11 @@
-use egui::{Color32, CornerRadius, Galley, Pos2, Rangef, Rect, Sense, emath::Numeric, vec2};
+use egui::{Color32, CornerRadius, CursorIcon, Galley, Pos2, Rangef, Rect, Sense, emath::Numeric, vec2};
 use egui_mineral::{
     edit::{EditEvent, FieldFocus},
     i18n::{Direction, I18n},
     kit::{self, state::TempState},
     layout::{Constraints, Measure, MinTarget},
-    number::{NumberEdit, NumberSource},
-    range::{self, RangeModel},
+    number::{self, NumberEdit, NumberRef, NumberSource, ScrubRate},
+    range::{RangeModel, Track},
     semantic::{AgentKey, KeyedSalt, Role, SemanticNode},
     widget::{Availability, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
 };
@@ -34,6 +34,14 @@ use crate::{
     },
 };
 
+/// Events of [`SpinButton`], read from `WidgetResponse::output`.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct SpinButtonOutput {
+    /// Typed text, a step or a scrub asked for a value outside the range this pass and got the bound.
+    pub clamped: bool,
+}
+
 /// Fluent `SpinButton`: a number field with step buttons, bound to `value`, any [`Numeric`]. Typed text commits on Enter or blur,
 /// arrow and page keys and the buttons step; `changed` reports a committed value.
 #[derive(Debug)]
@@ -42,7 +50,9 @@ pub struct SpinButton<'a, N = f64> {
     salt: KeyedSalt,
     key: AgentKey,
     label: String,
-    value: &'a mut N,
+    value: NumberRef<'a, N>,
+    scrub: Option<ScrubRate>,
+    select_on_step: bool,
     range: RangeModel,
     appearance: InputAppearance,
     size: Size,
@@ -63,11 +73,33 @@ impl<'a, N: Numeric> SpinButton<'a, N> {
         range: impl Into<RangeModel>,
         value: &'a mut N,
     ) -> Self {
+        Self::bound(id_salt, label, range, NumberRef::Value(value))
+    }
+
+    /// [`Self::new`] over a value that may be blank (React `value={null}`): clearing the text binds `None`, and
+    /// the first step from blank lands on the in-range value nearest 0.
+    pub fn optional(
+        id_salt: impl Into<KeyedSalt>,
+        label: impl Into<String>,
+        range: impl Into<RangeModel>,
+        value: &'a mut Option<N>,
+    ) -> Self {
+        Self::bound(id_salt, label, range, NumberRef::Optional(value))
+    }
+
+    fn bound(
+        id_salt: impl Into<KeyedSalt>,
+        label: impl Into<String>,
+        range: impl Into<RangeModel>,
+        value: NumberRef<'a, N>,
+    ) -> Self {
         Self {
             salt: id_salt.into(),
             key: egui_mineral::agent_key!("spin-button"),
             label: label.into(),
             value,
+            scrub: None,
+            select_on_step: false,
             range: range.into().for_numeric::<N>(),
             appearance: InputAppearance::Outline,
             size: Size::Medium,
@@ -128,6 +160,20 @@ impl<'a, N: Numeric> SpinButton<'a, N> {
         disabled
     }
 
+    /// Dragging the unfocused text with a mouse scrubs the value at `rate`; Shift alone is 10x finer, Ctrl
+    /// (Cmd on macOS) alone 10x coarser. A click still focuses the text; touch drags scroll. Not in Fluent
+    /// (docs/divergences.md).
+    pub fn scrub(mut self, rate: ScrubRate) -> Self {
+        self.scrub = Some(rate);
+        self
+    }
+
+    /// Selects the whole text after a step of the focused field, so typing replaces it; default `false`.
+    pub fn select_on_step(mut self, select_on_step: bool) -> Self {
+        self.select_on_step = select_on_step;
+        self
+    }
+
     crate::widget::setters! {
         /// Replaces the `<id_salt>-spin-button` agent key.
         agent_key(key)
@@ -140,6 +186,25 @@ impl<'a, N: Numeric> SpinButton<'a, N> {
             invalid: self.invalid,
             disabled: self.disabled,
         }
+    }
+
+    // Over the unfocused text, so a press-drag scrubs and a click focuses.
+    fn scrub_handle(
+        &self,
+        ui: &MineralUi<'_, Fluent>,
+        rect: Rect,
+        id: egui::Id,
+        focused: bool,
+    ) -> Option<egui::Response> {
+        let sense = (self.scrub.is_some() && !self.disabled && !focused)
+            .then(|| number::scrub_sense(&ui.pass_input()))
+            .flatten()?;
+        let mut h = ui.interact(rect, id, sense);
+        ui.pass_input().tap_on(&mut h);
+        if h.hovered() || h.dragged() {
+            ui.ctx().set_cursor_icon(CursorIcon::ResizeHorizontal);
+        }
+        Some(h)
     }
 
     fn field_size(&self) -> Size {
@@ -355,7 +420,7 @@ impl<'a, N: Numeric> SpinButton<'a, N> {
 impl<N: Numeric> MineralWidget for SpinButton<'_, N> {
     type Kit = Fluent;
     type State = ();
-    type Output = ();
+    type Output = SpinButtonOutput;
 
     kit::widget_meta!(salt, enabled, frame_sense);
 
@@ -376,7 +441,12 @@ impl<N: Numeric> MineralWidget for SpinButton<'_, N> {
         c.constrain(vec2(width, height)).into()
     }
 
-    fn update(&mut self, ui: &mut MineralUi<'_, Fluent>, frame: &WidgetFrame<'_>, (): &mut ()) -> WidgetResponse {
+    fn update(
+        &mut self,
+        ui: &mut MineralUi<'_, Fluent>,
+        frame: &WidgetFrame<'_>,
+        (): &mut (),
+    ) -> WidgetResponse<SpinButtonOutput> {
         let rt = ui.rt();
         let ctx = rt.ctx();
         let t = ui.tokens();
@@ -384,13 +454,16 @@ impl<N: Numeric> MineralWidget for SpinButton<'_, N> {
         let base = ui.make_persistent_id(self.salt.id_salt());
         let (edit_id, state_id) = (base.with("edit"), base.with("number"));
         let visual = frame.zones.visual;
-        let before = self.value.to_f64();
+        let before = self.value.get();
         let focused = ctx.memory(|m| m.has_focus(edit_id));
         let escape = focused && !self.disabled && kit::layer::consume_escape_from(ctx, edit_id);
         let fmt = |v: f64| self.text(rt.i18n(), v);
         let mut edit = NumberEdit::load_or(ctx, state_id, || NumberEdit::new(self.range, before, fmt));
+        edit.set_blank(self.value.optional());
+        edit.set_scrub_rate(self.scrub.unwrap_or_default());
         let mut pass = edit.begin(self.range, before, FieldFocus::of(focused || escape), &fmt);
-        let mut stepped = focused && !self.disabled && pass.consume_step_keys(ctx);
+        let keys = focused && !self.disabled && pass.consume_step_keys(ctx);
+        let mut stepped = keys;
         let mut event = escape
             .then(|| {
                 ctx.memory_mut(|m| m.surrender_focus(edit_id));
@@ -431,7 +504,11 @@ impl<N: Numeric> MineralWidget for SpinButton<'_, N> {
                 escape: true,
             })
         });
-        if !focused && frame.response.clicked() && !self.disabled {
+        let scrub = self.scrub_handle(ui, text_rect, base.with("scrub"), focused);
+        if !focused
+            && !self.disabled
+            && (frame.response.clicked() || scrub.as_ref().is_some_and(egui::Response::clicked))
+        {
             ctx.memory_mut(|m| m.request_focus(edit_id));
         }
         self.paint_unit(ui, chrome, text_rect, pass.text_mut(), &t);
@@ -444,27 +521,37 @@ impl<N: Numeric> MineralWidget for SpinButton<'_, N> {
                 pass.step(steps, NumberSource::Step);
                 stepped = true;
             }
+            let select = keys || steps != 0;
             stepped |= pass.accesskit(rt.core(), te.id);
+            let extent = scrub.as_ref().map_or(1.0, |h| h.rect.width());
+            stepped |= pass.scrub(scrub.as_ref(), extent, Track::horizontal(dir));
             let flush = pass.commit_requested(ctx);
-            let blurred = !ctx.memory(|m| m.has_focus(edit_id));
+            let blurred = !ctx.memory(|m| m.has_focus(edit_id)) && !pass.scrubbing();
             if event.is_none() && (blurred || flush || stepped) {
                 event = pass.commit();
             }
+            if self.select_on_step && select {
+                egui_mineral::edit::select_all(ctx, edit_id, pass.text_mut());
+            }
         }
-        let value = pass.value();
+        let (value, clamped) = (pass.value(), pass.clamped() && !self.disabled);
         edit.store(ctx, state_id);
         if stepped || event == Some(EditEvent::Committed) {
-            *self.value = range::to_numeric(self.range.clamp(value));
+            self.value.set(value.map(|v| self.range.clamp(v)));
         }
-        let changed = (before - self.value.to_f64()).abs() > f64::EPSILON;
-        WidgetResponse::new(te, ()).with_changed(changed)
+        let changed = match (before, self.value.get()) {
+            (Some(b), Some(a)) => (b - a).abs() > f64::EPSILON,
+            (b, a) => b.is_some() != a.is_some(),
+        };
+        WidgetResponse::new(te, SpinButtonOutput { clamped }).with_changed(changed)
     }
 
-    fn semantics(&self, i18n: &I18n, _: &WidgetResponse, (): &()) -> Option<SemanticNode> {
+    fn semantics(&self, i18n: &I18n, _: &WidgetResponse<SpinButtonOutput>, (): &()) -> Option<SemanticNode> {
+        let v = self.value.get();
         let mut n = SemanticNode::new(self.key.id(&self.salt), Role::SpinButton, &self.label)
-            .value(self.text(i18n, self.value.to_f64()))
+            .value(v.map_or_default(|v| self.text(i18n, v)))
             .ranged(
-                self.range.numeric(self.value.to_f64()),
+                self.range.numeric(v.unwrap_or_else(|| self.range.snap(0.0))),
                 Availability::disabled_if(self.disabled),
             );
         n.state.invalid = self.invalid;

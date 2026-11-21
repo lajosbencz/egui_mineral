@@ -3,7 +3,7 @@ use egui_mineral::select::{Check, Selection};
 use egui_mineral_fluent::inputs::ColorPicker;
 use egui_mineral_fluent::inputs::{Swatch, SwatchPicker};
 use egui_mineral_fluent::{
-    egui_mineral::range::RangeModel,
+    egui_mineral::{number::ScrubRate, range::RangeModel},
     inputs::{
         Checkbox, Combobox, Dropdown, Field, InfoLabel, Input, ListEntry, ListOption, OptionGroup, RadioGroup,
         RadioOption, RangeSlider, Rating, SearchBox, Select, Slider, SpinButton, Switch, TimePicker, Validation,
@@ -145,6 +145,55 @@ fn spin_button_steps_with_arrow_keys_and_reports_changed() {
     h.press(Key::ArrowDown);
     h.press(Key::ArrowDown);
     assert_eq!(h.state().value, 9.0);
+}
+
+#[test]
+fn optional_spin_button_clears_to_none_and_reports_clamps() {
+    let mut h = harness((Some(3.0), false), |ui, (v, clamped)| {
+        let r = ui.mineral(SpinButton::optional("s", "Qty", RangeModel::new(0.0, 5.0).step(1.0), v));
+        *clamped |= r.output().clamped;
+    });
+    h.run();
+    h.press(Key::Tab);
+    h.key_press_modifiers(egui::Modifiers::COMMAND, Key::A);
+    h.press(Key::Backspace);
+    h.press(Key::ArrowUp);
+    assert_eq!(h.state().value.0, Some(0.0), "first step from blank");
+    h.event(Event::Text("9".into()));
+    h.press(Key::Enter);
+    assert_eq!(h.state().value, (Some(5.0), true), "09 is past the bound");
+    h.click("s-spin-button");
+    h.key_press_modifiers(egui::Modifiers::COMMAND, Key::A);
+    h.press(Key::Backspace);
+    h.press(Key::Enter);
+    assert_eq!(h.state().value.0, None, "blank text binds None");
+}
+
+#[test]
+fn spin_button_scrubs_and_selects_after_a_step() {
+    let mut h = harness(5.0, |ui, v| {
+        let range = RangeModel::new(0.0, 100.0).step(1.0);
+        ui.mineral(
+            SpinButton::new("s", "Qty", range, v)
+                .scrub(ScrubRate::pixels(4.0, 50.0))
+                .select_on_step(true),
+        );
+    });
+    h.run();
+    let from = h.rect("s-spin-button").left_center() + egui::vec2(12.0, 0.0);
+    h.hover_at(from);
+    h.drag_at(from);
+    for dx in [8.0, 20.0, 40.0] {
+        h.hover_at(from + egui::vec2(dx, 0.0));
+    }
+    h.drop_at(from + egui::vec2(40.0, 0.0));
+    h.run();
+    assert_eq!(h.state().value, 15.0, "40 points at 4 per step");
+    h.press(Key::Tab);
+    h.press(Key::ArrowUp);
+    h.event(Event::Text("7".into()));
+    h.press(Key::Enter);
+    assert_eq!(h.state().value, 7.0, "the step selected the text");
 }
 
 #[test]

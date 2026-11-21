@@ -15,7 +15,7 @@ use egui_mineral::{
     edit::{EditEvent, FieldFocus},
     input::button_steps,
     layout::Constraints,
-    number::{self, NumberEdit, NumberSource},
+    number::{self, NumberEdit, NumberRef, NumberSource, ScrubRate},
     range::{self, RangeModel, Track},
     widget::{SizeExt, WidgetResponse},
 };
@@ -37,14 +37,16 @@ const MIN_FIELD_W: f32 = 2.0 * tf::PADDING + 2.0 * text_field::INPUT_FONT.size()
 pub struct NumberField<'a, N: Numeric = f64> {
     salt: KeyedSalt,
     label: String,
-    value: &'a mut N,
+    value: NumberRef<'a, N>,
     range: RangeModel,
     format: Option<Box<dyn Fn(N) -> String + 'a>>,
     disabled: bool,
     commit_on_submit: bool,
     scrub: bool,
+    scrub_rate: ScrubRate,
     step_buttons: bool,
     snap_typed: bool,
+    select_on_step: bool,
     chrome: FieldChrome,
 }
 
@@ -69,6 +71,9 @@ pub struct NumberFieldOutput {
     pub scrub_started: bool,
     /// Text field id, e.g. for `Memory::request_focus`; `None` when not shown.
     pub field: Option<Id>,
+    /// Typed text, a step or a scrub asked for a value outside the range this pass and got the bound,
+    /// e.g. to flash the outline.
+    pub clamped: bool,
 }
 
 impl<'a, N: Numeric> NumberField<'a, N> {
@@ -79,20 +84,40 @@ impl<'a, N: Numeric> NumberField<'a, N> {
         range: impl Into<RangeModel>,
         value: &'a mut N,
     ) -> Self {
-        let id_salt: KeyedSalt = id_salt.into();
-        let range = range.into().for_numeric::<N>();
+        Self::bound(id_salt, label, range, NumberRef::Value(value))
+    }
+
+    /// [`Self::new`] over a value that may be blank: clearing the text binds `None`, and the first step or
+    /// scrub from blank lands on the in-range value nearest 0.
+    pub fn optional(
+        id_salt: impl Into<KeyedSalt>,
+        label: impl Into<String>,
+        range: impl Into<RangeModel>,
+        value: &'a mut Option<N>,
+    ) -> Self {
+        Self::bound(id_salt, label, range, NumberRef::Optional(value))
+    }
+
+    fn bound(
+        id_salt: impl Into<KeyedSalt>,
+        label: impl Into<String>,
+        range: impl Into<RangeModel>,
+        value: NumberRef<'a, N>,
+    ) -> Self {
         Self {
             chrome: FieldChrome::default(),
-            salt: id_salt,
+            salt: id_salt.into(),
             label: label.into(),
             value,
-            range,
+            range: range.into().for_numeric::<N>(),
             format: None,
             disabled: false,
             commit_on_submit: false,
             scrub: false,
+            scrub_rate: ScrubRate::Extent,
             step_buttons: true,
             snap_typed: true,
+            select_on_step: false,
         }
     }
 
@@ -150,6 +175,19 @@ impl<'a, N: Numeric> NumberField<'a, N> {
         self
     }
 
+    /// How far a [`Self::scrub`] drag moves the value; default [`ScrubRate::Extent`], the field width.
+    pub fn scrub_rate(mut self, scrub_rate: ScrubRate) -> Self {
+        self.scrub_rate = scrub_rate;
+        self
+    }
+
+    /// Selects the whole text after a step of the focused field (keys, buttons, wheel), so typing
+    /// replaces it; default `false`.
+    pub fn select_on_step(mut self, select_on_step: bool) -> Self {
+        self.select_on_step = select_on_step;
+        self
+    }
+
     /// `false` drops the decrement/increment buttons; arrow keys, the wheel over the focused field,
     /// AccessKit and scrub still step.
     pub fn step_buttons(mut self, step_buttons: bool) -> Self {
@@ -162,7 +200,7 @@ impl<'a, N: Numeric> NumberField<'a, N> {
         agent_key(salt)
     }
 
-    fn buttons(&self, rt: &Rt, v: f64) -> (IconButton<'_>, IconButton<'_>) {
+    fn buttons(&self, rt: &Rt, v: Option<f64>) -> (IconButton<'_>, IconButton<'_>) {
         let button = |salt: &'static str, icon, msg: crate::Msg, key: &'static str, at_end: bool| {
             IconButton::new(self.salt.child(salt), icon, tr(rt.i18n(), msg))
                 .agent_key(StableId::of(&self.salt, key))
@@ -174,26 +212,26 @@ impl<'a, N: Numeric> NumberField<'a, N> {
                 rt.icons().remove,
                 msg::NUMBER_DECREMENT,
                 "decrement",
-                v <= self.range.min(),
+                v.is_some_and(|v| v <= self.range.min()),
             ),
             button(
                 "inc",
                 rt.icons().add,
                 msg::NUMBER_INCREMENT,
                 "increment",
-                v >= self.range.max(),
+                v.is_some_and(|v| v >= self.range.max()),
             ),
         )
     }
 
-    fn field<'t>(&'t self, text: &'t mut String, v: f64) -> TextField<'t> {
+    fn field<'t>(&'t self, text: &'t mut String, v: Option<f64>) -> TextField<'t> {
         let mut field = TextField::new(self.salt.child("field"), self.label.clone(), text)
             .with_chrome(self.chrome.clone())
             .disabled(self.disabled)
             // Arrows step the value and Escape cancels, so the editor keeps them.
             .event_filter(text_field::editor_keys(true))
             .agent_key(StableId::of(&self.salt, "field"));
-        field.spin = Some(self.range.numeric(v));
+        field.spin = Some(self.range.numeric(v.unwrap_or_else(|| self.range.snap(0.0))));
         field
     }
 
@@ -227,6 +265,48 @@ impl<'a, N: Numeric> NumberField<'a, N> {
         }
     }
 
+    // Input of an enabled field: text, buttons, wheel, AccessKit, scrub, then the commit; `keys` stepped
+    // before the layout.
+    fn react(
+        &self,
+        rt: &Rt,
+        pass: &mut number::NumberPass<'_>,
+        p: &Parts<'_>,
+        (wheel_id, focused, keys): (Id, bool, bool),
+        event: &mut Option<EditEvent>,
+    ) -> Reaction {
+        let ctx = rt.ctx();
+        let field = p.field.response().id;
+        if p.field.changed() {
+            pass.apply_text(rt.i18n().format().as_ref());
+        }
+        let wheel = wheel_steps(ctx, wheel_id, focused && p.field.response().contains_pointer());
+        let buttons_or_wheel = apply_steps(pass, presses(rt, p.inc) - presses(rt, p.dec), wheel);
+        let stepped = keys | buttons_or_wheel | pass.accesskit(rt.core(), field);
+        let extent = p.scrub.map_or(1.0, |h| h.rect.width());
+        let scrubbed = pass.scrub(p.scrub, extent, Track::horizontal(rt.i18n().direction()));
+        if p.scrub.is_some_and(egui::Response::clicked) {
+            ctx.memory_mut(|m| m.request_focus(field));
+        }
+        let flush = pass.commit_requested(ctx);
+        let blurred = !ctx.memory(|m| m.has_focus(field)) && !pass.scrubbing();
+        if event.is_none() && (blurred || flush || (stepped && self.commit_on_submit)) {
+            *event = pass.commit();
+        }
+        if self.select_on_step && (keys || buttons_or_wheel) {
+            egui_mineral::edit::select_all(ctx, field, pass.text_mut());
+        }
+        Reaction { stepped, scrubbed }
+    }
+
+    fn load_edit(&self, ctx: &Context, id: Id, before: Option<f64>, fmt: &dyn Fn(f64) -> String) -> NumberEdit {
+        let mut edit = NumberEdit::load_or(ctx, id, || NumberEdit::new(self.range, before, fmt));
+        edit.set_snap(self.snap_typed);
+        edit.set_blank(self.value.optional());
+        edit.set_scrub_rate(self.scrub_rate);
+        edit
+    }
+
     fn text(&self, i18n: &egui_mineral::i18n::I18n, v: f64) -> String {
         match &self.format {
             Some(f) => f(range::to_numeric(v)),
@@ -255,16 +335,14 @@ impl<N: Numeric> Composite for NumberField<'_, N> {
         let edit_id = EditId::try_load(ctx, edit_key).map(|e| e.0);
         let state_id = base.with("edit");
         let fmt = |v: f64| self.text(rt.i18n(), v);
-        let before = self.value.to_f64();
+        let before = self.value.get();
         let focused = edit_id.is_some_and(|id| ctx.memory(|m| m.has_focus(id)));
         let escape = !self.disabled && edit_id.is_some_and(|id| egui_mineral::kit::layer::consume_escape_from(ctx, id));
-        let mut edit = NumberEdit::load_or(ctx, state_id, || NumberEdit::new(self.range, before, fmt));
+        let mut edit = self.load_edit(ctx, state_id, before, &fmt);
         // An Escape pass keeps the edit open so it cancels instead of committing on blur.
         let focus = FieldFocus::of(focused || escape);
-        edit.set_snap(self.snap_typed);
         let mut pass = edit.begin(self.range, before, focus, &fmt);
-        let mut scrubbed = false;
-        let mut stepped = focused && !self.disabled && pass.consume_step_keys(ctx);
+        let keys = focused && !self.disabled && pass.consume_step_keys(ctx);
         let mut event = escape.then(|| cancel_edit(ctx, &mut pass, edit_id)).flatten();
         let v = pass.value();
 
@@ -312,37 +390,26 @@ impl<N: Numeric> Composite for NumberField<'_, N> {
             response: row,
         } = inner;
 
-        if !disabled {
-            if out.changed() {
-                pass.apply_text(rt.i18n().format().as_ref());
-            }
-            let presses = |b: Option<&WidgetResponse>| {
-                b.map_or(0, |b| i64::from(button_steps(rt.core(), b.response(), b.response().id)))
-            };
-            let wheel = wheel_steps(ctx, base.with("wheel"), focused && out.response().contains_pointer());
-            stepped |= apply_steps(&mut pass, presses(inc.as_ref()) - presses(dec.as_ref()), wheel);
-            stepped |= pass.accesskit(rt.core(), out.response().id);
-            let extent = scrub.as_ref().map_or(1.0, |h| h.rect.width());
-            scrubbed = pass.scrub(scrub.as_ref(), extent, Track::horizontal(dir));
-            if scrub.as_ref().is_some_and(egui::Response::clicked) {
-                ctx.memory_mut(|m| m.request_focus(out.response().id));
-            }
-            let flush = pass.commit_requested(ctx);
-            let blurred = !ctx.memory(|m| m.has_focus(out.response().id)) && !pass.scrubbing();
-            if event.is_none() && (blurred || flush || (stepped && self.commit_on_submit)) {
-                event = pass.commit();
-            }
-        }
-        let (v, source) = (pass.value(), pass.source());
+        let parts = Parts {
+            field: &out,
+            dec: dec.as_ref(),
+            inc: inc.as_ref(),
+            scrub: scrub.as_ref(),
+        };
+        let Reaction { stepped, scrubbed } = if disabled {
+            Reaction::default()
+        } else {
+            self.react(rt, &mut pass, &parts, (base.with("wheel"), focused, keys), &mut event)
+        };
+        let (v, source, clamped) = (pass.value(), pass.source(), pass.clamped());
         if !self.commit_on_submit || stepped || scrubbed || event.is_some() {
-            *self.value = range::to_numeric(v);
-            edit.wrote(self.value.to_f64());
+            self.value.set(v);
+            edit.wrote(self.value.get());
         }
         edit.store(ctx, state_id);
         EditId(out.response().id).store(ctx, edit_key);
         // The row response: the field's own `changed` flag also fires on unparsed text.
-        let after = self.value.to_f64();
-        let changed = before.is_nan() != after.is_nan() || (before - after).abs() > f64::EPSILON;
+        let changed = differs(before, self.value.get());
         let output = NumberFieldOutput {
             edit: event,
             source: (changed || event == Some(EditEvent::Committed))
@@ -350,6 +417,7 @@ impl<N: Numeric> Composite for NumberField<'_, N> {
                 .flatten(),
             scrub_started: !disabled && scrub.as_ref().is_some_and(egui::Response::drag_started),
             field: Some(out.response().id),
+            clamped: clamped && !disabled,
         };
         WidgetResponse::new(row, output).with_changed(changed)
     }
@@ -365,6 +433,30 @@ fn cancel_edit(ctx: &Context, pass: &mut number::NumberPass<'_>, edit_id: Option
         ctx.memory_mut(|m| m.surrender_focus(id));
     }
     pass.cancel()
+}
+
+fn presses(rt: &Rt, b: Option<&WidgetResponse>) -> i64 {
+    b.map_or(0, |b| i64::from(button_steps(rt.core(), b.response(), b.response().id)))
+}
+
+fn differs(before: Option<f64>, after: Option<f64>) -> bool {
+    match (before, after) {
+        (Some(b), Some(a)) => b.is_nan() != a.is_nan() || (b - a).abs() > f64::EPSILON,
+        (b, a) => b.is_some() != a.is_some(),
+    }
+}
+
+struct Parts<'r> {
+    field: &'r WidgetResponse<text_field::TextFieldOutput>,
+    dec: Option<&'r WidgetResponse>,
+    inc: Option<&'r WidgetResponse>,
+    scrub: Option<&'r egui::Response>,
+}
+
+#[derive(Default)]
+struct Reaction {
+    stepped: bool,
+    scrubbed: bool,
 }
 
 fn apply_steps(pass: &mut number::NumberPass<'_>, buttons: i64, wheel: i64) -> bool {

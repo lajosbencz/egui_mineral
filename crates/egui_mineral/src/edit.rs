@@ -139,6 +139,17 @@ impl<T: Clone + PartialEq> EditBuffer<T> {
     }
 }
 
+/// Selects all of `text` in the egui `TextEdit` `id` from its next pass, e.g. so typing replaces a value.
+pub fn select_all(ctx: &Context, id: egui::Id, text: &str) {
+    use egui::text::{CCursor, CCursorRange};
+    let mut s = egui::text_edit::TextEditState::load(ctx, id).unwrap_or_default();
+    s.cursor.set_char_range(Some(CCursorRange::two(
+        CCursor::new(0),
+        CCursor::new(text.chars().count()),
+    )));
+    s.store(ctx, id);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -2,11 +2,7 @@ use crate::Material;
 use crate::MaterialExt;
 use crate::MaterialUiExt as _;
 use crate::msg;
-use egui::{
-    Align, Color32, CursorIcon, Key, Rangef, Rect, pos2,
-    text::{CCursor, CCursorRange},
-    vec2,
-};
+use egui::{Align, Color32, CursorIcon, Key, Rangef, Rect, pos2, vec2};
 use egui_mineral::i18n::I18n;
 use egui_mineral::kit::state::TempState;
 use egui_mineral::semantic::KeyedSalt;
@@ -252,12 +248,7 @@ impl Composite for InlineEdit<'_> {
             let te = &row.field;
             if st.focus {
                 te.request_focus();
-                let mut s = egui::text_edit::TextEditState::load(&ctx, edit_id).unwrap_or_default();
-                s.cursor.set_char_range(Some(CCursorRange::two(
-                    CCursor::new(0),
-                    CCursor::new(draft.chars().count()),
-                )));
-                s.store(&ctx, edit_id);
+                egui_mineral::edit::select_all(&ctx, edit_id, &draft);
                 st.focus = false;
             }
             let pressed_cancel = st
