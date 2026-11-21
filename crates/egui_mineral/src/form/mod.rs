@@ -634,8 +634,6 @@ impl<'a, T> Form<'a, T> {
         self
     }
 
-    // Shows every field's result of this pass, runs the form rules and starts a valid submission. A check
-    // targeting a field that is not shown reports its error on the form.
     fn submit(&mut self) -> bool {
         self.state.submit_count += 1;
         if self.state.submitting {

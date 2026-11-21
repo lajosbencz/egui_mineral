@@ -137,7 +137,7 @@ private_intra_doc_links = "deny"
 invalid_html_tags = "deny"
 unescaped_backticks = "deny"
 
-# Dependencies only: tests run about 4x faster; debug assertions (egui id-clash warnings) stay on.
+# Test speed; debug assertions (egui id-clash warnings) stay on.
 [profile.dev.package."*"]
 opt-level = 2
 

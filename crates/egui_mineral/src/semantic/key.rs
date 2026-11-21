@@ -497,7 +497,6 @@ impl KeySalt for jiff::civil::Time {
     }
 }
 
-// `none`, else the value's own key.
 impl<T: KeySalt> KeySalt for Option<T> {
     fn write_key(&self, out: &mut String) {
         match self {

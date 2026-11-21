@@ -161,7 +161,6 @@ impl<K: Clone> Entries<K> for std::sync::Arc<Vec<Entry<K>>> {
     }
 }
 
-// `item`, `items` and `group` of a widget whose `entries` implement `Entries`.
 macro_rules! entry_setters {
     () => {
         /// Appends one option carrying `value`.

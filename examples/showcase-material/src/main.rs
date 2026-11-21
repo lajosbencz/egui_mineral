@@ -80,7 +80,6 @@ fn new_app(ctx: &egui::Context) -> Result<App, Box<dyn std::error::Error + Send 
             }
         }
     });
-    // A page's topics report the page.
     let palette_pages: Vec<(Page, PaletteCommand)> = Page::ALL
         .iter()
         .flat_map(|&p| {

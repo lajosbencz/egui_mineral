@@ -615,7 +615,7 @@ impl Order {
         }
     }
 
-    // Shown rows whose key is selected; stale keys in the selection do not count.
+    // Stale keys in the selection do not count.
     fn selected<K: ItemKey>(&self, selection: &Selection<K>, rows: &dyn Rows<K>) -> usize {
         if selection.selected().next().is_none() {
             return 0;

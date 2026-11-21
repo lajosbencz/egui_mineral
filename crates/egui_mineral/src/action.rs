@@ -1,8 +1,7 @@
 //! Typed actions: how collections of actions report which item ran.
 //!
 //! A collection pairs each action with an app value (`action(value, spec)`, `item(value, spec)`) and reports the
-//! run one as `clicked: Option<A>`, so apps match on their own values instead of positions or strings. The value
-//! is any [`ItemKey`]; it also salts the item's id and agent key. A collection starts as [`NoAction`] and takes
+//! run one as `clicked: Option<A>`. The value is any [`ItemKey`]; it also salts the item's id and agent key. A collection starts as [`NoAction`] and takes
 //! the type of its first value ([`Widen`]), so mixing value types does not compile:
 //!
 //! ```

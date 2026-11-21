@@ -360,7 +360,7 @@ pub struct NavUi<'u, 's, K> {
     children: &'u mut Children,
 }
 
-// Ids of the sub item values per category value id; entries of categories no longer placed are pruned.
+// Entries of categories no longer placed are pruned.
 #[derive(Clone, Default)]
 struct Children {
     known: HashMap<Id, Vec<Id>>,

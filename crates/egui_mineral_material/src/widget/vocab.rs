@@ -102,7 +102,6 @@ impl TextAction {
     }
 }
 
-// Item salt of an action collection item: its own salt, else its command, else its value.
 pub(crate) fn action_salt(
     parent: &KeyedSalt,
     own: Option<&KeyedSalt>,

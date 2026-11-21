@@ -72,7 +72,6 @@ fn name_of(ident: &syn::Ident, rename: Option<&LitStr>) -> syn::Result<LitStr> {
     Ok(LitStr::new(&text, ident.span()))
 }
 
-// Pattern binding the fields as `__f0..`.
 fn fields(fields: &Fields) -> (TokenStream2, Vec<syn::Ident>) {
     let ids: Vec<syn::Ident> = (0..fields.len()).map(|i| format_ident!("__f{i}")).collect();
     let pat = match fields {

@@ -150,7 +150,6 @@ fn submit(ui: &Ui, shapes: Vec<egui::Shape>) {
     ui.painter().extend(shapes);
 }
 
-// Hover/press disc, the kit's glyph or a vector cross, focus ring; colors from `ui.style()`.
 fn close_shapes(ui: &Ui, visual: Rect, response: &egui::Response, glyph: Option<Icon>) -> Vec<egui::Shape> {
     let visuals = ui.style().interact(response);
     let c = visual.center();

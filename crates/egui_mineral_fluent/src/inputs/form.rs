@@ -246,7 +246,6 @@ impl FormUiExt for FormUi<'_, '_, Fluent> {
     }
 }
 
-// The control in a `Field` with the spec's label (unless the control labels itself), hint and shown error.
 fn wrapped<V: ?Sized>(
     ui: &mut MineralUi<'_, Fluent>,
     f: &mut FieldCtx<'_, V>,
