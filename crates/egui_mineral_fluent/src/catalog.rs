@@ -96,7 +96,7 @@ pub enum Origin {
         /// Component it ports.
         react: &'static str,
         /// Its styles file under `packages/react-components/` at
-        /// [`SOURCE_COMMIT`](crate::spec::tokens::SOURCE_COMMIT), vendored in `tools/fluent_tokens/vendor`.
+        /// [`SOURCE_COMMIT`](crate::spec::tokens::SOURCE_COMMIT).
         styles: &'static str,
     },
     /// Not in Fluent UI React v9; patterned after a design system or desktop convention.
@@ -866,27 +866,3 @@ pub const CATALOG: &[ComponentMeta] = &[
     #[cfg(feature = "extras")]
     <Pagination<'static>>::META,
 ];
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn every_styles_file_is_vendored() {
-        let root = concat!(env!("CARGO_MANIFEST_DIR"), "/../../tools/fluent_tokens/vendor/",);
-        let vendored = std::fs::read_to_string(format!("{root}{}/STYLES.txt", crate::spec::tokens::SOURCE_COMMIT))
-            .expect("STYLES.txt");
-        for c in CATALOG {
-            let Origin::ReactV9 { styles, .. } = c.origin else {
-                continue;
-            };
-            assert!(
-                vendored
-                    .lines()
-                    .any(|l| l == format!("packages/react-components/{styles}")),
-                "{}: {styles} not vendored",
-                c.name
-            );
-        }
-    }
-}
