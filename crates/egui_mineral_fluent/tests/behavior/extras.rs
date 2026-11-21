@@ -307,3 +307,45 @@ fn collapsed_split_pane_expands_on_enter() {
     h.press(Key::Enter);
     assert_eq!(h.state().value, None);
 }
+
+#[test]
+fn status_bar_tone_and_grip() {
+    use egui_mineral_fluent::extras::StatusTone;
+    const TINT: egui::Color32 = egui::Color32::from_rgb(10, 90, 200);
+    let bar = |ui: &mut FluentUi<'_>, grip: bool| {
+        narrow(ui, 300.0, |ui| {
+            StatusBar::new("status", "Status")
+                .tone(StatusTone::Custom {
+                    container: TINT,
+                    content: egui::Color32::WHITE,
+                })
+                .grip(grip)
+                .trailing("Ln 4")
+                .show(ui);
+        });
+    };
+    let mut h = harness((), move |ui, ()| bar(ui, true));
+    h.run();
+    let (rect, end) = (h.rect("status-status-bar"), h.rect("status-0-status-item"));
+    assert!(
+        end.right() <= rect.right() - rect.height() + 0.5,
+        "the grip keeps its corner"
+    );
+    let corner = rect.right_bottom() - egui::vec2(4.0, 4.0);
+    h.hover_at(corner);
+    h.drag_at(corner);
+    h.step();
+    let commands = &h.output().viewport_output[&egui::ViewportId::ROOT].commands;
+    assert!(
+        commands.contains(&egui::ViewportCommand::BeginResize(
+            egui::viewport::ResizeDirection::SouthEast
+        )),
+        "{commands:?}"
+    );
+    h.drop_at(corner);
+    assert_eq!(
+        crate::support::render(|ui| bar(ui, false)).fills(TINT).len(),
+        1,
+        "the bar takes the tone"
+    );
+}

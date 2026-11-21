@@ -493,3 +493,48 @@ fn form_grid_aligns_controls_past_the_widest_label() {
     assert_eq!(h.node("g-conn").role, egui_mineral::semantic::Role::Heading);
     assert_eq!(h.node("db-field").name, "Database name", "the label names the control");
 }
+
+#[test]
+fn status_bar_tone_and_grip() {
+    const TINT: egui::Color32 = egui::Color32::from_rgb(10, 90, 200);
+    let mut h = harness(egui::vec2(340.0, 100.0), (), |ui, ()| {
+        StatusBar::new("status", "Status")
+            .tone(StatusTone::Custom {
+                container: TINT,
+                content: egui::Color32::WHITE,
+            })
+            .grip(true)
+            .trailing("Ln 4")
+            .show(ui);
+    });
+    let (bar, end) = (h.rect("status-status-bar"), h.rect("status-0-status-item"));
+    assert!(
+        end.right() <= bar.right() - bar.height() + 0.5,
+        "the grip keeps its corner"
+    );
+    let corner = bar.right_bottom() - egui::vec2(4.0, 4.0);
+    h.hover_at(corner);
+    h.drag_at(corner);
+    h.step();
+    let commands = &h.output().viewport_output[&egui::ViewportId::ROOT].commands;
+    assert!(
+        commands.contains(&egui::ViewportCommand::BeginResize(
+            egui::viewport::ResizeDirection::SouthEast
+        )),
+        "{commands:?}"
+    );
+    h.drop_at(corner);
+    let pass = crate::support::render_on(egui::vec2(340.0, 100.0), |ui| {
+        StatusBar::new("status", "Status")
+            .tone(StatusTone::Custom {
+                container: TINT,
+                content: egui::Color32::WHITE,
+            })
+            .show(ui);
+    });
+    let filled = pass
+        .shapes
+        .iter()
+        .any(|s| matches!(&s.shape, Shape::Rect(r) if r.fill == TINT));
+    assert!(filled, "the bar takes the tone");
+}

@@ -62,6 +62,8 @@ pub struct StatusBar<A = NoAction> {
     label: String,
     // Item and whether it sits at the end.
     items: Vec<(StatusItem, bool, Option<A>)>,
+    tone: StatusTone,
+    grip: bool,
 }
 
 impl StatusBar {
@@ -71,6 +73,8 @@ impl StatusBar {
             salt: id_salt.into(),
             label: label.into(),
             items: Vec::new(),
+            tone: StatusTone::Default,
+            grip: false,
         }
     }
 }
@@ -126,7 +130,22 @@ impl<A: ActionValue> StatusBar<A> {
                 .into_iter()
                 .map(|(item, at_end, v)| (item, at_end, v.map(Widen::widen)))
                 .collect(),
+            tone: self.tone,
+            grip: self.grip,
         }
+    }
+
+    /// Colors of the whole bar, e.g. a debugging or offline state; items with their own tone keep it.
+    /// Default [`StatusTone::Default`].
+    pub fn tone(mut self, tone: StatusTone) -> Self {
+        self.tone = tone;
+        self
+    }
+
+    /// Window resize grip in the bottom corner at the reading end; a drag resizes the viewport. Default off.
+    pub fn grip(mut self, grip: bool) -> Self {
+        self.grip = grip;
+        self
     }
 
     /// Allocates the full available width.
@@ -138,15 +157,19 @@ impl<A: ActionValue> StatusBar<A> {
         let w = ui.available_width();
         let (rect, _) = ui.allocate_exact_size(vec2(w, HEIGHT), Sense::hover());
         let response = ui.interact(rect, id, Sense::hover());
+        let (bar_container, bar_content) = bar_colors(self.tone, &t);
         let p = ui.painter();
-        p.rect_filled(rect, 0, t.color(ColorNeutralBackground3));
+        p.rect_filled(rect, 0, bar_container);
         p.hline(
             rect.x_range(),
             rect.top(),
             Stroke::new(g::STROKE_WIDTH_THIN, t.color(ColorNeutralStroke2)),
         );
 
-        let content_of = |it: &StatusItem| content_color(it, &t);
+        let content_of = |it: &StatusItem| content_color(it, bar_content, &t);
+        let grip_w = if self.grip { rect.height() } else { 0.0 };
+        let grip = slot(rect, dir, true, 0.0, grip_w);
+        let rect = slot(rect, dir, false, 0.0, rect.width() - grip_w);
         let galley = |it: &StatusItem, room: Option<f32>| -> Arc<Galley> {
             let format = TEXT.format(ui.ctx(), content_of(it));
             let mut job = if it.has_tabular_figures() {
@@ -193,7 +216,14 @@ impl<A: ActionValue> StatusBar<A> {
                 clicked = self.items.get(i).and_then(|(.., v)| v.clone());
             }
         }
-        semantic::emit(ui.ctx(), Some(response.id), rect, || {
+        if self.grip {
+            egui_mineral::status::resize_grip(ui, grip, id.with("grip"));
+            for c in egui_mineral::status::grip_dots(grip.shrink(g::SPACING_HORIZONTAL_XS), dir) {
+                ui.painter()
+                    .circle_filled(c, egui_mineral::status::GRIP_DOT, bar_content);
+            }
+        }
+        semantic::emit(ui.ctx(), Some(response.id), response.rect, || {
             SemanticNode::new(StableId::of(&self.salt, "status-bar"), Role::Status, &self.label)
         });
         StatusBarResponse { response, clicked }
@@ -206,7 +236,7 @@ impl<A: ActionValue> StatusBar<A> {
         let dir = rt.i18n().direction();
         let (item, _, value) = &self.items[i];
         let clickable = value.is_some();
-        let content = content_color(item, &t);
+        let content = content_color(item, bar_colors(self.tone, &t).1, &t);
         match item.tone_kind() {
             StatusTone::Custom { container, .. } => {
                 ui.painter().rect_filled(r, 0, container);
@@ -300,10 +330,19 @@ fn slot(bar: Rect, dir: Direction, at_end: bool, from: f32, w: f32) -> Rect {
     Rect::from_x_y_ranges(x..=x + w, bar.y_range())
 }
 
-fn content_color(item: &StatusItem, t: &crate::theme::Tokens) -> Color32 {
+fn content_color(item: &StatusItem, bar: Color32, t: &crate::theme::Tokens) -> Color32 {
     match item.tone_kind() {
         StatusTone::Custom { content, .. } => content,
         StatusTone::Error => t.color(ColorPaletteRedForeground1),
-        _ => t.color(ColorNeutralForeground2),
+        _ => bar,
+    }
+}
+
+// (container, content)
+fn bar_colors(tone: StatusTone, t: &crate::theme::Tokens) -> (Color32, Color32) {
+    match tone {
+        StatusTone::Custom { container, content } => (container, content),
+        StatusTone::Error => (t.color(ColorPaletteRedBackground1), t.color(ColorPaletteRedForeground1)),
+        _ => (t.color(ColorNeutralBackground3), t.color(ColorNeutralForeground2)),
     }
 }

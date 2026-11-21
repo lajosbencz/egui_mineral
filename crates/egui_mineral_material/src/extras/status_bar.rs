@@ -66,6 +66,8 @@ pub struct StatusBar<A = NoAction> {
     label: String,
     // Item, whether it sits at the end, and the value of an action item.
     items: Vec<(StatusItem, bool, Option<A>)>,
+    tone: StatusTone,
+    grip: bool,
 }
 
 impl StatusBar {
@@ -75,6 +77,8 @@ impl StatusBar {
             salt: id_salt.into(),
             label: label.into(),
             items: Vec::new(),
+            tone: StatusTone::Default,
+            grip: false,
         }
     }
 }
@@ -83,6 +87,19 @@ impl<A: ActionValue> StatusBar<A> {
     crate::widget::setters! {
         /// Replaces the `<id_salt>` key prefix.
         agent_key(salt)
+    }
+
+    /// Colors of the whole bar, e.g. a debugging or offline state; items with their own tone keep it.
+    /// Default [`StatusTone::Default`].
+    pub fn tone(mut self, tone: StatusTone) -> Self {
+        self.tone = tone;
+        self
+    }
+
+    /// Window resize grip in the bottom corner at the reading end; a drag resizes the viewport. Default off.
+    pub fn grip(mut self, grip: bool) -> Self {
+        self.grip = grip;
+        self
     }
 
     /// Item at the reading start, after the previous ones.
@@ -129,6 +146,8 @@ impl<A: ActionValue> StatusBar<A> {
                 .into_iter()
                 .map(|(item, at_end, v)| (item, at_end, v.map(Widen::widen)))
                 .collect(),
+            tone: self.tone,
+            grip: self.grip,
         }
     }
 
@@ -141,8 +160,13 @@ impl<A: ActionValue> StatusBar<A> {
         let size = vec2(ui.available_width(), height(ui.density()));
         let (rect, _) = ui.allocate_exact_size(size, Sense::hover());
         let response = ui.interact(rect, id, Sense::hover());
+        let (bar_container, bar_content) = match self.tone {
+            StatusTone::Custom { container, content } => (container, content),
+            StatusTone::Error => (t.role(ColorRole::ErrorContainer), t.role(ColorRole::OnErrorContainer)),
+            _ => (t.role(CONTAINER), t.role(CONTENT)),
+        };
         let p = ui.painter();
-        p.rect_filled(rect, 0, t.role(CONTAINER));
+        p.rect_filled(rect, 0, bar_container);
         p.hline(
             rect.x_range(),
             rect.top(),
@@ -152,8 +176,11 @@ impl<A: ActionValue> StatusBar<A> {
         let content_of = |it: &StatusItem| match it.tone_kind() {
             StatusTone::Custom { content, .. } => content,
             StatusTone::Error => t.role(ColorRole::OnErrorContainer),
-            _ => t.role(CONTENT),
+            _ => bar_content,
         };
+        let grip_w = if self.grip { rect.height() } else { 0.0 };
+        let grip = slot(rect, dir, true, 0.0, grip_w);
+        let rect = slot(rect, dir, false, 0.0, rect.width() - grip_w);
         let mut galleys: Vec<_> = self
             .items
             .iter()
@@ -184,56 +211,81 @@ impl<A: ActionValue> StatusBar<A> {
             .collect();
 
         let mut clicked = None;
-        for (i, ((item, _, value), galley)) in self.items.iter().zip(galleys).enumerate() {
+        for (i, galley) in galleys.into_iter().enumerate() {
             let Some(r) = slots[i] else { continue };
-            let content = content_of(item);
-            match item.tone_kind() {
-                StatusTone::Custom { container, .. } => {
-                    ui.painter().rect_filled(r, 0, container);
-                }
-                StatusTone::Error => {
-                    ui.painter().rect_filled(r, 0, t.role(ColorRole::ErrorContainer));
-                }
-                _ => {}
+            let content = content_of(&self.items[i].0);
+            if self.paint_item(ui, id, (i, r), galley, content) {
+                clicked.clone_from(&self.items[i].2);
             }
-            let clickable = value.is_some();
-            let sense = if clickable { Sense::click() } else { Sense::hover() };
-            let resp = ui.interact(r, id.with(i), sense);
-            if clickable {
-                if resp.clicked() {
-                    clicked.clone_from(value);
-                }
-                let state = Interaction::of(&resp, Availability::Enabled);
-                common::state_focus(ui.painter(), r, 0, content, state, &t);
-            }
-            let inner = Rect::from_x_y_ranges(r.left() + PAD_X..=r.right() - PAD_X, r.y_range());
-            let mut x = dir.start_x(inner, Rangef::point(0.0));
-            if let Some(lead) = item.lead() {
-                let c = pos2(dir.start_x(inner, Rangef::point(lead_width(lead) / 2.0)), r.center().y);
-                let text = item.text();
-                match lead {
-                    StatusLead::Icon(icon) => common::icon(ui.painter(), c, icon, ICON, content),
-                    StatusLead::Progress(StatusProgress::Circular(value)) => self.progress(ui, i, text, value, c),
-                    StatusLead::Progress(StatusProgress::Linear(value)) => self.linear(ui, i, text, value, c),
-                    _ => {}
-                }
-                x = dir.start_x(inner, Rangef::point(lead_width(lead) + ICON_GAP));
-            }
-            let gx = if dir == Direction::Rtl { x - galley.size().x } else { x };
-            ui.painter()
-                .galley(pos2(gx, r.center().y - galley.size().y / 2.0), galley, content);
-            if let Some(tip) = item.tooltip_text() {
-                PlainTooltip::new(tip).show(rt, &resp);
-            }
-            let role = if clickable { Role::Button } else { Role::Label };
-            semantic::emit(ui.ctx(), Some(resp.id), r, || {
-                SemanticNode::new(StableId::of(&self.salt, (i, "status-item")), role, item.text())
-            });
         }
-        semantic::emit(ui.ctx(), Some(response.id), rect, || {
+        if self.grip {
+            egui_mineral::status::resize_grip(ui, grip, id.with("grip"));
+            for c in egui_mineral::status::grip_dots(grip.shrink(crate::adaptive::grid(1)), dir) {
+                ui.painter()
+                    .circle_filled(c, egui_mineral::status::GRIP_DOT, bar_content);
+            }
+        }
+        semantic::emit(ui.ctx(), Some(response.id), response.rect, || {
             SemanticNode::new(StableId::of(&self.salt, "status-bar"), Role::Status, &self.label)
         });
         StatusBarResponse { response, clicked }
+    }
+}
+
+impl<A> StatusBar<A> {
+    // Paints item `i` at `r`; whether it was clicked.
+    fn paint_item(
+        &self,
+        ui: &mut MineralUi<'_, Material>,
+        id: egui::Id,
+        (i, r): (usize, Rect),
+        galley: std::sync::Arc<egui::Galley>,
+        content: egui::Color32,
+    ) -> bool {
+        let rt = ui.rt();
+        let t = rt.tokens();
+        let dir = rt.i18n().direction();
+        let (item, _, value) = &self.items[i];
+        match item.tone_kind() {
+            StatusTone::Custom { container, .. } => {
+                ui.painter().rect_filled(r, 0, container);
+            }
+            StatusTone::Error => {
+                ui.painter().rect_filled(r, 0, t.role(ColorRole::ErrorContainer));
+            }
+            _ => {}
+        }
+        let clickable = value.is_some();
+        let sense = if clickable { Sense::click() } else { Sense::hover() };
+        let resp = ui.interact(r, id.with(i), sense);
+        if clickable {
+            let state = Interaction::of(&resp, Availability::Enabled);
+            common::state_focus(ui.painter(), r, 0, content, state, &t);
+        }
+        let inner = Rect::from_x_y_ranges(r.left() + PAD_X..=r.right() - PAD_X, r.y_range());
+        let mut x = dir.start_x(inner, Rangef::point(0.0));
+        if let Some(lead) = item.lead() {
+            let c = pos2(dir.start_x(inner, Rangef::point(lead_width(lead) / 2.0)), r.center().y);
+            let text = item.text();
+            match lead {
+                StatusLead::Icon(icon) => common::icon(ui.painter(), c, icon, ICON, content),
+                StatusLead::Progress(StatusProgress::Circular(value)) => self.progress(ui, i, text, value, c),
+                StatusLead::Progress(StatusProgress::Linear(value)) => self.linear(ui, i, text, value, c),
+                _ => {}
+            }
+            x = dir.start_x(inner, Rangef::point(lead_width(lead) + ICON_GAP));
+        }
+        let gx = if dir == Direction::Rtl { x - galley.size().x } else { x };
+        ui.painter()
+            .galley(pos2(gx, r.center().y - galley.size().y / 2.0), galley, content);
+        if let Some(tip) = item.tooltip_text() {
+            PlainTooltip::new(tip).show(rt, &resp);
+        }
+        let role = if clickable { Role::Button } else { Role::Label };
+        semantic::emit(ui.ctx(), Some(resp.id), r, || {
+            SemanticNode::new(StableId::of(&self.salt, (i, "status-item")), role, item.text())
+        });
+        clickable && resp.clicked()
     }
 }
 
