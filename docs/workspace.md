@@ -26,6 +26,8 @@ Module map, config, commands and release. Overview: [WORKSPACE.md](../WORKSPACE.
 | [`crates/egui_mineral_fluent/src`](../crates/egui_mineral_fluent/src) | `Fluent` stylekit (`Rt`, `FluentExt`: tokens, light/dark/system preference, high contrast, brand ramp), `theme` (`Tokens`, `Scheme`, `Elevation`, `Radius`), `typography` (`TypeRamp`, Fluent typographyStyles), `fonts` (icon font, `install_semibold`), `icon`/`icons` (generated Fluent UI System Icons consts), `catalog` (feature `unstable-catalog`), `spec` (feature `unstable-spec`: generated v9 `tokens` and hand-ported `defaults` from the `use*Styles.styles.ts` files), `prelude` |
 | [`crates/egui_mineral_fluent/src/{actions,inputs,feedback,surfaces,navigation,data}`](../crates/egui_mineral_fluent/src) | Components by Fluent 2 category |
 | [`crates/egui_mineral_fluent/src/widget`](../crates/egui_mineral_fluent/src/widget) | Private shared internals (focus indicator, shadows, state ramps, vocabulary `Size`, `IconPosition`, `ButtonAppearance`) |
+| [`tools/md3_tokens`](../tools/md3_tokens) | MD3 token generator: `fetch.sh` fetches the Compose Material3 token sources at the androidx SHA in `PIN` (gitignored), the binary writes `spec/tokens` |
+| [`tools/material_symbols`](../tools/material_symbols) | Writes the Material stylekit's `icons.rs` from `egui_material_icons` |
 | [`tools/fluent_tokens`](../tools/fluent_tokens) | Fluent token and icon generator: `fetch.sh` fetches fluentui and fluentui-system-icons at the SHAs in `PIN` (gitignored), the binary writes `spec/tokens` and `icons.rs` |
 
 ## Config
@@ -53,7 +55,7 @@ The [`justfile`](../justfile) is the single source of the checks; [`ci.yml`](../
 | `check-test` | `test` (nextest legs) and `icu-trimmed` |
 | `check-docs` | `doc` (doctests, rustdoc, docs.rs build from each crate's `[package.metadata.docs.rs]`), `readme-check`, `package`, `versions-check` (shared breaking version, toolchain channel equals `rust-version`), `fmt`, `unstable-guard` (no published crate enables an `unstable-*` feature), `minimal-versions` |
 | `hygiene` | typos, deny, ast-grep, machete, workflow lints (`just workflows`: actionlint and zizmor; actionlint is a sha-checked binary pinned in the justfile, not on crates.io) |
-| `spec` | non-blocking: regenerated spec must not change |
+| `spec` | fetches the pinned spec sources (network, authenticated `gh`) and regenerates; non-blocking in CI: the generated files must not change |
 | `api-diff <base> [head] [release]` | PRs only: `api-diff-one` per `api-targets` line (published crate x docs.rs target, a CI matrix cell each); fails on removed or changed public API unless the crate's breaking version rises; `release=true` (release-plz PRs) takes each crate's base from its last `<crate>-v*` tag |
 | `published` | published crates (no `publish = false`), the list `readme`, `package`, `versions-check` and `bump-breaking` use |
 | `showcases [public_url]` | release trunk build of both showcases, as Pages deploys them |
