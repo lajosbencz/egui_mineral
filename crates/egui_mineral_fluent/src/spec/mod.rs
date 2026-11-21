@@ -25,6 +25,7 @@
     doc = "[`tokens::brand::BRAND_WEB`]: https://docs.rs/egui_mineral_fluent/latest/egui_mineral_fluent/spec/tokens/brand/constant.BRAND_WEB.html"
 )]
 
+/// **Unstable:** outside the semver guarantee; any release may change it.
 #[cfg(feature = "unstable-spec")]
 pub mod defaults;
 #[cfg(not(feature = "unstable-spec"))]
@@ -33,6 +34,7 @@ pub mod defaults;
     reason = "whole module tree; public with the `unstable-spec` feature"
 )]
 pub(crate) mod defaults;
+/// **Unstable:** outside the semver guarantee; any release may change it.
 #[cfg(feature = "unstable-spec")]
 pub mod tokens;
 #[cfg(not(feature = "unstable-spec"))]

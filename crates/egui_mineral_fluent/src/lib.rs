@@ -116,6 +116,8 @@
 
 pub mod actions;
 /// Component provenance: category and React v9 styles file.
+///
+/// **Unstable:** outside the semver guarantee; any release may change it.
 #[cfg(feature = "unstable-catalog")]
 pub mod catalog;
 pub mod data;

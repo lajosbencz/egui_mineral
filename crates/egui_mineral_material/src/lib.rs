@@ -127,6 +127,8 @@ pub mod actions;
 /// Window size classes, density and minimum interactive size.
 pub mod adaptive;
 /// Component provenance: category and spec origin.
+///
+/// **Unstable:** outside the semver guarantee; any release may change it.
 #[cfg(feature = "unstable-catalog")]
 pub mod catalog;
 /// MD3 color schemes from a seed (material-color-utilities).

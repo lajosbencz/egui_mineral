@@ -51,7 +51,7 @@ The [`justfile`](../justfile) is the single source of the checks; [`ci.yml`](../
 | `check` | `check-clippy`, `check-test` and `check-docs`, the three parallel CI jobs |
 | `check-clippy` | `clippy`: feature matrix (cargo-hack, native and wasm32) |
 | `check-test` | `test` (nextest legs) and `icu-trimmed` |
-| `check-docs` | `doc` (doctests, rustdoc, docs.rs build from each crate's `[package.metadata.docs.rs]`), `readme-check`, `package`, `versions-check` (shared breaking version, toolchain channel equals `rust-version`), `fmt`, `hotpatch-guard`, `minimal-versions` |
+| `check-docs` | `doc` (doctests, rustdoc, docs.rs build from each crate's `[package.metadata.docs.rs]`), `readme-check`, `package`, `versions-check` (shared breaking version, toolchain channel equals `rust-version`), `fmt`, `unstable-guard` (no published crate enables an `unstable-*` feature), `minimal-versions` |
 | `hygiene` | typos, deny, ast-grep, machete, workflow lints (`just workflows`: actionlint and zizmor; actionlint is a sha-checked binary pinned in the justfile, not on crates.io) |
 | `spec` | non-blocking: regenerated spec must not change |
 | `api-diff <base> [head] [release]` | PRs only: `api-diff-one` per `api-targets` line (published crate x docs.rs target, a CI matrix cell each); fails on removed or changed public API unless the crate's breaking version rises; `release=true` (release-plz PRs) takes each crate's base from its last `<crate>-v*` tag |

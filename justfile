@@ -64,7 +64,7 @@ check-clippy: clippy
 check-test: test icu-trimmed
 
 # CI "Docs and packaging" job
-check-docs: doc readme-check package versions-check fmt hotpatch-guard minimal-versions
+check-docs: doc readme-check package versions-check fmt unstable-guard minimal-versions
 
 fmt:
     cargo fmt --all --check
@@ -124,10 +124,18 @@ icu-trimmed:
     icu4x-datagen --format baked --markers all --locales en ar --out "$data/icu"
     ICU4X_DATA_DIR="$data/icu" cargo nextest run -p egui_mineral --test icu_trimmed --run-ignored only
 
-# `unstable-hotpatch` must stay a command-line feature: no published crate or default set may enable it
-hotpatch-guard:
+# `unstable-*` features stay opt-in: no published crate's dependency or stable feature enables one, and `unstable-hotpatch` stays out of the default graph
+unstable-guard:
     #!/usr/bin/env bash
     set -euo pipefail
+    leaks=$(cargo metadata --no-deps --format-version 1 | jq -r '
+        .packages[] | select(.publish == null) | .name as $c
+        | ([.dependencies[] | select(.kind != "dev") | .name as $d | .features[] | select(startswith("unstable")) | "\($c): dependency \($d) enables \(.)"]
+            + [.features | to_entries[] | select(.key | startswith("unstable") | not) | .key as $f | .value[] | select(test("(^|/)unstable")) | "\($c): feature \($f) enables \(.)"])[]')
+    if [ -n "$leaks" ]; then
+        echo "$leaks"
+        exit 1
+    fi
     tree=$(cargo tree --workspace -e features --prefix none)
     if grep -q '^subsecond ' <<<"$tree"; then
         echo "subsecond is in the default dependency graph: unstable-hotpatch leaked"
@@ -190,8 +198,7 @@ align-breaking:
     v=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.publish == null) | .version' | sort -V | tail -n1)
     just bump-breaking "$v"
 
-# Sets every published crate to <version> (a breaking release, e.g. 0.3.0) and the workspace dependency requirements
-# Renames a crate's unreleased changelog heading (release-plz names the version it planned).
+# Sets every published crate and the workspace dependency requirements to <version> (a breaking release, e.g. 0.3.0), renaming each unreleased changelog heading
 bump-breaking version:
     #!/usr/bin/env bash
     set -euo pipefail
