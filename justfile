@@ -180,9 +180,21 @@ align-breaking:
     just bump-breaking "$v"
 
 # Sets every published crate to <version> (a breaking release, e.g. 0.3.0) and the workspace dependency requirements
+# Renames a crate's unreleased changelog heading (release-plz names the version it planned).
 bump-breaking version:
-    for c in {{ readme_crates }}; do cargo set-version -p "$c" "{{ version }}"; done
-    sed -i -E '/^egui_mineral(_macros|_material|_eframe)? = /s/version = "[^"]*"/version = "{{ version }}"/' Cargo.toml
+    #!/usr/bin/env bash
+    set -euo pipefail
+    meta=$(cargo metadata --no-deps --format-version 1)
+    for c in {{ readme_crates }}; do
+        old=$(jq -r --arg c "$c" '.packages[] | select(.name == $c) | .version' <<<"$meta")
+        cargo set-version -p "$c" "{{ version }}"
+        log="crates/$c/CHANGELOG.md"
+        if [ "$old" != "{{ version }}" ] && [ -f "$log" ] && [ -z "$(git ls-remote --tags origin "refs/tags/$c-v$old")" ]; then
+            o=${old//./\\.}
+            sed -i -E "0,/^## \\[$o\\]/s/^## \\[$o\\]\\((.*)-v$o\\)/## [{{ version }}](\\1-v{{ version }})/" "$log"
+        fi
+    done
+    sed -i -E '/^egui_mineral(_macros|_material|_eframe|_mcp)? = /s/version = "[^"]*"/version = "{{ version }}"/' Cargo.toml
     cargo update --workspace
 
 # Lower bounds of the direct dependencies hold (nightly -Z direct-minimal-versions, lockfile restored)
