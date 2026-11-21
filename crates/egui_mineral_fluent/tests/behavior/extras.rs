@@ -289,3 +289,21 @@ fn form_grid_aligns_controls_past_the_widest_label() {
     );
     assert_eq!(h.node("g-conn").role, egui_mineral::semantic::Role::Heading);
 }
+
+#[test]
+fn collapsed_split_pane_expands_on_enter() {
+    use egui_mineral_fluent::egui_mineral::splitter::Pane;
+    let mut h = harness(Some(Pane::First), |ui, collapsed| {
+        let r = SplitPane::new("sp", "Panes")
+            .collapse(*collapsed)
+            .show(ui, |ui| ui.label("A"), |ui| ui.label("B"));
+        if r.reset {
+            *collapsed = None;
+        }
+    });
+    h.run();
+    let handle = h.widget("sp-splitter");
+    h.ctx.memory_mut(|m| m.request_focus(handle));
+    h.press(Key::Enter);
+    assert_eq!(h.state().value, None);
+}

@@ -204,6 +204,23 @@ fn split_pane_divider_moves_by_key() {
 }
 
 #[test]
+fn collapsed_split_pane_expands_on_enter() {
+    use egui_mineral::splitter::Pane;
+    let mut h = still(WIDE, Some(Pane::Second), |ui, collapsed| {
+        let r = SplitPane::new("sp", "Panes")
+            .collapse(*collapsed)
+            .show(ui, |ui| ui.label("A"), |ui| ui.label("B"));
+        if r.reset {
+            *collapsed = None;
+        }
+    });
+    let handle = h.widget("sp-splitter");
+    h.ctx.memory_mut(|m| m.request_focus(handle));
+    h.press(Key::Enter);
+    assert_eq!(h.state().value, None);
+}
+
+#[test]
 fn image_list_reports_the_activated_tile() {
     let mut h = still(WIDE, None, |ui, activated| {
         let r = ImageList::new("gallery").show(ui, 4, |ui, i| {

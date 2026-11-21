@@ -1,6 +1,6 @@
 //! <https://www.w3.org/WAI/ARIA/apg/patterns/windowsplitter>
 
-use egui::{CursorIcon, Id, Key, Rect, Response, Sense, UiBuilder, pos2};
+use egui::{CursorIcon, Id, Key, Modifiers, Rect, Response, Sense, UiBuilder, pos2};
 
 use crate::{
     kit,
@@ -12,6 +12,15 @@ use crate::{
 };
 
 const MIN_STEP: f64 = 1e-6;
+
+/// One of a [`Splitter`]'s panes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Pane {
+    /// Before the handle: at the reading start side by side, on top when stacked.
+    First,
+    /// After the handle.
+    Second,
+}
 
 /// Two-pane splitter behavior (drag, keyboard, fraction); paints nothing, the stylekit draws the handle.
 #[derive(Clone, Debug)]
@@ -28,6 +37,7 @@ pub struct Splitter {
     step: Option<f64>,
     jump: Option<f64>,
     disabled: bool,
+    collapse: Option<Pane>,
 }
 
 /// Result of [`Splitter::show`]; `handle_rect` and `hit_rect` for painting.
@@ -44,8 +54,10 @@ pub struct SplitterResponse<A, B> {
     pub handle_rect: Rect,
     /// Gap between the panes; the handle's hit zone, at least the minimum target.
     pub hit_rect: Rect,
-    /// Share of the split length before the handle; persisted per id.
+    /// Share of the split length before the handle; persisted per id, kept while a pane is collapsed.
     pub fraction: Fraction,
+    /// Enter on the focused handle or a double click restored [`Splitter::default_fraction`] this pass.
+    pub reset: bool,
 }
 
 impl Splitter {
@@ -63,7 +75,16 @@ impl Splitter {
             step: None,
             jump: None,
             disabled: false,
+            collapse: None,
         }
+    }
+
+    /// Collapses `pane` to nothing, past its minimum, and puts the handle at that edge; `None` shows both.
+    /// The collapsed pane's closure still runs, invisible. Drags and arrow keys are ignored while collapsed;
+    /// Enter and double click report [`SplitterResponse::reset`], so the app can expand.
+    pub fn collapse(mut self, pane: Option<Pane>) -> Self {
+        self.collapse = pane;
+        self
     }
 
     /// Keeps the current split; the handle senses hover only.
@@ -137,6 +158,29 @@ impl Splitter {
         range
     }
 
+    // Keys, double click and AccessKit from `v`; whether Enter or double click reset it.
+    fn input(&self, core: &crate::runtime::Core, handle: &Response, range: &RangeModel, v: f32) -> (f64, bool) {
+        let mut v = f64::from(v);
+        if self.disabled {
+            return (v, false);
+        }
+        let ctx = core.ctx();
+        let reset = handle.double_clicked()
+            || handle.has_focus() && ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
+        if reset {
+            return (f64::from(self.default_fraction.get()), true);
+        }
+        if self.collapse.is_none() {
+            if handle.has_focus() {
+                v = keyboard(core, handle.id, splitter_track(core, self.axis), range, v);
+            }
+            if let Some(n) = range.accesskit(core, handle.id, v) {
+                v = n;
+            }
+        }
+        (v, false)
+    }
+
     /// Lays out both panes and the handle in the available rect; drag, keys and AccessKit move the split.
     pub fn show<K: Stylekit, A, B>(
         self,
@@ -195,22 +239,24 @@ impl Splitter {
             let along = if horizontal { dir.mirror_x(p.x, rect) } else { p.y } - gap / 2.0;
             fraction = range.snap(f64::from((along - lo) / total.max(1.0))) as f32;
         }
-        let mut v = f64::from(fraction);
-        if !self.disabled {
-            if handle.has_focus() {
-                v = keyboard(rt.core(), handle.id, splitter_track(rt.core(), self.axis), &range, v);
-            }
-            if let Some(n) = range.accesskit(rt.core(), handle.id, v) {
-                v = n;
-            }
-        }
+        let (v, reset) = self.input(
+            rt.core(),
+            &handle,
+            &range,
+            if self.collapse.is_some() { stored } else { fraction },
+        );
         fraction = range.snap(v) as f32;
         if fraction.to_bits() != stored.to_bits() {
             ui.data_mut(|d| d.insert_persisted(id, fraction));
         }
 
-        let h = span(fraction, self.handle);
-        let slot = span(fraction, gap);
+        let shown = match self.collapse {
+            Some(Pane::First) => 0.0,
+            Some(Pane::Second) => 1.0,
+            None => fraction,
+        };
+        let h = span(shown, self.handle);
+        let slot = span(shown, gap);
         let (r1, r2) = if horizontal {
             let slot = dir.mirror(slot, rect);
             let (a, b) = (
@@ -224,21 +270,19 @@ impl Splitter {
                 Rect::from_min_max(pos2(rect.left(), slot.bottom()), rect.max),
             )
         };
+        let pane = |r: Rect, salt: &'static str, pane: Pane| {
+            let b = UiBuilder::new().max_rect(r).id_salt((self.salt.id_salt(), salt));
+            if self.collapse == Some(pane) { b.invisible() } else { b }
+        };
         let a = ui
-            .scope_builder(
-                UiBuilder::new().max_rect(r1).id_salt((self.salt.id_salt(), "first")),
-                |ui| first(&mut rt.ui(ui)),
-            )
+            .scope_builder(pane(r1, "first", Pane::First), |ui| first(&mut rt.ui(ui)))
             .inner;
         let b = ui
-            .scope_builder(
-                UiBuilder::new().max_rect(r2).id_salt((self.salt.id_salt(), "second")),
-                |ui| second(&mut rt.ui(ui)),
-            )
+            .scope_builder(pane(r2, "second", Pane::Second), |ui| second(&mut rt.ui(ui)))
             .inner;
         ui.advance_cursor_after_rect(rect);
 
-        emit_semantics(ui.ctx(), &self, &handle, h, &range, fraction);
+        emit_semantics(ui.ctx(), &self, &handle, h, &range, shown);
         SplitterResponse {
             first: a,
             second: b,
@@ -246,6 +290,7 @@ impl Splitter {
             handle_rect: h,
             hit_rect: slot,
             fraction: Fraction::new(fraction),
+            reset,
         }
     }
 }
@@ -466,5 +511,56 @@ mod tests {
             (1.0, 0.0, 0.0, 0.0)
         );
         assert_eq!((s.step, s.jump), (Some(super::MIN_STEP), Some(super::MIN_STEP)));
+    }
+
+    #[test]
+    fn enter_resets_to_the_default_fraction() {
+        let mut h = harness(
+            |ui, out: &mut (Fraction, u32)| {
+                let r = Splitter::new("s", "Split")
+                    .default_fraction(0.3)
+                    .show(ui, |_| (), |_| ());
+                out.0 = r.fraction;
+                out.1 += u32::from(r.reset);
+            },
+            (Fraction::ZERO, 0),
+        );
+        h.run();
+        h.key_press(egui::Key::Tab);
+        h.run();
+        h.key_press(egui::Key::ArrowRight);
+        h.run();
+        assert!(h.state().value.0.get() > 0.3);
+        h.key_press(egui::Key::Enter);
+        h.run();
+        assert_eq!(h.state().value, (Fraction::new(0.3), 1));
+    }
+
+    #[test]
+    fn collapsed_pane_gets_no_space_and_keeps_the_fraction() {
+        let mut h = harness(
+            |ui, out: &mut (Option<super::Pane>, Rect, Rect, Fraction)| {
+                let r = Splitter::new("s", "Split").min_first(100.0).collapse(out.0).show(
+                    ui,
+                    |ui| ui.max_rect(),
+                    |ui| ui.max_rect(),
+                );
+                (out.1, out.2, out.3) = (r.first, r.hit_rect, r.fraction);
+            },
+            (Some(super::Pane::First), Rect::NOTHING, Rect::NOTHING, Fraction::ZERO),
+        );
+        h.run();
+        let (_, first, hit, fraction) = h.state().value;
+        assert_eq!(first.width(), 0.0, "past min_first");
+        assert_eq!(hit.left(), first.left(), "handle at the edge");
+        assert_eq!(fraction, Fraction::HALF);
+        h.key_press(egui::Key::Tab);
+        h.run();
+        h.key_press(egui::Key::ArrowRight);
+        h.run();
+        assert_eq!(h.state().value.3, Fraction::HALF, "keys are ignored");
+        h.state_mut().value.0 = None;
+        h.run();
+        assert!(h.state().value.1.width() > 100.0, "expands to the kept fraction");
     }
 }

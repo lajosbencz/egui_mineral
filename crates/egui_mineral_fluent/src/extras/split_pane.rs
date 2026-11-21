@@ -3,7 +3,7 @@ use egui_mineral::layout::Fraction;
 use egui_mineral::{
     layout::Axis,
     semantic::{KeyedSalt, StableId},
-    splitter::{Splitter, SplitterResponse},
+    splitter::{Pane, Splitter, SplitterResponse},
     widget::{Availability, Interaction, MineralUi},
 };
 
@@ -59,6 +59,13 @@ impl SplitPane {
     #[track_caller]
     pub fn min_first(mut self, size: f32) -> Self {
         self.min_first = egui_mineral::kit::sanitize::at_least(size, 0.0.., "min_first");
+        self
+    }
+
+    /// Collapses `pane` and puts the divider at that edge; `None` shows both. Enter or a double click on the
+    /// divider reports [`SplitterResponse::reset`], e.g. to expand. See [`Splitter::collapse`].
+    pub fn collapse(mut self, pane: Option<Pane>) -> Self {
+        self.inner = self.inner.collapse(pane);
         self
     }
 
