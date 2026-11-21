@@ -142,27 +142,32 @@ doc:
         done
     done
 
-# Published crates; their READMEs are generated from the crate docs
-readme_crates := "egui_mineral egui_mineral_material egui_mineral_macros egui_mineral_eframe egui_mineral_mcp"
+# Published crates (no `publish = false`), one per line
+published:
+    @cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.publish == null) | .name'
 
-# Regenerates the crate READMEs from their `lib.rs` docs (intra-doc links: docs/blockers.md)
+# `<crate> <target>` per published crate and `[package.metadata.docs.rs]` target, one per line
+api-targets:
+    @cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.publish == null) | .name as $c | (.metadata.docs.rs.targets // [])[] | "\($c) \(.)"'
+
+# Regenerates the published crates' READMEs from their `lib.rs` docs (intra-doc links: docs/blockers.md)
 readme:
-    for c in {{ readme_crates }}; do cargo rdme -w "$c" -r "crates/$c/README.md" --intralinks-strip-links --force; done
+    for c in $(just published); do cargo rdme -w "$c" -r "crates/$c/README.md" --intralinks-strip-links --force; done
 
 # Fails when a crate README is stale
 readme-check:
-    for c in {{ readme_crates }}; do cargo rdme -w "$c" -r "crates/$c/README.md" --intralinks-strip-links --check; done
+    for c in $(just published); do cargo rdme -w "$c" -r "crates/$c/README.md" --intralinks-strip-links --check; done
 
 # Unverified: verification resolves sibling crates from crates.io, which lacks unreleased APIs. Dirty: runs before committing.
 package:
-    cargo package --no-verify --allow-dirty -p egui_mineral -p egui_mineral_macros -p egui_mineral_material -p egui_mineral_eframe -p egui_mineral_mcp
+    cargo package --no-verify --allow-dirty $(just published | sed 's/^/-p /')
 
 # Published crates share 0.MINOR (MAJOR from 1.0); the pinned toolchain is the workspace MSRV
 versions-check:
     #!/usr/bin/env bash
     set -euo pipefail
-    cargo metadata --no-deps --format-version 1 | jq -e --arg crates "{{ readme_crates }}" '
-        [.packages[] | select(.name | IN($crates | split(" ")[])) | .version | split(".") | if .[0] == "0" then .[0:2] else .[0:1] end | join(".")]
+    cargo metadata --no-deps --format-version 1 | jq -e '
+        [.packages[] | select(.publish == null) | .version | split(".") | if .[0] == "0" then .[0:2] else .[0:1] end | join(".")]
         | unique | length == 1' >/dev/null \
         || { echo "published crates differ in breaking version: run just align-breaking"; exit 1; }
     channel=$(sed -nE 's/^channel *= *"([0-9]+\.[0-9]+)(\.[0-9]+)?"/\1/p' rust-toolchain.toml)
@@ -175,8 +180,7 @@ align-breaking:
     #!/usr/bin/env bash
     set -euo pipefail
     just versions-check >/dev/null 2>&1 && exit 0
-    v=$(cargo metadata --no-deps --format-version 1 | jq -r --arg crates "{{ readme_crates }}" \
-        '.packages[] | select(.name | IN($crates | split(" ")[])) | .version' | sort -V | tail -n1)
+    v=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.publish == null) | .version' | sort -V | tail -n1)
     just bump-breaking "$v"
 
 # Sets every published crate to <version> (a breaking release, e.g. 0.3.0) and the workspace dependency requirements
@@ -185,7 +189,7 @@ bump-breaking version:
     #!/usr/bin/env bash
     set -euo pipefail
     meta=$(cargo metadata --no-deps --format-version 1)
-    for c in {{ readme_crates }}; do
+    for c in $(just published); do
         old=$(jq -r --arg c "$c" '.packages[] | select(.name == $c) | .version' <<<"$meta")
         cargo set-version -p "$c" "{{ version }}"
         log="crates/$c/CHANGELOG.md"
@@ -193,8 +197,8 @@ bump-breaking version:
             o=${old//./\\.}
             sed -i -E "0,/^## \\[$o\\]/s/^## \\[$o\\]\\((.*)-v$o\\)/## [{{ version }}](\\1-v{{ version }})/" "$log"
         fi
+        sed -i -E "/^$c = /s/version = \"[^\"]*\"/version = \"{{ version }}\"/" Cargo.toml
     done
-    sed -i -E '/^egui_mineral(_macros|_material|_eframe|_mcp)? = /s/version = "[^"]*"/version = "{{ version }}"/' Cargo.toml
     cargo update --workspace
 
 # Lower bounds of the direct dependencies hold (nightly -Z direct-minimal-versions, lockfile restored)
@@ -228,46 +232,58 @@ spec-build:
 # Builds the rustdoc JSON of HEAD that `api-diff` needs (cache warm-up)
 api-build: (api-diff "HEAD" "HEAD")
 
-# Public API diff of the libraries between two commits; removals and changes fail unless the crate's breaking version (0.MINOR, MAJOR from 1.0) rises. With release=true each crate's base is its last `<crate>-v*` tag reachable from <base>.
+# `api-diff-one` for every `api-targets` line; CI runs them as a matrix
 api-diff base head="HEAD" release="false":
     #!/usr/bin/env bash
     set -euo pipefail
-    summary=${GITHUB_STEP_SUMMARY:-/dev/null}
     status=0
+    while read -r crate target; do
+        just api-diff-one "$crate" "$target" "{{ base }}" "{{ head }}" "{{ release }}" || status=1
+    done < <(just api-targets)
+    exit "$status"
+
+# Public API diff of <crate> on <target> between two commits; removals and changes fail unless the crate's breaking version (0.MINOR, MAJOR from 1.0) rises. With release=true the base is the crate's last `<crate>-v*` tag reachable from <base>.
+api-diff-one crate target base head="HEAD" release="false":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    summary=${GITHUB_STEP_SUMMARY:-/dev/null}
+    crate="{{ crate }}"
     breaking() {
-        git show "$1:crates/$2/Cargo.toml" | sed -nE '0,/^version/s/^version = "([0-9]+)\.([0-9]+)\..*/\1 \2/p' \
+        git show "$1:crates/$crate/Cargo.toml" | sed -nE '0,/^version/s/^version = "([0-9]+)\.([0-9]+)\..*/\1 \2/p' \
             | awk '{ print ($1 == "0") ? "0." $2 : $1 }'
     }
-    # Stable features of `crate` at `ref`; both commits build with the ones they share.
+    # Stable features at `ref`; both commits build with the ones they share.
     features() {
-        git show "$1:crates/$2/Cargo.toml" | awk '/^\[features\]/ { f = 1; next } /^\[/ { f = 0 } f && /^[a-z0-9_-]+ *=/ { print $1 }' \
+        git show "$1:crates/$crate/Cargo.toml" | awk '/^\[features\]/ { f = 1; next } /^\[/ { f = 0 } f && /^[a-z0-9_-]+ *=/ { print $1 }' \
             | grep -v '^unstable' | grep -vx default | sort
     }
-    meta=$(cargo metadata --no-deps --format-version 1)
-    for crate in egui_mineral egui_mineral_material egui_mineral_eframe egui_mineral_mcp; do
     base="{{ base }}"
     if [ "{{ release }}" = true ]; then
         base=$(git describe --tags --abbrev=0 --match "$crate-v*" "{{ base }}" 2>/dev/null || echo "{{ base }}")
     fi
+    echo "## \`$crate\` ({{ target }})" | tee -a "$summary"
     if ! git cat-file -e "$base:crates/$crate/Cargo.toml" 2>/dev/null; then
-        echo "\`$crate\`: new crate, no base" | tee -a "$summary"
-        continue
+        echo "new crate, no base" | tee -a "$summary"
+        exit 0
     fi
-    features=$(comm -12 <(features "$base" "$crate") <(features "{{ head }}" "$crate") | paste -sd, -)
+    features=$(comm -12 <(features "$base") <(features "{{ head }}") | paste -sd, -)
     deny=(--deny removed --deny changed)
-    if [ "$(breaking "$base" "$crate")" != "$(breaking "{{ head }}" "$crate")" ]; then
+    if [ "$(breaking "$base")" != "$(breaking "{{ head }}")" ]; then
         deny=()
-        echo "\`$crate\`: breaking version bump, removals and changes allowed" | tee -a "$summary"
+        echo "breaking version bump, removals and changes allowed" | tee -a "$summary"
     fi
-    for target in $(jq -r --arg c "$crate" '.packages[] | select(.name == $c) | .metadata.docs.rs.targets[]' <<<"$meta"); do
-        echo "## \`$crate\` ($target)" | tee -a "$summary"
-        echo '```diff' >> "$summary"
-        cargo +{{ nightly_version }} public-api -p "$crate" --features "$features" --target "$target" -sss diff "${deny[@]}" "$base..{{ head }}" \
-            | tee -a "$summary" || status=1
-        echo '```' >> "$summary"
-    done
-    done
+    echo '```diff' >> "$summary"
+    status=0
+    cargo +{{ nightly_version }} public-api -p "$crate" --features "$features" --target "{{ target }}" -sss diff "${deny[@]}" "$base..{{ head }}" \
+        | tee -a "$summary" || status=1
+    echo '```' >> "$summary"
     exit "$status"
+
+# eframe's Linux windowing headers (CI runners: apt retries, the mirrors time out now and then)
+linux-deps:
+    echo 'Acquire::Retries "5"; Acquire::http::Timeout "30"; Acquire::https::Timeout "30";' | sudo tee /etc/apt/apt.conf.d/80-retries >/dev/null
+    sudo apt-get update
+    sudo apt-get install -y --no-install-recommends libxkbcommon-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
 
 # Every Hygiene job
 hygiene: typos deny rules machete workflows

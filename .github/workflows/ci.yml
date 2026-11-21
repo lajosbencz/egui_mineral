@@ -41,15 +41,11 @@ jobs:
         with:
           shared-key: clippy
           save-if: ${{ github.event_name == 'push' }}
-      # Runner mirrors time out now and then.
-      - run: |
-          echo 'Acquire::Retries "5"; Acquire::http::Timeout "30"; Acquire::https::Timeout "30";' | sudo tee /etc/apt/apt.conf.d/80-retries
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libxkbcommon-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
       - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
         with:
           tool: just@1.59.0
           fallback: none
+      - run: just linux-deps
       - id: pins
         run: echo "hack=$(just --evaluate hack_version)" >> "$GITHUB_OUTPUT"
       - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
@@ -74,11 +70,6 @@ jobs:
         with:
           shared-key: test
           save-if: ${{ github.event_name == 'push' }}
-      # Runner mirrors time out now and then.
-      - run: |
-          echo 'Acquire::Retries "5"; Acquire::http::Timeout "30"; Acquire::https::Timeout "30";' | sudo tee /etc/apt/apt.conf.d/80-retries
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libxkbcommon-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
       - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
         with:
           tool: cargo-nextest,just@1.59.0
@@ -100,15 +91,11 @@ jobs:
         with:
           shared-key: docs
           save-if: ${{ github.event_name == 'push' }}
-      # Runner mirrors time out now and then.
-      - run: |
-          echo 'Acquire::Retries "5"; Acquire::http::Timeout "30"; Acquire::https::Timeout "30";' | sudo tee /etc/apt/apt.conf.d/80-retries
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libxkbcommon-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
       - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
         with:
           tool: just@1.59.0
           fallback: none
+      - run: just linux-deps
       - id: pins
         run: echo "rdme=$(just --evaluate rdme_version)" >> "$GITHUB_OUTPUT"
       - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
@@ -136,16 +123,41 @@ jobs:
         with:
           tool: just@1.59.0
           fallback: none
+      - run: just linux-deps
       - if: ${{ github.event_name == 'push' }}
         run: just spec-build
       - if: ${{ github.event_name != 'push' }}
         run: just spec
 
-  # Removed or changed public API vs the PR base (release PRs: each crate's last release tag) fails unless the breaking version rises
+  # `just api-targets`: one cell per published crate and docs.rs target
+  api-targets:
+    name: Public API targets
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      cells: ${{ steps.cells.outputs.cells }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        with:
+          tool: just@1.59.0
+          fallback: none
+      - id: cells
+        run: |
+          echo "cells=$(just api-targets | jq -Rnc '[inputs | split(" ") | {crate: .[0], target: .[1]}]')" >> "$GITHUB_OUTPUT"
+
+  # `just api-diff-one`: removed or changed public API vs the PR base (release PRs: the crate's last release tag) fails unless the breaking version rises
   public-api:
-    name: Public API diff
+    name: Public API diff (${{ matrix.crate }}, ${{ matrix.target }})
+    needs: api-targets
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.api-targets.outputs.cells) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -153,13 +165,16 @@ jobs:
           fetch-depth: 0
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
+          key: ${{ matrix.crate }}-${{ matrix.target }}
           save-if: ${{ github.event_name == 'push' }}
       - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
         with:
           tool: just@1.59.0
           fallback: none
       # cargo-public-api builds rustdoc JSON with nightly.
-      - run: rustup toolchain install "$(just --evaluate nightly_version)" --profile minimal --target wasm32-unknown-unknown
+      - env:
+          TARGET: ${{ matrix.target }}
+        run: rustup toolchain install "$(just --evaluate nightly_version)" --profile minimal --target "$TARGET"
       - id: pins
         run: echo "public-api=$(just --evaluate public_api_version)" >> "$GITHUB_OUTPUT"
       - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
@@ -167,19 +182,24 @@ jobs:
           tool: cargo-public-api@${{ steps.pins.outputs.public-api }}
           fallback: cargo-install
       - if: ${{ github.event_name == 'push' }}
-        run: just api-build
+        env:
+          CRATE: ${{ matrix.crate }}
+          TARGET: ${{ matrix.target }}
+        run: just api-diff-one "$CRATE" "$TARGET" HEAD HEAD
       - if: ${{ github.event_name == 'pull_request' }}
         name: Diff against base
         env:
+          CRATE: ${{ matrix.crate }}
+          TARGET: ${{ matrix.target }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           HEAD_REF: ${{ github.head_ref }}
-        run: just api-diff "$BASE_SHA" "$HEAD_SHA" "$([[ $HEAD_REF == release-plz-* ]] && echo true || echo false)"
+        run: just api-diff-one "$CRATE" "$TARGET" "$BASE_SHA" "$HEAD_SHA" "$([[ $HEAD_REF == release-plz-* ]] && echo true || echo false)"
 
   result:
     name: CI result
     if: ${{ always() }}
-    needs: [clippy, test, docs, spec, public-api]
+    needs: [clippy, test, docs, spec, api-targets, public-api]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -189,7 +209,7 @@ jobs:
   # Default-branch caches: the newest per key. rust-cache keys end in the lockfile's hash.
   caches:
     name: Prune caches
-    needs: [clippy, test, docs, spec, public-api]
+    needs: [clippy, test, docs, spec, api-targets, public-api]
     if: ${{ always() && github.event_name == 'push' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
