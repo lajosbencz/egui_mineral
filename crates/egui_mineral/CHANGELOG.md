@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral-v0.8.0...egui_mineral-v0.9.0) - 2026-11-21
+
+### Fixed
+
+- *(form)* [**breaking**] NumberRange is non_exhaustive with at_least, at_most and between constructors.
+
 ## [0.8.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral-v0.7.0...egui_mineral-v0.8.0) - 2026-11-21
 
 ### Added
