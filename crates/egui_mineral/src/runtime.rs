@@ -286,6 +286,7 @@ pub struct Core {
     input_history: AtomicUsize,
     preference: Mutex<ThemePreference>,
     global_style: Mutex<GlobalStyle>,
+    wheel: Mutex<crate::input::WheelRate>,
 }
 
 crate::kit::opaque_debug!(Core);
@@ -424,13 +425,18 @@ impl<K: Stylekit> Runtime<K> {
             id: NEXT_ID.fetch_add(1, Ordering::Relaxed),
             ctx: ctx.clone(),
             i18n,
-            policies: kit.policies(ctx).sanitized(),
+            policies: {
+                let mut p = kit.policies(ctx).sanitized();
+                p.wheel = p.wheel.resolved();
+                p
+            },
             motion: Motion::default(),
             passes,
             collect_semantics: AtomicBool::new(false),
             input_history: AtomicUsize::new(0),
             preference: Mutex::new(ThemePreference::System),
             global_style: Mutex::new(GlobalStyle::Egui),
+            wheel: Mutex::default(),
         };
         Ok(Arc::new(Self {
             core,
@@ -441,6 +447,13 @@ impl<K: Stylekit> Runtime<K> {
 }
 
 impl<K> Runtime<K> {
+    /// Applies [`Policies::wheel`] to egui's `line_scroll_speed` for the pass of `raw`; call with each pass's
+    /// input before egui runs it (`egui_mineral_eframe` does, from `raw_input_hook`).
+    pub fn before_pass(&self, raw: &RawInput) {
+        let speed = self.core.wheel.lock().line_speed(&self.core.policies.wheel, raw);
+        self.core.ctx.options_mut(|o| o.input_options.line_scroll_speed = speed);
+    }
+
     /// Wraps a plain `Ui` inside egui closures that hand one out: `Frame::show(ui, |ui| { let ui = &mut rt.ui(ui); .. })`.
     /// The layout methods of [`MineralUi`] (`horizontal`, `scope`, ..) need no wrap.
     /// Root `Ui`s (area, window) get the kit's style.

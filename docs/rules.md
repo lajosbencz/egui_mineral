@@ -16,7 +16,7 @@ Other files cite them as `docs/rules.md rule N`.
    `Core` with i18n, policies, reduced motion and per-viewport pass state, plus the kit), never in `Context` data:
    there is no unset state, no fallback and no lazy default.
    A broken catalog fails construction (locales without baked ICU4X data format as CLDR root, ICU4X's own fallback).
-   Design values (targets, breakpoints, fling, repeat, gestures, typeahead) and behavior policies (`readline`, `mnemonics`, `cursors`) are required `Policies` fields.
+   Design values (targets, breakpoints, fling, repeat, gestures, typeahead, wheel) and behavior policies (`readline`, `mnemonics`, `cursors`) are required `Policies` fields.
    Core types carry no design defaults either (`ToastQueue::new` takes its values, `Spring` and `Fling` are literal-constructed).
    Every `set_x` has an `x` getter. Stylekits never do gesture math.
 6. Touch targets: widgets go through `MineralUi::mineral`, which allocates the `Zones` (visual box, reserved margin, minimum hit target).

@@ -12,7 +12,7 @@ use crate::{
     motion::Fling,
 };
 
-/// Design values (targets, breakpoints, fling, repeat, gestures, typeahead) and behavior policies.
+/// Design values (targets, breakpoints, fling, repeat, gestures, typeahead, wheel) and behavior policies.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Policies {
@@ -34,6 +34,8 @@ pub struct Policies {
     pub mnemonics: bool,
     /// Hover cursors.
     pub cursors: Cursors,
+    /// Notched-wheel distance and acceleration; applied by [`Runtime::before_pass`](crate::runtime::Runtime::before_pass).
+    pub wheel: crate::input::WheelScroll,
 }
 
 /// Cursor over a hovered interactive element (see [`crate::kit::interact::hover_cursor`]); `None` keeps
@@ -87,6 +89,7 @@ impl Policies {
             readline: true,
             mnemonics: false,
             cursors: Cursors::default(),
+            wheel: crate::input::WheelScroll::baseline(),
         }
     }
 
@@ -113,6 +116,7 @@ impl Policies {
         p.repeat.interval = nonzero_duration(p.repeat.interval, "repeat.interval");
         p.gestures.slop = at_least(p.gestures.slop, 0.0.., "gestures.slop");
         p.gestures.swipe_min_velocity = at_least(p.gestures.swipe_min_velocity, 0.0.., "gestures.swipe_min_velocity");
+        p.wheel = p.wheel.sanitized();
         p
     }
 }

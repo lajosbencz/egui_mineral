@@ -114,5 +114,6 @@ impl<K: Stylekit, A: MineralApp<K>> eframe::App for EframeApp<K, A> {
 
     fn raw_input_hook(&mut self, ctx: &Context, raw_input: &mut RawInput) {
         self.app.raw_input_hook(ctx, raw_input);
+        self.rt.before_pass(raw_input);
     }
 }

@@ -12,6 +12,7 @@ use egui_mineral::{
     expand::Expansion,
     focus::Cell,
     i18n::{DatePart, DayPeriod, Direction, LocaleFormat},
+    input::{WheelRate, WheelScroll},
     pagination::{PageItem, Paging, Spread},
     range::{RangeModel, Scale, Track, nearest_thumb},
     select::Selection,
@@ -1369,6 +1370,73 @@ proptest! {
             let after: Vec<u8> = s.selected().copied().collect();
             prop_assert_eq!(changed, before != after, "{:?}", op);
             prop_assert!(multiple || after.len() <= 1, "single mode holds at most one key");
+        }
+    }
+}
+
+fn wheel_pass() -> impl Strategy<Value = (Option<f64>, Vec<(bool, f32, f32)>)> {
+    (
+        prop::option::of(prop_oneof![4 => 0.0f64..1e3, 1 => f64s()]),
+        prop::collection::vec((any::<bool>(), f32s(), f32s()), 0..6),
+    )
+}
+
+fn wheel_input((time, events): (Option<f64>, Vec<(bool, f32, f32)>)) -> egui::RawInput {
+    let events = events
+        .into_iter()
+        .map(|(line, x, y)| egui::Event::MouseWheel {
+            unit: if line {
+                egui::MouseWheelUnit::Line
+            } else {
+                egui::MouseWheelUnit::Point
+            },
+            delta: egui::vec2(x, y),
+            phase: egui::TouchPhase::Move,
+            source: egui::MouseWheelSource::Wheel,
+            modifiers: Modifiers::NONE,
+        })
+        .collect();
+    egui::RawInput {
+        time,
+        events,
+        ..egui::RawInput::default()
+    }
+}
+
+proptest! {
+    #![proptest_config(config())]
+
+    #[test]
+    fn wheel_rate_stays_within_base_and_cap(
+        lines in prop::option::of(0.0f32..20.0),
+        height in 0.0f32..100.0,
+        from in 0.1f32..100.0,
+        cap in 1.0f32..10.0,
+        passes in prop::collection::vec(wheel_pass(), 0..32),
+    ) {
+        let mut wheel = WheelScroll::baseline();
+        (wheel.lines_per_notch, wheel.line_height, wheel.accelerate_from, wheel.max_multiplier) = (lines, height, from, cap);
+        let base = wheel.base();
+        let mut r = WheelRate::default();
+        for pass in passes {
+            let speed = r.line_speed(&wheel, &wheel_input(pass));
+            prop_assert!(speed >= base && speed <= base * cap * (1.0 + f32::EPSILON), "{} not in {}..={}", speed, base, base * cap);
+        }
+    }
+
+    #[test]
+    fn wheel_rate_survives_hostile_configs(
+        lines in prop::option::of(f32s()),
+        height in f32s(),
+        from in f32s(),
+        cap in f32s(),
+        passes in prop::collection::vec(wheel_pass(), 0..32),
+    ) {
+        let mut wheel = WheelScroll::baseline();
+        (wheel.lines_per_notch, wheel.line_height, wheel.accelerate_from, wheel.max_multiplier) = (lines, height, from, cap);
+        let mut r = WheelRate::default();
+        for pass in passes {
+            r.line_speed(&wheel, &wheel_input(pass));
         }
     }
 }
