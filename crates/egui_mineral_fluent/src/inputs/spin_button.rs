@@ -459,9 +459,8 @@ impl<N: Numeric> MineralWidget for SpinButton<'_, N> {
         let escape = focused && !self.disabled && kit::layer::consume_escape_from(ctx, edit_id);
         let fmt = |v: f64| self.text(rt.i18n(), v);
         let mut edit = NumberEdit::load_or(ctx, state_id, || NumberEdit::new(self.range, before, fmt));
-        edit.set_blank(self.value.optional());
         edit.set_scrub_rate(self.scrub.unwrap_or_default());
-        let mut pass = edit.begin(self.range, before, FieldFocus::of(focused || escape), &fmt);
+        let mut pass = edit.begin(self.range, &self.value, FieldFocus::of(focused || escape), &fmt);
         let keys = focused && !self.disabled && pass.consume_step_keys(ctx);
         let mut stepped = keys;
         let mut event = escape
@@ -534,15 +533,9 @@ impl<N: Numeric> MineralWidget for SpinButton<'_, N> {
                 egui_mineral::edit::select_all(ctx, edit_id, pass.text_mut());
             }
         }
-        let (value, clamped) = (pass.value(), pass.clamped() && !self.disabled);
+        let clamped = pass.clamped() && !self.disabled;
+        let changed = edit.finish(&mut self.value, stepped || event == Some(EditEvent::Committed));
         edit.store(ctx, state_id);
-        if stepped || event == Some(EditEvent::Committed) {
-            self.value.set(value.map(|v| self.range.clamp(v)));
-        }
-        let changed = match (before, self.value.get()) {
-            (Some(b), Some(a)) => (b - a).abs() > f64::EPSILON,
-            (b, a) => b.is_some() != a.is_some(),
-        };
         WidgetResponse::new(te, SpinButtonOutput { clamped }).with_changed(changed)
     }
 

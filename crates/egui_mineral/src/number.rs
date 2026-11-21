@@ -139,12 +139,6 @@ impl NumberEdit {
         self.snap = snap;
     }
 
-    /// `true` lets cleared text set the value to `None`; otherwise blank text keeps the previous value.
-    /// Default `false`.
-    pub fn set_blank(&mut self, blank: bool) {
-        self.blank = blank;
-    }
-
     /// Default [`ScrubRate::Extent`].
     pub fn set_scrub_rate(&mut self, rate: ScrubRate) {
         self.scrub_rate = rate;
@@ -154,16 +148,19 @@ impl NumberEdit {
         if self.snap { range.snap(v) } else { range.clamp(v) }
     }
 
-    /// Start of a pass: adopts the bound `value` and `focus` (see [`EditBuffer::sync`]); idle, or
-    /// when the app changed the value during an edit, the buffer shows the formatted value. `fmt` formats the buffer for the rest of the pass.
-    pub fn begin<'a>(
+    /// Start of a pass: adopts the `bound` value and `focus` (see [`EditBuffer::sync`]); idle, or
+    /// when the app changed the value during an edit, the buffer shows the formatted value. A
+    /// [`NumberRef::Optional`] lets cleared text set it to `None`; a [`NumberRef::Value`] keeps the previous
+    /// number. `fmt` formats the buffer for the rest of the pass.
+    pub fn begin<'a, N: egui::emath::Numeric>(
         &'a mut self,
         range: RangeModel,
-        value: Option<f64>,
+        bound: &NumberRef<'_, N>,
         focus: FieldFocus,
         fmt: &'a dyn Fn(f64) -> String,
     ) -> NumberPass<'a> {
-        let bound = value.map(|v| self.settle(&range, v));
+        self.blank = bound.optional();
+        let bound = bound.get().map(|v| self.settle(&range, v));
         self.range = range;
         if !self.value.editing() {
             self.source = None;
@@ -176,6 +173,20 @@ impl NumberEdit {
             bound,
             fmt,
             clamped: false,
+        }
+    }
+
+    /// End of a pass, once its [`NumberPass`] is done: when `write`, stores the draft in `bound` and records it
+    /// ([`Self::wrote`]); whether `bound` changed, a blank-to-number change included.
+    pub fn finish<N: egui::emath::Numeric>(&mut self, bound: &mut NumberRef<'_, N>, write: bool) -> bool {
+        let before = bound.get();
+        if write {
+            bound.set(self.value());
+            self.wrote(bound.get());
+        }
+        match (before, bound.get()) {
+            (Some(b), Some(a)) => b.is_nan() != a.is_nan() || (b - a).abs() > f64::EPSILON,
+            (b, a) => b.is_some() != a.is_some(),
         }
     }
 
@@ -247,7 +258,7 @@ impl NumberPass<'_> {
     }
 
     /// Parses the buffer into the value; keeps the previous value when it is not a number. Blank text
-    /// clears the value under [`NumberEdit::set_blank`].
+    /// clears the value of a [`NumberRef::Optional`].
     pub fn apply_text(&mut self, locale: &dyn LocaleFormat) -> bool {
         if self.edit.blank && self.edit.text.trim().is_empty() {
             self.edit.value.start(&self.bound);
@@ -450,9 +461,9 @@ mod tests {
         let range = RangeModel::new(0.0, 10.0).step(0.01);
         let mut e = NumberEdit::new(range, Some(2.0), fmt);
         e.set_snap(false);
-        let p = e.begin(range, Some(0.123), FieldFocus::Unfocused, &fmt);
+        let p = e.begin(range, &NumberRef::Value(&mut 0.123), FieldFocus::Unfocused, &fmt);
         assert_eq!(p.value(), Some(0.123));
-        let mut p = e.begin(range, Some(0.123), FieldFocus::Focused, &fmt);
+        let mut p = e.begin(range, &NumberRef::Value(&mut 0.123), FieldFocus::Focused, &fmt);
         *p.text_mut() = "0.456".into();
         assert!(p.apply_text(&en));
         assert_eq!(p.value(), Some(0.456));
@@ -470,7 +481,7 @@ mod tests {
         let en = crate::test_support::en_us();
         let range = RangeModel::new(0.0, 10.0).step(1.0);
         let mut e = NumberEdit::new(range, Some(2.0), fmt);
-        let mut p = e.begin(range, Some(2.0), FieldFocus::Focused, &fmt);
+        let mut p = e.begin(range, &NumberRef::Value(&mut 2.0), FieldFocus::Focused, &fmt);
         assert_eq!(p.source(), None);
         *p.text_mut() = "5".into();
         p.apply_text(&en);
@@ -479,7 +490,7 @@ mod tests {
         assert_eq!(p.source(), Some(NumberSource::Wheel), "the last writer wins");
         assert!(p.commit().is_some());
         assert_eq!(p.source(), Some(NumberSource::Wheel), "the committed edit keeps it");
-        let p = e.begin(range, Some(6.0), FieldFocus::Focused, &fmt);
+        let p = e.begin(range, &NumberRef::Value(&mut 6.0), FieldFocus::Focused, &fmt);
         assert_eq!(p.source(), None, "an idle field has none");
     }
 
@@ -488,10 +499,10 @@ mod tests {
         let en = crate::test_support::en_us();
         let range = RangeModel::new(0.0, 10.0).step(0.5);
         let mut e = NumberEdit::new(range, Some(2.0), fmt);
-        let mut p = e.begin(range, Some(2.0), FieldFocus::Unfocused, &fmt);
+        let mut p = e.begin(range, &NumberRef::Value(&mut 2.0), FieldFocus::Unfocused, &fmt);
         assert_eq!(p.text_mut(), "2.0");
 
-        let mut p = e.begin(range, Some(2.0), FieldFocus::Focused, &fmt);
+        let mut p = e.begin(range, &NumberRef::Value(&mut 2.0), FieldFocus::Focused, &fmt);
         assert!(p.editing());
         *p.text_mut() = "7.3".into();
         assert!(p.apply_text(&en));
@@ -499,7 +510,7 @@ mod tests {
         assert_eq!(p.commit(), Some(EditEvent::Committed));
         assert_eq!((p.editing(), p.text_mut().as_str()), (false, "7.5"));
 
-        let mut p = e.begin(range, Some(7.5), FieldFocus::Focused, &fmt);
+        let mut p = e.begin(range, &NumberRef::Value(&mut 7.5), FieldFocus::Focused, &fmt);
         *p.text_mut() = "abc".into();
         assert!(!p.apply_text(&en));
         assert_eq!(p.value(), Some(7.5));
@@ -509,12 +520,12 @@ mod tests {
         assert_eq!(p.cancel(), Some(EditEvent::Cancelled));
         assert_eq!((p.value(), p.text_mut().as_str()), (Some(7.5), "7.5"));
 
-        let mut p = e.begin(range, Some(7.5), FieldFocus::Focused, &fmt);
+        let mut p = e.begin(range, &NumberRef::Value(&mut 7.5), FieldFocus::Focused, &fmt);
         assert!(p.step_key(Key::PageDown));
         assert_eq!(p.value(), Some(6.5));
         assert!(!p.step_key(Key::Home));
         assert_eq!(p.commit(), Some(EditEvent::Committed));
-        let p = e.begin(range, Some(6.5), FieldFocus::Unfocused, &fmt);
+        let p = e.begin(range, &NumberRef::Value(&mut 6.5), FieldFocus::Unfocused, &fmt);
         assert!(!p.editing());
     }
 
@@ -522,7 +533,7 @@ mod tests {
     fn scrub_maps_drag_through_scale() {
         let range = RangeModel::new(1.0, 1000.0).scale(Scale::Log);
         let mut e = NumberEdit::new(range, Some(1.0), fmt);
-        let mut p = e.begin(range, Some(1.0), FieldFocus::Unfocused, &fmt);
+        let mut p = e.begin(range, &NumberRef::Value(&mut 1.0), FieldFocus::Unfocused, &fmt);
         let ltr = Track::horizontal_ltr();
         assert!(p.scrub_by(egui::vec2(100.0, 40.0), 300.0, ltr, 1.0));
         assert!((v(&p) - 10.0).abs() < 1e-9, "a third of the extent is a decade");
@@ -546,7 +557,7 @@ mod tests {
     fn scrub_with_a_degenerate_extent_changes_nothing() {
         let range = RangeModel::new(1.0, 1000.0);
         let mut e = NumberEdit::new(range, Some(1.0), fmt);
-        let mut p = e.begin(range, Some(1.0), FieldFocus::Unfocused, &fmt);
+        let mut p = e.begin(range, &NumberRef::Value(&mut 1.0), FieldFocus::Unfocused, &fmt);
         for extent in [0.0, -1.0, f32::NAN] {
             assert!(!p.scrub_by(egui::vec2(100.0, 40.0), extent, Track::horizontal_ltr(), 1.0));
         }
@@ -557,8 +568,7 @@ mod tests {
         let en = crate::test_support::en_us();
         let range = RangeModel::new(-5.0, 10.0).step(1.0);
         let mut e = NumberEdit::new(range, None, fmt);
-        e.set_blank(true);
-        let mut p = e.begin(range, None, FieldFocus::Focused, &fmt);
+        let mut p = e.begin(range, &NumberRef::<f64>::Optional(&mut None), FieldFocus::Focused, &fmt);
         assert_eq!((p.value(), p.text_mut().as_str()), (None, ""));
         p.step(1, NumberSource::Step);
         assert_eq!(p.value(), Some(0.0), "the first step fills in the value nearest 0");
@@ -568,8 +578,7 @@ mod tests {
         assert!(p.apply_text(&en));
         assert_eq!(p.value(), None);
         assert_eq!(p.commit(), Some(EditEvent::Committed));
-        e.set_blank(false);
-        let mut p = e.begin(range, Some(3.0), FieldFocus::Focused, &fmt);
+        let mut p = e.begin(range, &NumberRef::Value(&mut 3.0), FieldFocus::Focused, &fmt);
         p.text_mut().clear();
         assert!(!p.apply_text(&en), "without blank, empty text is not a number");
         assert_eq!(p.value(), Some(3.0));
@@ -581,7 +590,7 @@ mod tests {
         let linear = RangeModel::new(0.0, 100.0).step(1.0);
         let mut e = NumberEdit::new(linear, Some(10.0), fmt);
         e.set_scrub_rate(ScrubRate::pixels(4.0, 50.0));
-        let mut p = e.begin(linear, Some(10.0), FieldFocus::Unfocused, &fmt);
+        let mut p = e.begin(linear, &NumberRef::Value(&mut 10.0), FieldFocus::Unfocused, &fmt);
         p.scrub_by(egui::vec2(2.0, 0.0), 1.0, ltr, 1.0);
         assert_eq!(p.value(), Some(11.0), "half a step rounds up on the grid");
         p.scrub_by(egui::vec2(2.0, 0.0), 1.0, ltr, 1.0);
@@ -591,7 +600,7 @@ mod tests {
         let log = RangeModel::new(1.0, 1e6).scale(Scale::Log);
         let mut e = NumberEdit::new(log, Some(100.0), fmt);
         e.set_scrub_rate(ScrubRate::pixels(4.0, 50.0));
-        let mut p = e.begin(log, Some(100.0), FieldFocus::Unfocused, &fmt);
+        let mut p = e.begin(log, &NumberRef::Value(&mut 100.0), FieldFocus::Unfocused, &fmt);
         p.scrub_by(egui::vec2(100.0, 0.0), 1.0, ltr, 1.0);
         assert!((v(&p) - 400.0).abs() < 1e-9, "two doublings, got {}", v(&p));
         assert!(!p.clamped());
@@ -602,19 +611,19 @@ mod tests {
         let en = crate::test_support::en_us();
         let range = RangeModel::new(0.0, 10.0).step(1.0);
         let mut e = NumberEdit::new(range, Some(10.0), fmt);
-        let mut p = e.begin(range, Some(10.0), FieldFocus::Focused, &fmt);
+        let mut p = e.begin(range, &NumberRef::Value(&mut 10.0), FieldFocus::Focused, &fmt);
         p.step(-1, NumberSource::Step);
         assert!(!p.clamped());
         p.step(2, NumberSource::Step);
         assert!(!p.clamped(), "capped at the bound but not blocked");
         p.step(1, NumberSource::Step);
         assert!(p.clamped(), "a step out of the bound it sits on");
-        let mut p = e.begin(range, Some(10.0), FieldFocus::Focused, &fmt);
+        let mut p = e.begin(range, &NumberRef::Value(&mut 10.0), FieldFocus::Focused, &fmt);
         *p.text_mut() = "42".into();
         p.apply_text(&en);
         assert!(p.clamped() && p.value() == Some(10.0));
         let mut e = NumberEdit::new(range, Some(5.0), fmt);
-        let mut p = e.begin(range, Some(5.0), FieldFocus::Unfocused, &fmt);
+        let mut p = e.begin(range, &NumberRef::Value(&mut 5.0), FieldFocus::Unfocused, &fmt);
         p.scrub_by(egui::vec2(-1e4, 0.0), 100.0, Track::horizontal_ltr(), 1.0);
         assert!(p.clamped() && p.value() == Some(0.0));
     }

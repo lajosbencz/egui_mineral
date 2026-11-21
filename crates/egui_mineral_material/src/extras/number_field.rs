@@ -302,7 +302,6 @@ impl<'a, N: Numeric> NumberField<'a, N> {
     fn load_edit(&self, ctx: &Context, id: Id, before: Option<f64>, fmt: &dyn Fn(f64) -> String) -> NumberEdit {
         let mut edit = NumberEdit::load_or(ctx, id, || NumberEdit::new(self.range, before, fmt));
         edit.set_snap(self.snap_typed);
-        edit.set_blank(self.value.optional());
         edit.set_scrub_rate(self.scrub_rate);
         edit
     }
@@ -341,7 +340,7 @@ impl<N: Numeric> Composite for NumberField<'_, N> {
         let mut edit = self.load_edit(ctx, state_id, before, &fmt);
         // An Escape pass keeps the edit open so it cancels instead of committing on blur.
         let focus = FieldFocus::of(focused || escape);
-        let mut pass = edit.begin(self.range, before, focus, &fmt);
+        let mut pass = edit.begin(self.range, &self.value, focus, &fmt);
         let keys = focused && !self.disabled && pass.consume_step_keys(ctx);
         let mut event = escape.then(|| cancel_edit(ctx, &mut pass, edit_id)).flatten();
         let v = pass.value();
@@ -401,15 +400,12 @@ impl<N: Numeric> Composite for NumberField<'_, N> {
         } else {
             self.react(rt, &mut pass, &parts, (base.with("wheel"), focused, keys), &mut event)
         };
-        let (v, source, clamped) = (pass.value(), pass.source(), pass.clamped());
-        if !self.commit_on_submit || stepped || scrubbed || event.is_some() {
-            self.value.set(v);
-            edit.wrote(self.value.get());
-        }
+        let (source, clamped) = (pass.source(), pass.clamped());
+        let write = !self.commit_on_submit || stepped || scrubbed || event.is_some();
+        // The row response: the field's own `changed` flag also fires on unparsed text.
+        let changed = edit.finish(&mut self.value, write);
         edit.store(ctx, state_id);
         EditId(out.response().id).store(ctx, edit_key);
-        // The row response: the field's own `changed` flag also fires on unparsed text.
-        let changed = differs(before, self.value.get());
         let output = NumberFieldOutput {
             edit: event,
             source: (changed || event == Some(EditEvent::Committed))
@@ -437,13 +433,6 @@ fn cancel_edit(ctx: &Context, pass: &mut number::NumberPass<'_>, edit_id: Option
 
 fn presses(rt: &Rt, b: Option<&WidgetResponse>) -> i64 {
     b.map_or(0, |b| i64::from(button_steps(rt.core(), b.response(), b.response().id)))
-}
-
-fn differs(before: Option<f64>, after: Option<f64>) -> bool {
-    match (before, after) {
-        (Some(b), Some(a)) => b.is_nan() != a.is_nan() || (b - a).abs() > f64::EPSILON,
-        (b, a) => b.is_some() != a.is_some(),
-    }
 }
 
 struct Parts<'r> {
