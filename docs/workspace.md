@@ -39,7 +39,7 @@ Module map, config, commands and release. Overview: [WORKSPACE.md](../WORKSPACE.
 | [`_typos.toml`](../_typos.toml), [`rustfmt.toml`](../rustfmt.toml), [`.editorconfig`](../.editorconfig) | Spelling, formatting |
 | [`.config/nextest.toml`](../.config/nextest.toml) | Test profiles (`ci`) |
 | [`release-plz.toml`](../release-plz.toml) | Release config |
-| [`.github/workflows`](../.github/workflows) | `ci`, `hygiene`, `showcases`, `pages`, `release-plz`, `dependabot-automerge` |
+| [`.github/workflows`](../.github/workflows) | `ci`, `hygiene`, `showcases`, `pages`, `pages-build`, `release-plz`, `release-align`, `dependabot-automerge` |
 
 ## Commands
 
@@ -69,5 +69,5 @@ Not in CI: `cargo bench -p egui_mineral`, `cargo run -p showcase-material`, `car
 Automated by [`release-plz.toml`](../release-plz.toml) and [`release-plz.yml`](../.github/workflows/release-plz.yml): merging the release pull request publishes the changed crates and tags `<crate>-vX.Y.Z` with a git release each. Each published crate has its own `crates/<crate>/CHANGELOG.md` (generated, never hand-edited).
 Versions are per crate, but the published crates share the breaking component (0.MINOR, MAJOR from 1.0): release-plz has no shared-minor option (`version_group` forces identical full versions), and bumps a dependent only by a patch. After release-plz updates its release PR, `.github/workflows/release-align.yml` runs `just align-breaking` on that branch: when one crate's breaking version rose, the others and the workspace requirements move to it; otherwise nothing changes. `just versions-check` fails a PR when they diverge. Patch releases are plain release-plz runs: workspace requirements are carets, so a patch of one crate does not release the others.
 `just minimal-versions` (nightly `-Z direct-minimal-versions`) keeps the requirement lower bounds honest; raise a bound by hand when a crate starts using a newer sibling API.
-[`pages.yml`](../.github/workflows/pages.yml) deploys, on each published crate release (a newer release cancels a running build), the static index ([`.github/pages`](../.github/pages)) with the showcases' wasm builds under `material/` and `fluent/`.
+[`pages-build.yml`](../.github/workflows/pages-build.yml) builds the site: the static index ([`.github/pages`](../.github/pages)) with the showcases' wasm builds under `material/` and `fluent/`. The release workflow builds it during a publish and deploys it after a successful one; [`pages.yml`](../.github/workflows/pages.yml) builds and deploys by hand.
 [`dependabot.yml`](../.github/dependabot.yml) and [`dependabot-automerge.yml`](../.github/workflows/dependabot-automerge.yml) keep dependencies and pinned actions current. Auto-merge uses `GITHUB_TOKEN` (no Dependabot secrets; its merges fire no push workflows, the next push catches up) and takes patch updates, and minor ones only from major >= 1, since 0.MINOR is breaking.

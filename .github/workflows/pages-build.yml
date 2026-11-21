@@ -1,0 +1,46 @@
+name: Pages build
+
+# The showcase site as the `github-pages` artifact; callers deploy it (pages.yml by hand, the release workflow after publishing).
+on:
+  workflow_call:
+
+permissions: {}
+
+env:
+  CARGO_TERM_COLOR: always
+  PUBLIC_URL: /egui_mineral/
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install Rust toolchain
+        run: rustup toolchain install --profile minimal
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        with:
+          tool: just@1.59.0
+          fallback: none
+      - id: pins
+        run: echo "trunk=$(just --evaluate trunk_version)" >> "$GITHUB_OUTPUT"
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        with:
+          tool: trunk@${{ steps.pins.outputs.trunk }}
+          fallback: none
+      - run: just icu-datagen
+      - run: just showcases "$PUBLIC_URL"
+      - name: Assemble site
+        run: |
+          mkdir site
+          cp -r .github/pages/. site/
+          cp -r examples/showcase-fluent/dist site/fluent
+          cp -r examples/showcase-material/dist site/material
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site
