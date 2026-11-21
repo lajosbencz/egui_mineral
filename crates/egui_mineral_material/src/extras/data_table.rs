@@ -527,7 +527,7 @@ impl<'a, K: ItemKey> DataTable<'a, K> {
                         .iter()
                         .map(|&s| (s, MenuItem::new(fmt.count(s)).selected(s == paging.size()))),
                 );
-                if let Some(size) = menu.show(rt, anchor.response()).clicked {
+                if let Some(size) = menu.show_toggle(rt, anchor.response()).clicked {
                     paging.set_size(size);
                 }
                 parts::type_label(

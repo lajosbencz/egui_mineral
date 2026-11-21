@@ -87,14 +87,36 @@ fn year_menu_opens_by_key_after_bounds_pass_the_shown_year() {
 }
 
 #[test]
-fn menu_reports_every_dismissal() {
-    let mut h = still(WIDE, Vec::new(), |ui, seen: &mut Vec<Dismiss>| {
+fn menu_opens_from_code_and_clears_open_on_escape() {
+    let mut h = still(WIDE, true, |ui, open: &mut bool| {
         let anchor = ui.mineral(PushButton::new("anchor", "Open")).into_response();
-        let r = Menu::new("menu", "Menu")
+        Menu::new("menu", "Menu")
             .item(0, MenuItem::new("Item"))
-            .show(ui.rt(), &anchor);
-        seen.extend(r.dismissed);
+            .show(ui.rt(), &anchor, open);
     });
+    h.run();
+    assert!(
+        h.tree().find_key("menu-0-menu-item").is_some(),
+        "open set by the app shows the menu"
+    );
+    h.press(Key::Escape);
+    assert!(!h.state().value, "Escape clears open");
+    assert!(h.tree().find_key("menu-0-menu-item").is_none());
+}
+
+#[test]
+fn menu_reports_every_dismissal() {
+    let mut h = still(
+        WIDE,
+        (false, Vec::new()),
+        |ui, (open, seen): &mut (bool, Vec<Dismiss>)| {
+            let anchor = ui.mineral(PushButton::new("anchor", "Open")).into_response();
+            let r = Menu::new("menu", "Menu")
+                .item(0, MenuItem::new("Item"))
+                .show(ui.rt(), &anchor, open);
+            seen.extend(r.dismissed);
+        },
+    );
     let outside = h.outside();
     h.click("anchor-button");
     h.press(Key::Escape);
@@ -105,14 +127,14 @@ fn menu_reports_every_dismissal() {
     h.click("anchor-button");
     h.press(Key::Tab);
     assert_eq!(
-        h.state().value,
+        h.state().value.1,
         [Dismiss::Escape, Dismiss::Outside, Dismiss::Close, Dismiss::FocusOut]
     );
 }
 
 #[test]
 fn menu_item_trailing_shortcut_is_exposed_and_icon_is_not() {
-    let mut h = still(WIDE, (), |ui, (): &mut ()| {
+    let mut h = still(WIDE, false, |ui, open: &mut bool| {
         let anchor = ui.mineral(PushButton::new("anchor", "Open")).into_response();
         Menu::new("menu", "Menu")
             .item(
@@ -127,7 +149,7 @@ fn menu_item_trailing_shortcut_is_exposed_and_icon_is_not() {
                     .leading(icons::ICON_MAIL)
                     .trailing(icons::ICON_SHARE),
             )
-            .show(ui.rt(), &anchor);
+            .show(ui.rt(), &anchor, open);
     });
     h.click("anchor-button");
     assert!(h.node("menu-file-save-menu-item").shortcut.is_some());
@@ -184,16 +206,20 @@ fn disabled_slider_ignores_keys() {
 
 #[test]
 fn menu_keys_move_focus_and_enter_activates() {
-    let mut h = still(WIDE, None, |ui, clicked: &mut Option<usize>| {
-        let anchor = ui.mineral(PushButton::new("anchor", "Open")).into_response();
-        let r = Menu::new("menu", "Menu")
-            .item(0, MenuItem::new("Apple"))
-            .item(1, MenuItem::new("Banana").disabled(true))
-            .item(2, MenuItem::new("Cherry"))
-            .item(3, MenuItem::new("Date"))
-            .show(ui.rt(), &anchor);
-        *clicked = clicked.or(r.clicked);
-    });
+    let mut h = still(
+        WIDE,
+        (false, None),
+        |ui, (open, clicked): &mut (bool, Option<usize>)| {
+            let anchor = ui.mineral(PushButton::new("anchor", "Open")).into_response();
+            let r = Menu::new("menu", "Menu")
+                .item(0, MenuItem::new("Apple"))
+                .item(1, MenuItem::new("Banana").disabled(true))
+                .item(2, MenuItem::new("Cherry"))
+                .item(3, MenuItem::new("Date"))
+                .show(ui.rt(), &anchor, open);
+            *clicked = clicked.or(r.clicked);
+        },
+    );
     let item = |i: usize| format!("menu-{i}-menu-item");
     h.click("anchor-button");
     assert!(h.node(&item(1)).state.disabled);
@@ -214,19 +240,23 @@ fn menu_keys_move_focus_and_enter_activates() {
     h.type_text("c");
     assert!(h.focused(&item(2)), "typeahead focuses the matching item");
     h.press(Key::Enter);
-    assert_eq!(h.state().value, Some(2), "Enter fires the focused item");
+    assert_eq!(h.state().value.1, Some(2), "Enter fires the focused item");
 }
 
 #[test]
 fn escape_closes_the_focused_submenu_first() {
-    let mut h = still(WIDE, Vec::new(), |ui, seen: &mut Vec<Dismiss>| {
-        let anchor = ui.mineral(PushButton::new("anchor", "Open")).into_response();
-        let r = Menu::new("menu", "Menu")
-            .submenu(0, "Share", |m| m.item(1, "Mail").item(2, "Link"))
-            .item(3, MenuItem::new("Print"))
-            .show(ui.rt(), &anchor);
-        seen.extend(r.dismissed);
-    });
+    let mut h = still(
+        WIDE,
+        (false, Vec::new()),
+        |ui, (open, seen): &mut (bool, Vec<Dismiss>)| {
+            let anchor = ui.mineral(PushButton::new("anchor", "Open")).into_response();
+            let r = Menu::new("menu", "Menu")
+                .submenu(0, "Share", |m| m.item(1, "Mail").item(2, "Link"))
+                .item(3, MenuItem::new("Print"))
+                .show(ui.rt(), &anchor, open);
+            seen.extend(r.dismissed);
+        },
+    );
     let item = |i: usize| format!("menu-{i}-menu-item");
     h.click("anchor-button");
     h.press(Key::ArrowDown);
@@ -239,9 +269,9 @@ fn escape_closes_the_focused_submenu_first() {
         "Escape closes the submenu"
     );
     assert!(h.focused(&item(0)), "focus returns to the parent item");
-    assert!(h.state().value.is_empty(), "the menu stays open");
+    assert!(h.state().value.1.is_empty(), "the menu stays open");
     h.press(Key::Escape);
-    assert_eq!(h.state().value, [Dismiss::Escape]);
+    assert_eq!(h.state().value.1, [Dismiss::Escape]);
     assert!(h.focused("anchor-button"));
 }
 
@@ -274,11 +304,11 @@ fn modal_picker_footer_tabs_in_reading_order_in_both_directions() {
 
 #[test]
 fn keyboard_open_focuses_the_first_item() {
-    let mut h = still(WIDE, (), |ui, ()| {
+    let mut h = still(WIDE, false, |ui, open: &mut bool| {
         let anchor = ui.mineral(PushButton::new("anchor", "Open")).into_response();
         Menu::new("menu", "Menu")
             .item(0, MenuItem::new("Apple"))
-            .show(ui.rt(), &anchor);
+            .show(ui.rt(), &anchor, open);
     });
     h.click("anchor-button");
     h.press(Key::Escape);
@@ -378,11 +408,11 @@ fn escape_after_switching_menus_returns_focus_to_the_open_title() {
 #[test]
 fn menu_item_tooltip_describes_the_item() {
     use egui_kittest::kittest::{NodeT as _, Queryable as _};
-    let mut h = still(WIDE, (), |ui, ()| {
+    let mut h = still(WIDE, false, |ui, open: &mut bool| {
         let anchor = ui.mineral(PushButton::new("anchor", "Open")).into_response();
         Menu::new("menu", "Menu")
             .item(0, MenuItem::new("Export").tooltip("Writes a PDF"))
-            .show(ui.rt(), &anchor);
+            .show(ui.rt(), &anchor, open);
     });
     h.click("anchor-button");
     let description = h.get_by_label("Export").accesskit_node().description();
@@ -448,15 +478,19 @@ fn control_rows_fit_list_rows_at_every_density() {
 
 #[test]
 fn menu_reports_item_values_through_submenus() {
-    let mut h = still(WIDE, Vec::new(), |ui, seen: &mut Vec<&'static str>| {
-        let anchor = ui.mineral(PushButton::new("anchor", "Open")).into_response();
-        let r = Menu::new("menu", "Menu")
-            .item("plain", "Plain")
-            .submenu("more", "More", |m| m.item("nested", "Nested"))
-            .item("last", "Last")
-            .show(ui.rt(), &anchor);
-        seen.extend(r.clicked);
-    });
+    let mut h = still(
+        WIDE,
+        (false, Vec::new()),
+        |ui, (open, seen): &mut (bool, Vec<&'static str>)| {
+            let anchor = ui.mineral(PushButton::new("anchor", "Open")).into_response();
+            let r = Menu::new("menu", "Menu")
+                .item("plain", "Plain")
+                .submenu("more", "More", |m| m.item("nested", "Nested"))
+                .item("last", "Last")
+                .show(ui.rt(), &anchor, open);
+            seen.extend(r.clicked);
+        },
+    );
     h.click("anchor-button");
     h.click("menu-plain-menu-item");
     h.click("anchor-button");
@@ -466,5 +500,5 @@ fn menu_reports_item_values_through_submenus() {
     h.press(Key::Enter);
     h.click("anchor-button");
     h.click("menu-last-menu-item");
-    assert_eq!(h.state().value, ["plain", "nested", "last"]);
+    assert_eq!(h.state().value.1, ["plain", "nested", "last"]);
 }

@@ -396,7 +396,7 @@ impl<'a, A: ActionValue> TopAppBar<'a, A> {
                 }
                 menu = menu.push(v.clone(), item);
             }
-            if let Some(v) = menu.show(rt, &anchor).clicked {
+            if let Some(v) = menu.show_toggle(rt, &anchor).clicked {
                 out.clicked = Some(v);
             }
             out.overflow = Some(anchor);

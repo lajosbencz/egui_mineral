@@ -89,6 +89,7 @@ pub(crate) struct State {
     toolbar_mode: usize,
     menu_selected: usize,
     menu_checked: bool,
+    menu_open: [bool; 5],
     pub(crate) last_action: String,
     pub(crate) zoom: u32,
     page: usize,
@@ -134,6 +135,7 @@ impl Default for State {
             toolbar_mode: 0,
             menu_selected: 1,
             menu_checked: true,
+            menu_open: [false; 5],
             last_action: "none".to_owned(),
             zoom: 100,
             page: 2,
@@ -418,7 +420,7 @@ fn report_bar<A: std::fmt::Debug>(r: &TopAppBarResponse<A>, shared: &mut Shared)
     }
 }
 
-fn app_bar_overflow(ui: &mut MaterialUi<'_>, shared: &mut Shared) {
+fn app_bar_overflow(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     let rt = ui.rt();
     caption(
         ui,
@@ -445,7 +447,7 @@ fn app_bar_overflow(ui: &mut MaterialUi<'_>, shared: &mut Shared) {
         let menu = Menu::new("nav-appbar-share-menu", "Share")
             .item("mail", MenuItem::new("Mail").leading(ICON_MAIL))
             .item("copy link", MenuItem::new("Copy link").leading(ICON_CONTENT_COPY));
-        if let Some(via) = menu.show(rt, share).clicked {
+        if let Some(via) = menu.show(rt, share, &mut s.menu_open[4]).clicked {
             shared.toast(format!("Share via {via}"));
         }
     }
@@ -487,7 +489,7 @@ fn app_bars(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
                 .show(ui);
             report_bar(&r, shared);
         }
-        app_bar_overflow(ui, shared);
+        app_bar_overflow(ui, s, shared);
         caption(ui, TypeScale::LabelMedium, "Centered title with subtitle");
         let r = TopAppBar::new("nav-appbar-sub", "Inbox")
             .centered(true)
@@ -788,7 +790,13 @@ fn menus(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
                 let anchor = row
                     .mineral(PushButton::new(("nav-menu-anchor", i), label).variant(ButtonVariant::Tonal))
                     .into_response();
-                if let Some(item) = edit_menu(("nav-menu", i), s).colors(style).show(rt, &anchor).clicked {
+                let mut open = s.menu_open[i];
+                let picked = edit_menu(("nav-menu", i), s)
+                    .colors(style)
+                    .show(rt, &anchor, &mut open)
+                    .clicked;
+                s.menu_open[i] = open;
+                if let Some(item) = picked {
                     edit_picked(s, label, item);
                 }
             }
@@ -814,7 +822,7 @@ fn menus(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
                 });
                 grouped = grouped.item(4 + i, MenuItem::new(name).leading(swatch));
             }
-            if let Some(item) = grouped.show(rt, &anchor).clicked {
+            if let Some(item) = grouped.show(rt, &anchor, &mut s.menu_open[3]).clicked {
                 if item < 2 {
                     s.menu_selected = item;
                 }

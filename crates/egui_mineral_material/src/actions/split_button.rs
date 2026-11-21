@@ -229,7 +229,7 @@ impl<A: ActionValue> SplitButton<A> {
         let menu_item = if self.disabled {
             None
         } else {
-            self.menu.emit_anchor(false).show(rt, trail_r.response()).clicked
+            self.menu.emit_anchor(false).show_toggle(rt, trail_r.response()).clicked
         };
         let open = Menu::is_open(ui.ctx(), trail_r.response());
         SplitButtonResponse {

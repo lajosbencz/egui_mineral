@@ -780,12 +780,17 @@ impl<A: ActionValue> Menu<A> {
             .then(|| Rect::from_min_size(target.rect.left_bottom(), egui::Vec2::ZERO))
     }
 
-    /// Dropdown below `anchor`, toggled by its clicks.
-    pub fn show(self, rt: &Rt, anchor: &Response) -> MenuResponse<A> {
+    /// Dropdown below `anchor` while `open`: `anchor` clicks and ArrowDown/ArrowUp toggle it, closing (an item,
+    /// Escape, an outside press) clears it, and the app may set it, e.g. to open from code.
+    pub fn show(self, rt: &Rt, anchor: &Response, open: &mut bool) -> MenuResponse<A> {
         let this = self.resolved();
         let ctx = anchor.ctx.clone();
         let id = dropdown_id(anchor);
         let mut st = MenuState::load(&ctx, id);
+        if *open && !st.open {
+            Self::open(&mut st, anchor.rect, open_focus(&ctx));
+        }
+        st.open = *open;
         if this.bind_shortcuts(&ctx, shortcut::scope_of(&ctx, anchor.layer_id)) || this.disabled {
             st.open = false;
         }
@@ -814,14 +819,19 @@ impl<A: ActionValue> Menu<A> {
         if out.closed {
             anchor.request_focus();
         }
-        let open = st.open;
+        *open = st.open;
         st.store(&ctx, id);
-        this.emit_trigger(&ctx, anchor, open, Role::Button, "menu-button", None);
+        this.emit_trigger(&ctx, anchor, *open, Role::Button, "menu-button", None);
         MenuResponse {
             response: out.panel,
             clicked: this.clicked(out.activated),
             dismissed: out.dismissed.or(toggled_closed.then_some(Dismiss::Close)),
         }
+    }
+
+    pub(crate) fn show_toggle(self, rt: &Rt, anchor: &Response) -> MenuResponse<A> {
+        let mut open = MenuState::load(&anchor.ctx, dropdown_id(anchor)).open;
+        self.show(rt, anchor, &mut open)
     }
 
     /// Context menu at the pointer on secondary click or long press, or below `target` on Shift+F10 or the Menu key.

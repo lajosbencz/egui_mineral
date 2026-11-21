@@ -551,7 +551,7 @@ impl<K: ItemKey> Breadcrumbs<K> {
                     let menu = Menu::new(self.salt.child("more"), label)
                         .emit_anchor(false)
                         .items(hidden.clone().map(|i| (i, MenuItem::new(&self.items[i].1.label))));
-                    if let Some(i) = menu.show(rt, anchor.response()).clicked {
+                    if let Some(i) = menu.show_toggle(rt, anchor.response()).clicked {
                         out = Some(i);
                     }
                     for i in n - after..n {
