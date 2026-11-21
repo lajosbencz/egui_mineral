@@ -234,11 +234,15 @@ pub struct DataTableResponse<K> {
     pub changed: bool,
     /// Page or page size changed this frame.
     pub page_changed: bool,
+    /// Shown rows top to bottom: key and the union of the row's cell responses, e.g. for
+    /// `context_menu` or `on_hover_text`.
+    pub rows: Vec<(K, egui::Response)>,
 }
 
 #[derive(Default)]
 struct Events {
     activated: Option<usize>,
+    rows: Vec<(usize, egui::Response)>,
     sort: SortState,
     sort_changed: bool,
     changed: bool,
@@ -251,6 +255,7 @@ enum RowEvent {
 }
 
 type SortFn<'a> = Box<dyn Fn(usize, SortState) -> Vec<usize> + 'a>;
+type RowStyle<'a> = Box<dyn Fn(usize) -> Option<Color32> + 'a>;
 
 /// Virtualized table with sorting, selection, resizable columns and paging; non-MD3 (MUI X `DataGrid` pattern).
 #[must_use = "call .show(..)"]
@@ -264,6 +269,8 @@ pub struct DataTable<'a, K> {
     max_height: Option<f32>,
     data_version: u64,
     sort_key: Option<SortFn<'a>>,
+    row_style: Option<RowStyle<'a>>,
+    stick_to_end: bool,
     disabled: bool,
 }
 
@@ -315,6 +322,8 @@ impl<'a, K: ItemKey> DataTable<'a, K> {
             max_height: None,
             data_version: 0,
             sort_key: None,
+            row_style: None,
+            stick_to_end: false,
             disabled: false,
         }
     }
@@ -364,6 +373,20 @@ impl<'a, K: ItemKey> DataTable<'a, K> {
         self
     }
 
+    /// Container color of data row `row`, e.g. for a status tint; `None` keeps the default. Selected rows
+    /// keep the selection color; state layers paint over both.
+    pub fn row_style(mut self, style: impl Fn(usize) -> Option<Color32> + 'a) -> Self {
+        self.row_style = Some(Box::new(style));
+        self
+    }
+
+    /// Keeps the body at the last row while it is scrolled there, so appended rows stay in view (a log);
+    /// scrolling up releases it.
+    pub fn stick_to_end(mut self, stick_to_end: bool) -> Self {
+        self.stick_to_end = stick_to_end;
+        self
+    }
+
     crate::widget::setters! {
         /// Greys out the table; rows cannot be selected or activated.
         disabled
@@ -408,6 +431,11 @@ impl<'a, K: ItemKey> DataTable<'a, K> {
             sort_changed: e.sort_changed,
             changed: e.changed,
             page_changed: e.page_changed,
+            rows: e
+                .rows
+                .into_iter()
+                .filter_map(|(d, r)| Some((rows.key(d)?, r)))
+                .collect(),
         }
     }
 
@@ -654,6 +682,7 @@ impl<'a, K: ItemKey> DataTable<'a, K> {
         }
         let page_ids = order.get(page).unwrap_or_default();
         self.apply_row_events(&pass, keys, page_ids, &order, &mut out);
+        out.rows = std::mem::take(&mut pass.rows);
 
         if let Some(paging) = st.paging.as_mut() {
             out.page_changed = self.footer(ui, rt, row_h, &t, paging);
@@ -725,6 +754,7 @@ struct Pass {
     sort_click: Option<usize>,
     // Cell responses of the row being painted, reused across rows.
     cells: Vec<Response>,
+    rows: Vec<(usize, Response)>,
 }
 
 struct TableView<'v, 'a, K> {
@@ -961,7 +991,8 @@ impl<K: ItemKey> TableView<'_, '_, K> {
         let scope = self.table.salt.child("body");
         egui_mineral::layout::child(ui, scope, brect, rt.i18n().direction().column(), |ui| {
             ui.spacing_mut().item_spacing = vec2(0.0, 0.0);
-            VirtualList::uniform(self.table.salt.child("rows"), row_h).show(ui, page_rows, |ui, i| {
+            let list = VirtualList::uniform(self.table.salt.child("rows"), row_h).stick_to_end(self.table.stick_to_end);
+            list.show(ui, page_rows, |ui, i| {
                 if std::mem::take(&mut first)
                     && let Some(pr) = pending_row
                 {
@@ -997,7 +1028,7 @@ impl<K: ItemKey> TableView<'_, '_, K> {
         let mut cells = std::mem::take(&mut pass.cells);
         let at = RowAt { grid: i + 1, key: &key };
         let check = self.row_inputs(ui, st, pass, &mut cells, rect, (d, at));
-        let col = RowColors::of(
+        let mut col = RowColors::of(
             RowState {
                 selected,
                 disabled,
@@ -1005,7 +1036,13 @@ impl<K: ItemKey> TableView<'_, '_, K> {
             },
             self.t,
         );
+        if !selected && let Some(c) = self.table.row_style.as_ref().and_then(|f| f(d)) {
+            col.container = c;
+        }
         self.paint_row(ui, rect, &col, &cells, &key, selected);
+        if let Some(r) = cells.iter().cloned().reduce(|a, b| a | b) {
+            pass.rows.push((d, r));
+        }
         if let Some(r) = &check {
             let state = if selected { Check::Checked } else { Check::Unchecked };
             row_parts::paint_checkbox(ui, r, self.geo.check_center(rect), state, disabled, self.t);

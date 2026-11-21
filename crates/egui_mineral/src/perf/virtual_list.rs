@@ -29,6 +29,7 @@ pub struct VirtualList {
     mode: Mode,
     scroll_to: Option<usize>,
     scroll_align: Option<Align>,
+    stick_to_end: bool,
 }
 
 crate::kit::opaque_debug!(VirtualList);
@@ -43,6 +44,7 @@ impl VirtualList {
             mode: Mode::Uniform { row_height },
             scroll_to: None,
             scroll_align: None,
+            stick_to_end: false,
         }
     }
 
@@ -55,6 +57,7 @@ impl VirtualList {
             mode: Mode::Variable { estimate },
             scroll_to: None,
             scroll_align: None,
+            stick_to_end: false,
         }
     }
 
@@ -63,6 +66,13 @@ impl VirtualList {
     /// settles once they are measured.
     pub fn scroll_to(mut self, row: usize) -> Self {
         self.scroll_to = Some(row);
+        self
+    }
+
+    /// Keeps the view at the last row while it is scrolled there, e.g. for a log; scrolling up releases it
+    /// ([`ScrollArea::stick_to_bottom`]).
+    pub fn stick_to_end(mut self, stick_to_end: bool) -> Self {
+        self.stick_to_end = stick_to_end;
         self
     }
 
@@ -88,7 +98,10 @@ impl VirtualList {
         mut row: impl FnMut(&mut Ui, usize),
         mut culled: impl FnMut(&mut Ui, usize, Rect),
     ) -> VirtualListResponse {
-        let scroll = ScrollArea::vertical().id_salt(self.id_salt).auto_shrink([false; 2]);
+        let scroll = ScrollArea::vertical()
+            .id_salt(self.id_salt)
+            .auto_shrink([false; 2])
+            .stick_to_bottom(self.stick_to_end);
         let viewport_h = ui.available_height();
         let current = egui::scroll_area::State::load(ui.ctx(), ui.make_persistent_id(self.id_salt))
             .map_or(0.0, |st| st.clamped_offset().y);

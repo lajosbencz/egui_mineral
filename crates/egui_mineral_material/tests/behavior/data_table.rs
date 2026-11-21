@@ -175,3 +175,62 @@ fn resize_handle_sets_the_column_width() {
     assert_ne!(before, 240.0, "the test starts from another width");
     assert_eq!(after, 240.0);
 }
+
+#[test]
+fn row_style_tints_the_row_container() {
+    const TINT: egui::Color32 = egui::Color32::from_rgb(200, 10, 10);
+    let pass = crate::support::render(|ui| {
+        DataTable::<usize>::new("tbl", "Names", [TableColumn::new("Name")])
+            .row_style(|r| (r == 2).then_some(TINT))
+            .show(ui, NAMES.len(), |r, _| TableCell::from(NAMES[r]));
+    });
+    let tinted = pass
+        .shapes
+        .iter()
+        .filter(|s| matches!(&s.shape, egui::Shape::Rect(r) if r.fill == TINT))
+        .count();
+    assert_eq!(tinted, 1);
+}
+
+#[test]
+fn rows_report_their_responses_for_context_menus() {
+    let mut h = harness(WIDE, None, |ui, hit: &mut Option<usize>| {
+        let r = DataTable::<usize>::new("tbl", "Names", [TableColumn::new("Name")])
+            .show(ui, NAMES.len(), |r, _| TableCell::from(NAMES[r]));
+        assert_eq!(r.rows.len(), NAMES.len());
+        *hit = r
+            .rows
+            .iter()
+            .find(|(_, r)| r.secondary_clicked())
+            .map(|(k, _)| *k)
+            .or(*hit);
+    });
+    let at = h.rect("tbl-1-0-cell").center();
+    h.hover_at(at);
+    for pressed in [true, false] {
+        h.event(egui::Event::PointerButton {
+            pos: at,
+            button: egui::PointerButton::Secondary,
+            pressed,
+            modifiers: Modifiers::NONE,
+        });
+        h.run();
+    }
+    assert_eq!(h.state().value, Some(1));
+}
+
+#[test]
+fn stick_to_end_follows_appended_rows() {
+    let mut h = harness(WIDE, 5usize, |ui, n: &mut usize| {
+        DataTable::<usize>::new("tbl", "Log", [TableColumn::new("Line")])
+            .max_height(120.0)
+            .stick_to_end(true)
+            .show(ui, *n, |r, _| TableCell::Number(r as f64));
+    });
+    h.run();
+    h.state_mut().value = 200;
+    for _ in 0..3 {
+        h.run();
+    }
+    assert!(shown_rows(&h).contains(&199), "{:?}", shown_rows(&h));
+}

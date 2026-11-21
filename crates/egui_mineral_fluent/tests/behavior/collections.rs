@@ -515,6 +515,47 @@ mod table {
     }
 
     #[test]
+    fn row_style_tints_unselected_rows() {
+        const TINT: egui::Color32 = egui::Color32::from_rgb(200, 10, 10);
+        let pass = crate::support::render(|ui| {
+            Table::<usize>::new("t", "People", columns())
+                .row_style(|r| (r == 1).then_some(TINT))
+                .show(ui, 3, |ui, row, col| {
+                    ui.mineral(Text::new((("cell", row), col), "x"));
+                });
+        });
+        assert_eq!(pass.fills(TINT).len(), 1);
+    }
+
+    #[test]
+    fn rows_report_secondary_clicks() {
+        let mut h = harness(None, |ui, hit: &mut Option<usize>| {
+            let out = Table::<usize>::new("t", "People", columns()).show(ui, 3, |ui, row, col| {
+                ui.mineral(Text::new((("cell", row), col), "x"));
+            });
+            *hit = out
+                .rows
+                .iter()
+                .find(|(_, r)| r.secondary_clicked())
+                .map(|(k, _)| *k)
+                .or(*hit);
+        });
+        h.run();
+        let at = h.rect("t-row-2").right_center() - egui::vec2(4.0, 0.0);
+        h.hover_at(at);
+        for pressed in [true, false] {
+            h.event(egui::Event::PointerButton {
+                pos: at,
+                button: egui::PointerButton::Secondary,
+                pressed,
+                modifiers: egui::Modifiers::NONE,
+            });
+            h.run();
+        }
+        assert_eq!(h.state().value, Some(2));
+    }
+
+    #[test]
     fn only_visible_rows_are_drawn() {
         const ROWS: usize = 1000;
         let mut h = harness(Vec::new(), |ui, drawn: &mut Vec<usize>| {

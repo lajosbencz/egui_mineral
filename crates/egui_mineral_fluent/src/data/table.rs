@@ -2,7 +2,9 @@ use crate::msg;
 use egui_mineral::focus::Items;
 use std::{borrow::Cow, ops::Range, sync::Arc};
 
-use egui::{CursorIcon, Galley, Id, Rangef, Rect, Sense, Stroke, StrokeKind, UiBuilder, pos2, text::LayoutJob, vec2};
+use egui::{
+    Color32, CursorIcon, Galley, Id, Rangef, Rect, Sense, Stroke, StrokeKind, UiBuilder, pos2, text::LayoutJob, vec2,
+};
 use egui_mineral::{
     focus::{self, Cell, RovingFocus, TabStop},
     i18n::{Direction, I18n},
@@ -283,9 +285,20 @@ pub struct TableResponse<K> {
     pub changed: bool,
     /// Key of the row clicked or activated with Enter or Space this frame.
     pub activated: Option<K>,
+    /// Shown rows top to bottom: key and the row response, joined with its selection checkbox and grid
+    /// cells, e.g. for `context_menu` or `on_hover_text`.
+    pub rows: Vec<(K, egui::Response)>,
 }
 
 struct SortKey<'a>(Box<dyn Fn(usize, SortState) -> Vec<usize> + 'a>);
+
+struct RowStyle<'a>(Box<dyn Fn(usize) -> Option<Color32> + 'a>);
+
+impl std::fmt::Debug for RowStyle<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("RowStyle")
+    }
+}
 
 impl std::fmt::Debug for SortKey<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -308,6 +321,7 @@ pub struct Table<'a, K> {
     selection: Option<&'a mut Selection<K>>,
     widths: Option<&'a mut ColumnWidths>,
     sort_key: Option<SortKey<'a>>,
+    row_style: Option<RowStyle<'a>>,
     grid: bool,
 }
 
@@ -329,6 +343,7 @@ impl<'a, K: ItemKey> Table<'a, K> {
             selection: None,
             widths: None,
             sort_key: None,
+            row_style: None,
             grid: false,
         }
     }
@@ -367,6 +382,13 @@ impl<'a, K: ItemKey> Table<'a, K> {
     /// it, sortable headers only cycle the state.
     pub fn sort_by_key<S: Ord>(mut self, key: impl Fn(Cell) -> S + 'a) -> Self {
         self.sort_key = Some(SortKey(Box::new(move |rows, sort| sort_order(rows, sort, &key))));
+        self
+    }
+
+    /// Background of data row `row`, e.g. for a status tint; `None` keeps the default. Selected rows keep the
+    /// selection color; hover and press paint over it. Not in Fluent (docs/divergences.md).
+    pub fn row_style(mut self, style: impl Fn(usize) -> Option<Color32> + 'a) -> Self {
+        self.row_style = Some(RowStyle(Box::new(style)));
         self
     }
 
@@ -448,6 +470,12 @@ impl<'a, K: ItemKey> DataGrid<'a, K> {
     /// See [`Table::sort_by_key`].
     pub fn sort_by_key<S: Ord>(mut self, key: impl Fn(Cell) -> S + 'a) -> Self {
         self.0 = self.0.sort_by_key(key);
+        self
+    }
+
+    /// See [`Table::row_style`].
+    pub fn row_style(mut self, style: impl Fn(usize) -> Option<Color32> + 'a) -> Self {
+        self.0 = self.0.row_style(style);
         self
     }
 
@@ -632,6 +660,7 @@ struct Events<K> {
     sort: bool,
     selection: bool,
     activated: Option<K>,
+    rows: Vec<(K, egui::Response)>,
 }
 
 fn single<K: ItemKey>(selection: Option<&Selection<K>>) -> bool {
@@ -676,6 +705,7 @@ fn run<K: ItemKey>(
         sort: false,
         selection: false,
         activated: None,
+        rows: Vec::new(),
     };
     let pass = Pass {
         id,
@@ -720,6 +750,7 @@ fn run<K: ItemKey>(
         response,
         changed,
         activated: ev.activated,
+        rows: ev.rows,
     }
 }
 
@@ -848,15 +879,17 @@ fn body_row<K: ItemKey>(
     let rect = geo.row(r + 1);
     let rid = id.with(("row", &key));
     let selectable = tb.selection.is_some();
-    let sense = if selectable && !grid.on {
-        Sense::click()
-    } else {
-        Sense::hover()
-    };
+    let clickable = selectable && !grid.on;
+    // CLICK without FOCUSABLE: secondary clicks reach `rows` without adding Tab stops.
+    let sense = if clickable { Sense::click() } else { Sense::CLICK };
     let row = ui.interact(rect, rid, sense);
     let selected = tb.selection.as_ref().is_some_and(|s| s.is_selected(&key));
+    if !selected && let Some(c) = tb.row_style.as_ref().and_then(|f| (f.0)(data)) {
+        ui.painter().rect_filled(rect, 0.0, c);
+    }
     row_background(ui, rect, tb.appearance, selected, &row, &tokens);
-    let mut clicked = row.clicked();
+    let mut clicked = clickable && row.clicked();
+    let mut whole = row.clone();
     let first = (r + 1) * grid.columns;
     if selectable {
         let single = single(tb.selection.as_deref());
@@ -869,6 +902,7 @@ fn body_row<K: ItemKey>(
         check.tab_stop = grid.on.then(|| grid.tab_stop(first));
         let c = place(ui, geo.cell(rect, 0.0, geo.selection), |ui| rt.ui(ui).mineral(check));
         grid.track(first, c.response());
+        whole |= c.response().clone();
         if c.changed()
             && let Some(s) = tb.selection.as_mut()
         {
@@ -892,6 +926,7 @@ fn body_row<K: ItemKey>(
                 focus_outline(ui, crect, &tokens);
             }
             clicked |= resp.clicked();
+            whole |= resp;
         }
         // Cell content clipped to its cell.
         place(ui, crect.shrink2(vec2(d::CELL_PADDING, 0.0)), |ui| {
@@ -917,6 +952,7 @@ fn body_row<K: ItemKey>(
         );
     }
     emit_row(ui, tb, rid, rect, &key);
+    ev.rows.push((key, whole));
 }
 
 fn culled_row<K: ItemKey>(ui: &MineralUi<'_, Fluent>, tb: &Table<'_, K>, pass: &Pass<'_, K>, r: usize, key: &K) {
