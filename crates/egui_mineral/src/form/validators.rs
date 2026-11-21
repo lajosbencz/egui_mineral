@@ -68,11 +68,41 @@ impl<K: Ord + Clone> Validator<Selection<K>> for MaxLength {
 
 /// Fails on numbers outside the optional bounds.
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct NumberRange {
     /// Inclusive lower bound; `None` is open.
     pub min: Option<f64>,
     /// Inclusive upper bound; `None` is open.
     pub max: Option<f64>,
+}
+
+impl NumberRange {
+    /// Fails below `min`.
+    #[must_use]
+    pub const fn at_least(min: f64) -> Self {
+        Self {
+            min: Some(min),
+            max: None,
+        }
+    }
+
+    /// Fails above `max`.
+    #[must_use]
+    pub const fn at_most(max: f64) -> Self {
+        Self {
+            min: None,
+            max: Some(max),
+        }
+    }
+
+    /// Fails outside `min..=max`.
+    #[must_use]
+    pub const fn between(min: f64, max: f64) -> Self {
+        Self {
+            min: Some(min),
+            max: Some(max),
+        }
+    }
 }
 
 impl<N: Numeric> Validator<N> for NumberRange {
@@ -102,10 +132,7 @@ mod tests {
         assert!(MaxLength(1).validate(&"ab".to_owned(), &en).is_err());
         let picks: Selection<u8> = [1, 2].into_iter().collect();
         assert!(MaxLength(1).validate(&picks, &en).is_err(), "counts picks");
-        let r = NumberRange {
-            min: Some(1.0),
-            max: None,
-        };
+        let r = NumberRange::at_least(1.0);
         assert_eq!(r.validate(&0.5, &en).unwrap_err().code, "mineral-range-min");
         assert!(r.validate(&3u8, &en).is_ok());
         assert!(Required.validate(&false, &en).is_err());

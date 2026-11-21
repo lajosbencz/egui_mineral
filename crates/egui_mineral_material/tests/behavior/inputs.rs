@@ -249,10 +249,7 @@ fn form_number_field_binds_integers_and_validates_them() {
         |ui, (state, value, submitted)| {
             let r = Form::new("f", state, value).show(ui, |f, v| {
                 f.number("years", "Years", v, 0.0..=10.0, |s| {
-                    s.validator(NumberRange {
-                        min: None,
-                        max: Some(1.0),
-                    })
+                    s.validator(NumberRange::at_most(1.0))
                 });
             });
             *submitted |= r.submitted;
