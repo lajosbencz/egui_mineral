@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral_material-v0.9.0...egui_mineral_material-v0.10.0) - 2026-11-21
+
+### Added
+
+- *(tokens)* Material Tokens deserialize with only color required; shape, state and duration keys default when missing, durations exactly.
+- *(menu)* Material Menu::radios(current, items) builds a radio group checked at the current value.
+- *(tree)* [**breaking**] accept_drop adds a payload type per call (DropAccept::push), first acceptor wins; Fluent TreeResponse::rows is ItemResponses like Material.
+- *(splitter)* [**breaking**] collapsible(pane) Enter toggle per APG, CollapseRequest from Enter, drag and double click on a collapsed handle, hit zone at the collapsed edge; both kits' SplitPane.
+- *(window)* [**breaking**] resize_handle, resize_border, end_corner and can_resize replace status::resize_grip; status bar grips hide while maximized or fullscreen.
+- *(form)* [**breaking**] FieldPlacement and LabelSlot compose forms with layouts; core FormRows and StackBelow; FormGrid::show_form, stacking and labelled_by rows, FormUiExt::section, in both kits.
+- *(material)* checkbox and primary tab indicator radii follow the theme's extra_small shape step.
+- *(menu)* Material MenuItem check and radio toggles in their own column beside the leading icon and shortcut; Fluent Menu::radio_dot.
+- *(status)* StatusBar tone() for the whole bar and grip(bool) window resize corner (core resize_grip, grip_dots), in both kits.
+- *(table)* row_style tints and per-row responses in both kits' tables; Material DataTable stick_to_end via VirtualList::stick_to_end.
+- *(splitter)* Enter and double click reset to the default fraction (SplitterResponse::reset), collapse(Option<Pane>), in both kits' SplitPane.
+- *(form)* FormGrid in both kits, a two-column form with a shared label column (core LabelColumn), section headings and full-width rows.
+- *(number)* optional (blank) number fields, pixel scrub rate with log doubling, clamped output and select-on-step, in Material NumberField and Fluent SpinButton.
+- *(tree)* disabled nodes, foreign drops (DropAccept, TreeDrop), reveal, and Material unfocused selection color, in both kits' trees.
+
+### Fixed
+
+- *(dnd)* drags sense click_and_drag so a press is no drag (tree preview flicker, carousel cursor, table grip clicks sorting); grips sit above headers and follow the pointer via input::drag_from_start; drag-only-sense lint.
+- *(input)* hand-rolled hit tests and tap/pan respect overlays and modals via reaches_layer and InputContext::events_on.
+
+### Other
+
+- *(material)* checkbox and tab indicator radii follow the extra_small shape token.
+- *(table)* [**breaking**] both kits' table rows are ItemResponses, keyed like tree and toolbar responses.
+- [**breaking**] core Tone (from StatusTone) and RowStyle for both kits' row_style, RadioMark and keep-open menu toggles, ScrubRate::Pixels per scale unit with one scrub(rate) builder; Fluent Text inherits override_text_color.
+- *(number)* NumberEdit::begin takes the NumberRef (blank mode from Optional), NumberEdit::finish writes back and reports the change for both kits.
+
 ## [0.9.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral_material-v0.8.0...egui_mineral_material-v0.9.0) - 2026-11-21
 
 ### Added
