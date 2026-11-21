@@ -515,16 +515,27 @@ mod table {
     }
 
     #[test]
-    fn row_style_tints_unselected_rows() {
+    fn row_style_tones_the_row_and_its_cell_text() {
+        use egui_mineral::{table::RowStyle, tone::Tone};
         const TINT: egui::Color32 = egui::Color32::from_rgb(200, 10, 10);
+        const INK: egui::Color32 = egui::Color32::from_rgb(1, 2, 3);
         let pass = crate::support::render(|ui| {
             Table::<usize>::new("t", "People", columns())
-                .row_style(|r| (r == 1).then_some(TINT))
+                .row_style(|r| match r {
+                    1 => Tone::Custom {
+                        container: TINT,
+                        content: INK,
+                    }
+                    .into(),
+                    _ => RowStyle::default(),
+                })
                 .show(ui, 3, |ui, row, col| {
-                    ui.mineral(Text::new((("cell", row), col), "x"));
+                    ui.mineral(Text::new((("cell", row), col), format!("r{row}c{col}")));
                 });
         });
         assert_eq!(pass.fills(TINT).len(), 1);
+        assert_eq!(pass.text_color("r1c0"), INK, "the tone reaches the cell text");
+        assert_ne!(pass.text_color("r0c0"), INK);
     }
 
     #[test]

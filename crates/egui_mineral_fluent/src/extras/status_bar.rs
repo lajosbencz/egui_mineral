@@ -12,8 +12,8 @@ use egui_mineral::{
 };
 
 use crate::spec::ColorToken::{
-    ColorNeutralBackground3, ColorNeutralForeground2, ColorNeutralStroke2, ColorPaletteRedBackground1,
-    ColorPaletteRedForeground1, ColorSubtleBackgroundHover, ColorSubtleBackgroundPressed,
+    ColorNeutralBackground3, ColorNeutralForeground2, ColorNeutralStroke2, ColorSubtleBackgroundHover,
+    ColorSubtleBackgroundPressed,
 };
 use crate::{
     Fluent, FluentExt,
@@ -32,7 +32,8 @@ const BAR: f32 = 48.0;
 const ICON_GAP: f32 = g::SPACING_HORIZONTAL_XS;
 const TEXT: TypeRamp = TypeRamp::Caption1;
 
-pub use egui_mineral::status::{StatusItem, StatusProgress, StatusTone};
+pub use egui_mineral::status::{StatusItem, StatusProgress};
+use egui_mineral::tone::Tone;
 
 // Linear indicators are fixed at 48 wide.
 fn lead_width(lead: StatusLead) -> f32 {
@@ -62,7 +63,7 @@ pub struct StatusBar<A = NoAction> {
     label: String,
     // Item and whether it sits at the end.
     items: Vec<(StatusItem, bool, Option<A>)>,
-    tone: StatusTone,
+    tone: Tone,
     grip: bool,
 }
 
@@ -73,7 +74,7 @@ impl StatusBar {
             salt: id_salt.into(),
             label: label.into(),
             items: Vec::new(),
-            tone: StatusTone::Default,
+            tone: Tone::Default,
             grip: false,
         }
     }
@@ -136,8 +137,8 @@ impl<A: ActionValue> StatusBar<A> {
     }
 
     /// Colors of the whole bar, e.g. a debugging or offline state; items with their own tone keep it.
-    /// Default [`StatusTone::Default`].
-    pub fn tone(mut self, tone: StatusTone) -> Self {
+    /// Default [`Tone::Default`].
+    pub fn tone(mut self, tone: Tone) -> Self {
         self.tone = tone;
         self
     }
@@ -237,14 +238,8 @@ impl<A: ActionValue> StatusBar<A> {
         let (item, _, value) = &self.items[i];
         let clickable = value.is_some();
         let content = content_color(item, bar_colors(self.tone, &t).1, &t);
-        match item.tone_kind() {
-            StatusTone::Custom { container, .. } => {
-                ui.painter().rect_filled(r, 0, container);
-            }
-            StatusTone::Error => {
-                ui.painter().rect_filled(r, 0, t.color(ColorPaletteRedBackground1));
-            }
-            _ => {}
+        if let Some((container, _)) = t.tone(item.tone_kind()) {
+            ui.painter().rect_filled(r, 0, container);
         }
         let sense = if clickable { Sense::click() } else { Sense::hover() };
         let resp = ui.interact(r, id.with(i), sense);
@@ -331,18 +326,11 @@ fn slot(bar: Rect, dir: Direction, at_end: bool, from: f32, w: f32) -> Rect {
 }
 
 fn content_color(item: &StatusItem, bar: Color32, t: &crate::theme::Tokens) -> Color32 {
-    match item.tone_kind() {
-        StatusTone::Custom { content, .. } => content,
-        StatusTone::Error => t.color(ColorPaletteRedForeground1),
-        _ => bar,
-    }
+    t.tone(item.tone_kind()).map_or(bar, |c| c.1)
 }
 
 // (container, content)
-fn bar_colors(tone: StatusTone, t: &crate::theme::Tokens) -> (Color32, Color32) {
-    match tone {
-        StatusTone::Custom { container, content } => (container, content),
-        StatusTone::Error => (t.color(ColorPaletteRedBackground1), t.color(ColorPaletteRedForeground1)),
-        _ => (t.color(ColorNeutralBackground3), t.color(ColorNeutralForeground2)),
-    }
+fn bar_colors(tone: Tone, t: &crate::theme::Tokens) -> (Color32, Color32) {
+    t.tone(tone)
+        .unwrap_or((t.color(ColorNeutralBackground3), t.color(ColorNeutralForeground2)))
 }

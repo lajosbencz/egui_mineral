@@ -357,12 +357,12 @@ fn collapsed_split_pane_expands_on_enter() {
 
 #[test]
 fn status_bar_tone_and_grip() {
-    use egui_mineral_fluent::extras::StatusTone;
+    use egui_mineral::tone::Tone;
     const TINT: egui::Color32 = egui::Color32::from_rgb(10, 90, 200);
     let bar = |ui: &mut FluentUi<'_>, grip: bool| {
         narrow(ui, 300.0, |ui| {
             StatusBar::new("status", "Status")
-                .tone(StatusTone::Custom {
+                .tone(Tone::Custom {
                     container: TINT,
                     content: egui::Color32::WHITE,
                 })

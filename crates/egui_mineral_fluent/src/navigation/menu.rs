@@ -1,5 +1,6 @@
 use egui::{Id, Key, Margin, Modifiers, Rangef, Rect, Response, Sense, Stroke, Ui, pos2, text::LayoutJob, vec2};
 use egui_mineral::focus::Items;
+use egui_mineral::select::RadioMark;
 use egui_mineral::{
     action::{ActionValue, NoAction},
     anchor::{Align, Anchor, Side},
@@ -146,7 +147,7 @@ struct Row<'a> {
     kind: Kind,
     memo: Memo,
     width: f32,
-    radio_dot: bool,
+    radio_mark: RadioMark,
 }
 
 pub(super) fn text_width(ui: &MineralUi<'_, Fluent>, text: &str, ramp: TypeRamp) -> f32 {
@@ -297,7 +298,7 @@ impl MineralWidget for Row<'_> {
         if self.memo.checkmarks || self.kind.checkmark() {
             let c = pos2(at(x, d::ICON_SIZE) + d::ICON_SIZE / 2.0, cy);
             match self.kind {
-                Kind::Radio(true) if self.radio_dot => {
+                Kind::Radio(true) if self.radio_mark == RadioMark::Dot => {
                     let r = crate::spec::defaults::radio::INDICATOR * crate::spec::defaults::radio::DOT_SCALE / 2.0;
                     ui.painter().circle_filled(c, r, color);
                 }
@@ -467,7 +468,7 @@ struct Shared<A> {
     close: bool,
     clicked: Option<A>,
     inside: Vec<Rect>,
-    radio_dot: bool,
+    radio_mark: RadioMark,
 }
 
 impl<A> Default for Shared<A> {
@@ -476,7 +477,7 @@ impl<A> Default for Shared<A> {
             close: false,
             clicked: None,
             inside: Vec::new(),
-            radio_dot: false,
+            radio_mark: RadioMark::Check,
         }
     }
 }
@@ -526,7 +527,7 @@ impl<A: ActionValue> MenuUi<'_, '_, A> {
             kind,
             memo: self.memo,
             width,
-            radio_dot: self.shared.radio_dot,
+            radio_mark: self.shared.radio_mark,
         });
         let clicked = out.changed();
         let response = out.into_response();
@@ -1015,7 +1016,7 @@ pub struct Menu {
     label: String,
     side: Side,
     align: Align,
-    radio_dot: bool,
+    radio_mark: RadioMark,
 }
 
 impl Menu {
@@ -1028,14 +1029,14 @@ impl Menu {
             label: label.into(),
             side: Side::Bottom,
             align: Align::Start,
-            radio_dot: false,
+            radio_mark: RadioMark::Check,
         }
     }
 
-    /// Checked radio items show a dot instead of v9's checkmark; default `false`. Not in Fluent
-    /// (docs/divergences.md).
-    pub fn radio_dot(mut self, radio_dot: bool) -> Self {
-        self.radio_dot = radio_dot;
+    /// Mark of checked radio items; default [`RadioMark::Check`], v9's checkmark. [`RadioMark::Dot`] is not in
+    /// Fluent (docs/divergences.md).
+    pub fn radio_mark(mut self, radio_mark: RadioMark) -> Self {
+        self.radio_mark = radio_mark;
         self
     }
 
@@ -1086,7 +1087,7 @@ impl Menu {
         let last: Option<u64> = ctx.data(|d| d.get_temp(opened_id));
         let opened = last.is_none_or(|p| p + 1 < pass);
         let mut shared = Shared {
-            radio_dot: self.radio_dot,
+            radio_mark: self.radio_mark,
             ..Shared::default()
         };
         let area = Popup::new(self.salt.child("area"), Anchor::new(self.side, self.align))

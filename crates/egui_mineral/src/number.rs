@@ -61,24 +61,9 @@ pub enum ScrubRate {
     /// Dragging across the handle's width spans the whole range, along its [`Scale`](crate::range::Scale).
     #[default]
     Extent,
-    /// Points of drag per arrow step ([`RangeModel::step_by`] unit) on a linear range; on a log range
-    /// the value doubles every `log_doubling_px` points.
-    Pixels {
-        /// Points per step, linear ranges.
-        px_per_step: f32,
-        /// Points per doubling, log ranges.
-        log_doubling_px: f32,
-    },
-}
-
-impl ScrubRate {
-    /// [`ScrubRate::Pixels`].
-    pub const fn pixels(px_per_step: f32, log_doubling_px: f32) -> Self {
-        Self::Pixels {
-            px_per_step,
-            log_doubling_px,
-        }
-    }
+    /// Points of drag per unit of the range's [`Scale`](crate::range::Scale): an arrow step
+    /// ([`RangeModel::step_by`]) on a linear range, a doubling on a log range.
+    Pixels(f32),
 }
 
 /// Pending-edit model of a numeric text field: an [`EditBuffer`] of the value (`None` is a blank field)
@@ -375,14 +360,7 @@ impl NumberPass<'_> {
                 self.edit.scrub = Some(to);
                 range.from_fraction(to)
             }
-            ScrubRate::Pixels {
-                px_per_step,
-                log_doubling_px,
-            } => {
-                let per = match range.scale_kind() {
-                    crate::range::Scale::Linear => px_per_step,
-                    crate::range::Scale::Log => log_doubling_px,
-                };
+            ScrubRate::Pixels(per) => {
                 if !(per.is_finite() && per > 0.0) {
                     crate::kit::sanitize::report(format_args!("scrub rate must be finite and > 0, got {per}"));
                     return false;
@@ -589,7 +567,7 @@ mod tests {
         let ltr = Track::horizontal_ltr();
         let linear = RangeModel::new(0.0, 100.0).step(1.0);
         let mut e = NumberEdit::new(linear, Some(10.0), fmt);
-        e.set_scrub_rate(ScrubRate::pixels(4.0, 50.0));
+        e.set_scrub_rate(ScrubRate::Pixels(4.0));
         let mut p = e.begin(linear, &NumberRef::Value(&mut 10.0), FieldFocus::Unfocused, &fmt);
         p.scrub_by(egui::vec2(2.0, 0.0), 1.0, ltr, 1.0);
         assert_eq!(p.value(), Some(11.0), "half a step rounds up on the grid");
@@ -599,7 +577,7 @@ mod tests {
         assert_eq!(p.value(), Some(20.0));
         let log = RangeModel::new(1.0, 1e6).scale(Scale::Log);
         let mut e = NumberEdit::new(log, Some(100.0), fmt);
-        e.set_scrub_rate(ScrubRate::pixels(4.0, 50.0));
+        e.set_scrub_rate(ScrubRate::Pixels(50.0));
         let mut p = e.begin(log, &NumberRef::Value(&mut 100.0), FieldFocus::Unfocused, &fmt);
         p.scrub_by(egui::vec2(100.0, 0.0), 1.0, ltr, 1.0);
         assert!((v(&p) - 400.0).abs() < 1e-9, "two doublings, got {}", v(&p));

@@ -242,7 +242,9 @@ fn number_field_scrub_reports_its_start_and_one_edit() {
         SCREEN,
         state,
         |ui, (v, starts, edits): &mut (f64, u32, Vec<EditEvent>)| {
-            let r = ui.mineral(NumberField::new("n", "Count", RangeModel::new(0.0, 10.0).step(1.0), v).scrub(true));
+            let r = ui.mineral(
+                NumberField::new("n", "Count", RangeModel::new(0.0, 10.0).step(1.0), v).scrub(ScrubRate::Extent),
+            );
             *starts += u32::from(r.output().scrub_started);
             edits.extend(r.output().edit);
         },
@@ -359,22 +361,25 @@ fn select_on_step_lets_typing_replace_the_stepped_text() {
 }
 
 #[test]
-fn number_field_scrubs_at_a_pixel_rate() {
-    let mut h = harness(SCREEN, 5.0, |ui, v: &mut f64| {
-        let range = RangeModel::new(0.0, 100.0).step(1.0);
-        ui.mineral(
-            NumberField::new("n", "Count", range, v)
-                .scrub(true)
-                .scrub_rate(ScrubRate::pixels(4.0, 50.0)),
-        );
-    });
-    let from = h.rect("n-field").center();
-    h.hover_at(from);
-    h.drag_at(from);
-    for dx in [8.0, 20.0, 40.0] {
-        h.hover_at(from + vec2(dx, 0.0));
+fn number_field_scrubs_at_a_pixel_rate_per_scale_unit() {
+    use egui_mineral::range::Scale;
+    let cases = [
+        (RangeModel::new(0.0, 100.0).step(1.0), 4.0, 5.0, 15.0),
+        (RangeModel::new(1.0, 1e6).scale(Scale::Log), 20.0, 100.0, 400.0),
+    ];
+    for (range, rate, start, expected) in cases {
+        let mut h = harness(SCREEN, start, move |ui, v: &mut f64| {
+            ui.mineral(NumberField::new("n", "Count", range, v).scrub(ScrubRate::Pixels(rate)));
+        });
+        let from = h.rect("n-field").center();
+        h.hover_at(from);
+        h.drag_at(from);
+        for dx in [8.0, 20.0, 40.0] {
+            h.hover_at(from + vec2(dx, 0.0));
+        }
+        h.drop_at(from + vec2(40.0, 0.0));
+        h.run();
+        let v = h.state().value;
+        assert!((v - expected).abs() < 1e-6, "40 points at {rate} per unit: {v}");
     }
-    h.drop_at(from + vec2(40.0, 0.0));
-    h.run();
-    assert_eq!(h.state().value, 15.0, "40 points at 4 per step");
 }

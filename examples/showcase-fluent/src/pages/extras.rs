@@ -1,9 +1,9 @@
 use egui::{Key, KeyboardShortcut, Modifiers, vec2};
+use egui_mineral_fluent::egui_mineral::tone::Tone;
 use egui_mineral_fluent::{
     actions::PushButton,
     extras::{
         BarMenu, CommandPalette, MenuBar, Pagination, PaletteCommand, SplitPane, StatusBar, StatusItem, StatusProgress,
-        StatusTone,
     },
     icons::{ICON_ARROW_DOWNLOAD, ICON_SAVE},
 };
@@ -68,7 +68,7 @@ fn status_bar(ui: &mut FluentUi<'_>) {
     StatusBar::new("status", "Status")
         .item(StatusItem::new("Indexing").progress(StatusProgress::Circular(None)))
         .item(StatusItem::new("Upload").progress(StatusProgress::Linear(Some(0.4.into()))))
-        .action("errors", StatusItem::new("2 errors").tone(StatusTone::Error))
+        .action("errors", StatusItem::new("2 errors").tone(Tone::Error))
         .trailing_action("position", "Ln 4, Col 2")
         .show(ui);
 }

@@ -22,4 +22,4 @@ pub use form_grid::{FormGrid, FormGridUi};
 pub use menu_bar::{BarMenu, MenuBar, MenuBarResponse};
 pub use pagination::Pagination;
 pub use split_pane::SplitPane;
-pub use status_bar::{StatusBar, StatusBarResponse, StatusItem, StatusProgress, StatusTone};
+pub use status_bar::{StatusBar, StatusBarResponse, StatusItem, StatusProgress};

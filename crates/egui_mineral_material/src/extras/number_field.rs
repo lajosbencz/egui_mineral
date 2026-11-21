@@ -42,8 +42,7 @@ pub struct NumberField<'a, N: Numeric = f64> {
     format: Option<Box<dyn Fn(N) -> String + 'a>>,
     disabled: bool,
     commit_on_submit: bool,
-    scrub: bool,
-    scrub_rate: ScrubRate,
+    scrub: Option<ScrubRate>,
     step_buttons: bool,
     snap_typed: bool,
     select_on_step: bool,
@@ -113,8 +112,7 @@ impl<'a, N: Numeric> NumberField<'a, N> {
             format: None,
             disabled: false,
             commit_on_submit: false,
-            scrub: false,
-            scrub_rate: ScrubRate::Extent,
+            scrub: None,
             step_buttons: true,
             snap_typed: true,
             select_on_step: false,
@@ -167,17 +165,12 @@ impl<'a, N: Numeric> NumberField<'a, N> {
         self
     }
 
-    /// Dragging the unfocused field with a mouse scrubs the value: the field width spans the range
-    /// through its scale, Shift alone is 10x finer, Ctrl (Cmd on macOS) alone 10x coarser. A click still focuses the text; touch drags scroll.
-    /// Scrubbing applies like a step in both commit modes and reports one `edit` at release.
-    pub fn scrub(mut self, scrub: bool) -> Self {
-        self.scrub = scrub;
-        self
-    }
-
-    /// How far a [`Self::scrub`] drag moves the value; default [`ScrubRate::Extent`], the field width.
-    pub fn scrub_rate(mut self, scrub_rate: ScrubRate) -> Self {
-        self.scrub_rate = scrub_rate;
+    /// Dragging the unfocused field with a mouse scrubs the value at `rate` ([`ScrubRate::Extent`]: the field
+    /// width spans the range); Shift alone is 10x finer, Ctrl (Cmd on macOS) alone 10x coarser. A click still
+    /// focuses the text; touch drags scroll. Scrubbing applies like a step in both commit modes and reports one
+    /// `edit` at release. Non-MD3.
+    pub fn scrub(mut self, rate: ScrubRate) -> Self {
+        self.scrub = Some(rate);
         self
     }
 
@@ -302,7 +295,7 @@ impl<'a, N: Numeric> NumberField<'a, N> {
     fn load_edit(&self, ctx: &Context, id: Id, before: Option<f64>, fmt: &dyn Fn(f64) -> String) -> NumberEdit {
         let mut edit = NumberEdit::load_or(ctx, id, || NumberEdit::new(self.range, before, fmt));
         edit.set_snap(self.snap_typed);
-        edit.set_scrub_rate(self.scrub_rate);
+        edit.set_scrub_rate(self.scrub.unwrap_or_default());
         edit
     }
 
@@ -357,7 +350,7 @@ impl<N: Numeric> Composite for NumberField<'_, N> {
             center,
             height,
         } = self.row_metrics(ui.density(), foot, total, gap);
-        let scrub_sense = (self.scrub && !disabled && !focused)
+        let scrub_sense = (self.scrub.is_some() && !disabled && !focused)
             .then(|| number::scrub_sense(&ui.pass_input()))
             .flatten();
         let step = |ui: &mut Ui, b: IconButton, foot: Vec2| {

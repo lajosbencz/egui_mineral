@@ -2,9 +2,7 @@ use crate::msg;
 use egui_mineral::focus::Items;
 use std::{borrow::Cow, ops::Range, sync::Arc};
 
-use egui::{
-    Color32, CursorIcon, Galley, Id, Rangef, Rect, Sense, Stroke, StrokeKind, UiBuilder, pos2, text::LayoutJob, vec2,
-};
+use egui::{CursorIcon, Galley, Id, Rangef, Rect, Sense, Stroke, StrokeKind, UiBuilder, pos2, text::LayoutJob, vec2};
 use egui_mineral::{
     focus::{self, Cell, RovingFocus, TabStop},
     i18n::{Direction, I18n},
@@ -12,7 +10,7 @@ use egui_mineral::{
     layout::{Constraints, Measure},
     select::{ItemKey, Selection, SelectionMode},
     semantic::{self, AgentKey, KeyedSalt, Role, SemanticNode, StableId},
-    table::{ColumnWidths, Rows, SortOrder, SortState, sort_order},
+    table::{ColumnWidths, RowStyle, Rows, SortOrder, SortState, sort_order},
     widget::{Availability, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
 };
 
@@ -245,7 +243,12 @@ impl MineralWidget for TableCellLayout<'_> {
         } else {
             0.0
         };
-        let (main, desc) = self.lines(ui, t.color(ColorNeutralForeground1), rect.width() - media);
+        // A row tone reaches the cell through `override_text_color`.
+        let color = ui
+            .visuals()
+            .override_text_color
+            .unwrap_or(t.color(ColorNeutralForeground1));
+        let (main, desc) = self.lines(ui, color, rect.width() - media);
         let mut x = 0.0;
         if let Some(avatar) = &self.media {
             let side = self.media_side();
@@ -264,7 +267,7 @@ impl MineralWidget for TableCellLayout<'_> {
         for g in std::iter::once(main).chain(desc) {
             let gx = dir.start_x(rect, Rangef::new(x, x + g.size().x));
             let h = g.size().y;
-            ui.painter().galley(pos2(gx, y), g, t.color(ColorNeutralForeground1));
+            ui.painter().galley(pos2(gx, y), g, color);
             y += h;
         }
         WidgetResponse::new(frame.response.clone(), ())
@@ -292,9 +295,9 @@ pub struct TableResponse<K> {
 
 struct SortKey<'a>(Box<dyn Fn(usize, SortState) -> Vec<usize> + 'a>);
 
-struct RowStyle<'a>(Box<dyn Fn(usize) -> Option<Color32> + 'a>);
+struct RowStyleFn<'a>(Box<dyn Fn(usize) -> RowStyle + 'a>);
 
-impl std::fmt::Debug for RowStyle<'_> {
+impl std::fmt::Debug for RowStyleFn<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("RowStyle")
     }
@@ -321,7 +324,7 @@ pub struct Table<'a, K> {
     selection: Option<&'a mut Selection<K>>,
     widths: Option<&'a mut ColumnWidths>,
     sort_key: Option<SortKey<'a>>,
-    row_style: Option<RowStyle<'a>>,
+    row_style: Option<RowStyleFn<'a>>,
     grid: bool,
 }
 
@@ -385,10 +388,11 @@ impl<'a, K: ItemKey> Table<'a, K> {
         self
     }
 
-    /// Background of data row `row`, e.g. for a status tint; `None` keeps the default. Selected rows keep the
-    /// selection color; hover and press paint over it. Not in Fluent (docs/divergences.md).
-    pub fn row_style(mut self, style: impl Fn(usize) -> Option<Color32> + 'a) -> Self {
-        self.row_style = Some(RowStyle(Box::new(style)));
+    /// Look of data row `row`, e.g. [`Tone::Error`](egui_mineral::tone::Tone::Error) for a failed entry: its
+    /// background, and the text color of its cells through `override_text_color`. Selected rows keep the
+    /// selection colors; hover and press paint over it. Not in Fluent (docs/divergences.md).
+    pub fn row_style(mut self, style: impl Fn(usize) -> RowStyle + 'a) -> Self {
+        self.row_style = Some(RowStyleFn(Box::new(style)));
         self
     }
 
@@ -474,7 +478,7 @@ impl<'a, K: ItemKey> DataGrid<'a, K> {
     }
 
     /// See [`Table::row_style`].
-    pub fn row_style(mut self, style: impl Fn(usize) -> Option<Color32> + 'a) -> Self {
+    pub fn row_style(mut self, style: impl Fn(usize) -> RowStyle + 'a) -> Self {
         self.0 = self.0.row_style(style);
         self
     }
@@ -884,8 +888,13 @@ fn body_row<K: ItemKey>(
     let sense = if clickable { Sense::click() } else { Sense::CLICK };
     let row = ui.interact(rect, rid, sense);
     let selected = tb.selection.as_ref().is_some_and(|s| s.is_selected(&key));
-    if !selected && let Some(c) = tb.row_style.as_ref().and_then(|f| (f.0)(data)) {
-        ui.painter().rect_filled(rect, 0.0, c);
+    let tone = tb
+        .row_style
+        .as_ref()
+        .filter(|_| !selected)
+        .and_then(|f| tokens.tone((f.0)(data).tone));
+    if let Some((container, _)) = tone {
+        ui.painter().rect_filled(rect, 0.0, container);
     }
     row_background(ui, rect, tb.appearance, selected, &row, &tokens);
     let mut clicked = clickable && row.clicked();
@@ -931,6 +940,9 @@ fn body_row<K: ItemKey>(
         // Cell content clipped to its cell.
         place(ui, crect.shrink2(vec2(d::CELL_PADDING, 0.0)), |ui| {
             ui.set_clip_rect(ui.max_rect().intersect(ui.clip_rect()));
+            if let Some((_, content)) = tone {
+                ui.visuals_mut().override_text_color = Some(content);
+            }
             cell(&mut rt.ui(ui), data, c);
         });
         x += w;

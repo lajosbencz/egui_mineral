@@ -185,6 +185,19 @@ impl Tokens {
         self.brand
     }
 
+    // Container and content of a non-default tone.
+    pub(crate) fn tone(&self, tone: egui_mineral::tone::Tone) -> Option<(Color32, Color32)> {
+        use egui_mineral::tone::Tone;
+        match tone {
+            Tone::Custom { container, content } => Some((container, content)),
+            Tone::Error => Some((
+                self.color(ColorToken::ColorPaletteRedBackground1),
+                self.color(ColorToken::ColorPaletteRedForeground1),
+            )),
+            _ => None,
+        }
+    }
+
     /// Color of `token`.
     pub fn color(&self, token: ColorToken) -> Color32 {
         // `colors` maps `ColorToken::ALL`.

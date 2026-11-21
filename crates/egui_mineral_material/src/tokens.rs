@@ -250,6 +250,21 @@ pub struct Tokens {
 }
 
 impl Tokens {
+    // Container and content of a non-default tone.
+    #[cfg(feature = "extras")]
+    pub(crate) fn tone(&self, tone: egui_mineral::tone::Tone) -> Option<(egui::Color32, egui::Color32)> {
+        use crate::spec::ColorRole;
+        use egui_mineral::tone::Tone;
+        match tone {
+            Tone::Custom { container, content } => Some((container, content)),
+            Tone::Error => Some((
+                self.role(ColorRole::ErrorContainer),
+                self.role(ColorRole::OnErrorContainer),
+            )),
+            _ => None,
+        }
+    }
+
     /// `role` in this scheme.
     pub fn role(&self, role: crate::spec::ColorRole) -> egui::Color32 {
         self.color.role(role)

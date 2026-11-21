@@ -1,6 +1,7 @@
 //! Status bar data: items a stylekit's status bar lays out with `kit::strip` and paints.
 
-use egui::{Color32, CursorIcon, Id, Pos2, Rect, Response, Sense, ViewportCommand, pos2, viewport::ResizeDirection};
+use crate::tone::Tone;
+use egui::{CursorIcon, Id, Pos2, Rect, Response, Sense, ViewportCommand, pos2, viewport::ResizeDirection};
 
 use crate::{
     i18n::Direction,
@@ -77,24 +78,6 @@ pub enum StatusLead {
     Progress(StatusProgress),
 }
 
-/// Color treatment of a [`StatusItem`]; the stylekit maps it to its roles.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
-#[non_exhaustive]
-pub enum StatusTone {
-    /// Bar container and content colors.
-    #[default]
-    Default,
-    /// Error colors.
-    Error,
-    /// App-chosen colors, e.g. a warning tone.
-    Custom {
-        /// Strip behind the item.
-        container: Color32,
-        /// Text, icon and indicator.
-        content: Color32,
-    },
-}
-
 /// Text, with an optional icon or progress indicator, in a stylekit's status bar; the bar's `action` pairs it with
 /// the value it reports when clicked.
 #[derive(Clone, Debug, PartialEq)]
@@ -103,7 +86,7 @@ pub struct StatusItem {
     text: String,
     lead: Option<StatusLead>,
     tooltip: Option<String>,
-    tone: StatusTone,
+    tone: Tone,
     elide: Option<Elide>,
     tabular: bool,
 }
@@ -115,7 +98,7 @@ impl StatusItem {
             text: text.into(),
             lead: None,
             tooltip: None,
-            tone: StatusTone::Default,
+            tone: Tone::Default,
             elide: None,
             tabular: false,
         }
@@ -139,8 +122,8 @@ impl StatusItem {
         self
     }
 
-    /// [`StatusTone`] of the item's strip; default [`StatusTone::Default`].
-    pub fn tone(mut self, tone: StatusTone) -> Self {
+    /// [`Tone`] of the item's strip; default [`Tone::Default`].
+    pub fn tone(mut self, tone: Tone) -> Self {
         self.tone = tone;
         self
     }
@@ -176,7 +159,7 @@ impl StatusItem {
     }
 
     /// Value of [`Self::tone`].
-    pub fn tone_kind(&self) -> StatusTone {
+    pub fn tone_kind(&self) -> Tone {
         self.tone
     }
 

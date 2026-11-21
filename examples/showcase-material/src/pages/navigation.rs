@@ -215,7 +215,7 @@ fn status_bar(ui: &mut MaterialUi<'_>, s: &mut State) {
             .item(
                 StatusItem::new("Build failed: a long message that elides when the window narrows")
                     .elide(Elide::End)
-                    .tone(StatusTone::Error),
+                    .tone(Tone::Error),
             )
             .trailing(StatusItem::new("UTF-8"))
             .show(ui);

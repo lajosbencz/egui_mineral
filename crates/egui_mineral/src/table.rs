@@ -3,6 +3,7 @@
 #![warn(clippy::arithmetic_side_effects)]
 
 use crate::focus::Cell;
+use crate::tone::Tone;
 
 /// Column sort direction.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
@@ -255,6 +256,27 @@ impl ColumnWidths {
     /// Sum of all widths in points.
     pub fn total(&self) -> f32 {
         self.widths.iter().sum()
+    }
+}
+
+/// Look of a data row, returned by a table's `row_style`; [`Default`] keeps the table's own.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub struct RowStyle {
+    /// Container behind the cells and color of their content; selected rows keep the selection colors.
+    pub tone: Tone,
+}
+
+impl RowStyle {
+    /// Row in `tone`.
+    pub const fn tone(tone: Tone) -> Self {
+        Self { tone }
+    }
+}
+
+impl From<Tone> for RowStyle {
+    fn from(tone: Tone) -> Self {
+        Self::tone(tone)
     }
 }
 

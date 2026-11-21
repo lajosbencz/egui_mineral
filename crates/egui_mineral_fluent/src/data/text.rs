@@ -329,7 +329,11 @@ impl MineralWidget for Text {
     fn update(&mut self, ui: &mut MineralUi<'_, Fluent>, frame: &WidgetFrame<'_>, (): &mut ()) -> WidgetResponse {
         let t = ui.tokens();
         let rect = frame.zones.visual;
-        let color = t.color(ColorToken::ColorNeutralForeground1);
+        // v9 Text sets no color: it inherits the container's, here `override_text_color`.
+        let color = ui
+            .visuals()
+            .override_text_color
+            .unwrap_or(t.color(ColorToken::ColorNeutralForeground1));
         let g = self.galley(ui, rect.width(), color);
         let x = match g.job.halign {
             Align::Min => rect.left(),

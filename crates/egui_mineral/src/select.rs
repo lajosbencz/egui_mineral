@@ -282,6 +282,16 @@ impl<K> SelectionResponse<K> {
     }
 }
 
+/// Mark of the checked item of a radio group in a menu or list; stylekits pick their spec's default.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum RadioMark {
+    /// Checkmark, as checkbox items.
+    Check,
+    /// Filled dot, as a radio button.
+    Dot,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

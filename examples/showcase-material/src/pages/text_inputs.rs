@@ -409,7 +409,7 @@ fn numbers(ui: &mut MaterialUi<'_>, s: &mut State) {
                     )
                     .supporting("Log scale, 3 significant digits; drag to scrub")
                     .format(|v| format!("{v} Hz"))
-                    .scrub(true)
+                    .scrub(egui_mineral::number::ScrubRate::Extent)
                     .preferred_width(220.0),
                 )
             });
@@ -843,7 +843,7 @@ fn inspector(ui: &mut MaterialUi<'_>, s: &mut State) {
                                     .variant(TextFieldVariant::Outlined)
                                     .label_visible(false)
                                     .step_buttons(false)
-                                    .scrub(true)
+                                    .scrub(egui_mineral::number::ScrubRate::Extent)
                                     .suffix(unit)
                                     .preferred_width(200.0),
                                 );

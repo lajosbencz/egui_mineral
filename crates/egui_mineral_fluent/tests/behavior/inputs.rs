@@ -170,12 +170,31 @@ fn optional_spin_button_clears_to_none_and_reports_clamps() {
 }
 
 #[test]
+fn spin_button_scrubs_doublings_on_a_log_range() {
+    let mut h = harness(100.0_f64, |ui, v| {
+        let range = RangeModel::new(1.0, 1e6).scale(egui_mineral::range::Scale::Log);
+        ui.mineral(SpinButton::new("s", "Freq", range, v).scrub(ScrubRate::Pixels(20.0)));
+    });
+    h.run();
+    let from = h.rect("s-spin-button").left_center() + egui::vec2(12.0, 0.0);
+    h.hover_at(from);
+    h.drag_at(from);
+    for dx in [8.0, 20.0, 40.0] {
+        h.hover_at(from + egui::vec2(dx, 0.0));
+    }
+    h.drop_at(from + egui::vec2(40.0, 0.0));
+    h.run();
+    let v = h.state().value;
+    assert!((v - 400.0).abs() < 1e-6, "two doublings: {v}");
+}
+
+#[test]
 fn spin_button_scrubs_and_selects_after_a_step() {
     let mut h = harness(5.0, |ui, v| {
         let range = RangeModel::new(0.0, 100.0).step(1.0);
         ui.mineral(
             SpinButton::new("s", "Qty", range, v)
-                .scrub(ScrubRate::pixels(4.0, 50.0))
+                .scrub(ScrubRate::Pixels(4.0))
                 .select_on_step(true),
         );
     });

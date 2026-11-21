@@ -6,7 +6,7 @@ use crate::msg;
 use egui_mineral::kit::state::TempState;
 use egui_mineral::select::ItemKey;
 use egui_mineral::semantic::KeyedSalt;
-use egui_mineral::table::Rows;
+use egui_mineral::table::{RowStyle, Rows};
 use egui_mineral::widget::MineralUi;
 use std::{borrow::Cow, cmp::Ordering, sync::Arc};
 
@@ -255,7 +255,7 @@ enum RowEvent {
 }
 
 type SortFn<'a> = Box<dyn Fn(usize, SortState) -> Vec<usize> + 'a>;
-type RowStyle<'a> = Box<dyn Fn(usize) -> Option<Color32> + 'a>;
+type RowStyleFn<'a> = Box<dyn Fn(usize) -> RowStyle + 'a>;
 
 /// Virtualized table with sorting, selection, resizable columns and paging; non-MD3 (MUI X `DataGrid` pattern).
 #[must_use = "call .show(..)"]
@@ -269,7 +269,7 @@ pub struct DataTable<'a, K> {
     max_height: Option<f32>,
     data_version: u64,
     sort_key: Option<SortFn<'a>>,
-    row_style: Option<RowStyle<'a>>,
+    row_style: Option<RowStyleFn<'a>>,
     stick_to_end: bool,
     disabled: bool,
 }
@@ -373,9 +373,9 @@ impl<'a, K: ItemKey> DataTable<'a, K> {
         self
     }
 
-    /// Container color of data row `row`, e.g. for a status tint; `None` keeps the default. Selected rows
-    /// keep the selection color; state layers paint over both.
-    pub fn row_style(mut self, style: impl Fn(usize) -> Option<Color32> + 'a) -> Self {
+    /// Look of data row `row`, e.g. [`Tone::Error`](egui_mineral::tone::Tone::Error) for a failed entry;
+    /// selected rows keep the selection colors, state layers paint over both. Non-MD3.
+    pub fn row_style(mut self, style: impl Fn(usize) -> RowStyle + 'a) -> Self {
         self.row_style = Some(Box::new(style));
         self
     }
@@ -1036,8 +1036,17 @@ impl<K: ItemKey> TableView<'_, '_, K> {
             },
             self.t,
         );
-        if !selected && let Some(c) = self.table.row_style.as_ref().and_then(|f| f(d)) {
-            col.container = c;
+        if !selected
+            && let Some((container, content)) = self.table.row_style.as_ref().and_then(|f| self.t.tone(f(d).tone))
+        {
+            col = RowColors {
+                container,
+                label: content,
+                supporting: content,
+                overline: content,
+                leading: content,
+                trailing: content,
+            };
         }
         self.paint_row(ui, rect, &col, &cells, &key, selected);
         if let Some(r) = cells.iter().cloned().reduce(|a, b| a | b) {

@@ -37,7 +37,8 @@ fn height(density: crate::adaptive::Density) -> f32 {
     density.dense_to(HEIGHT, TEXT.line_height().max(ICON) + crate::adaptive::CONTENT_PAD)
 }
 
-pub use egui_mineral::status::{StatusItem, StatusProgress, StatusTone};
+pub use egui_mineral::status::{StatusItem, StatusProgress};
+use egui_mineral::tone::Tone;
 
 // Linear indicators are fixed at 48dp wide.
 fn lead_width(lead: StatusLead) -> f32 {
@@ -66,7 +67,7 @@ pub struct StatusBar<A = NoAction> {
     label: String,
     // Item, whether it sits at the end, and the value of an action item.
     items: Vec<(StatusItem, bool, Option<A>)>,
-    tone: StatusTone,
+    tone: Tone,
     grip: bool,
 }
 
@@ -77,7 +78,7 @@ impl StatusBar {
             salt: id_salt.into(),
             label: label.into(),
             items: Vec::new(),
-            tone: StatusTone::Default,
+            tone: Tone::Default,
             grip: false,
         }
     }
@@ -90,8 +91,8 @@ impl<A: ActionValue> StatusBar<A> {
     }
 
     /// Colors of the whole bar, e.g. a debugging or offline state; items with their own tone keep it.
-    /// Default [`StatusTone::Default`].
-    pub fn tone(mut self, tone: StatusTone) -> Self {
+    /// Default [`Tone::Default`].
+    pub fn tone(mut self, tone: Tone) -> Self {
         self.tone = tone;
         self
     }
@@ -160,11 +161,7 @@ impl<A: ActionValue> StatusBar<A> {
         let size = vec2(ui.available_width(), height(ui.density()));
         let (rect, _) = ui.allocate_exact_size(size, Sense::hover());
         let response = ui.interact(rect, id, Sense::hover());
-        let (bar_container, bar_content) = match self.tone {
-            StatusTone::Custom { container, content } => (container, content),
-            StatusTone::Error => (t.role(ColorRole::ErrorContainer), t.role(ColorRole::OnErrorContainer)),
-            _ => (t.role(CONTAINER), t.role(CONTENT)),
-        };
+        let (bar_container, bar_content) = t.tone(self.tone).unwrap_or((t.role(CONTAINER), t.role(CONTENT)));
         let p = ui.painter();
         p.rect_filled(rect, 0, bar_container);
         p.hline(
@@ -173,11 +170,7 @@ impl<A: ActionValue> StatusBar<A> {
             Stroke::new(divider::THICKNESS, t.role(divider::COLOR)),
         );
 
-        let content_of = |it: &StatusItem| match it.tone_kind() {
-            StatusTone::Custom { content, .. } => content,
-            StatusTone::Error => t.role(ColorRole::OnErrorContainer),
-            _ => bar_content,
-        };
+        let content_of = |it: &StatusItem| t.tone(it.tone_kind()).map_or(bar_content, |c| c.1);
         let grip_w = if self.grip { rect.height() } else { 0.0 };
         let grip = slot(rect, dir, true, 0.0, grip_w);
         let rect = slot(rect, dir, false, 0.0, rect.width() - grip_w);
@@ -247,10 +240,10 @@ impl<A> StatusBar<A> {
         let dir = rt.i18n().direction();
         let (item, _, value) = &self.items[i];
         match item.tone_kind() {
-            StatusTone::Custom { container, .. } => {
+            Tone::Custom { container, .. } => {
                 ui.painter().rect_filled(r, 0, container);
             }
-            StatusTone::Error => {
+            Tone::Error => {
                 ui.painter().rect_filled(r, 0, t.role(ColorRole::ErrorContainer));
             }
             _ => {}

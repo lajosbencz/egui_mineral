@@ -6,7 +6,7 @@ use crate::adaptive::Density;
 use egui_mineral::i18n::I18n;
 use egui_mineral::kit::state::TempState;
 use egui_mineral::layout::Edge;
-use egui_mineral::select::ItemKey;
+use egui_mineral::select::{ItemKey, RadioMark};
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::MineralUi;
 use std::time::Duration;
@@ -318,14 +318,14 @@ impl MenuItem {
     }
 
     /// Checkbox item (`menuitemcheckbox`): a check in the toggle column, before any leading icon, while
-    /// `checked`. Activating it reports it as usual; the app flips the state. Non-MD3.
+    /// `checked`. Activating it reports it and keeps the menu open; the app flips the state. Non-MD3.
     pub fn check(mut self, checked: bool) -> Self {
         self.toggle = Some(Toggle::Check(checked));
         self
     }
 
-    /// Radio item (`menuitemradio`): a dot in the toggle column, before any leading icon, while `checked`.
-    /// Non-MD3.
+    /// Radio item (`menuitemradio`): the menu's [`RadioMark`] in the toggle column, before any leading icon,
+    /// while `checked`. Activating it reports it and keeps the menu open; the app moves the check. Non-MD3.
     pub fn radio(mut self, checked: bool) -> Self {
         self.toggle = Some(Toggle::Radio(checked));
         self
@@ -443,6 +443,7 @@ pub struct MenuResponse<A = NoAction> {
 pub(crate) struct Outcome {
     pub(crate) panel: Option<Response>,
     pub(crate) activated: Option<usize>,
+    pub(crate) keep_open: bool,
     pub(crate) fired: bool,
     pub(crate) closed: bool,
     pub(crate) dismissed: Option<Dismiss>,
@@ -501,6 +502,7 @@ pub struct Menu<A = NoAction> {
     style: MenuColors,
     emit_anchor: bool,
     pub(crate) disabled: bool,
+    radio_mark: RadioMark,
 }
 
 egui_mineral::kit::opaque_debug!(Menu<A>);
@@ -516,6 +518,7 @@ impl Menu {
             style: MenuColors::default(),
             emit_anchor: true,
             disabled: false,
+            radio_mark: RadioMark::Dot,
         }
     }
 
@@ -551,6 +554,7 @@ impl<A: ActionValue> Menu<A> {
             style: self.style,
             emit_anchor: self.emit_anchor,
             disabled: self.disabled,
+            radio_mark: self.radio_mark,
         }
     }
 
@@ -583,6 +587,12 @@ impl<A: ActionValue> Menu<A> {
     /// Alt+letter opens the menu from a `MenuStrip`.
     pub fn mnemonic(mut self, mnemonic: char) -> Self {
         self.mnemonic = Some(Mnemonic::new(mnemonic));
+        self
+    }
+
+    /// Mark of checked [`MenuItem::radio`] items; default [`RadioMark::Dot`], as a Compose `RadioButton`. Non-MD3.
+    pub fn radio_mark(mut self, radio_mark: RadioMark) -> Self {
+        self.radio_mark = radio_mark;
         self
     }
 
@@ -1075,7 +1085,7 @@ impl<A: ActionValue> Menu<A> {
             st.open = false;
             out.dismissed = Some(Dismiss::Outside);
         }
-        if out.activated.is_some() || out.fired {
+        if (out.activated.is_some() && !out.keep_open) || out.fired {
             st.open = false;
             out.closed = true;
         }
@@ -1183,6 +1193,7 @@ impl<A: ActionValue> Menu<A> {
                     in_group,
                     expanded: row.has_submenu().then_some(open_child == Some(e)),
                     toggles,
+                    radio_mark: self.radio_mark,
                 })
             })
             .inner;
@@ -1209,6 +1220,7 @@ impl<A: ActionValue> Menu<A> {
                 lr.out.fired = true;
             } else {
                 lr.out.activated = Some(index);
+                lr.out.keep_open = item.toggle.is_some();
             }
         }
         if fr.moved && resp.hovered() {
@@ -1429,6 +1441,7 @@ struct MenuRow<'a> {
     in_group: InGroup,
     expanded: Option<bool>,
     toggles: bool,
+    radio_mark: RadioMark,
 }
 
 impl MenuRow<'_> {
@@ -1517,11 +1530,11 @@ impl MineralWidget for MenuRow<'_> {
         if self.toggles {
             let c = pos2(x(off, m.icon) + m.icon / 2.0, cy);
             match item.toggle {
-                Some(Toggle::Check(true)) => common::icon(p, c, ui.icons().check, m.icon, icon),
                 // Compose RadioButton: 10dp dot in a 20dp ring, here in the 24dp icon box.
-                Some(Toggle::Radio(true)) => {
+                Some(Toggle::Radio(true)) if self.radio_mark == RadioMark::Dot => {
                     p.circle_filled(c, m.icon * 5.0 / 24.0, icon);
                 }
+                Some(Toggle::Check(true) | Toggle::Radio(true)) => common::icon(p, c, ui.icons().check, m.icon, icon),
                 _ => {}
             }
             off += m.icon + m.gap;

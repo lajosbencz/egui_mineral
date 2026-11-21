@@ -271,6 +271,8 @@ pub mod tags;
 mod test_support;
 /// Timed message queue.
 pub mod toast;
+/// Semantic color tones stylekits map to their roles.
+pub mod tone;
 /// Tree model: flattening, navigation, drag moves.
 pub mod tree;
 /// Undo and redo history.
@@ -306,9 +308,10 @@ pub mod prelude {
         select::{ItemKey, Selection, SelectionResponse},
         semantic::{KeySalt, KeyedSalt},
         shortcut::ActionId,
-        status::{StatusItem, StatusProgress, StatusTone},
+        status::{StatusItem, StatusProgress},
         steps::Steps,
         toast::ToastQueue,
+        tone::Tone,
         tree::{TreeData, TreeDataMut},
         widget::{MineralUi, SizeExt, WidgetResponse},
     };

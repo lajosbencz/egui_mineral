@@ -183,6 +183,47 @@ fn menu_toggles_take_their_own_column_beside_icons_and_shortcuts() {
     assert_eq!(h.node("menu-3-menu-item").state.checked, None);
 }
 
+#[test]
+fn menu_toggles_keep_the_menu_open_and_plain_items_close_it() {
+    let mut h = still(WIDE, (false, None), |ui, (open, clicked): &mut (bool, Option<u8>)| {
+        let anchor = ui.mineral(PushButton::new("anchor", "Open")).into_response();
+        let r = Menu::new("menu", "Menu")
+            .item(0, MenuItem::new("Wrap").check(false))
+            .item(1, MenuItem::new("Large").radio(false))
+            .item(2, MenuItem::new("Plain"))
+            .show(ui.rt(), &anchor, open);
+        *clicked = r.clicked.or(*clicked);
+    });
+    h.click("anchor-button");
+    for (key, value) in [("menu-0-menu-item", 0), ("menu-1-menu-item", 1)] {
+        h.click(key);
+        assert_eq!(h.state().value, (true, Some(value)), "{key} reports and stays open");
+    }
+    h.click("menu-2-menu-item");
+    assert_eq!(h.state().value, (false, Some(2)));
+}
+
+#[test]
+fn menu_radio_mark_paints_a_dot_or_a_check() {
+    use egui_mineral::select::RadioMark;
+    let dots = |mark: RadioMark| {
+        let mut h = still(WIDE, false, move |ui, open: &mut bool| {
+            let anchor = ui.mineral(PushButton::new("anchor", "Open")).into_response();
+            Menu::new("menu", "Menu")
+                .radio_mark(mark)
+                .item(0, MenuItem::new("Large").radio(true))
+                .show(ui.rt(), &anchor, open);
+        });
+        h.click("anchor-button");
+        h.output()
+            .shapes
+            .iter()
+            .filter(|s| matches!(&s.shape, egui::Shape::Circle(c) if (c.radius - 5.0).abs() < 0.01))
+            .count()
+    };
+    assert_eq!((dots(RadioMark::Dot), dots(RadioMark::Check)), (1, 0));
+}
+
 fn sliders(disabled: bool, range: RangeModel) -> Harness<'static, (f64, [f64; 2])> {
     let mut h = harness(SCREEN, (50.0, [20.0, 80.0]), move |ui, (value, values)| {
         ui.mineral(ValueSlider::new("one", "Volume", range, value).disabled(disabled));

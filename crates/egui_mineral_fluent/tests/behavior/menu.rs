@@ -307,14 +307,14 @@ fn menu_opened_by_a_menu_pick_survives_the_picking_press() {
 }
 
 #[test]
-fn radio_dot_marks_the_checked_radio_with_a_dot() {
-    use egui_mineral::action::NoAction;
-    let dots = |radio_dot: bool| {
+fn radio_mark_dot_marks_the_checked_radio_with_a_dot() {
+    use egui_mineral::{action::NoAction, select::RadioMark};
+    let dots = |mark: RadioMark| {
         let pass = crate::support::render(|ui| {
             let rt = ui.rt();
             let trigger = ui.mineral(PushButton::new("trig", "Open")).response().clone();
             let (mut open, mut size) = (true, 1);
-            Menu::new("m", "Size").radio_dot(radio_dot).show(
+            Menu::new("m", "Size").radio_mark(mark).show(
                 rt,
                 &trigger,
                 &mut open,
@@ -329,5 +329,5 @@ fn radio_dot_marks_the_checked_radio_with_a_dot() {
             .filter(|s| matches!(s, egui::Shape::Circle(c) if (c.radius - 5.0).abs() < 0.01))
             .count()
     };
-    assert_eq!((dots(false), dots(true)), (0, 1));
+    assert_eq!((dots(RadioMark::Check), dots(RadioMark::Dot)), (0, 1));
 }

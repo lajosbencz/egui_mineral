@@ -332,7 +332,7 @@ impl ColorPicker<'_> {
                                 ..FieldChrome::default()
                             })
                             .step_buttons(false)
-                            .scrub(true)
+                            .scrub(egui_mineral::number::ScrubRate::Extent)
                             .disabled(self.disabled)
                             .agent_key(StableId::of(&self.salt, salt))
                             .preferred_width(w),

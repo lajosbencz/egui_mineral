@@ -1,11 +1,12 @@
 use egui::{Event, ImeEvent, Key, Shape};
+use egui_mineral::tone::Tone;
 use egui_mineral::{anchor::Side, date::Date, overlay::Dismiss};
 use egui_mineral_material::{
     actions::PushButton,
     communication::RichTooltip,
     extras::{
         DateField, DescriptionItem, DescriptionList, Pagination, Popover, StatusBar, StatusItem, StatusProgress,
-        StatusTone, TextLink, Timeline, TimelineItem,
+        TextLink, Timeline, TimelineItem,
     },
     selection::{Menu, MenuItem},
 };
@@ -288,7 +289,7 @@ fn status_bar_mirrors_in_rtl() {
 }
 
 fn long_item_bar(ui: &mut crate::support::Mui<'_>, elide: bool) {
-    let item = StatusItem::new("A long log line that cannot possibly fit the narrow bar").tone(StatusTone::Error);
+    let item = StatusItem::new("A long log line that cannot possibly fit the narrow bar").tone(Tone::Error);
     StatusBar::new("status", "Status")
         .item(StatusItem::new("main"))
         .item(if elide { item.elide(Elide::End) } else { item })
@@ -316,15 +317,15 @@ fn status_item_elides_into_the_room_left_instead_of_dropping() {
 #[test]
 fn status_item_custom_tone_paints_its_strip() {
     let amber = egui::Color32::from_rgb(250, 200, 20);
-    let warning = StatusTone::Custom {
+    let warning = Tone::Custom {
         container: amber,
         content: egui::Color32::BLACK,
     };
     let pass = render(|ui| {
         StatusBar::new("status", "Status")
             .item(StatusItem::new("Low disk").tone(warning))
-            .item(StatusItem::new("Failed").tone(StatusTone::Error))
-            .item(StatusItem::new("Plain").tone(StatusTone::Error).tone(warning))
+            .item(StatusItem::new("Failed").tone(Tone::Error))
+            .item(StatusItem::new("Plain").tone(Tone::Error).tone(warning))
             .show(ui);
     });
     let strip = |c: egui::Color32| {
@@ -539,7 +540,7 @@ fn status_bar_tone_and_grip() {
     const TINT: egui::Color32 = egui::Color32::from_rgb(10, 90, 200);
     let mut h = harness(egui::vec2(340.0, 100.0), (), |ui, ()| {
         StatusBar::new("status", "Status")
-            .tone(StatusTone::Custom {
+            .tone(Tone::Custom {
                 container: TINT,
                 content: egui::Color32::WHITE,
             })
@@ -566,7 +567,7 @@ fn status_bar_tone_and_grip() {
     h.drop_at(corner);
     let pass = crate::support::render_on(egui::vec2(340.0, 100.0), |ui| {
         StatusBar::new("status", "Status")
-            .tone(StatusTone::Custom {
+            .tone(Tone::Custom {
                 container: TINT,
                 content: egui::Color32::WHITE,
             })

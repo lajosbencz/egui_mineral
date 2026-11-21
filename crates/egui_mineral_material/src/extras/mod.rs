@@ -72,7 +72,7 @@ pub use reorderable_list::{ReorderableList, ReorderableListResponse};
 pub use setting_row::{SettingRow, SettingRowResponse};
 pub use skeleton::{Skeleton, SkeletonShape};
 pub use split_pane::SplitPane;
-pub use status_bar::{StatusBar, StatusBarResponse, StatusItem, StatusProgress, StatusTone};
+pub use status_bar::{StatusBar, StatusBarResponse, StatusItem, StatusProgress};
 pub use stepper::{StepLabel, Stepper};
 pub use tags::{TagsField, TagsFieldOutput};
 pub use tour::{Tour, TourResponse, TourStep};

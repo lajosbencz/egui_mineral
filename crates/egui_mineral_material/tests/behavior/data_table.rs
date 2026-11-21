@@ -177,19 +177,38 @@ fn resize_handle_sets_the_column_width() {
 }
 
 #[test]
-fn row_style_tints_the_row_container() {
-    const TINT: egui::Color32 = egui::Color32::from_rgb(200, 10, 10);
+fn row_style_tones_the_row_container_and_its_text() {
+    use egui_mineral::{table::RowStyle, tone::Tone};
+    use egui_mineral_material::spec::ColorRole;
     let pass = crate::support::render(|ui| {
         DataTable::<usize>::new("tbl", "Names", [TableColumn::new("Name")])
-            .row_style(|r| (r == 2).then_some(TINT))
+            .row_style(|r| {
+                if r == 2 {
+                    Tone::Error.into()
+                } else {
+                    RowStyle::default()
+                }
+            })
             .show(ui, NAMES.len(), |r, _| TableCell::from(NAMES[r]));
     });
+    let (container, content) = (
+        pass.color(ColorRole::ErrorContainer),
+        pass.color(ColorRole::OnErrorContainer),
+    );
     let tinted = pass
         .shapes
         .iter()
-        .filter(|s| matches!(&s.shape, egui::Shape::Rect(r) if r.fill == TINT))
+        .filter(|s| matches!(&s.shape, egui::Shape::Rect(r) if r.fill == container))
         .count();
     assert_eq!(tinted, 1);
+    let ink = |text: &str| {
+        pass.shapes.iter().find_map(|s| match &s.shape {
+            egui::Shape::Text(t) if t.galley.text() == text => t.galley.job.sections.first().map(|s| s.format.color),
+            _ => None,
+        })
+    };
+    assert_eq!(ink(NAMES[2]), Some(content), "the tone reaches the cell text");
+    assert_ne!(ink(NAMES[0]), Some(content));
 }
 
 #[test]
