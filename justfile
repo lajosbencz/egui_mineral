@@ -20,6 +20,10 @@ zizmor_version := "1.32.0"
 ast_grep_version := "0.51.2"
 dx_version := "0.7.10"
 trunk_version := "0.22.1"
+
+# Stylekit features that only forward a core feature
+forwarded_features := "platform-pickers,platform-clipboard,platform-notify,platform-native,web-save-stream,spawn-tokio,spawn-wasm"
+
 # Release asset digests of the downloaded binaries, CI only.
 ast_grep_sha256 := "40604c21c38d4c7581c56bdddeef277c56bf3c0113620aa96e78ae87e82366df"
 actionlint_version := "1.7.12"
@@ -67,9 +71,12 @@ fmt:
 
 # Every feature alone, the default set and none, per published crate, native and wasm32; the all-features line covers `unstable-hotpatch` (native only, never in the matrix)
 clippy:
-    for c in egui_mineral egui_mineral_material egui_mineral_fluent; do \
-        cargo hack clippy -p "$c" --each-feature --exclude-features unstable-hotpatch --all-targets -- -D warnings; \
-        cargo hack clippy -p "$c" --each-feature --exclude-features unstable-hotpatch --target wasm32-unknown-unknown -- -D warnings; \
+    cargo hack clippy -p egui_mineral --each-feature --exclude-features unstable-hotpatch --all-targets -- -D warnings
+    cargo hack clippy -p egui_mineral --each-feature --exclude-features unstable-hotpatch --target wasm32-unknown-unknown -- -D warnings
+    # Pure core forwarders, covered by the core legs
+    for c in egui_mineral_material egui_mineral_fluent; do \
+        cargo hack clippy -p "$c" --each-feature --exclude-features {{ forwarded_features }} --all-targets -- -D warnings; \
+        cargo hack clippy -p "$c" --each-feature --exclude-features {{ forwarded_features }} --target wasm32-unknown-unknown -- -D warnings; \
     done
     # eframe needs a renderer, and winit a Linux windowing backend
     cargo hack clippy -p egui_mineral_eframe --feature-powerset --at-least-one-of glow,wgpu --at-least-one-of wayland,x11 --all-targets -- -D warnings

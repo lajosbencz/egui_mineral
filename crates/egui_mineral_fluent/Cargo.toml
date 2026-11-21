@@ -20,7 +20,7 @@ targets = ["x86_64-unknown-linux-gnu", "wasm32-unknown-unknown"]
 
 [features]
 default = ["icu", "persist-fs", "persist-toml", "bundled-icons", "extras"]
-# Fluent UI System Icons resizable font (1.6 MB); without it use `Fluent::with_icon_font`.
+# Fluent UI System Icons resizable font (1.6 MB); without it use `Fluent::from_icon_fonts`.
 bundled-icons = []
 # `egui_mineral/icu`: ICU4X locale formatting.
 icu = ["egui_mineral/icu"]
@@ -30,6 +30,20 @@ persist-json = ["egui_mineral/persist-json"]
 persist-toml = ["egui_mineral/persist-toml"]
 # `egui_mineral/persist-fs`: file-backed persistence.
 persist-fs = ["egui_mineral/persist-fs"]
+# `egui_mineral/platform-pickers`: file dialogs.
+platform-pickers = ["egui_mineral/platform-pickers"]
+# `egui_mineral/platform-clipboard`: OS clipboard.
+platform-clipboard = ["egui_mineral/platform-clipboard"]
+# `egui_mineral/platform-notify`: OS notifications.
+platform-notify = ["egui_mineral/platform-notify"]
+# `egui_mineral/platform-native`: pickers, clipboard and notifications.
+platform-native = ["egui_mineral/platform-native"]
+# `egui_mineral/web-save-stream`: streamed browser saves.
+web-save-stream = ["egui_mineral/web-save-stream"]
+# `egui_mineral/spawn-tokio`: `TokioSpawner`, native only.
+spawn-tokio = ["egui_mineral/spawn-tokio"]
+# `egui_mineral/spawn-wasm`: `WasmSpawner`, wasm32 only.
+spawn-wasm = ["egui_mineral/spawn-wasm"]
 # Components beyond Fluent UI React v9 (`extras` module).
 extras = []
 # Component provenance: `catalog` module. Unstable: outside semver.
