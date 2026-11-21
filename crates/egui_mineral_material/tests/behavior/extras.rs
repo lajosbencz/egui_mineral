@@ -462,3 +462,34 @@ fn status_item_with_tabular_figures_keeps_its_text_and_place() {
     assert_eq!(plain.min, tabular.min);
     assert!(tabular.width() >= plain.width());
 }
+
+#[test]
+fn form_grid_aligns_controls_past_the_widest_label() {
+    use egui_mineral_material::{extras::FormGrid, text_inputs::TextField};
+    let mut h = harness(
+        SCREEN,
+        (String::new(), String::new()),
+        |ui, (a, b): &mut (String, String)| {
+            FormGrid::new("g").show(ui, |g| {
+                g.section("conn", "Connection");
+                g.row("Host", |ui, label| {
+                    ui.mineral(TextField::new("host", label, a).label_visible(false))
+                });
+                g.row("Database name", |ui, label| {
+                    ui.mineral(TextField::new("db", label, b).label_visible(false))
+                });
+                g.full(|ui| ui.mineral(PushButton::new("save", "Save")));
+            });
+        },
+    );
+    h.run();
+    let (host, db) = (h.rect("host-field"), h.rect("db-field"));
+    assert_eq!(host.left(), db.left(), "one control column");
+    assert!(host.left() > h.rect("g-conn").left() + 100.0, "past the widest label");
+    assert!(
+        h.rect("save-button").left() < host.left(),
+        "full rows start at the edge"
+    );
+    assert_eq!(h.node("g-conn").role, egui_mineral::semantic::Role::Heading);
+    assert_eq!(h.node("db-field").name, "Database name", "the label names the control");
+}

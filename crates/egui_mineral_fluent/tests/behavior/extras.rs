@@ -1,7 +1,8 @@
 use egui::Key;
 use egui_mineral_fluent::actions::PushButton;
 use egui_mineral_fluent::extras::{
-    BarMenu, CommandPalette, MenuBar, Pagination, PaletteCommand, SplitPane, StatusBar, StatusItem, StatusProgress,
+    BarMenu, CommandPalette, FormGrid, MenuBar, Pagination, PaletteCommand, SplitPane, StatusBar, StatusItem,
+    StatusProgress,
 };
 
 use crate::support::{FluentHarness, FluentUi, harness};
@@ -258,4 +259,33 @@ fn command_palette_exposes_semantics_and_escape_dismisses() {
     h.press(Key::Escape);
     assert!(!h.state().value.0, "Escape closes");
     assert!(h.state().value.2.is_some());
+}
+
+#[test]
+fn form_grid_aligns_controls_past_the_widest_label() {
+    let mut h = harness((String::new(), String::new()), |ui, (a, b)| {
+        FormGrid::new("g").show(ui, |g| {
+            g.section("conn", "Connection");
+            g.field(
+                egui_mineral_fluent::inputs::Field::new("host").label("Host"),
+                |ui, _| ui.mineral(egui_mineral_fluent::inputs::Input::new("host", "Host", a)),
+            );
+            g.field(
+                egui_mineral_fluent::inputs::Field::new("db")
+                    .label("Database name")
+                    .required(true),
+                |ui, _| ui.mineral(egui_mineral_fluent::inputs::Input::new("db", "Database name", b)),
+            );
+            g.full(|ui| ui.mineral(PushButton::new("save", "Save")));
+        });
+    });
+    h.run();
+    let (host, db) = (h.rect("host-input"), h.rect("db-input"));
+    assert_eq!(host.left(), db.left(), "one control column");
+    assert!(host.left() > h.rect("db-label").right(), "past the widest label");
+    assert!(
+        h.rect("save-button").left() < h.rect("host-label").left() + 1.0,
+        "full rows start at the edge"
+    );
+    assert_eq!(h.node("g-conn").role, egui_mineral::semantic::Role::Heading);
 }

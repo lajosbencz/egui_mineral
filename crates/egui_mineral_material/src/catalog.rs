@@ -627,6 +627,13 @@ mod extras {
     );
 
     meta!(
+        FormGrid,
+        Extras,
+        Origin::Other(&[Kit::Ant, Kit::AppleHig]),
+        "https://ant.design/components/form"
+    );
+
+    meta!(
         SettingRow,
         Extras,
         Origin::Other(&[Kit::Fluent, Kit::Ant, Kit::AppleHig]),
@@ -919,6 +926,8 @@ pub const CATALOG: &[ComponentMeta] = &[
     <TransferList<'static, usize>>::META,
     #[cfg(feature = "extras")]
     <InlineEdit<'static>>::META,
+    #[cfg(feature = "extras")]
+    FormGrid::META,
     #[cfg(feature = "extras")]
     SettingRow::META,
     #[cfg(feature = "extras")]

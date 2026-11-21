@@ -11,12 +11,14 @@
 )]
 
 pub(crate) mod command_palette;
+pub(crate) mod form_grid;
 pub(crate) mod menu_bar;
 pub(crate) mod pagination;
 pub(crate) mod split_pane;
 pub(crate) mod status_bar;
 
 pub use command_palette::{CommandPalette, CommandPaletteResponse, PaletteCommand};
+pub use form_grid::{FormGrid, FormGridUi};
 pub use menu_bar::{BarMenu, MenuBar, MenuBarResponse};
 pub use pagination::Pagination;
 pub use split_pane::SplitPane;

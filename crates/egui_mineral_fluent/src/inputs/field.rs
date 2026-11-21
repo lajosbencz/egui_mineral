@@ -174,6 +174,27 @@ impl Field {
         }
     }
 
+    fn field_label(&self, text: &str) -> FieldLabel {
+        FieldLabel::new(self.salt.child("label"), text)
+            .agent_key(StableId::of(&self.salt, "label"))
+            .size(self.size)
+            .required(self.required)
+            .disabled(self.disabled)
+    }
+
+    // Unwrapped label width, required mark included; 0 without a label.
+    #[cfg(feature = "extras")]
+    pub(crate) fn label_natural_width(&self, ui: &MineralUi<'_, Fluent>) -> f32 {
+        self.label
+            .as_deref()
+            .map_or(0.0, |l| self.field_label(l).natural_width(ui))
+    }
+
+    // `label_width` whose label column is `natural` wide.
+    pub(crate) fn label_share(ui: &MineralUi<'_, Fluent>, natural: f32) -> f32 {
+        natural + g::SPACING_HORIZONTAL_M + ui.spacing().item_spacing.x
+    }
+
     fn show_label(&self, ui: &mut MineralUi<'_, Fluent>, text: &str) {
         let (above, below) = self.label_padding();
         let extra = match self.orientation {
@@ -182,13 +203,7 @@ impl Field {
             Axis::Horizontal => 0.0,
         };
         ui.add_space(above);
-        ui.mineral(
-            FieldLabel::new(self.salt.child("label"), text)
-                .agent_key(StableId::of(&self.salt, "label"))
-                .size(self.size)
-                .required(self.required)
-                .disabled(self.disabled),
-        );
+        ui.mineral(self.field_label(text));
         ui.add_space(below + extra);
     }
 
@@ -280,7 +295,7 @@ impl Field {
                         .clamp(0.0, total);
                     ui.scope_builder(UiBuilder::new().layout(dir.row().with_cross_align(Align::Min)), |ui| {
                         if let Some(label) = &self.label {
-                            let column = (share - g::SPACING_HORIZONTAL_M - ui.spacing().item_spacing.x).max(0.0);
+                            let column = (share - Self::label_share(&rt.ui(ui), 0.0)).max(0.0);
                             ui.allocate_ui_with_layout(vec2(column, 0.0), dir.column(), |ui| {
                                 ui.set_min_width(column);
                                 self.show_label(&mut rt.ui(ui), label);

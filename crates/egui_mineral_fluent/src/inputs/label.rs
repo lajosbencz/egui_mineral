@@ -117,6 +117,13 @@ impl FieldLabel {
     }
 }
 
+#[cfg(feature = "extras")]
+impl FieldLabel {
+    pub(crate) fn natural_width(&self, ui: &MineralUi<'_, Fluent>) -> f32 {
+        ui.painter().layout_job(self.job(ui, None)).size().x
+    }
+}
+
 impl MineralWidget for FieldLabel {
     type Kit = Fluent;
     type State = ();

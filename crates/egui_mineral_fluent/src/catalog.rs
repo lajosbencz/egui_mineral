@@ -741,6 +741,7 @@ mod extras {
     use super::{Category, Component, ComponentMeta, Origin};
     use crate::prelude::*;
 
+    other!(FormGrid, "Two-column form: label column, sections, full-width rows");
     other!(SplitPane, "Desktop splitter: resizable panes");
     other!(StatusBar, "Desktop status bar");
     other!(MenuBar<'a>, "Desktop menu bar");
@@ -855,6 +856,8 @@ pub const CATALOG: &[ComponentMeta] = &[
     TreeItem::META,
     TreeItemLayout::META,
     TreeItemPersonaLayout::META,
+    #[cfg(feature = "extras")]
+    FormGrid::META,
     #[cfg(feature = "extras")]
     SplitPane::META,
     #[cfg(feature = "extras")]
