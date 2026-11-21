@@ -290,7 +290,7 @@ pub struct TableResponse<K> {
     pub activated: Option<K>,
     /// Shown rows top to bottom: key and the row response, joined with its selection checkbox and grid
     /// cells, e.g. for `context_menu` or `on_hover_text`.
-    pub rows: Vec<(K, egui::Response)>,
+    pub rows: egui_mineral::action::ItemResponses<K, egui::Response>,
 }
 
 struct SortKey<'a>(Box<dyn Fn(usize, SortState) -> Vec<usize> + 'a>);
@@ -754,7 +754,7 @@ fn run<K: ItemKey>(
         response,
         changed,
         activated: ev.activated,
-        rows: ev.rows,
+        rows: ev.rows.into_iter().collect(),
     }
 }
 

@@ -236,7 +236,7 @@ pub struct DataTableResponse<K> {
     pub page_changed: bool,
     /// Shown rows top to bottom: key and the union of the row's cell responses, e.g. for
     /// `context_menu` or `on_hover_text`.
-    pub rows: Vec<(K, egui::Response)>,
+    pub rows: egui_mineral::action::ItemResponses<K, egui::Response>,
 }
 
 #[derive(Default)]
@@ -682,7 +682,7 @@ impl<'a, K: ItemKey> DataTable<'a, K> {
         }
         let page_ids = order.get(page).unwrap_or_default();
         self.apply_row_events(&pass, keys, page_ids, &order, &mut out);
-        out.rows = std::mem::take(&mut pass.rows);
+        out.rows = std::mem::take(&mut pass.rows).into_iter().collect();
 
         if let Some(paging) = st.paging.as_mut() {
             out.page_changed = self.footer(ui, rt, row_h, &t, paging);
