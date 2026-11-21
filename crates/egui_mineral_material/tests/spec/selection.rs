@@ -12,7 +12,7 @@ use egui_mineral_material::{
     },
 };
 
-use crate::support::{WIDE, min_interactive, render, render_on};
+use crate::support::{WIDE, min_interactive, render, render_on, render_shaped};
 
 fn near(a: f32, b: f32) -> bool {
     (a - b).abs() < 0.01
@@ -214,4 +214,23 @@ fn slider_value_field_shares_the_value_and_the_name() {
             .iter()
             .all(|s| !matches!(&s.shape, egui::Shape::Text(t) if t.galley.text() == "Opacity"))
     );
+}
+
+#[test]
+fn checkbox_box_radius_follows_the_extra_small_shape() {
+    use egui_mineral_material::spec::{defaults::checkbox as cbx, tokens::checkbox};
+    let radius = |extra_small: u8| {
+        let mut on = true;
+        let p = render_shaped(
+            move |s| s.extra_small = extra_small,
+            |ui| {
+                ui.mineral(CheckButton::new("cb", "Check", &mut on));
+            },
+        );
+        p.corners(checkbox::SELECTED_CONTAINER_COLOR)
+    };
+    let spec = egui::CornerRadius::from(cbx::RADIUS);
+    assert_eq!(radius(4), vec![spec], "the default scale paints the spec");
+    assert_eq!(radius(8), vec![egui::CornerRadius::from(cbx::RADIUS * 2.0)]);
+    assert_eq!(radius(0), vec![egui::CornerRadius::ZERO]);
 }

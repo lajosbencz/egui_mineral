@@ -329,6 +329,16 @@ impl Pass {
             .collect()
     }
 
+    pub(crate) fn corners(&self, role: ColorRole) -> Vec<egui::CornerRadius> {
+        let fill = self.color(role);
+        self.shapes()
+            .filter_map(|s| match s {
+                Shape::Rect(r) if r.fill == fill => Some(r.corner_radius),
+                _ => None,
+            })
+            .collect()
+    }
+
     pub(crate) fn one(&self, role: ColorRole) -> Rect {
         let rects = self.filled(role);
         assert_eq!(rects.len(), 1, "one {role:?} container in {rects:?}");
@@ -451,6 +461,25 @@ pub(crate) fn render(add: impl FnMut(&mut Mui<'_>)) -> Pass {
 
 pub(crate) fn render_on(size: Vec2, mut add: impl FnMut(&mut Mui<'_>)) -> Pass {
     inspect(size, reduced_motion(), |ui| {
+        add(ui);
+        None
+    })
+}
+
+// Shape tokens edited by `edit` in both brightnesses.
+pub(crate) fn render_shaped(
+    edit: impl Fn(&mut egui_mineral_material::theme::Shape) + 'static,
+    mut add: impl FnMut(&mut Mui<'_>),
+) -> Pass {
+    let setup = Box::new(move |rt: &Rt| {
+        rt.core().motion().set_reduced(true);
+        for theme in [egui::Theme::Light, egui::Theme::Dark] {
+            let mut t = (*rt.kit().tokens(theme)).clone();
+            edit(&mut t.shape);
+            rt.kit().set_tokens(rt.ctx(), t);
+        }
+    });
+    inspect(SCREEN, setup, |ui| {
         add(ui);
         None
     })

@@ -19,7 +19,7 @@ use egui_mineral_material::{
     },
 };
 
-use crate::support::{SCREEN, min_interactive, render, render_directed};
+use crate::support::{SCREEN, min_interactive, render, render_directed, render_shaped};
 
 #[test]
 fn top_app_bars_take_their_container_heights() {
@@ -157,4 +157,28 @@ fn paired_fab_grows_as_the_toolbar_collapses() {
         let bars = p.filled(ColorRole::SurfaceContainer);
         assert_eq!(bars.len(), usize::from(expanded), "a collapsed toolbar is hidden");
     }
+}
+
+#[test]
+fn tab_indicator_radius_follows_the_extra_small_shape() {
+    let corners = |extra_small: u8| {
+        let mut sel = 0;
+        let p = render_shaped(
+            move |s| s.extra_small = extra_small,
+            |ui| {
+                Tabs::new("t", "Tabs", &mut sel).item(0, Tab::new("A")).show(ui);
+            },
+        );
+        p.corners(primary_navigation_tab::ACTIVE_INDICATOR_COLOR)
+    };
+    let spec = primary_navigation_tab::ACTIVE_INDICATOR_SHAPE;
+    let doubled = egui::CornerRadius {
+        nw: spec.nw * 2,
+        ne: spec.ne * 2,
+        sw: spec.sw * 2,
+        se: spec.se * 2,
+    };
+    assert!(corners(4).contains(&spec), "{:?}", corners(4));
+    assert!(corners(8).contains(&doubled), "{:?}", corners(8));
+    assert!(corners(0).contains(&egui::CornerRadius::ZERO), "{:?}", corners(0));
 }
