@@ -612,6 +612,18 @@ impl<A: ActionValue> Menu<A> {
         items.into_iter().fold(self.widen(), |m, (v, i)| m.push(v, i))
     }
 
+    /// Appends `(value, item)` pairs as radio items ([`MenuItem::radio`]), checked where `value == current`;
+    /// a click reports its value, which the app stores as the next `current`.
+    pub fn radios<B: ItemKey>(self, current: &B, items: impl IntoIterator<Item = (B, impl Into<MenuItem>)>) -> Menu<B>
+    where
+        A: Widen<B>,
+    {
+        items.into_iter().fold(self.widen(), |m, (v, i)| {
+            let checked = v == *current;
+            m.push(v, i.into().radio(checked))
+        })
+    }
+
     /// Appends `item` opening a nested menu; `build` fills an empty menu of the same values. `value` identifies the
     /// parent row, which does not activate.
     pub fn submenu<B: ItemKey>(

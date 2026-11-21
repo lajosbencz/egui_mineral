@@ -204,6 +204,30 @@ fn menu_toggles_keep_the_menu_open_and_plain_items_close_it() {
 }
 
 #[test]
+fn menu_radios_check_the_current_value_and_report_the_click() {
+    let mut h = still(WIDE, (false, 2u8), |ui, (open, size): &mut (bool, u8)| {
+        let anchor = ui.mineral(PushButton::new("anchor", "Open")).into_response();
+        let r = Menu::new("menu", "Menu")
+            .item(0, MenuItem::new("Wrap").check(false))
+            .group_label("Size")
+            .radios(&*size, [(1, "Small"), (2, "Large")])
+            .show(ui.rt(), &anchor, open);
+        if let Some(v @ 1..=2) = r.clicked {
+            *size = v;
+        }
+    });
+    h.click("anchor-button");
+    let checked = |h: &Harness<'_, (bool, u8)>, key| h.node(key).state.checked;
+    assert_eq!(h.node("menu-1-menu-item").role, egui::accesskit::Role::MenuItemRadio);
+    assert_eq!(checked(&h, "menu-1-menu-item"), Some(false.into()));
+    assert_eq!(checked(&h, "menu-2-menu-item"), Some(true.into()));
+    h.click("menu-1-menu-item");
+    assert_eq!(h.state().value, (true, 1), "stays open, moves the check");
+    assert_eq!(checked(&h, "menu-1-menu-item"), Some(true.into()));
+    assert_eq!(checked(&h, "menu-2-menu-item"), Some(false.into()));
+}
+
+#[test]
 fn menu_radio_mark_paints_a_dot_or_a_check() {
     use egui_mineral::select::RadioMark;
     let dots = |mark: RadioMark| {
