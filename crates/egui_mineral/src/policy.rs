@@ -34,7 +34,7 @@ pub struct Policies {
     pub mnemonics: bool,
     /// Hover cursors.
     pub cursors: Cursors,
-    /// Notched-wheel distance and acceleration; applied by [`Runtime::before_pass`](crate::runtime::Runtime::before_pass).
+    /// Notched-wheel distance and acceleration; the runtime sets egui's `line_scroll_speed` from it each pass.
     pub wheel: crate::input::WheelScroll,
 }
 

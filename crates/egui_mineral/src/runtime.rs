@@ -28,6 +28,7 @@ use crate::{
     icon::Icon,
     input::claim::Relay,
     input::{InputAdapter, InputContext, UnifiedInputEvent},
+    input::{WheelRate, WheelScroll},
     motion::Motion,
     policy::Policies,
     semantic::{self, SemanticTree},
@@ -136,6 +137,8 @@ impl PassState {
 struct Passes {
     ctx: Context,
     map: Mutex<ViewportIdMap<PassState>>,
+    wheel: WheelScroll,
+    rate: Mutex<WheelRate>,
 }
 
 impl Passes {
@@ -161,6 +164,12 @@ impl Passes {
         });
     }
 
+    // Before egui scales this pass's wheel deltas; `options_mut` runs outside every lock of `self`.
+    fn scroll(&self, raw: &RawInput) {
+        let speed = self.rate.lock().line_speed(&self.wheel, raw);
+        self.ctx.options_mut(|o| o.input_options.line_scroll_speed = speed);
+    }
+
     fn inject(&self, raw: &mut RawInput) {
         // `raw` carries the rect only when it changed; otherwise the previous pass's applies.
         let screen = raw
@@ -176,13 +185,13 @@ impl Passes {
 }
 
 #[derive(Default)]
-struct AgentPlugin {
+struct RuntimePlugin {
     runtimes: Vec<Weak<Passes>>,
 }
 
-impl egui::Plugin for AgentPlugin {
+impl egui::Plugin for RuntimePlugin {
     fn debug_name(&self) -> &'static str {
-        "egui_mineral::agent"
+        "egui_mineral::runtime"
     }
 
     fn input_hook(&mut self, _ctx: &Context, raw: &mut RawInput) {
@@ -190,6 +199,7 @@ impl egui::Plugin for AgentPlugin {
         for passes in self.runtimes.iter().filter_map(Weak::upgrade) {
             passes.prune(raw);
             passes.inject(raw);
+            passes.scroll(raw);
         }
     }
 }
@@ -286,7 +296,6 @@ pub struct Core {
     input_history: AtomicUsize,
     preference: Mutex<ThemePreference>,
     global_style: Mutex<GlobalStyle>,
-    wheel: Mutex<crate::input::WheelRate>,
 }
 
 crate::kit::opaque_debug!(Core);
@@ -413,11 +422,15 @@ impl<K: Stylekit> Runtime<K> {
         for catalog in kit.catalogs() {
             i18n.add_resource(catalog)?;
         }
+        let mut policies = kit.policies(ctx).sanitized();
+        policies.wheel = policies.wheel.resolved();
         let passes = Arc::new(Passes {
             ctx: ctx.clone(),
             map: Mutex::default(),
+            wheel: policies.wheel,
+            rate: Mutex::default(),
         });
-        ctx.plugin_or_default::<AgentPlugin>()
+        ctx.plugin_or_default::<RuntimePlugin>()
             .lock()
             .runtimes
             .push(Arc::downgrade(&passes));
@@ -425,18 +438,13 @@ impl<K: Stylekit> Runtime<K> {
             id: NEXT_ID.fetch_add(1, Ordering::Relaxed),
             ctx: ctx.clone(),
             i18n,
-            policies: {
-                let mut p = kit.policies(ctx).sanitized();
-                p.wheel = p.wheel.resolved();
-                p
-            },
+            policies,
             motion: Motion::default(),
             passes,
             collect_semantics: AtomicBool::new(false),
             input_history: AtomicUsize::new(0),
             preference: Mutex::new(ThemePreference::System),
             global_style: Mutex::new(GlobalStyle::Egui),
-            wheel: Mutex::default(),
         };
         Ok(Arc::new(Self {
             core,
@@ -447,13 +455,6 @@ impl<K: Stylekit> Runtime<K> {
 }
 
 impl<K> Runtime<K> {
-    /// Applies [`Policies::wheel`] to egui's `line_scroll_speed` for the pass of `raw`; call with each pass's
-    /// input before egui runs it (`egui_mineral_eframe` does, from `raw_input_hook`).
-    pub fn before_pass(&self, raw: &RawInput) {
-        let speed = self.core.wheel.lock().line_speed(&self.core.policies.wheel, raw);
-        self.core.ctx.options_mut(|o| o.input_options.line_scroll_speed = speed);
-    }
-
     /// Wraps a plain `Ui` inside egui closures that hand one out: `Frame::show(ui, |ui| { let ui = &mut rt.ui(ui); .. })`.
     /// The layout methods of [`MineralUi`] (`horizontal`, `scope`, ..) need no wrap.
     /// Root `Ui`s (area, window) get the kit's style.
@@ -821,5 +822,15 @@ mod tests {
         assert!(rt.core.passes.lock().contains_key(&child));
         run(&ctx, raw(ViewportId::ROOT, &live[..1]), |ui| rt.pass(ui, |_| {}));
         assert!(!rt.core.passes.lock().contains_key(&child));
+    }
+
+    #[test]
+    fn runtime_sets_wheel_line_speed_without_integration_hooks() {
+        let ctx = ctx();
+        let mut policies = crate::test_support::policies();
+        policies.wheel.lines_per_notch = Some(5.0);
+        let rt = crate::test_support::runtime_with(&ctx, policies);
+        run(&ctx, crate::test_support::at(0.0, vec![]), |ui| rt.pass(ui, |_| {}));
+        assert_eq!(ctx.options(|o| o.input_options.line_scroll_speed), 100.0);
     }
 }
