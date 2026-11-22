@@ -100,7 +100,8 @@ pub enum GlobalStyle {
     Egui,
     /// Each outermost pass writes [`Runtime::style`] into egui's style of the shown theme when it differs, and
     /// the runtime's preference into egui's, which syncs the native window theme (`Options::sync_window_theme`,
-    /// on by default) per viewport, also on an OS flip under `System`. Nested passes never write. Leaving
+    /// on by default) per viewport, also on an OS flip under `System`; under a [`Core::set_system_theme`]
+    /// override egui gets the resolved theme. Nested passes never write. Leaving
     /// `Kit` restores nothing. Runtimes sharing a `Context` should not all use `Kit`.
     Kit,
 }
@@ -542,7 +543,11 @@ impl<K> Runtime<K> {
         if !Arc::ptr_eq(&current, style) && *current != **style {
             ctx.set_style_of(theme, Arc::clone(style));
         }
-        let preference = core.preference();
+        // egui resolves `System` from raw input only; an override has to reach it resolved.
+        let preference = match core.preference() {
+            ThemePreference::System if core.system_theme.lock().is_some() => theme.into(),
+            p => p,
+        };
         if ctx.options(|o| o.theme_preference) != preference {
             ctx.set_theme(preference);
         }
@@ -779,6 +784,22 @@ mod tests {
         let out = pass_once(&ctx, &rt);
         assert_eq!(themes_sent(&out), [egui::SystemTheme::Light]);
         assert_eq!(ctx.style_of(Theme::Light).spacing.item_spacing.x, 37.0);
+    }
+
+    #[test]
+    fn kit_global_style_hands_egui_the_system_theme_override() {
+        let ctx = ctx();
+        let rt = styled(&ctx);
+        rt.core().set_global_style(GlobalStyle::Kit);
+        rt.core().set_system_theme(Some(Theme::Dark));
+        let mut raw = input(vec![]);
+        raw.system_theme = Some(Theme::Light);
+        run(&ctx, raw, |ui| rt.pass(ui, |_| {}));
+        assert_eq!(ctx.options(|o| o.theme_preference), ThemePreference::Dark);
+        assert_eq!(ctx.theme(), Theme::Dark, "egui follows the override, not the OS");
+        rt.core().set_system_theme(None);
+        pass_once(&ctx, &rt);
+        assert_eq!(ctx.options(|o| o.theme_preference), ThemePreference::System);
     }
 
     #[test]
