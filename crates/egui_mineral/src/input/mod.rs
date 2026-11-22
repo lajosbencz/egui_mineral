@@ -11,7 +11,7 @@ mod wheel;
 
 pub(crate) use adapter::InputAdapter;
 pub use adapter::{InputContext, reaches_layer};
-pub use claim::PanClaim;
+pub use claim::{PanClaim, PanMode};
 pub use drag::drag_from_start;
 pub use event::{
     Gesture, KeyAction, PanFrame, PointerId, PointerKind, PointerState, SwipeDirection, UnifiedInputEvent,

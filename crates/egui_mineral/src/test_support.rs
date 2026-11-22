@@ -21,6 +21,7 @@ pub(crate) const GESTURES: GestureConfig = GestureConfig {
     slop: 8.0,
     long_press: std::time::Duration::from_millis(500),
     swipe_min_velocity: 600.0,
+    pan_hold: std::time::Duration::from_millis(150),
 };
 
 pub(crate) fn policies() -> Policies {
@@ -109,6 +110,42 @@ pub(crate) fn harness<'a, S>(
             },
             Run { rt: None, value },
         )
+}
+
+// eframe web order: pointerdown runs a pass before touchstart arrives.
+pub(crate) fn touch_drag<S>(
+    h: &mut egui_kittest::Harness<'_, Run<S>>,
+    from: Pos2,
+    step: egui::Vec2,
+    n: u32,
+    hold: u32,
+) {
+    use egui::TouchPhase;
+    h.input_mut()
+        .events
+        .push(synth::pointer_down(from, PointerButton::Primary));
+    h.step();
+    h.input_mut()
+        .events
+        .extend([synth::touch(from, TouchPhase::Start), Event::PointerMoved(from)]);
+    h.step();
+    for _ in 0..hold {
+        h.step();
+    }
+    for i in 1..=n {
+        let at = from + step * i as f32;
+        h.input_mut()
+            .events
+            .extend([synth::touch(at, TouchPhase::Move), Event::PointerMoved(at)]);
+        h.step();
+    }
+    let end = from + step * n as f32;
+    h.input_mut().events.extend([
+        synth::pointer_up(end, PointerButton::Primary),
+        Event::PointerGone,
+        synth::touch(end, TouchPhase::End),
+    ]);
+    h.step();
 }
 
 pub(crate) fn tap(key: Key, modifiers: Modifiers) -> Vec<Event> {

@@ -5,8 +5,8 @@ use egui::{IdSalt, KeyboardShortcut, Pos2, Sense, Ui, Vec2};
 
 use crate::{
     i18n::I18n,
-    input::{InputContext, PanClaim, PointerKind},
-    layout::{Axis, Constraints, Measure, MinTarget, Zones},
+    input::{InputContext, PanClaim, PanMode, PointerKind},
+    layout::{Constraints, Measure, MinTarget, Zones},
     perf,
     runtime::{Core, Runtime, Stylekit},
     semantic::{self, SemanticNode},
@@ -27,12 +27,12 @@ pub struct WidgetFrame<'a> {
     pub tapped: Option<Pos2>,
     /// What [`MineralWidget::layout`] was measured against.
     pub constraints: Constraints,
-    /// Touch pan arbitration of this pass, active with [`MineralWidget::pan_axis`].
+    /// Touch pan arbitration of this pass, active with [`MineralWidget::pan`].
     pub pan: PanGate,
 }
 
-/// Touch pan arbitration state of a widget with [`MineralWidget::pan_axis`], applied to its responses by
-/// [`Self::apply`]; inactive for mouse and pen input, and without a pan axis.
+/// Touch pan arbitration state of a pannable ([`MineralWidget::pan`], [`Self::update`]), applied to its responses by
+/// [`Self::apply`]; inactive for mouse and pen input.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[must_use]
 pub struct PanGate(GateState);
@@ -52,12 +52,12 @@ enum GateState {
 }
 
 impl PanGate {
-    /// Touch input on a widget with a pan axis: drags are reported only once claimed.
+    /// Touch input on a pannable: drags are reported only once claimed.
     pub fn active(&self) -> bool {
         self.0 != GateState::Inactive
     }
 
-    /// `r` as the widget may see it: while the pan is not claimed on the axis, drag state is cleared and
+    /// `r` as the widget may see it: while the pan is not claimed, drag state is cleared and
     /// the press state too once the pan is relayed to the scroll area; the claiming pass reports a drag start.
     /// The plumbing applies it to [`WidgetFrame::response`], widgets apply it to their own drag-sensing responses.
     #[must_use]
@@ -88,21 +88,28 @@ struct PanGateState {
     owned: bool,
 }
 
-fn pan_gate<K>(ui: &MineralUi<'_, K>, axis: Axis, response: &egui::Response) -> PanGate {
-    let id = response.id.with("pan-gate");
-    let mut st = ui.data(|d| d.get_temp::<PanGateState>(id)).unwrap_or_default();
-    let was_relaying = st.claim.relaying();
-    let frame = st.claim.update(ui, axis, response);
-    let gate = PanGate(if frame.is_some() {
-        GateState::Claimed { started: !st.owned }
-    } else if was_relaying || st.claim.relaying() {
-        GateState::Relaying
-    } else {
-        GateState::Unclaimed
-    });
-    st.owned = frame.is_some_and(|f| !f.ended);
-    ui.data_mut(|d| d.insert_temp(id, st));
-    gate
+impl PanGate {
+    /// Per pass: arbitrates the touch pans on `response`, the drag-sensing response of an enabled pannable that
+    /// is not a [`MineralWidget`]; inactive unless the modality is touch.
+    pub fn update<K>(ui: &MineralUi<'_, K>, mode: PanMode, response: &egui::Response) -> Self {
+        if ui.pass_input().modality != PointerKind::Touch {
+            return Self::default();
+        }
+        let id = response.id.with("pan-gate");
+        let mut st = ui.data(|d| d.get_temp::<PanGateState>(id)).unwrap_or_default();
+        let was_relaying = st.claim.relaying();
+        let frame = st.claim.update(ui, mode, response);
+        let gate = Self(if frame.is_some() {
+            GateState::Claimed { started: !st.owned }
+        } else if was_relaying || st.claim.relaying() {
+            GateState::Relaying
+        } else {
+            GateState::Unclaimed
+        });
+        st.owned = frame.is_some_and(|f| !f.ended);
+        ui.data_mut(|d| d.insert_temp(id, st));
+        gate
+    }
 }
 
 impl WidgetFrame<'_> {
@@ -508,10 +515,10 @@ pub trait MineralWidget {
         Sense::click()
     }
 
-    /// Axis of a single-axis drag. On touch the plumbing arbitrates it with a [`PanClaim`]: the drag state of
-    /// [`WidgetFrame::response`] is reported only once a pan is claimed on this axis, any other pan scrolls the
+    /// Drag directions of a pannable. On touch the plumbing arbitrates it with a [`PanClaim`]: the drag state of
+    /// [`WidgetFrame::response`] is reported only once the mode claims a pan, any other pan scrolls the
     /// enclosing scroll area. Mouse input is unaffected.
-    fn pan_axis(&self) -> Option<Axis> {
+    fn pan(&self) -> Option<PanMode> {
         None
     }
 
@@ -605,10 +612,8 @@ fn show<K: Stylekit, W: MineralWidget<Kit = K>>(ui: &mut MineralUi<'_, K>, mut w
     }
 
     let tapped = input.tap_on(&mut response);
-    let pan = match widget.pan_axis() {
-        Some(axis) if widget.enabled() && !composite && input.modality == PointerKind::Touch => {
-            pan_gate(ui, axis, &response)
-        }
+    let pan = match widget.pan() {
+        Some(mode) if widget.enabled() && !composite => PanGate::update(ui, mode, &response),
         _ => PanGate::default(),
     };
     let mut response = pan.apply(response);

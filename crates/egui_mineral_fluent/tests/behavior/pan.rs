@@ -1,8 +1,12 @@
-//! Touch pans off a slider's axis scroll the enclosing page, along it they drag the value.
+//! Touch pans off a slider's axis, or not held first on the color area, scroll the enclosing page; otherwise they
+//! drag the value.
 
 use egui::{Event, PointerButton, Pos2, TouchPhase, vec2};
 use egui_mineral::input::synth;
-use egui_mineral_fluent::{egui_mineral::range::RangeModel, inputs::Slider};
+use egui_mineral_fluent::{
+    egui_mineral::range::RangeModel,
+    inputs::{ColorPicker, Slider},
+};
 
 use crate::support::{FluentHarness, Harness, harness};
 
@@ -25,7 +29,12 @@ fn page<'a>() -> Harness<'a, Page> {
 }
 
 // eframe web order: pointerdown runs a pass before touchstart arrives.
-fn touch_drag(h: &mut Harness<'_, Page>, from: Pos2, step: egui::Vec2, n: u32) {
+fn touch_drag<S>(h: &mut Harness<'_, S>, from: Pos2, step: egui::Vec2, n: u32) {
+    held_touch_drag(h, from, step, n, 0);
+}
+
+// Rests `hold` passes at 1/60 s before moving.
+fn held_touch_drag<S>(h: &mut Harness<'_, S>, from: Pos2, step: egui::Vec2, n: u32, hold: u32) {
     h.input_mut()
         .events
         .push(synth::pointer_down(from, PointerButton::Primary));
@@ -34,6 +43,9 @@ fn touch_drag(h: &mut Harness<'_, Page>, from: Pos2, step: egui::Vec2, n: u32) {
         .events
         .extend([synth::touch(from, TouchPhase::Start), Event::PointerMoved(from)]);
     h.step();
+    for _ in 0..hold {
+        h.step();
+    }
     for i in 1..=n {
         let at = from + step * i as f32;
         h.input_mut()
@@ -106,4 +118,52 @@ fn slider_mouse_drag_is_immediate() {
         "value followed the mouse: {}",
         h.state().value.value
     );
+}
+
+#[derive(Default)]
+struct Area {
+    offset: f32,
+    color: egui::ecolor::Hsva,
+}
+
+// After a tap below the picker: the first touch's pointerdown pass precedes touchstart, so it reads as a mouse press.
+fn area_page<'a>() -> Harness<'a, Area> {
+    let mut h = harness(Area::default(), |ui, p| {
+        let rt = ui.rt();
+        let out = egui::ScrollArea::vertical().auto_shrink([false; 2]).show(ui, |ui| {
+            rt.ui(ui).mineral(ColorPicker::new("c", "Color", &mut p.color));
+            ui.allocate_space(vec2(1.0, 2000.0));
+        });
+        p.offset = out.state.clamped_offset().y;
+    });
+    h.run();
+    let below = h.rect("c-color-area").center_bottom() + vec2(0.0, 300.0);
+    touch_drag(&mut h, below, vec2(0.0, 0.0), 0);
+    h.run();
+    h
+}
+
+#[test]
+fn color_area_quick_touch_flick_scrolls_the_page_and_keeps_the_color() {
+    let mut h = area_page();
+    let before = h.state().value.color;
+    let r = h.rect("c-color-area");
+    touch_drag(&mut h, r.center(), vec2(0.0, -20.0), 6);
+    h.run_steps(30);
+    let s = &h.state().value;
+    assert!(s.offset > 50.0, "page scrolled: {}", s.offset);
+    assert_eq!(s.color, before, "color kept");
+}
+
+#[test]
+fn color_area_takes_a_touch_drag_held_first() {
+    let mut h = area_page();
+    let before = h.state().value.color;
+    let r = h.rect("c-color-area");
+    // 12 passes rest past the 150 ms hold.
+    held_touch_drag(&mut h, r.center(), vec2(15.0, 10.0), 4, 12);
+    h.run_steps(30);
+    let s = &h.state().value;
+    assert!(s.offset.abs() < f32::EPSILON, "page stayed: {}", s.offset);
+    assert_ne!(s.color, before, "color followed");
 }

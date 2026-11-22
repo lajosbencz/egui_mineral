@@ -118,6 +118,8 @@ pub struct PanFrame {
     pub velocity: Vec2,
     /// Released (or cancelled) during this pass; the last frame of the pan.
     pub ended: bool,
+    /// Rest within the slop between the press and the start of the pan.
+    pub held: std::time::Duration,
 }
 
 /// Key press, repeat or release with modifiers.

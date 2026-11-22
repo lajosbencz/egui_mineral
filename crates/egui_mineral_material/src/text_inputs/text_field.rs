@@ -1218,13 +1218,14 @@ impl TextField<'_> {
                     edit = edit.event_filter(EventFilter { escape: true, ..f });
                 }
                 if rows.is_some() {
-                    ScrollArea::vertical()
+                    let out = ScrollArea::vertical()
                         .id_salt("scroll")
                         .max_height(cx.rect.height())
                         .auto_shrink([false; 2])
                         .stick_to_bottom(cx.focused)
-                        .show(ui, |ui| ui.add(edit))
-                        .inner
+                        .show(ui, |ui| ui.add(edit));
+                    egui_mineral::kit::scroll::chain(ui, &out);
+                    out.inner
                 } else {
                     ui.add(edit)
                 }

@@ -555,7 +555,7 @@ impl<'a> Carousel<'a> {
             st.claim.reset();
             None
         } else {
-            st.claim.update(ui, axis, response)
+            st.claim.update(ui, egui_mineral::input::PanMode::Axis(axis), response)
         };
         if let Some(pan) = pan {
             let step = -flip * axis.main(pan.delta);

@@ -658,9 +658,10 @@ impl<'a, K: ItemKey> DataTable<'a, K> {
         };
         let start = ui.cursor().min;
         if view.geo.table_w > avail_w + 0.5 {
-            egui::ScrollArea::horizontal()
+            let h = egui::ScrollArea::horizontal()
                 .id_salt((self.salt.id_salt(), "mineral::table_h"))
                 .show(ui, |ui| view.grid(&mut rt.ui(ui), &mut st, &mut pass, cell));
+            kit::scroll::chain(ui, &h);
         } else {
             view.grid(ui, &mut st, &mut pass, cell);
         }

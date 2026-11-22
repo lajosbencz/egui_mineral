@@ -130,6 +130,7 @@ impl VirtualList {
                     }
                     range
                 });
+                crate::kit::scroll::chain(ui, &out);
                 VirtualListResponse {
                     visible: out.inner,
                     offset: out.state.clamped_offset().y,
@@ -178,6 +179,7 @@ impl VirtualList {
                     }
                     visible
                 });
+                crate::kit::scroll::chain(ui, &out);
                 ui.data_mut(|d| d.insert_temp(mem_id, index));
                 if changed {
                     #[expect(

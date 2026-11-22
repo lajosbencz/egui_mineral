@@ -1,8 +1,12 @@
-//! Single-axis drag widgets inside a scroll area: touch pans off their axis scroll the page, mouse drags always reach them.
+//! Drag widgets inside a scroll area: touch pans off a single axis, or not held first on a free pannable, scroll the
+//! page; mouse drags always reach them.
 
-use egui::{Event, PointerButton, Pos2, TouchPhase, vec2};
-use egui_mineral::{input::synth, range::RangeModel};
-use egui_mineral_material::selection::{Switch, ValueSlider};
+use egui::{Color32, Event, PointerButton, Pos2, TouchPhase, vec2};
+use egui_mineral::{date::Time, input::synth, range::RangeModel};
+use egui_mineral_material::{
+    extras::ColorPicker,
+    selection::{Switch, TimePicker, ValueSlider},
+};
 
 use crate::support::{Harness, MineralHarness, still};
 
@@ -32,7 +36,12 @@ fn page<'a>() -> Harness<'a, Page> {
 }
 
 // eframe web order: pointerdown runs a pass before touchstart arrives.
-fn touch_drag(h: &mut Harness<'_, Page>, from: Pos2, step: egui::Vec2, n: u32) {
+fn touch_drag<S>(h: &mut Harness<'_, S>, from: Pos2, step: egui::Vec2, n: u32) {
+    held_touch_drag(h, from, step, n, 0);
+}
+
+// Rests `hold` passes at 1/60 s before moving.
+fn held_touch_drag<S>(h: &mut Harness<'_, S>, from: Pos2, step: egui::Vec2, n: u32, hold: u32) {
     h.input_mut()
         .events
         .push(synth::pointer_down(from, PointerButton::Primary));
@@ -41,6 +50,9 @@ fn touch_drag(h: &mut Harness<'_, Page>, from: Pos2, step: egui::Vec2, n: u32) {
         .events
         .extend([synth::touch(from, TouchPhase::Start), Event::PointerMoved(from)]);
     h.step();
+    for _ in 0..hold {
+        h.step();
+    }
     for i in 1..=n {
         let at = from + step * i as f32;
         h.input_mut()
@@ -157,4 +169,59 @@ fn switch_mouse_drag_flips_it() {
     let r = h.rect("sw-switch");
     mouse_drag(&mut h, r.center(), vec2(25.0, 0.0), 4);
     assert!(h.state().value.on, "switch flipped");
+}
+
+#[derive(Default)]
+struct Free {
+    offset: f32,
+    color: Color32,
+    time: Time,
+}
+
+// A 2D pannable at the top of a page: the color picker's area, or the time picker's dial.
+fn free_page<'a>(dial: bool) -> Harness<'a, Free> {
+    still(vec2(400.0, 600.0), Free::default(), move |ui, p| {
+        let rt = ui.rt();
+        let out = egui::ScrollArea::vertical().auto_shrink([false; 2]).show(ui, |ui| {
+            let mut mui = rt.ui(ui);
+            if dial {
+                TimePicker::new("tp", "Time", &mut p.time).show(&mut mui);
+            } else {
+                mui.mineral(ColorPicker::new("cp", "Color", &mut p.color));
+            }
+            ui.allocate_space(vec2(1.0, 2000.0));
+        });
+        p.offset = out.state.clamped_offset().y;
+    })
+}
+
+#[test]
+fn free_pannables_let_a_quick_touch_flick_scroll_the_page() {
+    for (dial, key) in [(false, "cp-area"), (true, "tp-hour-dial")] {
+        let mut h = free_page(dial);
+        h.step();
+        let before = (h.state().value.color, h.state().value.time);
+        let r = h.rect(key);
+        touch_drag(&mut h, r.center(), vec2(0.0, -20.0), 6);
+        h.run();
+        let s = &h.state().value;
+        assert!(s.offset > 50.0, "{key}: page scrolled: {}", s.offset);
+        assert_eq!((s.color, s.time), before, "{key}: value kept");
+    }
+}
+
+#[test]
+fn free_pannables_take_a_touch_drag_held_first() {
+    for (dial, key) in [(false, "cp-area"), (true, "tp-hour-dial")] {
+        let mut h = free_page(dial);
+        h.step();
+        let before = (h.state().value.color, h.state().value.time);
+        let r = h.rect(key);
+        // 12 passes rest past the 150 ms hold.
+        held_touch_drag(&mut h, r.center(), vec2(15.0, 10.0), 4, 12);
+        h.run();
+        let s = &h.state().value;
+        assert!(s.offset.abs() < f32::EPSILON, "{key}: page stayed: {}", s.offset);
+        assert_ne!((s.color, s.time), before, "{key}: value followed");
+    }
 }

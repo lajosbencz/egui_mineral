@@ -3,6 +3,7 @@ use egui::{
 };
 use egui_mineral::{
     i18n::I18n,
+    input::PanMode,
     kit,
     layout::{Axis, Constraints, Measure, MinTarget},
     semantic::{AgentKey, KeyKind, KeyedSalt, NumericRange, Role, SemanticNode},
@@ -246,8 +247,8 @@ impl MineralWidget for Handle<'_> {
         Sense::click_and_drag()
     }
 
-    fn pan_axis(&self) -> Option<Axis> {
-        self.channel.map(|_| Axis::Horizontal)
+    fn pan(&self) -> Option<PanMode> {
+        Some(self.channel.map_or(PanMode::Free, |_| PanMode::Axis(Axis::Horizontal)))
     }
 
     fn min_target(&self, _: &MineralUi<'_, Self::Kit>) -> MinTarget {

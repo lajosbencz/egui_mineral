@@ -363,12 +363,13 @@ impl Edit<'_> {
         v.text_cursor.stroke.color = self.format.color;
         v.selection.bg_fill = self.t.color(ColorCompoundBrandStroke).gamma_multiply(0.4);
         if multiline {
-            ScrollArea::vertical()
+            let out = ScrollArea::vertical()
                 .id_salt("scroll")
                 .max_height(self.rect.height())
                 .auto_shrink([false; 2])
-                .show(&mut child, |ui| ui.add(edit))
-                .inner
+                .show(&mut child, |ui| ui.add(edit));
+            egui_mineral::kit::scroll::chain(&child, &out);
+            out.inner
         } else {
             child.add(edit)
         }

@@ -14,6 +14,9 @@ pub struct GestureConfig {
     pub long_press: std::time::Duration,
     /// Min release velocity (points/s) for a pan to end as a swipe.
     pub swipe_min_velocity: f32,
+    /// Rest before leaving the slop for a [`PanMode::Free`](super::PanMode::Free) pannable to claim a touch pan;
+    /// a quicker pan scrolls.
+    pub pan_hold: std::time::Duration,
 }
 
 impl GestureConfig {
@@ -23,6 +26,8 @@ impl GestureConfig {
             slop: 8.0,
             long_press: std::time::Duration::from_millis(500),
             swipe_min_velocity: 600.0,
+            // UIScrollView delaysContentTouches
+            pan_hold: std::time::Duration::from_millis(150),
         }
     }
 
@@ -36,6 +41,12 @@ impl GestureConfig {
     #[must_use]
     pub const fn long_press(self, long_press: std::time::Duration) -> Self {
         Self { long_press, ..self }
+    }
+
+    /// Rest before leaving the slop for a [`PanMode::Free`](super::PanMode::Free) pannable to claim a touch pan.
+    #[must_use]
+    pub const fn pan_hold(self, pan_hold: std::time::Duration) -> Self {
+        Self { pan_hold, ..self }
     }
 
     /// Min release velocity (points/s) for a pan to end as a swipe.
@@ -60,6 +71,7 @@ enum Phase {
     /// Events of one pass share a timestamp; `velocity` updates only when time advances past `sample_time`.
     Panning {
         start: Pos2,
+        held: f64,
         last: Pos2,
         sample: Pos2,
         sample_time: f64,
@@ -90,6 +102,7 @@ impl GestureRecognizer {
         match self.phase {
             Phase::Panning {
                 start,
+                held,
                 last,
                 sample_time,
                 velocity,
@@ -100,6 +113,7 @@ impl GestureRecognizer {
                 delta: Vec2::ZERO,
                 velocity: fresh(velocity, sample_time, now),
                 ended: false,
+                held: crate::kit::sanitize::duration(held, "pan hold"),
             }),
             _ => None,
         }
@@ -123,6 +137,7 @@ impl GestureRecognizer {
                 let (sample, sample_time, velocity) = sample(start, start_time, Vec2::ZERO, p);
                 self.phase = Phase::Panning {
                     start,
+                    held: (p.time - start_time).max(0.0),
                     last: p.pos,
                     sample,
                     sample_time,
@@ -135,6 +150,7 @@ impl GestureRecognizer {
             }
             Phase::Panning {
                 start,
+                held,
                 last,
                 sample,
                 sample_time,
@@ -144,6 +160,7 @@ impl GestureRecognizer {
                 let (sample, sample_time, velocity) = self::sample(sample, sample_time, velocity, p);
                 self.phase = Phase::Panning {
                     start,
+                    held,
                     last: p.pos,
                     sample,
                     sample_time,
@@ -289,6 +306,11 @@ mod tests {
         assert_eq!(moving.origin, pos2(0.0, 0.0));
         assert!(moving.velocity.x > 0.0);
         assert_eq!(r.pan(0.5).unwrap().velocity, egui::Vec2::ZERO);
+        assert!(
+            (moving.held.as_secs_f64() - 0.05).abs() < 1e-6,
+            "held {:?}",
+            moving.held
+        );
         r.up(C, &p(80.0, 0.0, 0.5));
         assert!(r.pan(0.5).is_none());
     }

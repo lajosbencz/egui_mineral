@@ -58,7 +58,7 @@ pub use crate::__widget_meta as widget_meta;
 /// Common imports for widget authors.
 pub mod prelude {
     pub use crate::{
-        input::PanClaim,
+        input::{PanClaim, PanMode},
         kit::{choice::Choice, state::TempState},
         layout::{Constraints, Measure, MinTarget},
         runtime::Stylekit,

@@ -21,6 +21,7 @@ use egui_mineral::widget::Availability;
 use egui_mineral::{
     focus::{self, RovingFocus},
     i18n::Direction,
+    input::PanMode,
     kit,
     layout::{Axis, Constraints, Measure, MinTarget},
     select::Check,
@@ -1136,8 +1137,8 @@ impl MineralWidget for Switch<'_> {
         Sense::click_and_drag()
     }
 
-    fn pan_axis(&self) -> Option<Axis> {
-        Some(Axis::Horizontal)
+    fn pan(&self) -> Option<PanMode> {
+        Some(PanMode::Axis(Axis::Horizontal))
     }
 
     fn access_key(&self) -> Option<Mnemonic> {

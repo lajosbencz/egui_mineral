@@ -217,10 +217,11 @@ impl<'a, K: ItemKey> Tabs<'a, K> {
         let layout = rt.i18n().direction().row();
         ui.scope_builder(UiBuilder::new().max_rect(bar).layout(layout), |ui| {
             if self.scrollable {
-                egui::ScrollArea::horizontal()
+                let out = egui::ScrollArea::horizontal()
                     .id_salt(id)
                     .scroll_bar_visibility(ScrollBarVisibility::AlwaysHidden)
                     .show(ui, body);
+                egui_mineral::kit::scroll::chain(ui, &out);
             } else {
                 body(ui);
             }

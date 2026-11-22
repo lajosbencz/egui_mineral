@@ -16,6 +16,7 @@ use egui::{
 };
 use egui_mineral::widget::Availability;
 use egui_mineral::{
+    input::PanMode,
     kit,
     layout::{Axis, Constraints, Measure, MinTarget},
     range::{RangeModel, Track},
@@ -474,6 +475,10 @@ impl MineralWidget for Area<'_> {
         Sense::click_and_drag()
     }
 
+    fn pan(&self) -> Option<PanMode> {
+        Some(PanMode::Free)
+    }
+
     fn layout(&self, _ui: &MineralUi<'_, Material>, c: Constraints, (): &Self::State) -> Measure {
         c.constrain(vec2(self.width, self.width * AREA_ASPECT)).into()
     }
@@ -566,8 +571,8 @@ impl MineralWidget for HueBar<'_> {
         Sense::click_and_drag()
     }
 
-    fn pan_axis(&self) -> Option<Axis> {
-        Some(Axis::Horizontal)
+    fn pan(&self) -> Option<PanMode> {
+        Some(PanMode::Axis(Axis::Horizontal))
     }
 
     fn min_target(&self, _: &MineralUi<'_, Self::Kit>) -> MinTarget {

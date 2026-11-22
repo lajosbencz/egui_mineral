@@ -2,6 +2,7 @@ use crate::msg;
 use egui::{Sense, emath::Numeric};
 use egui_mineral::{
     i18n::I18n,
+    input::PanMode,
     kit,
     layout::{Axis, Constraints, Measure, MinTarget},
     range::{self, RangeModel},
@@ -86,8 +87,8 @@ impl<N: Numeric> MineralWidget for RangeSlider<'_, N> {
         self.bar.sense(2)
     }
 
-    fn pan_axis(&self) -> Option<Axis> {
-        Some(self.bar.axis)
+    fn pan(&self) -> Option<PanMode> {
+        Some(PanMode::Axis(self.bar.axis))
     }
 
     fn min_target(&self, _: &MineralUi<'_, Self::Kit>) -> MinTarget {

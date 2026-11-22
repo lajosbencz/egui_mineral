@@ -160,8 +160,8 @@ macro_rules! __delegate_widget_meta {
             $crate::widget::MineralWidget::composite(&self.$field)
         }
 
-        fn pan_axis(&self) -> ::core::option::Option<$crate::layout::Axis> {
-            $crate::widget::MineralWidget::pan_axis(&self.$field)
+        fn pan(&self) -> ::core::option::Option<$crate::input::PanMode> {
+            $crate::widget::MineralWidget::pan(&self.$field)
         }
     };
 }

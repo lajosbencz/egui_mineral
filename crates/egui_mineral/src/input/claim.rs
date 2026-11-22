@@ -5,9 +5,18 @@ use crate::{layout::Axis, motion::Fling, runtime::Core, widget::MineralUi};
 
 const COAST_STOP: f32 = 5.0;
 
-/// Pan arbitration for a single-axis pannable inside a scroll area: claims a pan whose travel
-/// at the first frame (past the touch slop) lies mostly on its axis, hands everything else, the
-/// overshoot and the release fling to the enclosing [`egui::ScrollArea`].
+/// Directions a touch pannable inside a scroll area drags in, deciding which pans it claims.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PanMode {
+    /// Claims a pan whose travel at the first frame past the slop lies mostly on the axis.
+    Axis(Axis),
+    /// Claims a pan whose press rested for [`GestureConfig::pan_hold`](super::GestureConfig::pan_hold) before
+    /// leaving the slop.
+    Free,
+}
+
+/// Pan arbitration for a pannable inside a scroll area: claims a pan by its [`PanMode`], hands everything else,
+/// the overshoot and the release fling to the enclosing [`egui::ScrollArea`].
 ///
 /// Egui hands a scroll delta to the first scroll area that finishes after it is queued, so a relayed pan and its
 /// coast are queued from the widget's own `Ui` and reach its nearest scrolling ancestor, never a sibling area.
@@ -22,10 +31,10 @@ pub struct PanClaim {
 }
 
 impl PanClaim {
-    /// Per pass: the frame of the pan that started on `response` to apply when it is claimed on `axis`, otherwise
+    /// Per pass: the frame of the pan that started on `response` to apply when `mode` claims it, otherwise
     /// `None`, the pass then relays the pan and its release velocity to the enclosing scroll area.
     /// Only the start is hit-tested, the pan stays this widget's when the scroll moves it away from the press.
-    pub fn update<K>(&mut self, ui: &MineralUi<'_, K>, axis: Axis, response: &Response) -> Option<PanFrame> {
+    pub fn update<K>(&mut self, ui: &MineralUi<'_, K>, mode: PanMode, response: &Response) -> Option<PanFrame> {
         let (core, input) = (ui.core(), ui.pass_input());
         self.id = Some(response.id);
         forward(ui, core.take_relay(response.id));
@@ -39,9 +48,13 @@ impl PanClaim {
         };
         let first = self.pan.is_none();
         let total = p.pos - p.origin;
-        let (_, own) = *self
-            .pan
-            .get_or_insert((p.origin, axis.main(total).abs() >= axis.cross(total).abs()));
+        let (_, own) = *self.pan.get_or_insert_with(|| {
+            let own = match mode {
+                PanMode::Axis(axis) => axis.main(total).abs() >= axis.cross(total).abs(),
+                PanMode::Free => p.held >= core.policies().gestures.pan_hold,
+            };
+            (p.origin, own)
+        });
         if p.ended {
             self.pan = None;
         }
@@ -135,7 +148,7 @@ impl Relay {
     }
 }
 
-fn forward(ui: &Ui, delta: Vec2) {
+pub(crate) fn forward(ui: &Ui, delta: Vec2) {
     if delta != Vec2::ZERO {
         ui.scroll_with_delta_animation(delta, ScrollAnimation::none());
     }
@@ -143,14 +156,11 @@ fn forward(ui: &Ui, delta: Vec2) {
 
 #[cfg(test)]
 mod tests {
-    use egui::{Event, PointerButton, Pos2, Sense, TouchPhase, pos2, vec2};
+    use egui::{Sense, pos2, vec2};
     use egui_kittest::Harness;
 
     use super::*;
-    use crate::{
-        input::synth,
-        test_support::{Run, harness},
-    };
+    use crate::test_support::{Run, harness, touch_drag};
 
     const RANGE: f32 = 30.0;
 
@@ -160,10 +170,16 @@ mod tests {
         page: f32,
         sibling: f32,
         pos: f32,
+        claimed: bool,
     }
 
-    // A pannable inside a vertical page, panning on `axis` over `0..=RANGE`, beside a vertical sibling list that ends first.
-    fn page(axis: Axis) -> Harness<'static, Run<Host>> {
+    // A pannable inside a vertical page, panning by `mode` over `0..=RANGE` (vertically when free), beside a
+    // vertical sibling list that ends first.
+    fn page(mode: PanMode) -> Harness<'static, Run<Host>> {
+        let axis = match mode {
+            PanMode::Axis(axis) => axis,
+            PanMode::Free => Axis::Vertical,
+        };
         harness(
             move |ui, p: &mut Host| {
                 let rt = ui.rt();
@@ -181,7 +197,8 @@ mod tests {
                         .show(ui, |ui| {
                             let (rect, _) = ui.allocate_exact_size(vec2(200.0, 100.0), Sense::hover());
                             let r = ui.interact(rect, ui.make_persistent_id("pannable"), Sense::click_and_drag());
-                            if let Some(f) = p.claim.update(&rt.ui(ui), axis, &r) {
+                            if let Some(f) = p.claim.update(&rt.ui(ui), mode, &r) {
+                                p.claimed = true;
                                 let step = -axis.main(f.delta);
                                 let over = p.pos + step - (p.pos + step).clamp(0.0, RANGE);
                                 p.claim.chain(rt.core(), ui, axis, &f, -over);
@@ -196,37 +213,11 @@ mod tests {
         )
     }
 
-    // eframe web order: pointerdown runs a pass before touchstart arrives.
-    fn drag(h: &mut Harness<'_, Run<Host>>, from: Pos2, step: egui::Vec2, n: u32) {
-        h.input_mut()
-            .events
-            .push(synth::pointer_down(from, PointerButton::Primary));
-        h.step();
-        h.input_mut()
-            .events
-            .extend([synth::touch(from, TouchPhase::Start), Event::PointerMoved(from)]);
-        h.step();
-        for i in 1..=n {
-            let at = from + step * i as f32;
-            h.input_mut()
-                .events
-                .extend([synth::touch(at, TouchPhase::Move), Event::PointerMoved(at)]);
-            h.step();
-        }
-        let end = from + step * n as f32;
-        h.input_mut().events.extend([
-            synth::pointer_up(end, PointerButton::Primary),
-            Event::PointerGone,
-            synth::touch(end, TouchPhase::End),
-        ]);
-        h.step();
-    }
-
     #[test]
     fn cross_axis_pan_goes_to_the_page_and_coasts() {
-        let mut h = page(Axis::Horizontal);
+        let mut h = page(PanMode::Axis(Axis::Horizontal));
         h.step();
-        drag(&mut h, pos2(200.0, 60.0), vec2(0.0, -20.0), 6);
+        touch_drag(&mut h, pos2(200.0, 60.0), vec2(0.0, -20.0), 6, 0);
         let released = h.state().value.page;
         h.run_steps(300);
         let s = &h.state().value;
@@ -238,9 +229,9 @@ mod tests {
 
     #[test]
     fn own_axis_pan_is_claimed_and_the_overshoot_chains() {
-        let mut h = page(Axis::Vertical);
+        let mut h = page(PanMode::Axis(Axis::Vertical));
         h.step();
-        drag(&mut h, pos2(200.0, 80.0), vec2(0.0, -20.0), 6);
+        touch_drag(&mut h, pos2(200.0, 80.0), vec2(0.0, -20.0), 6, 0);
         let released = h.state().value.page;
         h.run_steps(300);
         let s = &h.state().value;
@@ -248,5 +239,24 @@ mod tests {
         assert!(released > 50.0, "overshoot reached the page: {released}");
         assert!(s.page > released + 20.0, "overshoot coasted: {released} -> {}", s.page);
         assert!(s.sibling.abs() < f32::EPSILON, "sibling list stayed: {}", s.sibling);
+    }
+
+    #[test]
+    fn free_pan_scrolls_unless_held_first() {
+        let mut h = page(PanMode::Free);
+        h.step();
+        touch_drag(&mut h, pos2(200.0, 60.0), vec2(0.0, -20.0), 6, 0);
+        let s = &h.state().value;
+        assert!(!s.claimed, "a quick pan is not claimed");
+        assert!(s.page > 50.0, "a quick pan scrolls the page: {}", s.page);
+
+        let mut h = page(PanMode::Free);
+        h.step();
+        // 12 passes at 1/60 s rest past the 150 ms hold.
+        touch_drag(&mut h, pos2(200.0, 60.0), vec2(0.0, -20.0), 6, 12);
+        h.run_steps(60);
+        let s = &h.state().value;
+        assert!(s.claimed, "a held pan is claimed");
+        assert!((s.pos - RANGE).abs() < 0.01, "the pannable took the pan: {}", s.pos);
     }
 }

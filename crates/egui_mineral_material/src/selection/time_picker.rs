@@ -7,10 +7,12 @@ use egui::{
     Align2, Color32, Context, CornerRadius, Frame, Id, Margin, Pos2, Rangef, Rect, Sense, Stroke, StrokeKind, TextEdit,
     Ui, UiBuilder, Vec2, pos2, vec2,
 };
+use egui_mineral::input::PanMode;
 use egui_mineral::kit::state::TempState;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::Availability;
 use egui_mineral::widget::MineralUi;
+use egui_mineral::widget::PanGate;
 use std::{f32::consts::TAU, sync::Arc};
 
 use egui_mineral::{
@@ -889,6 +891,11 @@ impl Resolved {
                 Sense::click_and_drag()
             },
         );
+        let resp = if self.disabled {
+            resp
+        } else {
+            PanGate::update(ui, PanMode::Free, &resp).apply(resp)
+        };
         let input = self.dial_input(rt, &resp, area, st, time);
         let cx = DialCx {
             id,

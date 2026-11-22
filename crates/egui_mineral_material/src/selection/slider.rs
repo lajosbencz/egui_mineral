@@ -9,6 +9,7 @@ use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::MineralUi;
 use egui_mineral::{
     focus,
+    input::PanMode,
     layout::{Axis, Constraints, Measure, MinTarget},
     range::{RangeModel, Track, nearest_thumb},
     semantic::{self, Role, SemanticNode, StableId},
@@ -622,8 +623,8 @@ impl<N: Numeric> MineralWidget for ValueSlider<'_, N> {
         focus::roving_sense(Sense::click_and_drag(), tab_stop(self.values.len() == 1))
     }
 
-    fn pan_axis(&self) -> Option<Axis> {
-        Some(self.axis)
+    fn pan(&self) -> Option<PanMode> {
+        Some(PanMode::Axis(self.axis))
     }
 
     fn min_target(&self, _: &MineralUi<'_, Self::Kit>) -> MinTarget {
