@@ -44,6 +44,26 @@ pub trait TreeData: Sized {
     fn accepts_children(&self) -> bool {
         !self.children().is_empty() || self.lazy()
     }
+    /// Drop slots of the node's row ([`drop_slot`]); [`DropZones::Quarters`] when it accepts children, else
+    /// [`DropZones::Halves`].
+    fn drop_zones(&self) -> DropZones {
+        if self.accepts_children() {
+            DropZones::Quarters
+        } else {
+            DropZones::Halves
+        }
+    }
+}
+
+/// How a row splits into drop slots ([`TreeData::drop_zones`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum DropZones {
+    /// Upper half before, lower half after: reorder only.
+    Halves,
+    /// Outer quarters before and after, the middle inside.
+    Quarters,
+    /// Whole row inside: nest only, as file manager folders.
+    Inside,
 }
 
 /// Mutable access for [`TreeMove::apply`].
@@ -239,20 +259,20 @@ pub struct DropTarget<K> {
 }
 
 /// Drop slot at `frac` (0 top, 1 bottom) of visible row `row`, as the row the indicator marks and the
-/// position relative to it: outer quarters insert before/after, the middle nests into enabled nodes that
-/// accept children (halves otherwise). Below an expanded row is before its first child.
+/// position relative to it, split by the node's [`TreeData::drop_zones`]. Nesting zones fall back to halves on
+/// disabled rows and nodes that do not accept children. Below an expanded row is before its first child.
 pub fn drop_slot<N: TreeData>(rows: &[TreeRow<'_, N>], row: usize, frac: f32) -> Option<(usize, DropPosition)> {
     let r = rows.get(row)?;
-    let position = if r.node.accepts_children() && !r.disabled {
-        match frac {
-            f if f < 0.25 => DropPosition::Before,
-            f if f > 0.75 => DropPosition::After,
-            _ => DropPosition::Inside,
-        }
-    } else if frac < 0.5 {
-        DropPosition::Before
-    } else {
-        DropPosition::After
+    let zones = match r.node.drop_zones() {
+        DropZones::Quarters | DropZones::Inside if r.disabled || !r.node.accepts_children() => DropZones::Halves,
+        z => z,
+    };
+    let position = match zones {
+        DropZones::Quarters if frac < 0.25 => DropPosition::Before,
+        DropZones::Quarters if frac > 0.75 => DropPosition::After,
+        DropZones::Quarters | DropZones::Inside => DropPosition::Inside,
+        DropZones::Halves if frac < 0.5 => DropPosition::Before,
+        DropZones::Halves => DropPosition::After,
     };
     Some(match position {
         DropPosition::After if r.expanded && rows.get(row.saturating_add(1)).is_some_and(|n| n.parent == Some(row)) => {
@@ -506,6 +526,15 @@ mod tests {
         fn children(&self) -> &[Self] {
             &self.1
         }
+
+        fn drop_zones(&self) -> DropZones {
+            match self.0 {
+                20 => DropZones::Inside,
+                21 => DropZones::Halves,
+                _ if self.accepts_children() => DropZones::Quarters,
+                _ => DropZones::Halves,
+            }
+        }
     }
 
     impl TreeDataMut for N {
@@ -674,6 +703,23 @@ mod tests {
         assert_eq!(ancestors(&roots, &3), Some(vec![1, 2]));
         assert_eq!(ancestors(&roots, &4), Some(vec![]));
         assert_eq!(ancestors(&roots, &9), None);
+    }
+
+    #[test]
+    fn drop_zones_split_the_row() {
+        let roots = vec![
+            N(20, vec![N(1, vec![])]),
+            N(21, vec![N(2, vec![])]),
+            N(22, vec![N(3, vec![])]),
+            N(23, vec![]),
+        ];
+        let rows = flatten(&roots, &Expansion::default());
+        let at = |row: usize, frac: f32| drop_slot(&rows, row, frac).map(|s| s.1);
+        assert_eq!(at(0, 0.05), Some(DropPosition::Inside), "a folder row nests everywhere");
+        assert_eq!(at(1, 0.5), Some(DropPosition::After), "halves never nest");
+        assert_eq!(at(2, 0.1), Some(DropPosition::Before));
+        assert_eq!(at(2, 0.5), Some(DropPosition::Inside));
+        assert_eq!(at(3, 0.5), Some(DropPosition::After), "a leaf takes halves");
     }
 
     #[test]
