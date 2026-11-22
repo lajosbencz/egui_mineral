@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral_material-v0.11.0...egui_mineral_material-v0.12.0) - 2026-11-22
+
+### Added
+
+- *(select)* [**breaking**] Enter never selects and AccessKit clicks get RowSource::Assistive; Fluent List action_selects, Fluent toggles ignore Enter, TreeView collapse keeps focus shown, semantic multiselectable state.
+- *(select)* [**breaking**] SelectionBehavior (Toggle, Replace) drives Selection::apply and follow_focus with mouse, touch tap/long press, Space and Enter sources and focus-scoped Ctrl/Cmd+A; Material TreeView/DataTable and Fluent Table/DataGrid/List adopt it, Fluent List arrows keep focus.
+- *(select)* RowInput and Selection::apply map a row's press and click onto Selection in core; Fluent Table rows select on press like the Material TreeView.
+- *(select)* Selection::follow_focus, select::is_select_all and RovingFocus::on_select_key flatten keyboard selection into core; Fluent DataGrid Shift+arrows extend and Ctrl+A selects all, Material TreeView shares them.
+- *(select)* [**breaking**] Selection tracks a current key apart from the anchor (current, set_current, anchor), press/release keep a dragged multiple selection, extend_to and select_all; tree::on_key takes modifiers and reports Focus { row, extend } and SelectAll. Material TreeView selects on press, Shift+arrows extend, Ctrl+A selects all.
+- *(menu)* [**breaking**] core kit::menu::MenuNav owns the open submenu path, hover intent, arrow walk and opening focus; Material and Fluent menus run on it. Fluent MenuResponse::nav reports root-level arrows.
+- *(shortcut)* [**breaking**] Mnemonic::parse reads &-marked labels and underlines the marked letter; non-ASCII mnemonics match typed text; items sharing a letter cycle focus. Kit builders take impl Into<Mnemonic>.
+
 ## [0.11.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral_material-v0.10.0...egui_mineral_material-v0.11.0) - 2026-11-22
 
 ### Fixed

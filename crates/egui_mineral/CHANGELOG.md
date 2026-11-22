@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral-v0.11.0...egui_mineral-v0.12.0) - 2026-11-22
+
+### Added
+
+- *(select)* [**breaking**] Enter never selects and AccessKit clicks get RowSource::Assistive; Fluent List action_selects, Fluent toggles ignore Enter, TreeView collapse keeps focus shown, semantic multiselectable state.
+- *(select)* [**breaking**] SelectionBehavior (Toggle, Replace) drives Selection::apply and follow_focus with mouse, touch tap/long press, Space and Enter sources and focus-scoped Ctrl/Cmd+A; Material TreeView/DataTable and Fluent Table/DataGrid/List adopt it, Fluent List arrows keep focus.
+- *(select)* RowInput and Selection::apply map a row's press and click onto Selection in core; Fluent Table rows select on press like the Material TreeView.
+- *(select)* Selection::follow_focus, select::is_select_all and RovingFocus::on_select_key flatten keyboard selection into core; Fluent DataGrid Shift+arrows extend and Ctrl+A selects all, Material TreeView shares them.
+- *(select)* [**breaking**] Selection tracks a current key apart from the anchor (current, set_current, anchor), press/release keep a dragged multiple selection, extend_to and select_all; tree::on_key takes modifiers and reports Focus { row, extend } and SelectAll. Material TreeView selects on press, Shift+arrows extend, Ctrl+A selects all.
+- *(tree)* TreeData::drop_zones picks Halves, Quarters or Inside drop slots per node; drop_slot honors it.
+- *(tree)* Expansion::reveal expands a node's ancestors so the tree shows it; Expansion::is_single.
+- *(semantic)* DisplaySalt<T> keys a foreign type by its Display text and hashes, compares and debug-prints as T.
+- *(menu)* [**breaking**] core kit::menu::MenuNav owns the open submenu path, hover intent, arrow walk and opening focus; Material and Fluent menus run on it. Fluent MenuResponse::nav reports root-level arrows.
+- *(shortcut)* [**breaking**] Mnemonic::parse reads &-marked labels and underlines the marked letter; non-ASCII mnemonics match typed text; items sharing a letter cycle focus. Kit builders take impl Into<Mnemonic>.
+- *(runtime)* Core::of(ctx) returns the core of the running pass, else the last outermost one; runtimes register as Weak<Core>.
+- *(runtime)* [**breaking**] Policies::wheel is optional, None leaves egui's line_scroll_speed to the app; Core::set_system_theme supplies the OS theme that System resolves to.
+
+### Fixed
+
+- *(range)* a step that would move against its direction leaves the value, as HTML stepUp/stepDown; raising at an off-grid max no longer lowers it.
+- *(shortcut)* a lone Alt fires again; AltTrack ignores the Alt key's own Key::AltLeft/AltRight press.
+- *(hotpatch)* pin subsecond and dioxus-devtools to =0.7.10, the dx_version they must match; dependabot leaves them to dx bumps.
+
 ## [0.11.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral-v0.10.0...egui_mineral-v0.11.0) - 2026-11-22
 
 ### Fixed
