@@ -1,4 +1,4 @@
-use egui::Key;
+use egui::{Event, Key};
 use egui_mineral::semantic::Role;
 use egui_mineral_fluent::{
     actions::PushButton,
@@ -118,6 +118,41 @@ fn open_submenu(h: &mut Harness<'static, MenuState>) {
     h.press(Key::ArrowRight);
     h.run();
     h.run();
+}
+
+#[test]
+fn the_back_arrow_closes_a_submenu_and_refocuses_its_row() {
+    let mut h = menu();
+    open_submenu(&mut h);
+    assert!(h.focused("m-sub-5-0-menuitem"));
+    h.press(Key::ArrowLeft);
+    h.run();
+    assert_eq!(h.node("m-5-menuitem").state.expanded, Some(false));
+    assert!(h.focused("m-5-menuitem"));
+    assert!(h.state().value.open);
+}
+
+#[test]
+fn hovering_a_submenu_row_opens_it_after_the_delay_and_a_sibling_closes_it() {
+    let mut h = menu();
+    h.run();
+    h.click("trig-button");
+    h.run();
+    let hover = |h: &mut Harness<'static, MenuState>, key: &str| {
+        // The first move after PointerGone has no delta, and hover intent waits for movement.
+        let at = h.rect(key).center();
+        for p in [at - egui::vec2(2.0, 0.0), at] {
+            h.input_mut().events.push(Event::PointerMoved(p));
+            h.step();
+        }
+    };
+    hover(&mut h, "m-5-menuitem");
+    assert_eq!(h.node("m-5-menuitem").state.expanded, Some(false));
+    h.run_steps(40);
+    assert_eq!(h.node("m-5-menuitem").state.expanded, Some(true));
+    hover(&mut h, "m-0-menuitem");
+    h.run_steps(40);
+    assert_eq!(h.node("m-5-menuitem").state.expanded, Some(false));
 }
 
 #[test]

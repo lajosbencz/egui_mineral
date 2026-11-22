@@ -7,7 +7,7 @@
 //! - Semantics: [`nodes`] (collection checks, parent rects, culled emits).
 //! - Painting: [`paint`] (glyph shapes, tabular figures, window close glyph).
 //! - State: [`state`] (temp memory, memos, pass caches), [`choice`] (value-bound selection groups).
-//! - Component models shared by both kits: [`command_palette`], [`menubar`], [`strip`], [`rating`].
+//! - Component models shared by both kits: [`command_palette`], [`menu`], [`menubar`], [`strip`], [`rating`].
 //! - Arguments: [`sanitize`] (rule 10: clamp and report instead of panicking).
 //! - [`prelude`] for widget authors; [`tr`], [`tr_or`] and [`scoped_id`] at the root.
 //!
@@ -19,6 +19,7 @@ pub mod choice;
 pub mod command_palette;
 pub mod interact;
 pub mod layer;
+pub mod menu;
 pub mod menubar;
 pub mod nodes;
 pub mod paint;

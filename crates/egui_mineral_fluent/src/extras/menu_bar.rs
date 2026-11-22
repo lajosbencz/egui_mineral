@@ -195,7 +195,7 @@ impl<'a, A: ActionValue> MenuBar<'a, A> {
                 }
                 if !open {
                     bar.open = None;
-                } else if let Some(nav) = arrow(&ctx, dir) {
+                } else if let Some(nav) = out.nav.or_else(|| arrow(&ctx, dir)) {
                     let next = menubar::adjacent(o, nav, count);
                     bar.open = Some(next);
                 }

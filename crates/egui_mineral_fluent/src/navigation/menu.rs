@@ -6,8 +6,12 @@ use egui_mineral::{
     anchor::{Align, Anchor, Side},
     focus::RovingFocus,
     i18n::I18n,
-    kit::{self, state::TempState},
-    layout::{Axis, Constraints, Measure, MinTarget},
+    kit::{
+        self,
+        menu::{MenuNav, Walk},
+        state::TempState,
+    },
+    layout::{Axis, Constraints, Edge, Measure, MinTarget},
     overlay::{self, Dismiss, Popup},
     semantic::{self, AgentKey, KeyedSalt, Role, SemanticNode},
     widget::{Availability, Interaction, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
@@ -131,15 +135,6 @@ impl Memo {
         icons: false,
     };
 }
-
-#[derive(Clone, Copy, Debug, Default)]
-struct Level {
-    open_sub: Option<usize>,
-    hover: Option<(usize, f64)>,
-    focus_sub: bool,
-}
-
-impl TempState for Level {}
 
 struct Row<'a> {
     salt: KeyedSalt,
@@ -469,6 +464,8 @@ struct Shared<A> {
     clicked: Option<A>,
     inside: Vec<Rect>,
     radio_mark: RadioMark,
+    nav: MenuNav,
+    bar: Option<Edge>,
 }
 
 impl<A> Default for Shared<A> {
@@ -478,6 +475,8 @@ impl<A> Default for Shared<A> {
             clicked: None,
             inside: Vec::new(),
             radio_mark: RadioMark::Check,
+            nav: MenuNav::default(),
+            bar: None,
         }
     }
 }
@@ -489,7 +488,7 @@ pub struct MenuUi<'u, 's, A = NoAction> {
     salt: KeyedSalt,
     memo: Memo,
     seen: Memo,
-    state: Level,
+    depth: usize,
     index: usize,
     rows: Vec<SeenRow>,
     shared: &'s mut Shared<A>,
@@ -501,6 +500,7 @@ struct SeenRow {
     id: Id,
     enabled: bool,
     initial: Option<char>,
+    submenu: bool,
     // Submenu trigger of a split row.
     split: Option<Id>,
 }
@@ -508,7 +508,7 @@ struct SeenRow {
 kit::opaque_debug!(MenuUi<'_, '_, A>);
 
 impl<A: ActionValue> MenuUi<'_, '_, A> {
-    fn row(&mut self, item: &MenuItem, kind: Kind) -> (Response, bool, bool) {
+    fn row(&mut self, item: &MenuItem, kind: Kind) -> (Response, bool) {
         let i = self.index;
         self.index += 1;
         let salt = item.salt.clone().unwrap_or_else(|| self.salt.child(i));
@@ -535,23 +535,14 @@ impl<A: ActionValue> MenuUi<'_, '_, A> {
             id: response.id,
             enabled: !item.disabled,
             initial: initial(&item.label),
+            submenu: matches!(kind, Kind::Submenu(_)),
             split: None,
         });
-        let ctx = self.ui.ctx().clone();
-        let now = ctx.input(|i| i.time);
-        let mut held = false;
         if response.hovered() {
-            match self.state.hover {
-                Some((h, since)) if h == i => held = now - since >= d::HOVER_DELAY.as_secs_f64(),
-                _ => self.state.hover = Some((i, now)),
-            }
-            if !held {
-                ctx.request_repaint_after(d::HOVER_DELAY);
-            }
-        } else if self.state.hover.is_some_and(|(h, _)| h == i) {
-            self.state.hover = None;
+            let submenu = matches!(kind, Kind::Submenu(_)) && !item.disabled;
+            self.shared.nav.hover(self.ui.ctx(), self.depth, i, submenu, false);
         }
-        (response, clicked, held)
+        (response, clicked)
     }
 
     fn activate(&mut self, item: &MenuItem, value: A, clicked: bool) {
@@ -566,10 +557,7 @@ impl<A: ActionValue> MenuUi<'_, '_, A> {
     /// `MenuItem`: activating it closes the whole menu and reports `value` as [`MenuResponse::clicked`].
     pub fn item(&mut self, value: A, item: impl Into<MenuItem>) -> MenuItemResponse {
         let item = item.into();
-        let (response, clicked, held) = self.row(&item, Kind::Item);
-        if held && self.state.open_sub.is_some() {
-            self.state.open_sub = None;
-        }
+        let (response, clicked) = self.row(&item, Kind::Item);
         self.activate(&item, value, clicked);
         MenuItemResponse {
             response,
@@ -581,10 +569,7 @@ impl<A: ActionValue> MenuUi<'_, '_, A> {
     /// `MenuItemCheckbox`: a click flips `checked`; the menu stays open.
     pub fn checkbox_item(&mut self, item: impl Into<MenuItem>, checked: &mut bool) -> MenuItemResponse {
         let item = item.into();
-        let (response, clicked, held) = self.row(&item, Kind::Checkbox(*checked));
-        if held && self.state.open_sub.is_some() {
-            self.state.open_sub = None;
-        }
+        let (response, clicked) = self.row(&item, Kind::Checkbox(*checked));
         let clicked = clicked && !item.disabled;
         if clicked {
             *checked = !*checked;
@@ -599,10 +584,7 @@ impl<A: ActionValue> MenuUi<'_, '_, A> {
     /// `MenuItemRadio`: a click writes `value` into `group`; the menu stays open.
     pub fn radio_item<T: PartialEq>(&mut self, item: impl Into<MenuItem>, group: &mut T, value: T) -> MenuItemResponse {
         let item = item.into();
-        let (response, clicked, held) = self.row(&item, Kind::Radio(*group == value));
-        if held && self.state.open_sub.is_some() {
-            self.state.open_sub = None;
-        }
+        let (response, clicked) = self.row(&item, Kind::Radio(*group == value));
         let clicked = clicked && !item.disabled;
         if clicked {
             *group = value;
@@ -625,8 +607,9 @@ impl<A: ActionValue> MenuUi<'_, '_, A> {
     ) -> MenuItemResponse<Option<R>> {
         let item = item.into();
         let i = self.index;
-        let open = self.state.open_sub == Some(i);
-        let (response, clicked, held) = self.row(&item, Kind::SplitMain);
+        let depth = self.depth;
+        let open = self.shared.nav.open_child(depth) == Some(i);
+        let (response, clicked) = self.row(&item, Kind::SplitMain);
         let ctx = self.ui.ctx().clone();
         let dir = self.rt.i18n().direction();
         let trigger_rect = {
@@ -664,24 +647,20 @@ impl<A: ActionValue> MenuUi<'_, '_, A> {
         if on_trigger && ctx.input_mut(|input| input.consume_key(Modifiers::NONE, backward)) {
             ctx.memory_mut(|m| m.request_focus(response.id));
         }
-        let held_trigger = trigger.hovered() && !item.disabled && self.hold(i, trigger.hovered());
+        if trigger.hovered() {
+            self.shared.nav.hover(&ctx, depth, i, !item.disabled, false);
+        }
         if !item.disabled && (triggered || by_key) {
-            self.state.open_sub = Some(i);
-            self.state.focus_sub = true;
-        } else if held_trigger {
-            self.state.open_sub = Some(i);
-        } else if held && self.state.open_sub == Some(i) {
-            self.state.open_sub = None;
+            self.shared.nav.open(&ctx, depth, i, true);
         }
         self.activate(&item, value, clicked);
-        if self.state.open_sub != Some(i) {
+        if self.shared.nav.open_child(depth) != Some(i) {
             return MenuItemResponse {
                 response,
                 clicked: clicked && !item.disabled,
                 inner: None,
             };
         }
-        let focus_first = std::mem::take(&mut self.state.focus_sub);
         let sub_salt = self.salt.child(("sub", i));
         let shared = &mut *self.shared;
         let group = response.rect.union(trigger_rect);
@@ -689,39 +668,17 @@ impl<A: ActionValue> MenuUi<'_, '_, A> {
             .role(Role::Menu)
             .name(&item.label)
             .show_at(rt, group, |ui, _| {
-                level(rt, ui, &sub_salt, focus_first, true, shared, add)
+                level(rt, ui, &sub_salt, false, depth + 1, shared, add)
             });
         shared.inside.push(area.response.rect);
         let (inner, back) = area.inner;
         if back {
-            self.state.open_sub = None;
             ctx.memory_mut(|m| m.request_focus(trigger_id));
         }
         MenuItemResponse {
             response,
             clicked: false,
             inner: Some(inner),
-        }
-    }
-
-    // `hoverDelay` over a part that is not a row of its own: true once `hovered` has lasted that long.
-    fn hold(&mut self, i: usize, hovered: bool) -> bool {
-        let ctx = self.ui.ctx().clone();
-        let now = ctx.input(|input| input.time);
-        match self.state.hover {
-            Some((h, since)) if h == i && hovered => {
-                let held = now - since >= d::HOVER_DELAY.as_secs_f64();
-                if !held {
-                    ctx.request_repaint_after(d::HOVER_DELAY);
-                }
-                held
-            }
-            _ if hovered => {
-                self.state.hover = Some((i, now));
-                ctx.request_repaint_after(d::HOVER_DELAY);
-                false
-            }
-            _ => false,
         }
     }
 
@@ -784,29 +741,20 @@ impl<A: ActionValue> MenuUi<'_, '_, A> {
     ) -> MenuItemResponse<Option<R>> {
         let item = item.into();
         let i = self.index;
-        let open = self.state.open_sub == Some(i);
-        let (response, clicked, held) = self.row(&item, Kind::Submenu(open));
+        let depth = self.depth;
+        let open = self.shared.nav.open_child(depth) == Some(i);
+        let (response, clicked) = self.row(&item, Kind::Submenu(open));
         let ctx = self.ui.ctx().clone();
-        let forward = self.rt.i18n().direction().forward_key();
-        let by_key = !item.disabled
-            && response.has_focus()
-            && ctx.input_mut(|input| input.consume_key(Modifiers::NONE, forward));
-        if !item.disabled && (clicked || by_key) {
-            self.state.open_sub = Some(i);
-            self.state.focus_sub = true;
-        } else if held && !item.disabled {
-            self.state.open_sub = Some(i);
-        } else if held {
-            self.state.open_sub = None;
+        if !item.disabled && clicked {
+            self.shared.nav.open(&ctx, depth, i, true);
         }
-        if self.state.open_sub != Some(i) {
+        if self.shared.nav.open_child(depth) != Some(i) {
             return MenuItemResponse {
                 response,
                 clicked: false,
                 inner: None,
             };
         }
-        let focus_first = std::mem::take(&mut self.state.focus_sub);
         let sub_salt = self.salt.child(("sub", i));
         let rt = self.rt;
         let shared = &mut *self.shared;
@@ -814,12 +762,11 @@ impl<A: ActionValue> MenuUi<'_, '_, A> {
             .role(Role::Menu)
             .name(&item.label)
             .show_at(rt, response.rect, |ui, _| {
-                level(rt, ui, &sub_salt, focus_first, true, shared, add)
+                level(rt, ui, &sub_salt, false, depth + 1, shared, add)
             });
         shared.inside.push(area.response.rect);
         let (inner, back) = area.inner;
         if back {
-            self.state.open_sub = None;
             ctx.memory_mut(|m| m.request_focus(response.id));
         }
         MenuItemResponse {
@@ -830,13 +777,13 @@ impl<A: ActionValue> MenuUi<'_, '_, A> {
     }
 }
 
-// Surface of one menu level; returns the content result and whether the level asked to close itself.
+// Surface of menu level `depth`; returns the content result and whether the level closed itself.
 fn level<R, A: ActionValue>(
     rt: &Rt,
     ui: &mut Ui,
     salt: &KeyedSalt,
-    focus_first: bool,
-    is_sub: bool,
+    opened: bool,
+    depth: usize,
     shared: &mut Shared<A>,
     add: impl FnOnce(&mut MenuUi<'_, '_, A>) -> R,
 ) -> (R, bool) {
@@ -854,8 +801,7 @@ fn level<R, A: ActionValue>(
         radius: g::BORDER_RADIUS_MEDIUM,
         elevation: Elevation::E16,
     };
-    let level_id = id.with("mineral::menu-level");
-    let state = Level::load(&ctx, level_id);
+    let focus_first = opened || shared.nav.take_focus(depth).is_some();
     let inner = framed(ui, &t, &look, Margin::same(d::POPOVER_PADDING as i8), |ui| {
         ui.set_width(memo.width);
         ui.spacing_mut().item_spacing.y = d::LIST_GAP;
@@ -869,19 +815,18 @@ fn level<R, A: ActionValue>(
                 checkmarks: false,
                 icons: false,
             },
-            state,
+            depth,
             index: 0,
             rows: Vec::new(),
             shared,
         };
         let out = add(&mut mui);
-        let MenuUi { rows, seen, state, .. } = mui;
-        (out, rows, seen, state)
+        let MenuUi { rows, seen, .. } = mui;
+        (out, rows, seen)
     });
-    let (out, rows, seen, state) = inner.inner;
+    let (out, rows, seen) = inner.inner;
     let ids: Vec<Id> = rows.iter().map(|r| r.id).collect();
     let enabled = |i: usize| rows.get(i).is_some_and(|r| r.enabled);
-    state.store(&ctx, level_id);
     let next = Memo {
         width: seen.width.clamp(Memo::MIN_WIDTH, Memo::MAX_WIDTH),
         ..seen
@@ -917,19 +862,20 @@ fn level<R, A: ActionValue>(
         if ctx.input(|i| i.key_pressed(Key::Tab)) {
             shared.close = true;
         }
-        let key = rt.i18n().direction().forward_key();
-        let back_key = if key == Key::ArrowRight {
-            Key::ArrowLeft
-        } else {
-            Key::ArrowRight
-        };
-        if let Some(i) = focused_index(&ctx, &ids)
-            && let Some(to) = typeahead(&ctx, i, &rows).and_then(|to| ids.get(to))
-        {
-            ctx.memory_mut(|m| m.request_focus(*to));
+        if let Some(i) = focused_index(&ctx, &ids) {
+            if let Some(to) = typeahead(&ctx, i, &rows).and_then(|to| ids.get(to)) {
+                ctx.memory_mut(|m| m.request_focus(*to));
+            }
+            let parent = rows.get(i).is_some_and(|r| r.submenu && r.enabled);
+            match shared.nav.walk(&ctx, rt.i18n().direction(), depth, i, parent) {
+                Some(Walk::Closed { .. }) => back = true,
+                Some(Walk::Bar(edge)) => shared.bar = Some(edge),
+                Some(Walk::Opened) | None => {}
+            }
         }
-        if is_sub {
-            back = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, back_key)) | overlay_escape(&ctx);
+        if depth > 0 && !back && overlay_escape(&ctx) {
+            shared.nav.close_level(depth);
+            back = true;
         }
     }
     (out, back)
@@ -1003,6 +949,8 @@ pub struct MenuResponse<R = (), A = NoAction> {
     /// Value of the item activated this pass ([`MenuUi::item`] or the main part of [`MenuUi::split_item`], also
     /// in a submenu).
     pub clicked: Option<A>,
+    /// Reading-order arrow on the root level toward this edge; a menu bar opens the adjacent menu.
+    pub nav: Option<Edge>,
 }
 
 /// Fluent `Menu`: a popup list of rows anchored below its trigger. The trigger's clicks toggle it, Escape,
@@ -1080,21 +1028,28 @@ impl Menu {
                 inner: None,
                 dismissed,
                 clicked: None,
+                nav: None,
             };
         }
         let opened_id = trigger.id.with(("mineral::fluent-menu", self.salt.id_salt()));
         let pass = ctx.cumulative_pass_nr();
         let last: Option<u64> = ctx.data(|d| d.get_temp(opened_id));
         let opened = last.is_none_or(|p| p + 1 < pass);
+        let nav_id = opened_id.with("nav");
+        let mut nav = MenuNav::load(ctx, nav_id);
+        if opened {
+            nav.reset(None);
+        }
         let mut shared = Shared {
             radio_mark: self.radio_mark,
+            nav,
             ..Shared::default()
         };
         let area = Popup::new(self.salt.child("area"), Anchor::new(self.side, self.align))
             .role(Role::Menu)
             .name(&self.label)
             .show_at(rt, trigger.rect, |ui, _| {
-                level(rt, ui, &self.salt, opened, false, &mut shared, add)
+                level(rt, ui, &self.salt, opened, 0, &mut shared, add)
             });
         ctx.data_mut(|d| d.insert_temp(opened_id, pass));
         let (inner, _) = area.inner;
@@ -1107,8 +1062,12 @@ impl Menu {
         }
         let dismissal = dismissal.or(tab_closed.then_some(Dismiss::Close));
         *open = dismissal.is_none();
-        if !*open {
+        shared.nav.settle_hover(ctx, d::HOVER_DELAY);
+        if *open {
+            shared.nav.store(ctx, nav_id);
+        } else {
             ctx.data_mut(|d| d.remove::<u64>(opened_id));
+            ctx.data_mut(|d| d.remove::<MenuNav>(nav_id));
         }
         let key = self.key.id(&self.salt);
         let label = self.label;
@@ -1120,6 +1079,7 @@ impl Menu {
             inner: Some(inner),
             dismissed: dismissal,
             clicked: shared.clicked,
+            nav: shared.bar,
         }
     }
 }

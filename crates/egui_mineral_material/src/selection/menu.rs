@@ -4,6 +4,7 @@ use crate::MaterialUiExt as _;
 use crate::Rt;
 use crate::adaptive::Density;
 use egui_mineral::i18n::I18n;
+use egui_mineral::kit::menu::{FocusTarget, MenuNav, Walk};
 use egui_mineral::kit::state::TempState;
 use egui_mineral::layout::Edge;
 use egui_mineral::select::{ItemKey, RadioMark};
@@ -21,7 +22,7 @@ use egui_mineral::{
     anchor::{Align, Anchor, SafeTriangle, Side, Surroundings},
     focus::{self, Modality, RovingFocus, Typeahead},
     i18n::Direction,
-    input::{Gesture, HoverIntent, UnifiedInputEvent},
+    input::{Gesture, UnifiedInputEvent},
     kit,
     layout::{Axis, Constraints, Measure},
     overlay::Dismiss,
@@ -456,20 +457,11 @@ pub(crate) fn open_focus(ctx: &Context) -> Option<FocusTarget> {
     (focus::modality(ctx) == Modality::Keyboard).then_some(FocusTarget::SelectedOrFirst)
 }
 
-// Item a menu level focuses when it opens.
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub(crate) enum FocusTarget {
-    SelectedOrFirst,
-    Last,
-}
-
 #[derive(Clone)]
 pub(crate) struct MenuState {
     pub(crate) open: bool,
     pub(crate) anchor: Rect,
-    pub(crate) path: Vec<usize>,
-    pub(crate) pending: HoverIntent<(usize, Option<usize>)>,
-    pub(crate) focus: Option<(usize, FocusTarget)>,
+    pub(crate) nav: MenuNav,
     pub(crate) focused: bool,
     // Layer under the anchor when `show_at` opened it.
     pub(crate) parent: LayerId,
@@ -482,9 +474,7 @@ impl Default for MenuState {
         Self {
             open: false,
             anchor: Rect::NOTHING,
-            path: Vec::new(),
-            pending: HoverIntent::default(),
-            focus: None,
+            nav: MenuNav::default(),
             focused: false,
             parent: LayerId::background(),
         }
@@ -952,9 +942,7 @@ impl<A: ActionValue> Menu<A> {
     pub(crate) fn open(st: &mut MenuState, anchor: Rect, focus: Option<FocusTarget>) {
         st.open = true;
         st.anchor = anchor;
-        st.path.clear();
-        st.pending.cancel();
-        st.focus = focus.map(|f| (0, f));
+        st.nav.reset(focus);
     }
 
     fn level_entries<'e>(&'e self, path: &[usize], level: usize) -> Option<&'e [Entry<A>]> {
@@ -1006,7 +994,7 @@ impl<A: ActionValue> Menu<A> {
         let mut key_level: Option<KeyLevel> = None;
         let mut level_ids: Vec<Vec<RowRect>> = Vec::new();
         let mut parent = parent;
-        while let Some(entries) = self.level_entries(&st.path, level) {
+        while let Some(entries) = self.level_entries(st.nav.path(), level) {
             let geo = self.geometry(rt, rt.kit().density(), entries);
             let placement = if level == 0 {
                 place.place(anchor_rect, geo.size, surroundings)
@@ -1019,7 +1007,7 @@ impl<A: ActionValue> Menu<A> {
             };
             let rect = placement.rect;
             panels.push(rect);
-            let open_child = st.path.get(level).copied();
+            let open_child = st.nav.open_child(level);
             let mut lr = LevelRun {
                 fr: &fr,
                 entries,
@@ -1058,7 +1046,7 @@ impl<A: ActionValue> Menu<A> {
             level_ids.push(rows);
             let Some(child) = open_child else { break };
             let Some(row_rect) = child_rect else {
-                st.path.truncate(level);
+                st.nav.close_from(level);
                 break;
             };
             base = Self::child_base(entries, base, child);
@@ -1067,12 +1055,7 @@ impl<A: ActionValue> Menu<A> {
         }
 
         // Hover intent resolves after the delay unless the pointer heads into the open submenu.
-        if let Some((l, want)) = st.pending.due(ctx, SUBMENU_DELAY) {
-            st.path.truncate(l);
-            if let Some(e) = want {
-                st.path.push(e);
-            }
-        }
+        st.nav.settle_hover(ctx, SUBMENU_DELAY);
 
         // egui moves focus on (Shift+)Tab before the rows run, so judge by last pass's focus too.
         let held_focus = st.focused || key_level.is_some();
@@ -1102,8 +1085,7 @@ impl<A: ActionValue> Menu<A> {
         }
         if !st.open {
             st.focused = false;
-            st.path.clear();
-            st.pending.cancel();
+            st.nav.reset(None);
         }
     }
 
@@ -1247,10 +1229,7 @@ impl<A: ActionValue> Menu<A> {
         });
         if resp.clicked() || key_hit {
             if row.has_submenu() {
-                lr.st.path.truncate(level);
-                lr.st.path.push(e);
-                lr.st.pending.cancel();
-                lr.st.focus = Some((level + 1, FocusTarget::SelectedOrFirst));
+                lr.st.nav.open(ctx, level, e, true);
             } else if let Some(command) = &item.command {
                 shortcut::fire(ctx, command);
                 lr.out.fired = true;
@@ -1259,19 +1238,14 @@ impl<A: ActionValue> Menu<A> {
                 lr.out.keep_open = item.toggle.is_some();
             }
         }
-        if fr.moved && resp.hovered() {
+        if resp.hovered() {
             let toward_child = open_child.is_some_and(|_| {
                 let sub = ctx.memory(|m| m.area_rect(fr.id.with(("level", level + 1))));
                 sub.zip(fr.apex)
                     .zip(fr.pointer)
                     .is_some_and(|((s, a), p)| SafeTriangle::new(a, s).contains(p))
             });
-            let want = row.has_submenu().then_some(e);
-            if want == open_child {
-                lr.st.pending.cancel();
-            } else if !toward_child {
-                lr.st.pending.request(ctx, (level, want));
-            }
+            lr.st.nav.hover(ctx, level, e, row.has_submenu(), toward_child);
         }
     }
 
@@ -1288,9 +1262,7 @@ impl<A: ActionValue> Menu<A> {
             entries,
             enabled,
         } = *lf;
-        if let Some((l, pos)) = st.focus
-            && l == level
-        {
+        if let Some(pos) = st.nav.take_focus(level) {
             let selected = enabled
                 .iter()
                 .position(|x| matches!(&entries[x.0], Entry::Item(r) if r.item.selected));
@@ -1301,7 +1273,6 @@ impl<A: ActionValue> Menu<A> {
             if let Some(s) = start {
                 ctx.memory_mut(|m| m.request_focus(enabled[s].1));
             }
-            st.focus = None;
         }
         let ids: Vec<Id> = enabled.iter().map(|e| e.1).collect();
         let focused = ctx.memory(egui::Memory::focused);
@@ -1343,35 +1314,22 @@ impl<A: ActionValue> Menu<A> {
         if let Some((l, f, ids, entry_of)) = key_level {
             RovingFocus::new(Axis::Vertical).update(rt.core(), &ids, |_| true);
             kit::interact::lock_arrows(ctx, ids[f], kit::interact::Arrows::Both);
-            let fwd = fr.dir.forward_key();
-            let entries = self.level_entries(&st.path, l).unwrap_or(&[]);
-            for key in kit::interact::plain_key_presses(ctx) {
-                let is_parent = matches!(entries.get(entry_of[f]), Some(Entry::Item(r)) if r.has_submenu());
-                match key {
-                    k if k == fwd && is_parent => {
-                        st.path.truncate(l);
-                        st.path.push(entry_of[f]);
-                        st.focus = Some((l + 1, FocusTarget::SelectedOrFirst));
-                    }
-                    Key::ArrowLeft | Key::ArrowRight if l > 0 => {
-                        if key != fwd {
-                            Self::close_level(ctx, st, level_ids, l);
-                        }
-                    }
-                    Key::ArrowLeft | Key::ArrowRight => {
-                        out.nav = Some(if key == fwd { Edge::End } else { Edge::Start });
-                    }
-                    _ => {}
-                }
+            let entries = self.level_entries(st.nav.path(), l).unwrap_or(&[]);
+            let is_parent = matches!(entries.get(entry_of[f]), Some(Entry::Item(r)) if r.has_submenu());
+            match st.nav.walk(ctx, fr.dir, l, entry_of[f], is_parent) {
+                Some(Walk::Closed { parent }) => Self::focus_row(ctx, level_ids, l - 1, parent),
+                Some(Walk::Bar(edge)) => out.nav = Some(edge),
+                Some(Walk::Opened) | None => {}
             }
-        } else if st.open && st.focus.is_none() {
+        } else if st.open && !st.nav.focus_pending() {
             // Opened by pointer, nothing focused yet.
             for key in kit::interact::plain_key_presses(ctx) {
-                st.focus = match key {
-                    Key::ArrowDown => Some((0, FocusTarget::SelectedOrFirst)),
-                    Key::ArrowUp => Some((0, FocusTarget::Last)),
+                let target = match key {
+                    Key::ArrowDown => FocusTarget::SelectedOrFirst,
+                    Key::ArrowUp => FocusTarget::Last,
                     _ => continue,
                 };
+                st.nav.request_focus(0, target);
                 #[expect(clippy::disallowed_methods, reason = "one pass to focus the first or last item")]
                 ctx.request_repaint();
             }
@@ -1384,14 +1342,16 @@ impl<A: ActionValue> Menu<A> {
         out.dismissed = Some(Dismiss::Escape);
     }
 
-    fn close_level(ctx: &Context, st: &mut MenuState, rows: &[Vec<(usize, Id, Rect)>], level: usize) {
-        if let Some(parent) = st.path.get(level - 1).copied()
-            && let Some(&(_, id, _)) = rows.get(level - 1).and_then(|r| r.iter().find(|r| r.0 == parent))
-        {
+    fn close_level(ctx: &Context, st: &mut MenuState, rows: &[Vec<RowRect>], level: usize) {
+        if let Some(parent) = st.nav.close_level(level) {
+            Self::focus_row(ctx, rows, level - 1, parent);
+        }
+    }
+
+    fn focus_row(ctx: &Context, rows: &[Vec<RowRect>], level: usize, entry: usize) {
+        if let Some(&(_, id, _)) = rows.get(level).and_then(|r| r.iter().find(|r| r.0 == entry)) {
             ctx.memory_mut(|m| m.request_focus(id));
         }
-        st.path.truncate(level - 1);
-        st.pending.cancel();
     }
 
     pub(crate) fn emit_trigger(
@@ -1430,7 +1390,6 @@ struct Frame<'a> {
     dir: Direction,
     pointer: Option<egui::Pos2>,
     apex: Option<egui::Pos2>,
-    moved: bool,
 }
 
 impl<'a> Frame<'a> {
@@ -1444,7 +1403,6 @@ impl<'a> Frame<'a> {
             dir,
             pointer,
             apex: pointer.map(|p| p - delta),
-            moved: delta != egui::Vec2::ZERO,
         }
     }
 }

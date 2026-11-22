@@ -3,6 +3,7 @@ use crate::MaterialExt;
 use crate::MaterialUiExt as _;
 use crate::msg;
 use egui::{Context, CornerRadius, Id, Key, Rangef, Rect, Response, Sense, pos2, vec2};
+use egui_mineral::kit::menu::FocusTarget;
 use egui_mineral::kit::{
     menubar::{self, BarState},
     state::TempState,
@@ -27,7 +28,7 @@ use crate::widget::{indication, parts};
 
 use crate::selection::{
     Menu,
-    menu::{FocusTarget, MenuState, open_focus},
+    menu::{MenuState, open_focus},
 };
 
 // Desktop menu bar, non-Compose
