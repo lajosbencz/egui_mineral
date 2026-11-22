@@ -185,6 +185,9 @@ fn menu_bar() -> crate::support::Harness<'static, Vec<&'static str>> {
                 if m.item("open", "Open").clicked {
                     clicked.push("open");
                 }
+                m.submenu("Recent", |m| {
+                    m.item("last", "Last");
+                });
             }))
             .menu(BarMenu::new("Edit", |m| {
                 m.item("copy", "Copy");
@@ -240,6 +243,26 @@ fn menu_bar_keys_open_move_between_menus_and_escape_returns_focus() {
         "Escape closes the menu"
     );
     assert!(h.focused("bar-0-menubar-item"), "Escape returns focus to its title");
+}
+
+#[test]
+fn right_on_a_submenu_leaf_moves_to_the_next_bar_menu() {
+    let mut h = menu_bar();
+    h.click("other-button");
+    h.press(Key::F10);
+    h.press(Key::ArrowDown);
+    h.run();
+    assert!(h.focused("bar-popup-0-0-menuitem"), "Down opens on the first row");
+    h.press(Key::ArrowDown);
+    h.press(Key::ArrowRight);
+    h.run();
+    h.press(Key::ArrowRight);
+    h.run();
+    assert!(h.tree().find_key("bar-popup-1-menu").is_some(), "the Edit menu opens");
+    assert!(
+        h.tree().find_key("bar-popup-0-menu").is_none(),
+        "File closes with its submenu"
+    );
 }
 
 #[test]

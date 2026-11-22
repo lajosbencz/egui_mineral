@@ -697,7 +697,8 @@ impl<'a, K: ItemKey> DataTable<'a, K> {
         }
         let page_ids = order.get(page).unwrap_or_default();
         self.apply_row_events(&pass, keys, page_ids, &order, &mut out);
-        let select_all = has_sel && !self.disabled && self.select_all && select::select_all_shortcut(ctx, ui.unique_id());
+        let select_all =
+            has_sel && !self.disabled && self.select_all && select::select_all_shortcut(ctx, ui.unique_id());
         self.apply_keys(keys, (page_ids, &order), moved, select_all, &mut out);
         out.rows = std::mem::take(&mut pass.rows).into_iter().collect();
 

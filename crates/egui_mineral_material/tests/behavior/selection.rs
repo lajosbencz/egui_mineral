@@ -475,6 +475,33 @@ fn f10_and_a_lone_alt_toggle_focus_to_the_menu_strip() {
 }
 
 #[test]
+fn right_on_a_submenu_leaf_moves_to_the_next_strip_menu() {
+    let mut h = still(WIDE, (), |ui, ()| {
+        MenuStrip::new("strip")
+            .menu(
+                Menu::new("file", "File")
+                    .item("open", "Open")
+                    .submenu("recent", "Recent", |m| m.item("last", "Last")),
+            )
+            .menu(Menu::new("edit", "Edit").item("copy", "Copy"))
+            .show(ui);
+        ui.mineral(PushButton::new("other", "Other"));
+    });
+    h.click("other-button");
+    h.press(Key::F10);
+    h.press(Key::ArrowDown);
+    h.run();
+    assert!(h.focused("file-open-menu-item"), "Down opens on the first row");
+    h.press(Key::ArrowDown);
+    h.press(Key::ArrowRight);
+    h.run();
+    assert!(h.focused("file-last-menu-item"), "Right opens Recent");
+    h.press(Key::ArrowRight);
+    h.run();
+    assert!(h.focused("edit-copy-menu-item"), "Right on a leaf moves to Edit");
+}
+
+#[test]
 fn escape_after_switching_menus_returns_focus_to_the_open_title() {
     let mut h = still(WIDE, (), |ui, ()| {
         MenuStrip::new("strip")

@@ -287,17 +287,14 @@ impl<A: ActionValue> MenuStrip<A> {
                 bar.open = Some(i);
                 Self::reopen(ctx, id, i, b.rect, focus);
             } else if b.has_focus() && bar.open.is_none() {
-                for key in kit::interact::plain_key_presses(ctx) {
-                    match key {
-                        Key::ArrowDown => {
-                            bar.open = Some(i);
-                            Self::reopen(ctx, id, i, b.rect, Some(FocusTarget::SelectedOrFirst));
-                        }
-                        Key::ArrowUp => {
-                            bar.open = Some(i);
-                            Self::reopen(ctx, id, i, b.rect, Some(FocusTarget::Last));
-                        }
-                        _ => {}
+                for (key, target) in [
+                    (Key::ArrowDown, FocusTarget::SelectedOrFirst),
+                    (Key::ArrowUp, FocusTarget::Last),
+                ] {
+                    // Consumed: the menu opening this pass would also move its focus by it.
+                    if ctx.input_mut(|inp| inp.consume_key(egui::Modifiers::NONE, key)) {
+                        bar.open = Some(i);
+                        Self::reopen(ctx, id, i, b.rect, Some(target));
                     }
                 }
             }
