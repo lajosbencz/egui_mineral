@@ -62,6 +62,24 @@ pub fn ancestors<N: TreeData>(roots: &[N], key: &N::Key) -> Option<Vec<N::Key>> 
         .collect()
 }
 
+impl<K: Ord + Clone> Expansion<K> {
+    /// Expands the [`ancestors`] of the node with `key` so a flattened tree shows it; `true` when it is now
+    /// visible. Single mode holds one open key, so it reveals only nodes with at most one ancestor and leaves
+    /// deeper ones untouched.
+    pub fn reveal<N: TreeData<Key = K>>(&mut self, roots: &[N], key: &K) -> bool {
+        let Some(path) = ancestors(roots, key) else {
+            return false;
+        };
+        if self.is_single() && path.len() > 1 {
+            return false;
+        }
+        for k in path {
+            self.expand(k);
+        }
+        true
+    }
+}
+
 /// Node with `key`, depth-first.
 pub fn find<'a, N: TreeData>(roots: &'a [N], key: &N::Key) -> Option<&'a N> {
     path_of(roots, key).and_then(|p| node_at(roots, &p))
@@ -656,6 +674,19 @@ mod tests {
         assert_eq!(ancestors(&roots, &3), Some(vec![1, 2]));
         assert_eq!(ancestors(&roots, &4), Some(vec![]));
         assert_eq!(ancestors(&roots, &9), None);
+    }
+
+    #[test]
+    fn reveal_expands_the_ancestors() {
+        let roots = vec![N(1, vec![N(2, vec![N(3, vec![])])]), N(4, vec![])];
+        let mut exp = Expansion::default();
+        assert!(exp.reveal(&roots, &3));
+        assert!(flatten(&roots, &exp).iter().any(|r| r.node.0 == 3));
+        assert!(!exp.reveal(&roots, &9));
+        let mut single = Expansion::single();
+        assert!(!single.reveal(&roots, &3), "two ancestors need two open keys");
+        assert!(single.reveal(&roots, &2));
+        assert_eq!(single.expanded().collect::<Vec<_>>(), [&1]);
     }
 
     #[test]

@@ -54,6 +54,11 @@ impl<K: Ord + Clone> Expansion<K> {
         }
     }
 
+    /// Accordion mode, fixed at construction.
+    pub fn is_single(&self) -> bool {
+        self.single
+    }
+
     /// Open keys in ascending order.
     pub fn expanded(&self) -> impl Iterator<Item = &K> {
         self.open.iter()
