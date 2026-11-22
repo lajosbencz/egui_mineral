@@ -137,7 +137,7 @@ impl PassState {
 struct Passes {
     ctx: Context,
     map: Mutex<ViewportIdMap<PassState>>,
-    wheel: WheelScroll,
+    wheel: Option<WheelScroll>,
     rate: Mutex<WheelRate>,
 }
 
@@ -166,7 +166,10 @@ impl Passes {
 
     // Before egui scales this pass's wheel deltas; `options_mut` runs outside every lock of `self`.
     fn scroll(&self, raw: &RawInput) {
-        let speed = self.rate.lock().line_speed(&self.wheel, raw);
+        let Some(wheel) = &self.wheel else {
+            return;
+        };
+        let speed = self.rate.lock().line_speed(wheel, raw);
         self.ctx.options_mut(|o| o.input_options.line_scroll_speed = speed);
     }
 
@@ -295,6 +298,7 @@ pub struct Core {
     collect_semantics: AtomicBool,
     input_history: AtomicUsize,
     preference: Mutex<ThemePreference>,
+    system_theme: Mutex<Option<Theme>>,
     global_style: Mutex<GlobalStyle>,
 }
 
@@ -349,14 +353,24 @@ impl Core {
         self.ctx.request_repaint();
     }
 
-    /// Brightness shown: the preference, `System` resolved through the platform (egui's fallback when unknown).
+    /// OS brightness from the app's own source, overriding egui's for `System`; `None` reads egui's again.
+    #[expect(clippy::disallowed_methods, reason = "one pass after the theme changed")]
+    pub fn set_system_theme(&self, theme: Option<Theme>) {
+        *self.system_theme.lock() = theme;
+        self.ctx.request_repaint();
+    }
+
+    /// Brightness shown: the preference, `System` resolved through [`Self::set_system_theme`], else the platform
+    /// (egui's fallback when unknown).
     pub fn theme(&self) -> Theme {
         match self.preference() {
             ThemePreference::Light => Theme::Light,
             ThemePreference::Dark => Theme::Dark,
             ThemePreference::System => {
                 let ctx = &self.ctx;
-                ctx.system_theme().unwrap_or_else(|| ctx.options(|o| o.fallback_theme))
+                let own = *self.system_theme.lock();
+                own.or_else(|| ctx.system_theme())
+                    .unwrap_or_else(|| ctx.options(|o| o.fallback_theme))
             }
         }
     }
@@ -423,7 +437,7 @@ impl<K: Stylekit> Runtime<K> {
             i18n.add_resource(catalog)?;
         }
         let mut policies = kit.policies(ctx).sanitized();
-        policies.wheel = policies.wheel.resolved();
+        policies.wheel = policies.wheel.map(WheelScroll::resolved);
         let passes = Arc::new(Passes {
             ctx: ctx.clone(),
             map: Mutex::default(),
@@ -444,6 +458,7 @@ impl<K: Stylekit> Runtime<K> {
             collect_semantics: AtomicBool::new(false),
             input_history: AtomicUsize::new(0),
             preference: Mutex::new(ThemePreference::System),
+            system_theme: Mutex::new(None),
             global_style: Mutex::new(GlobalStyle::Egui),
         };
         Ok(Arc::new(Self {
@@ -828,9 +843,41 @@ mod tests {
     fn runtime_sets_wheel_line_speed_without_integration_hooks() {
         let ctx = ctx();
         let mut policies = crate::test_support::policies();
-        policies.wheel.lines_per_notch = Some(5.0);
+        if let Some(w) = &mut policies.wheel {
+            w.lines_per_notch = Some(5.0);
+        }
         let rt = crate::test_support::runtime_with(&ctx, policies);
         run(&ctx, crate::test_support::at(0.0, vec![]), |ui| rt.pass(ui, |_| {}));
         assert_eq!(ctx.options(|o| o.input_options.line_scroll_speed), 100.0);
+    }
+
+    #[test]
+    fn runtime_leaves_wheel_line_speed_without_a_wheel_policy() {
+        let ctx = ctx();
+        ctx.options_mut(|o| o.input_options.line_scroll_speed = 7.0);
+        let mut policies = crate::test_support::policies();
+        policies.wheel = None;
+        let rt = crate::test_support::runtime_with(&ctx, policies);
+        run(&ctx, crate::test_support::at(0.0, vec![]), |ui| rt.pass(ui, |_| {}));
+        assert_eq!(ctx.options(|o| o.input_options.line_scroll_speed), 7.0);
+    }
+
+    #[test]
+    fn system_theme_override_resolves_system_until_cleared() {
+        let ctx = ctx();
+        let rt = crate::test_support::runtime(&ctx);
+        let platform = rt.core().theme();
+        let other = if platform == Theme::Dark {
+            Theme::Light
+        } else {
+            Theme::Dark
+        };
+        rt.core().set_system_theme(Some(other));
+        assert_eq!(rt.core().theme(), other);
+        rt.core().set_preference(ThemePreference::Light);
+        assert_eq!(rt.core().theme(), Theme::Light, "an explicit preference wins");
+        rt.core().set_preference(ThemePreference::System);
+        rt.core().set_system_theme(None);
+        assert_eq!(rt.core().theme(), platform);
     }
 }

@@ -35,7 +35,8 @@ pub struct Policies {
     /// Hover cursors.
     pub cursors: Cursors,
     /// Notched-wheel distance and acceleration; the runtime sets egui's `line_scroll_speed` from it each pass.
-    pub wheel: crate::input::WheelScroll,
+    /// `None` leaves `line_scroll_speed` to the app.
+    pub wheel: Option<crate::input::WheelScroll>,
 }
 
 /// Cursor over a hovered interactive element (see [`crate::kit::interact::hover_cursor`]); `None` keeps
@@ -89,7 +90,7 @@ impl Policies {
             readline: true,
             mnemonics: false,
             cursors: Cursors::default(),
-            wheel: crate::input::WheelScroll::baseline(),
+            wheel: Some(crate::input::WheelScroll::baseline()),
         }
     }
 
@@ -116,7 +117,7 @@ impl Policies {
         p.repeat.interval = nonzero_duration(p.repeat.interval, "repeat.interval");
         p.gestures.slop = at_least(p.gestures.slop, 0.0.., "gestures.slop");
         p.gestures.swipe_min_velocity = at_least(p.gestures.swipe_min_velocity, 0.0.., "gestures.swipe_min_velocity");
-        p.wheel = p.wheel.sanitized();
+        p.wheel = p.wheel.map(crate::input::WheelScroll::sanitized);
         p
     }
 }
