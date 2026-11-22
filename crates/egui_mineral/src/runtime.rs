@@ -189,7 +189,7 @@ impl Passes {
 
 #[derive(Default)]
 struct RuntimePlugin {
-    runtimes: Vec<Weak<Passes>>,
+    runtimes: Vec<Weak<Core>>,
 }
 
 impl egui::Plugin for RuntimePlugin {
@@ -199,7 +199,8 @@ impl egui::Plugin for RuntimePlugin {
 
     fn input_hook(&mut self, _ctx: &Context, raw: &mut RawInput) {
         self.runtimes.retain(|w| w.strong_count() > 0);
-        for passes in self.runtimes.iter().filter_map(Weak::upgrade) {
+        for core in self.runtimes.iter().filter_map(Weak::upgrade) {
+            let passes = &core.passes;
             passes.prune(raw);
             passes.inject(raw);
             passes.scroll(raw);
@@ -309,6 +310,16 @@ impl Core {
         self.id
     }
 
+    /// Core of the runtime whose pass runs on the current viewport of `ctx`, else of the outermost pass that ran
+    /// there last; `None` before the first pass or once that runtime is dropped. Call outside egui locks.
+    pub fn of(ctx: &Context) -> Option<Arc<Self>> {
+        let viewport = ctx.viewport_id();
+        let owner = ctx.data(|d| d.get_temp::<Owner>(owner_id(viewport)))?;
+        let id = owner.current.unwrap_or(owner.outermost);
+        ctx.with_plugin(|p: &mut RuntimePlugin| p.runtimes.iter().filter_map(Weak::upgrade).find(|c| c.id == id))
+            .flatten()
+    }
+
     /// Context this runtime was built for.
     pub fn ctx(&self) -> &Context {
         &self.ctx
@@ -405,7 +416,7 @@ impl Core {
 
 /// [`Core`] plus the stylekit `K`; shared (`Arc`) by its windows and every [`MineralUi`] it hands out.
 pub struct Runtime<K> {
-    core: Core,
+    core: Arc<Core>,
     kit: K,
     style: fn(&K, &Context, Theme) -> Arc<Style>,
 }
@@ -444,11 +455,7 @@ impl<K: Stylekit> Runtime<K> {
             wheel: policies.wheel,
             rate: Mutex::default(),
         });
-        ctx.plugin_or_default::<RuntimePlugin>()
-            .lock()
-            .runtimes
-            .push(Arc::downgrade(&passes));
-        let core = Core {
+        let core = Arc::new(Core {
             id: NEXT_ID.fetch_add(1, Ordering::Relaxed),
             ctx: ctx.clone(),
             i18n,
@@ -460,7 +467,11 @@ impl<K: Stylekit> Runtime<K> {
             preference: Mutex::new(ThemePreference::System),
             system_theme: Mutex::new(None),
             global_style: Mutex::new(GlobalStyle::Egui),
-        };
+        });
+        ctx.plugin_or_default::<RuntimePlugin>()
+            .lock()
+            .runtimes
+            .push(Arc::downgrade(&core));
         Ok(Arc::new(Self {
             core,
             kit,
@@ -804,6 +815,25 @@ mod tests {
         inner.core().set_global_style(GlobalStyle::Kit);
         run(&ctx, input(vec![]), |ui| host.pass(ui, |ui| inner.pass(ui, |_| {})));
         assert_ne!(ctx.global_style().spacing.item_spacing.x, 37.0);
+    }
+
+    #[test]
+    fn core_of_is_the_running_pass_else_the_last_outermost() {
+        let ctx = ctx();
+        assert!(Core::of(&ctx).is_none(), "no pass yet");
+        let host = runtime(&ctx);
+        let inner = styled(&ctx);
+        let id = |c: Option<Arc<Core>>| c.map(|c| c.id());
+        run(&ctx, input(vec![]), |ui| {
+            host.pass(ui, |ui| {
+                assert_eq!(id(Core::of(ui.ctx())), Some(host.core().id()));
+                inner.pass(ui, |ui| assert_eq!(id(Core::of(ui.ctx())), Some(inner.core().id())));
+                assert_eq!(id(Core::of(ui.ctx())), Some(host.core().id()), "back to the outer pass");
+            });
+        });
+        assert_eq!(id(Core::of(&ctx)), Some(host.core().id()), "between passes");
+        drop(host);
+        assert!(Core::of(&ctx).is_none(), "runtime dropped");
     }
 
     #[test]
