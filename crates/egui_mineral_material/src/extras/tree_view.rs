@@ -144,16 +144,31 @@ impl<K, A> TreeViewResponse<K, A> {
 
 struct RowOut<A> {
     toggle: bool,
-    select: Option<Modifiers>,
+    // Pointer press on the row body.
+    press: Option<Modifiers>,
+    // Click; `true` from the pointer, which ends a `press`.
+    select: Option<(Modifiers, bool)>,
     activated: bool,
     toggled: bool,
     action: Option<(A, Rect)>,
+}
+
+impl<A> RowOut<A> {
+    fn any(&self) -> bool {
+        self.toggle
+            || self.press.is_some()
+            || self.select.is_some()
+            || self.activated
+            || self.toggled
+            || self.action.is_some()
+    }
 }
 
 impl<A> Default for RowOut<A> {
     fn default() -> Self {
         Self {
             toggle: false,
+            press: None,
             select: None,
             activated: false,
             toggled: false,
@@ -395,11 +410,18 @@ impl<A: ActionValue> MineralWidget for RowWidget<'_, A> {
             }
         }
         let on_control = out.toggled || out.action.is_some();
+        let modifiers = ui.input(|i| i.modifiers);
+        let on_chevron = |p: Option<egui::Pos2>| self.has_children && p.is_some_and(|p| chevron_hit.contains(p));
+        // Hover, not `is_pointer_button_down_on`: a fast click presses and releases in one pass.
+        let origin = ui.input(|i| i.pointer.primary_pressed().then(|| i.pointer.press_origin()).flatten());
+        if !self.disabled && r.hovered() && origin.is_some_and(|p| r.rect.contains(p)) && !on_chevron(origin) {
+            out.press = Some(modifiers);
+        }
         if parts::press(ui, frame, Availability::disabled_if(self.disabled)).clicked && !on_control {
-            if self.has_children && press.is_some_and(|p| chevron_hit.contains(p)) {
+            if on_chevron(press) {
                 out.toggle = true;
             } else {
-                out.select = Some(ui.input(|i| i.modifiers));
+                out.select = Some((modifiers, r.clicked_by(egui::PointerButton::Primary)));
             }
         }
         if r.double_clicked() {
@@ -562,7 +584,9 @@ impl<'a, N: TreeData, A: ActionValue> TreeView<'a, N, A> {
         agent_key(salt)
     }
 
-    /// Rows select on click, Space and Enter; without one rows only activate.
+    /// Rows select on pointer press ([`Selection::press`]: a selected row keeps a multiple selection to drag and
+    /// narrows it on release), Space and Enter. Arrows move [`Selection::current`] only, Shift extends a multiple
+    /// selection, Ctrl/Cmd+A selects every enabled row. Without one rows only activate.
     pub fn selection(mut self, selection: &'a mut Selection<N::Key>) -> Self {
         self.selection = Some(selection);
         self
@@ -922,15 +946,24 @@ impl<'a, N: TreeData, A: ActionValue> TreeView<'a, N, A> {
             if o.toggle {
                 Self::toggle_node(out, self.expansion, key.clone());
             }
-            if let (Some(m), Some(selection)) = (o.select, self.selection.as_deref_mut()) {
+            if let Some(selection) = self.selection.as_deref_mut()
+                && (o.press.is_some() || o.select.is_some())
+            {
                 // Only Shift reads the visual order.
-                let order = if m.shift {
-                    visible.get_or_insert_with(|| rows.iter().map(|r| r.node.key().clone()).collect())
+                let shift = o.press.or(o.select.map(|s| s.0)).is_some_and(|m| m.shift);
+                let order = if shift {
+                    visible.get_or_insert_with(|| Self::selectable(rows))
                 } else {
                     &mut Vec::new()
                 };
-                selection.click(key.clone(), m, order);
-                out.changed = true;
+                if let Some(m) = o.press {
+                    out.changed |= selection.press(key.clone(), m, order);
+                }
+                out.changed |= match o.select {
+                    Some((m, true)) => selection.release(key.clone(), m),
+                    Some((m, false)) => selection.click(key.clone(), m, order),
+                    None => false,
+                };
             }
             if o.toggled {
                 out.leading_toggled = Some(key.clone());
@@ -946,6 +979,14 @@ impl<'a, N: TreeData, A: ActionValue> TreeView<'a, N, A> {
                 out.activated = Some(key);
             }
         }
+    }
+
+    // Visual order of the rows that take selection.
+    fn selectable(rows: &[TreeRow<'a, N>]) -> Vec<N::Key> {
+        rows.iter()
+            .filter(|r| !r.disabled)
+            .map(|r| r.node.key().clone())
+            .collect()
     }
 
     fn can_reorder(&self) -> bool {
@@ -973,10 +1014,23 @@ impl<'a, N: TreeData, A: ActionValue> TreeView<'a, N, A> {
                 }
                 continue;
             }
-            match tree::on_key(rows, cur, k, dir) {
-                Some(TreeNav::Focus(j)) => {
-                    state.pending = Some(rows[j].node.key().clone());
+            match tree::on_key(rows, cur, k, m, dir) {
+                Some(TreeNav::Focus { row, extend }) => {
+                    let key = rows[row].node.key().clone();
+                    if let Some(sel) = self.selection.as_deref_mut() {
+                        if extend {
+                            out.changed |= sel.extend_to(key.clone(), &Self::selectable(rows));
+                        } else {
+                            sel.set_current(key.clone());
+                        }
+                    }
+                    state.pending = Some(key);
                     state.pending_passes = 0;
+                }
+                Some(TreeNav::SelectAll) => {
+                    if let Some(sel) = self.selection.as_deref_mut() {
+                        out.changed |= sel.select_all(&Self::selectable(rows));
+                    }
                 }
                 Some(TreeNav::Expand(j) | TreeNav::Collapse(j)) => {
                     Self::toggle_node(out, self.expansion, rows[j].node.key().clone());
@@ -1025,7 +1079,7 @@ impl<'a, N: TreeData, A: ActionValue> TreeView<'a, N, A> {
         }
     }
 
-    // Pending focus, then the last stop, the first selected row, the first row; disabled rows never.
+    // Pending focus, then the last stop, the current or first selected row, the first row; disabled rows never.
     fn tab_stop(rows: &[TreeRow<'a, N>], state: &TreeState<N::Key>, found: [Option<usize>; 3]) -> Option<N::Key> {
         let enabled = |i: Option<usize>| i.filter(|&i| rows.get(i).is_some_and(|r| !r.disabled));
         let row = state
@@ -1078,7 +1132,7 @@ impl<'a, N: TreeData, A: ActionValue> TreeView<'a, N, A> {
             .reveal
             .as_ref()
             .and_then(|k| rows.iter().position(|r| r.node.key() == k));
-        let selected = self.selection.as_ref().and_then(|s| s.first().cloned());
+        let selected = self.selection.as_ref().and_then(|s| s.current().or(s.first()).cloned());
         let wanted = [state.pending.as_ref(), state.stop.as_ref(), selected.as_ref()];
         let found = Self::locate(&rows, wanted);
         let pending = Self::pending_row(&mut state, found[0]);
@@ -1140,7 +1194,7 @@ impl<'a, N: TreeData, A: ActionValue> TreeView<'a, N, A> {
                     }
                     let (resp, o) = r.into_parts();
                     out.rows.push(key.clone(), resp);
-                    if o.toggle || o.select.is_some() || o.activated || o.toggled || o.action.is_some() {
+                    if o.any() {
                         events.push((i, o));
                     }
                 },

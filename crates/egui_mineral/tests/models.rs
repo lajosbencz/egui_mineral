@@ -603,8 +603,8 @@ proptest! {
         // Rows of one model against another model's tree: stale keys and indices.
         for (rows, roots) in [(&rows, &roots), (&stale_rows, &roots), (&rows, &other)] {
             for (current, key, dir, node, frac) in probes.iter().copied() {
-                if let Some(TreeNav::Focus(i) | TreeNav::Expand(i) | TreeNav::Collapse(i)) =
-                    tree::on_key::<Node>(rows, current, key, dir)
+                if let Some(TreeNav::Focus { row: i, .. } | TreeNav::Expand(i) | TreeNav::Collapse(i)) =
+                    tree::on_key::<Node>(rows, current, key, egui::Modifiers::NONE, dir)
                 {
                     prop_assert!(i < rows.len(), "row {i} of {}", rows.len());
                 }
@@ -1332,6 +1332,11 @@ enum SelectionOp {
     Toggle(u8),
     Clear,
     Click(u8, bool, bool),
+    Press(u8, bool, bool),
+    Release(u8, bool, bool),
+    ExtendTo(u8),
+    SelectAll,
+    SetCurrent(u8),
 }
 
 fn selection_op() -> impl Strategy<Value = SelectionOp> {
@@ -1341,6 +1346,11 @@ fn selection_op() -> impl Strategy<Value = SelectionOp> {
         (0..6u8).prop_map(SelectionOp::Toggle),
         Just(SelectionOp::Clear),
         (0..6u8, any::<bool>(), any::<bool>()).prop_map(|(k, shift, command)| SelectionOp::Click(k, shift, command)),
+        (0..6u8, any::<bool>(), any::<bool>()).prop_map(|(k, shift, command)| SelectionOp::Press(k, shift, command)),
+        (0..6u8, any::<bool>(), any::<bool>()).prop_map(|(k, shift, command)| SelectionOp::Release(k, shift, command)),
+        (0..6u8).prop_map(SelectionOp::ExtendTo),
+        Just(SelectionOp::SelectAll),
+        (0..6u8).prop_map(SelectionOp::SetCurrent),
     ]
 }
 
@@ -1365,6 +1375,17 @@ proptest! {
                 SelectionOp::Clear => s.clear(),
                 SelectionOp::Click(k, shift, command) => {
                     s.click(k, Modifiers { shift, command, ..Modifiers::NONE }, &order)
+                }
+                SelectionOp::Press(k, shift, command) => {
+                    s.press(k, Modifiers { shift, command, ..Modifiers::NONE }, &order)
+                }
+                SelectionOp::Release(k, shift, command) => s.release(k, Modifiers { shift, command, ..Modifiers::NONE }),
+                SelectionOp::ExtendTo(k) => s.extend_to(k, &order),
+                SelectionOp::SelectAll => s.select_all(&order),
+                SelectionOp::SetCurrent(k) => {
+                    s.set_current(k);
+                    prop_assert_eq!(s.current(), Some(&k));
+                    false
                 }
             };
             let after: Vec<u8> = s.selected().copied().collect();

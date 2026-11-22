@@ -1,4 +1,6 @@
-use egui::{DragAndDrop, Key, Rangef, Rect, Sense, Stroke, StrokeKind, Ui, UiBuilder, pos2, text::LayoutJob, vec2};
+use egui::{
+    DragAndDrop, Key, Modifiers, Rangef, Rect, Sense, Stroke, StrokeKind, Ui, UiBuilder, pos2, text::LayoutJob, vec2,
+};
 use egui_mineral::{
     expand::Expansion,
     focus::{self, Typeahead},
@@ -1132,8 +1134,8 @@ impl<'a, N: TreeData> Tree<'a, N> {
         kit::interact::lock_arrows(ctx, response.id, kit::interact::Arrows::Both);
         let mut jump = None;
         for k in kit::interact::plain_key_presses(ctx) {
-            match tree::on_key(rows, jump.unwrap_or(cur_row), k, dir) {
-                Some(TreeNav::Focus(j)) => jump = Some(j),
+            match tree::on_key(rows, jump.unwrap_or(cur_row), k, Modifiers::NONE, dir) {
+                Some(TreeNav::Focus { row, .. }) => jump = Some(row),
                 Some(TreeNav::Expand(j) | TreeNav::Collapse(j)) => {
                     if let Some(r) = rows.get(j) {
                         self.toggle(out, r.node.key().clone());

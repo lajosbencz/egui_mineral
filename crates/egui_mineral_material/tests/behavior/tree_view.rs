@@ -1,6 +1,6 @@
 //! `TreeView`: selection, keyboard expansion and activation.
 
-use egui::Key;
+use egui::{Key, Modifiers};
 use egui_mineral::tree::DropPosition;
 use egui_mineral::tree::TreeData as _;
 use egui_mineral::{expand::Expansion, select::Selection};
@@ -272,4 +272,82 @@ fn unfocused_selection_takes_its_own_container() {
         "{:?}",
         p.filled(role)
     );
+}
+
+fn multi_tree<'a>() -> Harness<'a, Selection<u32>> {
+    let roots = vec![
+        TreeNode::leaf(1, "Guide"),
+        TreeNode::leaf(2, "API"),
+        TreeNode::leaf(3, "Notes"),
+        TreeNode::leaf(4, "Todo"),
+    ];
+    let mut expansion = Expansion::default();
+    harness(SCREEN, Selection::multiple(), move |ui, sel| {
+        TreeView::new("tree", "Files", &roots, &mut expansion)
+            .selection(sel)
+            .reorderable(true)
+            .show(ui);
+    })
+}
+
+fn selected(h: &Harness<'_, Selection<u32>>) -> Vec<u32> {
+    h.state().value.selected().copied().collect()
+}
+
+#[test]
+fn shift_arrows_extend_ctrl_arrows_move_focus_and_ctrl_a_selects_all() {
+    let mut h = multi_tree();
+    h.click("tree-1-treeitem");
+    h.key_press_modifiers(Modifiers::SHIFT, Key::ArrowDown);
+    h.run();
+    h.key_press_modifiers(Modifiers::SHIFT, Key::ArrowDown);
+    h.run();
+    assert_eq!(selected(&h), [1, 2, 3]);
+    h.key_press_modifiers(Modifiers::COMMAND, Key::ArrowDown);
+    h.run();
+    assert!(h.focused("tree-4-treeitem"));
+    assert_eq!(h.state().value.current(), Some(&4));
+    assert_eq!(selected(&h), [1, 2, 3], "Ctrl+arrow keeps the selection");
+    h.key_press_modifiers(Modifiers::COMMAND, Key::A);
+    h.run();
+    assert_eq!(selected(&h), [1, 2, 3, 4]);
+}
+
+#[test]
+fn dragging_a_selected_row_keeps_the_selection_and_a_plain_click_narrows_it() {
+    let mut h = multi_tree();
+    h.click("tree-1-treeitem");
+    for _ in 0..2 {
+        h.key_press_modifiers(Modifiers::SHIFT, Key::ArrowDown);
+        h.run();
+    }
+    assert_eq!(selected(&h), [1, 2, 3]);
+    let (from, to) = (h.rect("tree-2-treeitem").center(), h.rect("tree-4-treeitem").center());
+    h.hover_at(from);
+    h.drag_at(from);
+    h.hover_at(from.lerp(to, 0.5));
+    h.hover_at(to);
+    h.step();
+    assert_eq!(
+        selected(&h),
+        [1, 2, 3],
+        "pressing a selected row keeps the set while it drags"
+    );
+    h.drop_at(to);
+    h.run();
+    assert_eq!(selected(&h), [1, 2, 3], "a drag never narrows it");
+    h.click("tree-2-treeitem");
+    assert_eq!(selected(&h), [2], "a plain click without a drag does");
+    let (from, to) = (h.rect("tree-4-treeitem").center(), h.rect("tree-1-treeitem").center());
+    h.hover_at(from);
+    h.drag_at(from);
+    h.hover_at(from.lerp(to, 0.5));
+    h.step();
+    assert_eq!(
+        selected(&h),
+        [4],
+        "pressing an unselected row selects it before it drags"
+    );
+    h.drop_at(to);
+    h.run();
 }

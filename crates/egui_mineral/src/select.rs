@@ -40,12 +40,14 @@ impl From<bool> for Check {
     try_from = "RawSelection<K>",
     bound(deserialize = "K: Ord + serde::Deserialize<'de>")
 )]
-/// Selected keys with an anchor for range selection.
+/// Selected keys, the anchor range selection extends from and the current (focused) key, which keyboard focus
+/// moves without changing the selection.
 pub struct Selection<K> {
     mode: SelectionMode,
     required: bool,
     selected: BTreeSet<K>,
     anchor: Option<K>,
+    current: Option<K>,
 }
 
 #[derive(serde::Deserialize)]
@@ -55,6 +57,7 @@ struct RawSelection<K: Ord> {
     required: bool,
     selected: BTreeSet<K>,
     anchor: Option<K>,
+    current: Option<K>,
 }
 
 impl<K: Ord> TryFrom<RawSelection<K>> for Selection<K> {
@@ -72,6 +75,7 @@ impl<K: Ord> TryFrom<RawSelection<K>> for Selection<K> {
             required: r.required,
             selected: r.selected,
             anchor: r.anchor,
+            current: r.current,
         })
     }
 }
@@ -84,6 +88,7 @@ impl<K: Ord> Default for Selection<K> {
             required: false,
             selected: BTreeSet::new(),
             anchor: None,
+            current: None,
         }
     }
 }
@@ -148,10 +153,27 @@ impl<K: Ord + Clone> Selection<K> {
         self.selected.is_empty()
     }
 
-    /// Adds `key` (replacing in single mode) and makes it the range anchor; `true` when the
+    /// Focused key: the last one selected, clicked or moved to with [`Self::set_current`].
+    pub fn current(&self) -> Option<&K> {
+        self.current.as_ref()
+    }
+
+    /// Moves focus to `key` without changing the selected keys or the anchor (Ctrl+arrows, plain arrows of a
+    /// multiple selection).
+    pub fn set_current(&mut self, key: K) {
+        self.current = Some(key);
+    }
+
+    /// Range anchor of Shift extension.
+    pub fn anchor(&self) -> Option<&K> {
+        self.anchor.as_ref()
+    }
+
+    /// Adds `key` (replacing in single mode) and makes it the range anchor and current key; `true` when the
     /// selected keys changed.
     pub fn select(&mut self, key: K) -> bool {
         self.anchor = Some(key.clone());
+        self.current = Some(key.clone());
         if self.mode == SelectionMode::Single {
             let changed = self.selected.len() != 1 || !self.selected.contains(&key);
             self.selected.clear();
@@ -194,24 +216,12 @@ impl<K: Ord + Clone> Selection<K> {
             return self.select(key);
         }
         if modifiers.shift
-            && let Some(anchor) = self.anchor.clone()
-            && let (Some(a), Some(b)) = (
-                order.iter().position(|k| *k == anchor),
-                order.iter().position(|k| *k == key),
-            )
+            && let Some(changed) = self.range_to(&key, order, modifiers.command)
         {
-            let range = &order[a.min(b)..=a.max(b)];
-            let mut changed = false;
-            if !modifiers.command {
-                let before = self.selected.len();
-                self.selected.retain(|k| range.contains(k));
-                changed = self.selected.len() != before;
-            }
-            for k in range {
-                changed |= self.selected.insert(k.clone());
-            }
+            self.current = Some(key);
             changed
         } else if modifiers.command {
+            self.current = Some(key.clone());
             self.toggle(key)
         } else {
             let only = self.selected.len() == 1 && self.selected.contains(&key);
@@ -219,6 +229,72 @@ impl<K: Ord + Clone> Selection<K> {
             self.select(key);
             !only
         }
+    }
+
+    /// Pointer press of a draggable item: [`Self::click`], except that a plain press on a selected key of a
+    /// multiple selection only makes it current and the anchor, so the selection can be dragged. The
+    /// [`Self::release`] of a press that did not drag then narrows it.
+    pub fn press(&mut self, key: K, modifiers: Modifiers, order: &[K]) -> bool {
+        let plain = !modifiers.shift && !modifiers.command;
+        if plain && self.mode == SelectionMode::Multiple && self.selected.contains(&key) {
+            self.anchor = Some(key.clone());
+            self.current = Some(key);
+            return false;
+        }
+        self.click(key, modifiers, order)
+    }
+
+    /// Pointer release that ends a [`Self::press`] without a drag: a plain release on a selected key selects only
+    /// it. `true` when the selected keys changed.
+    pub fn release(&mut self, key: K, modifiers: Modifiers) -> bool {
+        let plain = !modifiers.shift && !modifiers.command;
+        if !plain || !self.selected.contains(&key) || self.selected.len() == 1 {
+            return false;
+        }
+        self.selected.clear();
+        self.select(key);
+        true
+    }
+
+    /// Shift+arrow: selects only the range from the anchor through `key` in `order` and makes `key` current;
+    /// selects `key` alone without an anchor in `order`. `true` when the selected keys changed.
+    pub fn extend_to(&mut self, key: K, order: &[K]) -> bool {
+        if self.mode == SelectionMode::Multiple
+            && let Some(changed) = self.range_to(&key, order, false)
+        {
+            self.current = Some(key);
+            return changed;
+        }
+        self.click(key, Modifiers::NONE, order)
+    }
+
+    /// Ctrl+A: every key of `order` in a multiple selection; `true` when the selected keys changed.
+    pub fn select_all(&mut self, order: &[K]) -> bool {
+        if self.mode != SelectionMode::Multiple {
+            return false;
+        }
+        order
+            .iter()
+            .fold(false, |changed, k| self.selected.insert(k.clone()) | changed)
+    }
+
+    // Anchor through `key` in `order`; `keep` adds the range to the selection instead of replacing it. `None`
+    // when either is missing from `order`.
+    fn range_to(&mut self, key: &K, order: &[K], keep: bool) -> Option<bool> {
+        let anchor = self.anchor.as_ref()?;
+        let a = order.iter().position(|k| k == anchor)?;
+        let b = order.iter().position(|k| k == key)?;
+        let range = &order[a.min(b)..=a.max(b)];
+        let mut changed = false;
+        if !keep {
+            let before = self.selected.len();
+            self.selected.retain(|k| range.contains(k));
+            changed = self.selected.len() != before;
+        }
+        for k in range {
+            changed |= self.selected.insert(k.clone());
+        }
+        Some(changed)
     }
 }
 
@@ -321,6 +397,53 @@ mod tests {
     }
 
     #[test]
+    fn press_keeps_a_selection_to_drag_and_release_narrows_it() {
+        let order = [1, 2, 3, 4];
+        let mut s = Selection::multiple().with([1, 2, 3]);
+        assert!(
+            !s.press(2, Modifiers::NONE, &order),
+            "pressing a selected key keeps the set"
+        );
+        assert_eq!(s.current(), Some(&2));
+        assert_eq!(s.len(), 3);
+        assert!(s.release(2, Modifiers::NONE), "a release without a drag narrows it");
+        assert_eq!(s.selected().copied().collect::<Vec<_>>(), [2]);
+        assert!(
+            s.press(4, Modifiers::NONE, &order),
+            "an unselected key selects on press"
+        );
+        assert!(!s.release(4, Modifiers::NONE));
+        assert!(s.press(1, Modifiers::COMMAND, &order));
+        assert!(!s.release(1, Modifiers::COMMAND), "modified releases change nothing");
+        assert_eq!(s.selected().copied().collect::<Vec<_>>(), [1, 4]);
+    }
+
+    #[test]
+    fn focus_moves_apart_from_the_selection_and_shift_extends_from_the_anchor() {
+        let order = [1, 2, 3, 4, 5];
+        let mut s = Selection::multiple();
+        s.click(2, Modifiers::NONE, &order);
+        s.set_current(4);
+        assert_eq!((s.current(), s.anchor()), (Some(&4), Some(&2)));
+        assert_eq!(s.selected().copied().collect::<Vec<_>>(), [2]);
+        assert!(s.extend_to(4, &order));
+        assert_eq!(s.selected().copied().collect::<Vec<_>>(), [2, 3, 4]);
+        assert!(s.extend_to(1, &order));
+        assert_eq!(
+            s.selected().copied().collect::<Vec<_>>(),
+            [1, 2],
+            "the range replaces the last one"
+        );
+        assert_eq!(s.current(), Some(&1));
+        assert!(s.select_all(&order));
+        assert_eq!(s.len(), 5);
+        let mut single = Selection::single();
+        assert!(!single.select_all(&order));
+        assert!(single.extend_to(3, &order), "single selects the key");
+        assert_eq!(single.first(), Some(&3));
+    }
+
+    #[test]
     fn shift_click_range_and_required_single() {
         let order = [1, 2, 3, 4, 5];
         let mut s = Selection::multiple();
@@ -342,6 +465,7 @@ mod tests {
             required: false,
             selected: keys.iter().copied().collect(),
             anchor: None,
+            current: None,
         };
         assert!(Selection::try_from(raw(SelectionMode::Multiple, &[1, 2])).is_ok());
         assert!(Selection::try_from(raw(SelectionMode::Single, &[1, 2])).is_err());
