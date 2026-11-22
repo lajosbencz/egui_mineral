@@ -1543,7 +1543,7 @@ dependencies = [
 
 [[package]]
 name = "egui_mineral"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "arboard",
  "criterion",
@@ -1595,7 +1595,7 @@ dependencies = [
 
 [[package]]
 name = "egui_mineral_eframe"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "eframe",
  "egui_mineral",
@@ -1603,7 +1603,7 @@ dependencies = [
 
 [[package]]
 name = "egui_mineral_fluent"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "egui",
  "egui_kittest",
@@ -1627,7 +1627,7 @@ dependencies = [
 
 [[package]]
 name = "egui_mineral_material"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "egui",
  "egui_kittest",
@@ -1645,7 +1645,7 @@ dependencies = [
 
 [[package]]
 name = "egui_mineral_mcp"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "axum",
  "egui",
