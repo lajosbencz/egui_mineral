@@ -291,14 +291,11 @@ impl AltTrack {
     fn update(&mut self, ctx: &Context) {
         let (alt, other) = ctx.input(|i| {
             let m = i.modifiers;
-            let other = i.events.iter().any(|e| {
-                matches!(
-                    e,
-                    Event::Key { pressed: true, .. }
-                        | Event::PointerButton { pressed: true, .. }
-                        | Event::Text(_)
-                        | Event::WindowFocused(_)
-                )
+            // egui 0.37 also reports the Alt key itself as a key press.
+            let other = i.events.iter().any(|e| match e {
+                Event::Key { key, pressed: true, .. } => !matches!(key, Key::AltLeft | Key::AltRight),
+                Event::PointerButton { pressed: true, .. } | Event::Text(_) | Event::WindowFocused(_) => true,
+                _ => false,
             });
             (m.alt && !m.ctrl && !m.command && !m.mac_cmd, other)
         });
@@ -958,12 +955,20 @@ mod tests {
             lone
         };
         let rt = set_mnemonics(&ctx, true);
+        assert!(!pass(&rt, Modifiers::ALT, vec![key_down(Key::AltLeft, Modifiers::ALT)]));
         assert!(!pass(&rt, Modifiers::ALT, vec![]));
         assert!(pass(&rt, Modifiers::NONE, vec![]), "Alt pressed and released alone");
         assert!(!pass(&rt, Modifiers::NONE, vec![]), "reported for one pass");
         assert!(!pass(&rt, Modifiers::ALT, vec![]));
         assert!(!pass(&rt, Modifiers::ALT, vec![key_down(Key::F, Modifiers::ALT)]));
         assert!(!pass(&rt, Modifiers::NONE, vec![]), "Alt+F");
+        assert!(!pass(&rt, Modifiers::ALT, vec![]));
+        assert!(!pass(
+            &rt,
+            Modifiers::ALT | Modifiers::SHIFT,
+            vec![key_down(Key::ShiftLeft, Modifiers::ALT | Modifiers::SHIFT)]
+        ));
+        assert!(!pass(&rt, Modifiers::NONE, vec![]), "Alt+Shift");
         assert!(!pass(&rt, Modifiers::ALT | Modifiers::CTRL, vec![]));
         assert!(!pass(&rt, Modifiers::NONE, vec![]), "AltGr");
         let rt = set_mnemonics(&ctx, false);
