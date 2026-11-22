@@ -548,7 +548,15 @@ impl RangeModel {
         self.increment.or(self.step).unwrap_or(self.span() / 100.0)
     }
 
+    // HTML stepUp/stepDown: a step that would move against `n` (from an off-grid value past the last grid point)
+    // leaves the value.
     fn shift(&self, v: f64, n: f64, page: bool) -> f64 {
+        let next = self.shift_raw(v, n, page);
+        let from = self.limit(v);
+        if (next - from) * n < 0.0 { from } else { next }
+    }
+
+    fn shift_raw(&self, v: f64, n: f64, page: bool) -> f64 {
         match self.scale {
             Scale::Linear => {
                 let unit = if page {
@@ -806,6 +814,14 @@ mod tests {
             "max stays reachable"
         );
         assert_eq!(wide.snap(19_999.0), 20_000.0);
+    }
+
+    #[test]
+    fn steps_past_the_last_grid_point_never_move_backwards() {
+        // 24 snaps to the grid point 20, so a raw step up lands below it.
+        let r = RangeModel::new(0.0, 24.0).step(10.0);
+        assert_eq!(r.step_by(24.0, 1), 24.0);
+        assert_eq!(r.step_by(24.0, -1), 10.0);
     }
 
     #[test]
