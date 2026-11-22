@@ -8,7 +8,7 @@ use std::collections::HashMap;
 
 use egui::{Context, Id, KeyboardShortcut, LayerId, Rect, WidgetRects};
 pub use egui_mineral_macros::KeySalt;
-pub use key::{AgentKey, KeyKind, KeyParts, KeySalt, KeyedSalt, StableId};
+pub use key::{AgentKey, DisplaySalt, KeyKind, KeyParts, KeySalt, KeyedSalt, StableId};
 
 use crate::{
     kit::nodes::{push_from, wanted},

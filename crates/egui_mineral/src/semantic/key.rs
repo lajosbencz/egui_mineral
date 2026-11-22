@@ -406,7 +406,7 @@ impl KeyParts {
 /// Stable agent key text of an id salt, independent of `Debug` output and displayed text. Implemented for
 /// `&'static str`, `String`, `Cow<'static, str>`, integers, `char`, `bool`, references and tuples up to 4 (parts
 /// joined with `-`). App salt types implement it next to `Hash` and `Debug`, which makes them convert into
-/// [`KeyedSalt`].
+/// [`KeyedSalt`]; foreign types wrap into [`DisplaySalt`].
 pub trait KeySalt {
     /// Appends the raw key text; [`KeyedSalt`] normalizes it.
     fn write_key(&self, out: &mut String);
@@ -494,6 +494,37 @@ impl KeySalt for jiff::civil::Date {
 impl KeySalt for jiff::civil::Time {
     fn write_key(&self, out: &mut String) {
         write_iso(&self.to_string(), out);
+    }
+}
+
+/// [`KeySalt`] from the `Display` text of a foreign type the orphan rule keeps from implementing it (`Uuid`,
+/// app-external ids). The app vouches that the text is stable. Compares, hashes and debug-prints as `T`.
+#[derive(Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct DisplaySalt<T>(pub T);
+
+impl<T: std::fmt::Debug> std::fmt::Debug for DisplaySalt<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl<T> std::ops::Deref for DisplaySalt<T> {
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        &self.0
+    }
+}
+
+impl<T> From<T> for DisplaySalt<T> {
+    fn from(value: T) -> Self {
+        Self(value)
+    }
+}
+
+impl<T: std::fmt::Display> KeySalt for DisplaySalt<T> {
+    fn write_key(&self, out: &mut String) {
+        out.push_str(&self.0.to_string());
     }
 }
 
@@ -691,6 +722,18 @@ mod tests {
         for (salt, before) in cases {
             assert_eq!(salt.key(), before);
         }
+    }
+
+    #[test]
+    fn display_salt_keys_by_display_text_and_hashes_as_its_value() {
+        use super::DisplaySalt;
+        use std::net::Ipv4Addr;
+
+        let ip = Ipv4Addr::new(10, 0, 0, 1);
+        let salt = KeyedSalt::from(DisplaySalt(ip));
+        assert_eq!(salt.key(), "10-0-0-1");
+        assert_eq!(salt.id_salt(), egui::IdSalt::new(ip));
+        assert_eq!(format!("{:?}", DisplaySalt(ip)), format!("{ip:?}"));
     }
 
     #[test]
