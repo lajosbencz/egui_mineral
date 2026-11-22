@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral-v0.10.0...egui_mineral-v0.11.0) - 2026-11-22
+
+### Fixed
+
+- *(input)* [**breaking**] touch swipes scroll pages over 2D pannables (PanMode::Free claims only after GestureConfig::pan_hold) and nested scroll areas chain unused drag and fling to the page (kit::scroll::chain).
+- *(overlays)* [**breaking**] popups, menus, tooltips, search and Material dialogs/pickers fit small viewports; Popup::place caps to the anchor room, dialogs scroll when taller.
+
 ## [0.10.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral-v0.9.0...egui_mineral-v0.10.0) - 2026-11-21
 
 ### Added
