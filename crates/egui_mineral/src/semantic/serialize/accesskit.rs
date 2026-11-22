@@ -34,6 +34,9 @@ pub fn write(ctx: &Context, id: Id, node: &SemanticNode) {
         if let Some(sel) = s.selected {
             b.set_selected(sel);
         }
+        if s.multiselectable {
+            b.set_multiselectable();
+        }
         if let Some(e) = s.expanded {
             b.set_expanded(e);
         }

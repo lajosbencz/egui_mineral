@@ -84,32 +84,12 @@ fn arrow_keys_move_between_headers() {
 }
 
 #[test]
-fn multiple_list_toggles_extends_by_shift_arrows_and_leaves_enter_to_the_action() {
-    let mut h = harness(
-        (Selection::multiple(), None),
-        |ui, (sel, act): &mut (Selection<usize>, Option<usize>)| {
-            let out = List::new("l")
-                .navigation(Some(ListNavigation::Items))
-                .selection(sel)
-                .show(ui, |l| {
-                    for i in 0..4 {
-                        l.item(i, format!("Row {i}"), |ui| {
-                            ui.add(egui::Label::new(format!("Row {i}")).selectable(false));
-                        });
-                    }
-                });
-            *act = out.activated.or(*act);
-        },
-    );
+fn multiple_list_toggles_and_extends_by_shift_arrows() {
+    let mut h = list_harness(true);
     h.run();
-    let selected =
-        |h: &Harness<'_, (Selection<usize>, Option<usize>)>| h.state().value.0.selected().copied().collect::<Vec<_>>();
-    // Past the checkmark, which takes focus of its own.
-    let body = |h: &Harness<'_, (Selection<usize>, Option<usize>)>, key: &str| {
-        h.rect(key).right_center() - egui::vec2(8.0, 0.0)
-    };
+    let selected = |h: &ListHarness| h.state().value.0.selected().copied().collect::<Vec<_>>();
     for key in ["l-item-0-item", "l-item-2-item"] {
-        let at = body(&h, key);
+        let at = item_body(&h, key);
         h.click_at(at);
     }
     assert_eq!(selected(&h), [0, 2], "clicks toggle");
@@ -119,8 +99,9 @@ fn multiple_list_toggles_extends_by_shift_arrows_and_leaves_enter_to_the_action(
     assert!(h.focused("l-item-2-item"), "arrows move focus");
     assert_eq!(selected(&h), [0, 2], "and only focus");
     h.press(Key::Enter);
-    assert_eq!(selected(&h), [0, 2], "Enter is the action");
+    assert_eq!(selected(&h), [0], "the item action toggles by default");
     assert_eq!(h.state().value.1, Some(2));
+    h.press(Key::Space);
     h.key_press_modifiers(egui::Modifiers::SHIFT, Key::ArrowDown);
     h.run();
     assert_eq!(selected(&h), [0, 2, 3]);
@@ -129,6 +110,45 @@ fn multiple_list_toggles_extends_by_shift_arrows_and_leaves_enter_to_the_action(
     h.key_press_modifiers(egui::Modifiers::COMMAND, Key::A);
     h.run();
     assert_eq!(selected(&h), [0, 1, 2, 3]);
+}
+
+#[test]
+fn an_own_item_action_leaves_selection_to_space() {
+    let mut h = list_harness(false);
+    h.run();
+    let at = item_body(&h, "l-item-1-item");
+    h.click_at(at);
+    assert!(h.state().value.0.is_empty(), "the click runs only the action");
+    assert_eq!(h.state().value.1, Some(1));
+    h.press(Key::Tab);
+    h.press(Key::Enter);
+    assert!(h.state().value.0.is_empty());
+    h.press(Key::Space);
+    assert_eq!(h.state().value.0.len(), 1);
+}
+
+type ListHarness = Harness<'static, (Selection<usize>, Option<usize>)>;
+
+// Past the checkmark, which takes focus of its own.
+fn item_body(h: &ListHarness, key: &str) -> egui::Pos2 {
+    h.rect(key).right_center() - egui::vec2(8.0, 0.0)
+}
+
+fn list_harness(action_selects: bool) -> ListHarness {
+    harness((Selection::multiple(), None), move |ui, (sel, act)| {
+        let out = List::new("l")
+            .navigation(Some(ListNavigation::Items))
+            .selection(sel)
+            .action_selects(action_selects)
+            .show(ui, |l| {
+                for i in 0..4 {
+                    l.item(i, format!("Row {i}"), |ui| {
+                        ui.add(egui::Label::new(format!("Row {i}")).selectable(false));
+                    });
+                }
+            });
+        *act = out.activated.or(*act);
+    })
 }
 
 #[test]
@@ -542,7 +562,7 @@ mod table {
     }
 
     #[test]
-    fn data_grid_moves_between_cells_and_enter_selects_the_row() {
+    fn data_grid_moves_between_cells_and_space_selects_the_row() {
         let mut h = table(true);
         h.run();
         h.press(Key::Tab);
@@ -554,12 +574,12 @@ mod table {
             "Enter on a header sorts"
         );
         h.press(Key::ArrowDown);
-        h.press(Key::Enter);
+        h.press(Key::Space);
         let first = *h.state().value.selection.first().expect("a row is selected");
         assert_eq!(first, 1, "after sorting the first display row is Abe");
         h.press(Key::ArrowDown);
         h.press(Key::ArrowRight);
-        h.press(Key::Enter);
+        h.press(Key::Space);
         assert!(
             h.state().value.selection.is_selected(&2),
             "the second display row is Bea"
@@ -575,6 +595,8 @@ mod table {
         assert!(h.state().value.selection.is_empty(), "a plain move selects nothing");
         assert_eq!(h.state().value.selection.current(), Some(&0));
         h.press(Key::Enter);
+        assert!(h.state().value.selection.is_empty(), "Enter is the row action");
+        h.press(Key::Space);
         let selected = |h: &Harness<'static, State>| h.state().value.selection.selected().copied().collect::<Vec<_>>();
         for (key, want) in [
             (Key::ArrowDown, vec![0, 1]),

@@ -4,7 +4,7 @@ use egui_mineral::{
     focus::{self as roving, RovingFocus, TabStop},
     kit,
     layout::Axis,
-    select::{self, ItemKey, RowInput, RowSource, Selection, SelectionBehavior, SelectionMode},
+    select::{self, ItemKey, RowInput, RowSource, Selection, SelectionBehavior},
     semantic::{self, AgentKey, KeyedSalt, Role, SemanticNode},
     widget::{Availability, MineralUi},
 };
@@ -61,6 +61,7 @@ pub struct List<'a, K> {
     navigation: Option<ListNavigation>,
     selection: Option<&'a mut Selection<K>>,
     behavior: SelectionBehavior,
+    action_selects: bool,
 }
 
 impl<'a, K: ItemKey> List<'a, K> {
@@ -72,6 +73,7 @@ impl<'a, K: ItemKey> List<'a, K> {
             navigation: None,
             selection: None,
             behavior: SelectionBehavior::Toggle,
+            action_selects: true,
         }
     }
 
@@ -82,10 +84,18 @@ impl<'a, K: ItemKey> List<'a, K> {
     }
 
     /// Selection of item keys owned by the app; items become focusable and select per
-    /// [`Self::selection_behavior`] ([`Selection::apply`], [`Selection::follow_focus`]). Enter is the item action;
-    /// Ctrl/Cmd+A selects every enabled item.
+    /// [`Self::selection_behavior`] ([`Selection::apply`], [`Selection::follow_focus`]): Space toggles, click and
+    /// Enter run the item action ([`ListResponse::activated`]), which toggles unless [`Self::action_selects`] is
+    /// off. Ctrl/Cmd+A selects every enabled item.
     pub fn selection(mut self, selection: &'a mut Selection<K>) -> Self {
         self.selection = Some(selection);
+        self
+    }
+
+    /// `false`: the app's item action replaces the toggle of click and Enter (`onAction` calling
+    /// `preventDefault`); Space and the checkmark still toggle. Default `true`.
+    pub fn action_selects(mut self, action_selects: bool) -> Self {
+        self.action_selects = action_selects;
         self
     }
 
@@ -119,6 +129,7 @@ impl<'a, K: ItemKey> List<'a, K> {
             _ => Role::List,
         };
         let key = self.key.id(&self.salt);
+        let multi = self.selection.as_ref().is_some_and(|s| s.is_multiple());
         let selection = self.selection;
         // Position of the first selected item last pass.
         let first: Option<usize> = ui.ctx().data(|d| d.get_temp(first_id));
@@ -137,6 +148,7 @@ impl<'a, K: ItemKey> List<'a, K> {
                 stop,
                 selection,
                 behavior,
+                action_selects: self.action_selects,
                 index: 0,
                 ids: Vec::new(),
                 keys: Vec::new(),
@@ -176,7 +188,9 @@ impl<'a, K: ItemKey> List<'a, K> {
         let response = scope.response;
         let (inner, activated, changed) = scope.inner;
         semantic::emit(ui.ctx(), Some(response.id), response.rect, || {
-            SemanticNode::new(key, role, crate::tr(rt.i18n(), msg::LIST))
+            let mut n = SemanticNode::new(key, role, crate::tr(rt.i18n(), msg::LIST));
+            n.state.multiselectable = multi;
+            n
         });
         ListResponse {
             response,
@@ -239,6 +253,7 @@ pub struct ListUi<'u, 'e, K> {
     stop: usize,
     selection: Option<&'e mut Selection<K>>,
     behavior: SelectionBehavior,
+    action_selects: bool,
     index: usize,
     ids: Vec<Id>,
     // Keys of `ids`.
@@ -257,26 +272,29 @@ impl<K: ItemKey> ListUi<'_, '_, K> {
     fn take_input(&mut self, key: &K, response: &Response) {
         let mut input = RowInput::of(&self.rt.core().input(), response);
         let source = input.click.map(|c| c.1);
-        if let Some(sel) = self.selection.as_deref() {
-            let activates = match source {
-                Some(RowSource::Space) | None => false,
-                Some(RowSource::Touch) => {
-                    self.behavior == SelectionBehavior::Toggle || sel.activates(input, self.behavior)
-                }
-                Some(RowSource::Mouse | RowSource::Enter) => true,
-            };
-            // Fluent List: Enter is the item action only.
-            if source == Some(RowSource::Enter) {
-                input.click = None;
-            }
-            if !input.is_empty() {
-                self.input = Some((key.clone(), input));
-            }
-            if activates {
+        let Some(sel) = self.selection.as_deref_mut() else {
+            if source.is_some() {
                 self.activated = Some(key.clone());
             }
-        } else if source.is_some() {
+            return;
+        };
+        let activates = match source {
+            Some(RowSource::Space) | None => false,
+            Some(RowSource::Touch) => self.behavior == SelectionBehavior::Toggle || sel.activates(input, self.behavior),
+            Some(RowSource::Mouse | RowSource::Enter | RowSource::Assistive) => true,
+        };
+        if activates {
             self.activated = Some(key.clone());
+        }
+        // `useListItem`: click and Enter run `onAction`, whose default toggles the item; Space only toggles.
+        if !self.action_selects {
+            input.press = None;
+            input.click = input.click.filter(|c| c.1 == RowSource::Space);
+        } else if source == Some(RowSource::Enter) {
+            self.changed |= sel.toggle(key.clone());
+        }
+        if !input.is_empty() {
+            self.input = Some((key.clone(), input));
         }
     }
 
@@ -318,7 +336,7 @@ impl<K: ItemKey> ListUi<'_, '_, K> {
                     let mut checked = sel.is_selected(&key);
                     let before = checked;
                     rui.add_space(d::CHECKMARK_MARGIN);
-                    let shape = if sel.mode() == SelectionMode::Multiple {
+                    let shape = if sel.is_multiple() {
                         CheckboxShape::Square
                     } else {
                         CheckboxShape::Circular
@@ -330,7 +348,7 @@ impl<K: ItemKey> ListUi<'_, '_, K> {
                             .disabled(disabled),
                     );
                     if checked != before {
-                        self.changed |= if sel.mode() == SelectionMode::Multiple {
+                        self.changed |= if sel.is_multiple() {
                             sel.toggle(key.clone())
                         } else {
                             sel.select(key.clone())

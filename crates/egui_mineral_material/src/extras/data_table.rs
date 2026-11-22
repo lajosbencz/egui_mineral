@@ -496,6 +496,7 @@ impl<'a, K: ItemKey> DataTable<'a, K> {
         semantic::emit(ui.ctx(), Some(ui.unique_id()), rect, || {
             let mut n = SemanticNode::new(StableId::of(&self.salt, "grid"), Role::Grid, &self.label);
             n.state.disabled = self.disabled;
+            n.state.multiselectable = self.selection.as_deref().is_some_and(Selection::is_multiple);
             n
         });
     }
@@ -855,11 +856,7 @@ impl<K: ItemKey> TableView<'_, '_, K> {
         );
         ui.painter().rect_filled(hrect, self.cell_shape, head.container);
         row_parts::bottom_divider(ui.painter(), hrect, self.t);
-        let multiple = self
-            .table
-            .selection
-            .as_deref()
-            .is_some_and(|s| s.mode() == egui_mineral::select::SelectionMode::Multiple);
+        let multiple = self.table.selection.as_deref().is_some_and(Selection::is_multiple);
         if multiple {
             self.select_all(ui, st, pass, hrect);
         } else if self.has_sel() {

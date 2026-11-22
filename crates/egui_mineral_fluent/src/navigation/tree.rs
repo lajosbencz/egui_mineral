@@ -996,8 +996,11 @@ impl<'a, N: TreeData> Tree<'a, N> {
         }
         state.store(ctx, id);
         let (key, label) = (self.key.id(&self.salt), self.label);
+        let multi = self.selection == TreeSelection::Multiple;
         semantic::emit(ctx, Some(out.response.id), out.response.rect, || {
-            SemanticNode::new(key, Role::Tree, label)
+            let mut n = SemanticNode::new(key, Role::Tree, label);
+            n.state.multiselectable = multi;
+            n
         });
         if out.changed {
             out.response.mark_changed();

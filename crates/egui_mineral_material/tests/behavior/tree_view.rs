@@ -414,3 +414,50 @@ fn a_touch_tap_activates_until_a_long_press_starts_selecting() {
     assert!(h.state().value.selection.is_selected(&1), "then taps select");
     assert_eq!(h.state().value.activated, [4]);
 }
+
+fn request(h: &mut Harness<'_, impl Sized>, key: &str, action: egui::accesskit::Action) {
+    use egui::accesskit::{ActionRequest, TreeId};
+    let target_node = h.widget(key).accesskit_id();
+    h.event(egui::Event::AccessKitActionRequest(ActionRequest {
+        action,
+        target_tree: TreeId::ROOT,
+        target_node,
+        data: None,
+    }));
+    h.run();
+}
+
+#[test]
+fn collapsing_over_the_focused_row_moves_focus_and_current_to_the_node() {
+    let mut h = tree();
+    h.click("tree-1-treeitem");
+    h.press(Key::ArrowRight);
+    h.press(Key::ArrowRight);
+    assert!(h.focused("tree-2-treeitem"));
+    request(&mut h, "tree-1-treeitem", egui::accesskit::Action::Collapse);
+    assert_eq!(h.state().value.collapsed, [1]);
+    assert!(h.focused("tree-1-treeitem"), "focus leaves the hidden row");
+    let sel = &h.state().value.selection;
+    assert_eq!(sel.current(), Some(&1));
+    assert!(sel.is_selected(&2), "hidden rows stay selected");
+}
+
+#[test]
+fn agents_click_rows_and_add_with_ctrl_space() {
+    let mut h = multi_tree();
+    h.run();
+    assert!(h.node("tree-tree").state.multiselectable);
+    request(&mut h, "tree-1-treeitem", egui::accesskit::Action::Click);
+    request(&mut h, "tree-3-treeitem", egui::accesskit::Action::Click);
+    assert_eq!(selected(&h), [3], "a click selects only the row");
+    // Only the Tab stop row, the selected one, takes focus.
+    request(&mut h, "tree-3-treeitem", egui::accesskit::Action::Focus);
+    for _ in 0..2 {
+        h.key_press_modifiers(Modifiers::COMMAND, Key::ArrowUp);
+        h.run();
+    }
+    assert!(h.focused("tree-1-treeitem"));
+    h.key_press_modifiers(Modifiers::COMMAND, Key::Space);
+    h.run();
+    assert_eq!(selected(&h), [1, 3], "Ctrl+Space adds");
+}

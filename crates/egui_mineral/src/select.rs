@@ -119,6 +119,11 @@ impl<K: Ord + Clone> Selection<K> {
         self.mode
     }
 
+    /// [`SelectionMode::Multiple`]; containers report it as multiselectable.
+    pub fn is_multiple(&self) -> bool {
+        self.mode == SelectionMode::Multiple
+    }
+
     /// Selects `keys` in order; single mode keeps the last.
     #[must_use]
     pub fn with(mut self, keys: impl IntoIterator<Item = K>) -> Self {
@@ -276,8 +281,9 @@ impl<K: Ord + Clone> Selection<K> {
     ///
     /// [`SelectionBehavior::Replace`]: a mouse press [`Self::press`]es and the click ending it [`Self::release`]s;
     /// Space [`Self::click`]s (Ctrl/Cmd+Space toggles); a touch tap toggles while anything is selected and a long
-    /// press adds the row, so an empty selection leaves taps to the row action; Enter is the row action's.
-    /// [`SelectionBehavior::Toggle`]: clicks, taps, Space and Enter toggle, Shift adds the range from the anchor.
+    /// press adds the row, so an empty selection leaves taps to the row action. [`SelectionBehavior::Toggle`]:
+    /// clicks, taps and Space toggle, Shift adds the range from the anchor. An assistive click selects like a plain
+    /// click; Enter never selects, it is the row action's.
     pub fn apply(&mut self, key: K, input: RowInput, behavior: SelectionBehavior, order: &[K]) -> bool {
         let single = self.mode == SelectionMode::Single;
         match behavior {
@@ -293,12 +299,12 @@ impl<K: Ord + Clone> Selection<K> {
                         Some((_, RowSource::Touch)) if single => self.select(key),
                         Some((_, RowSource::Touch)) => self.toggle(key),
                         Some((m, RowSource::Space)) if m.command && !single => self.toggle(key),
-                        Some((m, RowSource::Space)) => self.click(key, m, order),
+                        Some((m, RowSource::Space | RowSource::Assistive)) => self.click(key, m, order),
                         _ => false,
                     }
             }
             SelectionBehavior::Toggle => match input.click {
-                None => false,
+                Some((_, RowSource::Enter)) | None => false,
                 Some(_) if single => self.select(key),
                 Some((m, _)) if m.shift => self.click(key, Modifiers::SHIFT | Modifiers::COMMAND, order),
                 Some(_) => self.toggle(key),
@@ -383,6 +389,8 @@ pub enum RowSource {
     Space,
     /// Enter on the focused row.
     Enter,
+    /// AccessKit `Click` from assistive technology or an agent; no press, no modifiers of its own.
+    Assistive,
 }
 
 /// Press, click and long press of a selectable row this pass, applied by [`Selection::apply`].
@@ -414,6 +422,9 @@ impl RowInput {
             None
         } else if by_pointer {
             Some(RowSource::Mouse)
+        } else if crate::kit::interact::accesskit_requested(&response.ctx, response.id, egui::accesskit::Action::Click)
+        {
+            Some(RowSource::Assistive)
         } else if space {
             Some(RowSource::Space)
         } else {
@@ -421,7 +432,14 @@ impl RowInput {
         };
         Self {
             press: pressed.then_some(modifiers),
-            click: click.map(|c| (modifiers, c)),
+            click: click.map(|c| {
+                let own = if c == RowSource::Assistive {
+                    Modifiers::NONE
+                } else {
+                    modifiers
+                };
+                (own, c)
+            }),
             long_press: input.long_pressed(response).is_some(),
         }
     }
@@ -605,6 +623,9 @@ mod tests {
         assert!(s.apply(2, input(Some((Modifiers::NONE, RowSource::Mouse))), Replace, &order));
         assert_eq!(keys(&s), [2], "the release without a drag narrows it");
         assert!(!s.apply(3, input(Some((Modifiers::NONE, RowSource::Enter))), Replace, &order));
+        assert!(s.apply(1, input(Some((Modifiers::NONE, RowSource::Assistive))), Replace, &order));
+        assert_eq!(keys(&s), [1], "an assistive click selects only the row");
+        s.click(2, Modifiers::NONE, &order);
         let shift_space = input(Some((Modifiers::SHIFT, RowSource::Space)));
         assert!(shift_space.shift());
         assert!(s.apply(3, shift_space, Replace, &order));
@@ -652,8 +673,8 @@ mod tests {
         assert!(s.apply(2, input(Some((Modifiers::NONE, RowSource::Touch))), Toggle, &order));
         assert!(s.apply(1, input(Some((Modifiers::NONE, RowSource::Space))), Toggle, &order));
         assert_eq!(keys(&s), [2]);
-        assert!(s.apply(3, input(Some((Modifiers::NONE, RowSource::Enter))), Toggle, &order));
-        assert!(s.apply(3, input(Some((Modifiers::NONE, RowSource::Enter))), Toggle, &order));
+        assert!(!s.apply(3, input(Some((Modifiers::NONE, RowSource::Enter))), Toggle, &order));
+        assert!(s.apply(3, input(Some((Modifiers::NONE, RowSource::Assistive))), Toggle, &order));
         assert!(s.apply(4, input(Some((Modifiers::SHIFT, RowSource::Mouse))), Toggle, &order));
         assert_eq!(keys(&s), [2, 3, 4], "Shift adds the anchor's range");
         let mut single = Selection::single();

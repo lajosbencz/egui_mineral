@@ -226,7 +226,7 @@ impl MineralWidget for Switch<'_> {
         let r = &frame.response;
         let availability = Availability::disabled_if(self.disabled);
         kit::interact::hover_cursor(ui.core(), r, availability);
-        let changed = r.clicked() && !self.disabled;
+        let changed = kit::interact::toggle_clicked(r) && !self.disabled;
         if changed {
             *self.checked = !*self.checked;
         }

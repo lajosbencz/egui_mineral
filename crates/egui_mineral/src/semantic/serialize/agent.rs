@@ -50,6 +50,7 @@ fn flags(n: &SemanticNode) -> impl Iterator<Item = &'static str> {
         (s.checked == Some(Check::Unchecked), "unchecked"),
         (s.checked == Some(Check::Mixed), "mixed"),
         (s.selected == Some(true), "selected"),
+        (s.multiselectable, "multiselectable"),
         (s.expanded == Some(true), "expanded"),
         (s.expanded == Some(false), "collapsed"),
     ]

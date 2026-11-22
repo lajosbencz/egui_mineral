@@ -368,8 +368,11 @@ pub(crate) fn show<K: egui_mineral::select::ItemKey>(
                         });
                     list
                 });
+            let multi = view.multiselect;
             semantic::emit(ctx, Some(panel.inner), panel.response.rect, || {
-                SemanticNode::new(key.sub("listbox"), Role::ListBox, label)
+                let mut n = SemanticNode::new(key.sub("listbox"), Role::ListBox, label);
+                n.state.multiselectable = multi;
+                n
             });
         });
     Shown {

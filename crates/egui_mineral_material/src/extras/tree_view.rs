@@ -977,6 +977,34 @@ impl<'a, N: TreeData, A: ActionValue> TreeView<'a, N, A> {
         }
     }
 
+    fn emit_tree(&self, ctx: &egui::Context, tree: Id, area: Rect) {
+        semantic::emit(ctx, Some(tree), area, || {
+            let mut n = SemanticNode::new(StableId::of(&self.salt, "tree"), Role::Tree, &self.label);
+            n.state.disabled = self.disabled;
+            n.state.multiselectable = self.selection.as_deref().is_some_and(Selection::is_multiple);
+            n
+        });
+    }
+
+    // A collapse that hides the current key or the focused row moves them onto the collapsed node.
+    fn keep_focus_shown(&mut self, state: &mut TreeState<N::Key>, out: &TreeViewResponse<N::Key, A>) {
+        let Some(k) = out.collapsed.as_ref() else {
+            return;
+        };
+        if let Some(sel) = self.selection.as_deref_mut()
+            && sel.current().is_some_and(|c| tree::hides(self.roots, k, c))
+        {
+            sel.set_current(k.clone());
+        }
+        if state.stop.as_ref().is_some_and(|s| tree::hides(self.roots, k, s)) {
+            state.stop = Some(k.clone());
+            if state.focused {
+                state.pending = Some(k.clone());
+                state.pending_passes = 0;
+            }
+        }
+    }
+
     fn select_all(
         &mut self,
         ctx: &egui::Context,
@@ -1152,11 +1180,7 @@ impl<'a, N: TreeData, A: ActionValue> TreeView<'a, N, A> {
         let tree = response.id;
         let _rows = kit::nodes::parts(ctx, tree, ui.unique_id());
         let mut out = TreeViewResponse::new(response);
-        semantic::emit(ctx, Some(tree), area, || {
-            let mut n = SemanticNode::new(StableId::of(&self.salt, "tree"), Role::Tree, &self.label);
-            n.state.disabled = self.disabled;
-            n
-        });
+        self.emit_tree(ctx, tree, area);
         let mut focused: Option<(usize, egui::Id)> = None;
         let mut events: Vec<(usize, RowOut<A>)> = Vec::new();
         let mut rendered: Vec<(usize, Rect)> = Vec::new();
@@ -1216,6 +1240,7 @@ impl<'a, N: TreeData, A: ActionValue> TreeView<'a, N, A> {
             self.navigate(rt, &rows, cur, &mut state, &mut out);
         }
         self.expand_drop_target(&mut out);
+        self.keep_focus_shown(&mut state, &out);
         state.store(ctx, id);
         if revealed || out.expanded.is_some() || out.collapsed.is_some() {
             out.changed = true;

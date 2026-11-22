@@ -222,7 +222,7 @@ impl MineralWidget for Radio {
         let availability = Availability::disabled_if(self.disabled);
         kit::interact::hover_cursor(ui.core(), r, availability);
         kit::interact::follow_press(r);
-        let changed = r.clicked() && !self.disabled && !self.selected;
+        let changed = kit::interact::toggle_clicked(r) && !self.disabled && !self.selected;
         self.selected |= changed;
         let i = Interaction::of(r, availability);
         let s = State::of(i);

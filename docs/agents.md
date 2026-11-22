@@ -10,6 +10,12 @@ Agents drive an app through the same input path as users and screen readers: the
 - Keys come from the snapshot (`[key]` in the markdown, `key` in the JSON). Widgets default to `<id_salt>-<kind>`, for example `ok-button`.
 - Errors: `NotFound` lists similar keys, and `ActionNotAvailable` lists the actions the node offers.
 
+## Selection
+
+- A container that takes several selected items (tree, grid, listbox) has the `multiselectable` state; its items carry `selected`.
+- `Click` acts like a plain click: under `SelectionBehavior::Toggle` it toggles the item, under `Replace` it selects only that item.
+- To add to a `Replace` selection, focus the Tab stop item (the current or selected one), move with `Key(ArrowUp | ArrowDown, COMMAND)` and toggle with `Key(Space, COMMAND)`. `Key(A, COMMAND)` selects all, and Shift with the arrows extends.
+
 ## Snapshot formats
 
 - Markdown, from `semantic::serialize::agent::to_markdown`: one `- [key] Role: name (notes)` line per node, indented by depth, followed by an `Actions:` line.

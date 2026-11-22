@@ -35,6 +35,8 @@ pub struct SemanticState {
     pub checked: Option<Check>,
     /// `Some` for selectable items (tabs, list options).
     pub selected: Option<bool>,
+    /// Container whose items take several selected at once (ARIA `aria-multiselectable`).
+    pub multiselectable: bool,
     /// `Some` for expandable nodes (menus, tree items, accordions).
     pub expanded: Option<bool>,
     /// `Some` for ranged nodes (slider, progress, spin button).

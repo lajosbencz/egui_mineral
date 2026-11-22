@@ -82,6 +82,12 @@ pub fn ancestors<N: TreeData>(roots: &[N], key: &N::Key) -> Option<Vec<N::Key>> 
         .collect()
 }
 
+/// `key` is a descendant of `collapsed`: collapsing `collapsed` hides it. Trees keep hidden keys selected and move
+/// the current key and focus off them onto `collapsed` (`WinUI` `TreeView`).
+pub fn hides<N: TreeData>(roots: &[N], collapsed: &N::Key, key: &N::Key) -> bool {
+    ancestors(roots, key).is_some_and(|a| a.contains(collapsed))
+}
+
 impl<K: Ord + Clone> Expansion<K> {
     /// Expands the [`ancestors`] of the node with `key` so a flattened tree shows it; `true` when it is now
     /// visible. Single mode holds one open key, so it reveals only nodes with at most one ancestor and leaves
@@ -747,6 +753,14 @@ mod tests {
             Some((2, DropPosition::Before)),
             "no drop inside a disabled node"
         );
+    }
+
+    #[test]
+    fn hides_only_descendants() {
+        let roots = vec![N(1, vec![N(2, vec![N(3, vec![])])]), N(4, vec![])];
+        assert!(hides(&roots, &1, &3));
+        assert!(!hides(&roots, &1, &1));
+        assert!(!hides(&roots, &1, &4));
     }
 
     #[test]

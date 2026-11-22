@@ -436,7 +436,7 @@ impl<'a, K: ItemKey> Table<'a, K> {
 }
 
 /// Fluent `DataGrid`: a [`Table`] that is one composite widget: a single Tab stop, arrow keys, Home and End
-/// move between cells, Enter or Space on a header sorts and on a cell selects the row.
+/// move between cells, Enter or Space on a header sorts, Space on a cell toggles the row (`useDataGridRow`).
 #[derive(Debug)]
 #[must_use = "call .show(..)"]
 pub struct DataGrid<'a, K>(Table<'a, K>);
@@ -790,7 +790,9 @@ fn run<K: ItemKey>(
         }
     }
     semantic::emit(ui.ctx(), Some(response.id), area, || {
-        SemanticNode::new(tb.key.id(&tb.salt), Role::Grid, &tb.label)
+        let mut n = SemanticNode::new(tb.key.id(&tb.salt), Role::Grid, &tb.label);
+        n.state.multiselectable = tb.selection.as_ref().is_some_and(|s| s.is_multiple());
+        n
     });
     let changed = ev.sort || ev.selection;
     let mut response = response;

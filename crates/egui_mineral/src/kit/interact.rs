@@ -43,6 +43,13 @@ pub fn accesskit_requested(ctx: &Context, id: Id, action: egui::accesskit::Actio
     ctx.input(|i| i.num_accesskit_action_requests(id, action) > 0)
 }
 
+/// `r` clicked other than by Enter on its focus: HTML checkboxes, radios and switches toggle on Space only.
+pub fn toggle_clicked(r: &egui::Response) -> bool {
+    let by_enter =
+        r.has_focus() && !r.clicked_by(egui::PointerButton::Primary) && r.ctx.input(|i| i.key_pressed(Key::Enter));
+    r.clicked() && !by_enter
+}
+
 /// Key-down events of this pass without modifiers.
 pub fn plain_key_presses(ctx: &Context) -> Vec<Key> {
     key_presses(ctx)
