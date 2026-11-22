@@ -84,10 +84,12 @@ changes base head:
 fmt:
     cargo fmt --all --check
 
-# Every feature alone, the default set and none, per published crate, native and wasm32; the all-features line covers `unstable-hotpatch` (native only, never in the matrix)
+# Every feature alone, the default set and none, per published crate, native and wasm32 (core also Windows); the all-features line covers `unstable-hotpatch` (native only, never in the matrix)
 clippy:
     cargo hack clippy -p egui_mineral --each-feature --exclude-features unstable-hotpatch --all-targets -- -D warnings
     cargo hack clippy -p egui_mineral --each-feature --exclude-features unstable-hotpatch --target wasm32-unknown-unknown -- -D warnings
+    # cfg(windows) code; no --all-targets: criterion's alloca build script needs a Windows C compiler
+    cargo hack clippy -p egui_mineral --each-feature --exclude-features unstable-hotpatch --target x86_64-pc-windows-msvc -- -D warnings
     # Pure core forwarders, covered by the core legs
     for c in egui_mineral_material egui_mineral_fluent; do \
         cargo hack clippy -p "$c" --each-feature --exclude-features {{ forwarded_features }} --all-targets -- -D warnings; \

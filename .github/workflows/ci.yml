@@ -51,7 +51,7 @@ jobs:
         if: ${{ github.event_name == 'pull_request' }}
         run: just changes HEAD^1 HEAD | tee -a "$GITHUB_OUTPUT"
 
-  # `just check-clippy` locally: the feature matrix, native and wasm32.
+  # `just check-clippy` locally: the feature matrix, native, wasm32 and Windows.
   clippy:
     name: Clippy
     needs: changes
