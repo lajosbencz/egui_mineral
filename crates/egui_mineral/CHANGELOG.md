@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.1](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral-v0.12.0...egui_mineral-v0.12.1) - 2026-11-22
+
+### Fixed
+
+- *(menu)* Walk::Bar on End from a submenu leaf moves to the next bar menu; Fluent MenuBar and Material MenuStrip consume the arrow that opens a menu so it opens on the first row.
+- *(runtime)* GlobalStyle::Kit hands egui the resolved theme under a set_system_theme override.
+
 ## [0.12.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral-v0.11.0...egui_mineral-v0.12.0) - 2026-11-22
 
 ### Added

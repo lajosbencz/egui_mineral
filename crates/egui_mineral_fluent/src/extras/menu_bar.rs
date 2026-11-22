@@ -167,8 +167,9 @@ impl<'a, A: ActionValue> MenuBar<'a, A> {
             if (t.clicked() && bar.open != Some(i)) || switched {
                 bar.open = Some(i);
             } else if t.has_focus() && bar.open.is_none() {
-                for key in kit::interact::plain_key_presses(&ctx) {
-                    if matches!(key, Key::ArrowDown | Key::ArrowUp) {
+                for key in [Key::ArrowDown, Key::ArrowUp] {
+                    // Consumed: the menu opening this pass would also move its focus by it.
+                    if ctx.input_mut(|inp| inp.consume_key(egui::Modifiers::NONE, key)) {
                         bar.open = Some(i);
                     }
                 }

@@ -28,7 +28,8 @@ pub enum Walk {
         /// Row of the level below that opened the closed level.
         parent: usize,
     },
-    /// Root level arrow toward `Edge`: a menu bar moves to the adjacent menu.
+    /// Arrow toward `Edge` that leaves the menu: either arrow on the root level, or the end-ward one on a row
+    /// without a submenu; a menu bar moves to the adjacent menu.
     Bar(Edge),
 }
 
@@ -128,8 +129,8 @@ impl MenuNav {
     }
 
     /// <https://www.w3.org/WAI/ARIA/apg/patterns/menubar/> arrows on `row` of `level`, which holds focus. The
-    /// end-ward arrow opens a parent row's submenu; the start-ward one closes a submenu level. Root level arrows
-    /// report [`Walk::Bar`]. Consumes the keys it acts on.
+    /// end-ward arrow opens a parent row's submenu and reports [`Walk::Bar`] on any other row; the start-ward one
+    /// closes a submenu level and reports [`Walk::Bar`] on the root level. Consumes the keys it acts on.
     pub fn walk(&mut self, ctx: &Context, dir: Direction, level: usize, row: usize, parent: bool) -> Option<Walk> {
         let fwd = dir.forward_key();
         let back = if fwd == Key::ArrowRight {
@@ -158,7 +159,7 @@ impl MenuNav {
 fn step(level: usize, parent: bool, mut pressed: impl FnMut(Edge) -> bool) -> Option<Walk> {
     match (level, parent) {
         (_, true) if pressed(Edge::End) => Some(Walk::Opened),
-        (0, _) if pressed(Edge::End) => Some(Walk::Bar(Edge::End)),
+        _ if pressed(Edge::End) => Some(Walk::Bar(Edge::End)),
         (0, _) if pressed(Edge::Start) => Some(Walk::Bar(Edge::Start)),
         (0, _) => None,
         _ if pressed(Edge::Start) => Some(Walk::Closed { parent: 0 }),
@@ -179,7 +180,11 @@ mod tests {
         assert_eq!(step(0, false, only(Edge::End)), Some(Walk::Bar(Edge::End)));
         assert_eq!(step(0, true, only(Edge::Start)), Some(Walk::Bar(Edge::Start)));
         assert_eq!(step(2, false, only(Edge::Start)), Some(Walk::Closed { parent: 0 }));
-        assert_eq!(step(2, false, only(Edge::End)), None);
+        assert_eq!(
+            step(2, false, only(Edge::End)),
+            Some(Walk::Bar(Edge::End)),
+            "a leaf row leaves for the next menu"
+        );
     }
 
     #[test]

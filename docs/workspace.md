@@ -53,7 +53,7 @@ The [`justfile`](../justfile) is the single source of the checks; [`ci.yml`](../
 | `quick` | fmt check, default-feature clippy of the libraries, first test leg (`just fix`: fmt and `clippy --fix`) |
 | `ci` | `check`, `check-deps`, `check-release` and `hygiene` |
 | `check` | `check-clippy`, `check-test` and `check-docs`, the three parallel CI jobs |
-| `check-clippy` | `clippy`: feature matrix (cargo-hack, native and wasm32) |
+| `check-clippy` | `clippy`: feature matrix (cargo-hack, native and wasm32; core also x86_64-pc-windows-msvc) |
 | `check-test` | `test` (nextest legs) and `icu-trimmed` |
 | `check-docs` | `doc` (doctests, rustdoc, docs.rs build from each crate's `[package.metadata.docs.rs]`), `readme-check`, `versions-check` (shared breaking version, toolchain channel equals `rust-version`), `fmt`, `unstable-guard` (no published crate enables an `unstable-*` feature) |
 | `check-deps` | `minimal-versions`; CI runs it when a manifest, the lockfile or the toolchain changes |

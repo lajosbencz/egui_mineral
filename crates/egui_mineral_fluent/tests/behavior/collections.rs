@@ -823,3 +823,30 @@ fn image_with_an_unloadable_uri_shows_the_failed_state() {
     let icon = egui_mineral_fluent::icons::ICON_IMAGE_OFF.regular().to_string();
     pass.text(&icon);
 }
+
+#[test]
+fn list_select_all_off_leaves_ctrl_a_to_the_app() {
+    use egui_mineral::shortcut::{self, Scope};
+    let mut h = harness((Selection::<usize>::multiple(), false), |ui, (sel, app)| {
+        let keys = egui::KeyboardShortcut::new(egui::Modifiers::COMMAND, Key::A);
+        shortcut::bind(ui.ctx(), Scope::Global, keys, "app-select-all");
+        *app |= shortcut::take_action(ui.ctx(), &"app-select-all".into());
+        List::new("l")
+            .navigation(Some(ListNavigation::Items))
+            .selection(sel)
+            .select_all(false)
+            .show(ui, |l| {
+                for i in 0..3 {
+                    l.item(i, format!("Row {i}"), |ui| {
+                        ui.add(egui::Label::new(format!("Row {i}")).selectable(false));
+                    });
+                }
+            });
+    });
+    h.run();
+    h.press(Key::Tab);
+    h.key_press_modifiers(egui::Modifiers::COMMAND, Key::A);
+    h.run();
+    assert!(h.state().value.0.is_empty());
+    assert!(h.state().value.1, "the app's binding fires");
+}
