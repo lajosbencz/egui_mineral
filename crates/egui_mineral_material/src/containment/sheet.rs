@@ -3,13 +3,13 @@ use crate::MaterialExt;
 use crate::MaterialUiExt as _;
 use crate::Rt;
 use crate::msg;
-use crate::widget::modal_focus::ModalFocus;
 use egui::{
     Color32, Context, CornerRadius, Frame, Id, Key, Margin, Rangef, Rect, ScrollArea, Sense, Shadow, UiBuilder, Vec2,
     pos2, vec2,
 };
 use egui_mineral::kit::state::TempState;
 use egui_mineral::layout::Fraction;
+use egui_mineral::overlay::ModalFocus;
 use egui_mineral::overlay::OverlayResponse;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::Availability;

@@ -1,9 +1,9 @@
 use crate::tokens::ShadowTint;
 use egui::{
-    Color32, Context, CornerRadius, Id, InnerResponse, Margin, Memory, Pos2, Rect, Response, Sense, Shape, Stroke,
-    StrokeKind, Ui, vec2,
+    Color32, CornerRadius, Id, InnerResponse, Margin, Memory, Pos2, Rect, Response, Sense, Shape, Stroke, StrokeKind,
+    Ui, vec2,
 };
-use egui_mineral::{anchor::Placement, kit::state::TempState, overlay};
+use egui_mineral::{anchor::Placement, kit::state::TempState};
 
 use crate::{
     Rt,
@@ -11,63 +11,6 @@ use crate::{
     spec::tokens::{geometry as g, typography as ty},
     theme::{Elevation, Tokens},
 };
-
-// WAI-ARIA APG dialog pattern
-#[derive(Clone, Copy, Default)]
-pub(crate) struct ModalFocus {
-    open: bool,
-    enter: bool,
-    since: u64,
-    leave: bool,
-    restore: Option<Id>,
-}
-
-impl TempState for ModalFocus {}
-
-impl ModalFocus {
-    pub(crate) fn scope<R>(ctx: &Context, id: Id, open: &mut bool, show: impl FnOnce(&mut Self, &mut bool) -> R) -> R {
-        let mut focus = Self::load(ctx, id);
-        focus.sync(ctx, *open);
-        let r = show(&mut focus, open);
-        focus.sync(ctx, *open);
-        focus.leave(ctx);
-        focus.store(ctx, id);
-        r
-    }
-
-    fn sync(&mut self, ctx: &Context, open: bool) {
-        if open && !self.open {
-            *self = Self {
-                open: true,
-                enter: true,
-                since: ctx.cumulative_pass_nr(),
-                leave: false,
-                restore: ctx.memory(Memory::focused),
-            };
-        } else if !open && self.open {
-            self.open = false;
-            self.enter = false;
-            self.leave = true;
-        }
-    }
-
-    pub(super) fn enter(&mut self, ctx: &Context, target: Id) {
-        if self.enter && ctx.cumulative_pass_nr() > self.since {
-            self.enter = false;
-            ctx.memory_mut(|m| m.request_focus(target));
-        }
-    }
-
-    fn leave(&mut self, ctx: &Context) {
-        if self.leave
-            && overlay::top_modal(ctx).is_none()
-            && let Some(r) = self.restore.take()
-        {
-            self.leave = false;
-            ctx.memory_mut(|m| m.request_focus(r));
-        }
-    }
-}
 
 pub(crate) struct Look {
     pub fill: Color32,

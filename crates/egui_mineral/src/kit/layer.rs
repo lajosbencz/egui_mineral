@@ -1,6 +1,6 @@
 //! Overlay key handling: Escape and the default action.
 
-use egui::{Area, Context, Event, Id, Key, LayerId, Memory, Modifiers, Order, Pos2, Ui};
+use egui::{Area, Context, Event, Id, Key, LayerId, Memory, Modifiers, Order, Pos2, Response, Ui};
 
 use crate::{overlay::top_modal, runtime::Core};
 
@@ -70,12 +70,19 @@ pub fn consume_escape_from(ctx: &Context, id: Id) -> bool {
 /// handle Enter itself: a text edit still focused after the press (multi-line; single-line edits
 /// give up focus on Enter) or a clickable widget (egui clicks it on Enter).
 pub fn default_action_pressed(ui: &Ui) -> bool {
+    default_action_pressed_with(ui, |r| r.sense.senses_click())
+}
+
+/// [`default_action_pressed`] with `handles_enter` deciding for the focused widget other than a text edit, given
+/// its latest [`Response`]. egui clicks a focused clickable widget on Enter while it is built, so a widget that
+/// `handles_enter` rejects (a checkbox, WPF style) misses the press only when this runs before it.
+pub fn default_action_pressed_with(ui: &Ui, handles_enter: impl FnOnce(&Response) -> bool) -> bool {
     let ctx = ui.ctx();
     if top_modal(ctx) != Some(ui.layer_id()) {
         return false;
     }
     if let Some(focused) = ctx.memory(Memory::focused)
-        && (ctx.text_edit_focused() || ctx.read_response(focused).is_some_and(|r| r.sense.senses_click()))
+        && (ctx.text_edit_focused() || ctx.read_response(focused).is_some_and(|r| handles_enter(&r)))
     {
         return false;
     }

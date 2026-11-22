@@ -16,7 +16,7 @@ use egui_mineral::{
     i18n::Direction,
     kit,
     layout::{Axis, Constraints, Measure},
-    overlay::Dismiss,
+    overlay::{Dismiss, ModalFocus},
     semantic::{self, Role, SemanticNode, StableId},
     shortcut::Mnemonic,
     widget::{MineralWidget, WidgetFrame, WidgetResponse},
@@ -25,9 +25,7 @@ use egui_mineral::{
 use crate::widget::{
     common::{self, with_alpha},
     edge_surface::{self, EdgeSurface},
-    indication,
-    modal_focus::ModalFocus,
-    parts,
+    indication, parts,
 };
 use crate::{
     Icon,

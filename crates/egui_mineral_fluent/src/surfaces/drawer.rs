@@ -14,7 +14,7 @@ use egui_mineral::{
 };
 
 use super::dialog::DialogAction;
-use super::overlay::{Look, ModalFocus, framed, text};
+use super::overlay::{Look, framed, text};
 use crate::spec::ColorToken::{
     ColorBackgroundOverlay, ColorNeutralBackground1, ColorNeutralBackground3, ColorNeutralForeground1,
 };
@@ -28,6 +28,7 @@ use crate::{
     theme::Elevation,
     widget::vocab::ButtonAppearance,
 };
+use egui_mineral::overlay::ModalFocus;
 
 /// Edge a [`Drawer`] attaches to (`position`); start and end follow the text direction.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -230,7 +231,7 @@ impl<A: ActionValue> Drawer<A> {
     ) -> DrawerResponse<R, A> {
         let ctx = rt.ctx();
         self.id = kit::scoped_id(rt.core(), self.id);
-        ModalFocus::scope(ctx, self.id.with("focus"), open, |_, open| {
+        ModalFocus::scope(ctx, self.id.with("focus"), open, None, |_, open| {
             let Some(e) = self.progress(rt, *open) else {
                 return DrawerResponse::closed();
             };
