@@ -11,7 +11,7 @@ use egui_mineral::{
         command_palette::{self as palette, Entry, Labels, Row, State},
         state::TempState,
     },
-    overlay,
+    overlay::{self, ModalFocus},
     select::ItemKey,
     semantic::{self, KeyedSalt, Role, SemanticNode, StableId},
     shortcut,
@@ -29,7 +29,7 @@ use crate::{
         defaults::{combobox as cb, dialog},
         tokens::{geometry as g, typography as ty},
     },
-    surfaces::overlay::{Look, ModalFocus, framed},
+    surfaces::overlay::{Look, framed},
     theme::{Elevation, Tokens},
     widget::paint,
 };
@@ -149,7 +149,7 @@ impl<'a, A: ActionValue> CommandPalette<'a, A> {
     /// Modal palette while `open`; running an entry or a dismissal clears `open`.
     pub fn show_modal(self, rt: &Rt, open: &mut bool) -> CommandPaletteResponse<A> {
         let id = kit::scoped_id(rt.core(), Id::unique(("mineral::command_palette", self.salt.id_salt())));
-        ModalFocus::scope(rt.ctx(), id.with("focus"), open, |_, open| self.run(rt, id, open))
+        ModalFocus::scope(rt.ctx(), id.with("focus"), open, None, |_, open| self.run(rt, id, open))
     }
 
     fn run(self, rt: &Rt, id: Id, open: &mut bool) -> CommandPaletteResponse<A> {

@@ -19,7 +19,7 @@ use egui_mineral::{
 };
 
 use crate::actions::{ButtonVariant, PushButton};
-use crate::widget::{common, modal_focus::ModalFocus, parts};
+use crate::widget::{common, parts};
 use crate::{
     Icon,
     spec::{
@@ -28,6 +28,7 @@ use crate::{
     },
     tokens::Tokens,
 };
+use egui_mineral::overlay::ModalFocus;
 
 // `area` comes from `kit::layer::modal_area`.
 pub(crate) fn surface_modal(

@@ -1,5 +1,5 @@
-//! Overlay plumbing without painting: dismissal reasons, outside presses, Escape, the dialog
-//! default action and the anchored [`Popup`] lifecycle. Stylekits supply frames and shapes.
+//! Overlay plumbing without painting: dismissal reasons, outside presses, Escape, modal focus
+//! ([`ModalFocus`]) and the anchored [`Popup`] lifecycle. Stylekits supply frames and shapes.
 
 use crate::kit::state::TempState;
 use egui::{
@@ -96,6 +96,74 @@ pub(crate) fn is_modal(ctx: &Context, layer: LayerId) -> bool {
 /// [`crate::shortcut::scope_of`] and [`crate::window::ModalStack::top`].
 pub fn top_modal(ctx: &Context) -> Option<LayerId> {
     ctx.memory(Memory::top_modal_layer)
+}
+
+/// Focus lifecycle of a modal surface (<https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/>): opening
+/// remembers the focused widget and moves focus to the target given to [`Self::enter`]; closing returns it
+/// once no modal is left on top. Tab stays inside while the surface is an `egui::Modal`, since egui only
+/// focuses layers at or above the top modal.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct ModalFocus {
+    open: bool,
+    enter: bool,
+    since: u64,
+    leave: bool,
+    restore: Option<Id>,
+}
+
+impl ModalFocus {
+    /// Runs `show` with the focus state stored under `id` while tracking `open`, which `show` may clear.
+    /// Closing returns focus to the widget focused when the surface opened, else to `trigger`.
+    pub fn scope<R>(
+        ctx: &Context,
+        id: Id,
+        open: &mut bool,
+        trigger: Option<Id>,
+        show: impl FnOnce(&mut Self, &mut bool) -> R,
+    ) -> R {
+        let mut focus: Self = ctx.data(|d| d.get_temp(id)).unwrap_or_default();
+        focus.sync(ctx, *open, trigger);
+        let r = show(&mut focus, open);
+        focus.sync(ctx, *open, trigger);
+        focus.leave(ctx);
+        ctx.data_mut(|d| d.insert_temp(id, focus));
+        r
+    }
+
+    /// Focuses `target` once per opening, from the pass after the one that opened the surface (its widgets
+    /// exist by then); call each pass with the initial-focus widget.
+    pub fn enter(&mut self, ctx: &Context, target: Id) {
+        if self.enter && ctx.cumulative_pass_nr() > self.since {
+            self.enter = false;
+            ctx.memory_mut(|m| m.request_focus(target));
+        }
+    }
+
+    fn sync(&mut self, ctx: &Context, open: bool, trigger: Option<Id>) {
+        if open && !self.open {
+            *self = Self {
+                open: true,
+                enter: true,
+                since: ctx.cumulative_pass_nr(),
+                leave: false,
+                restore: ctx.memory(Memory::focused).or(trigger),
+            };
+        } else if !open && self.open {
+            self.open = false;
+            self.enter = false;
+            self.leave = true;
+        }
+    }
+
+    fn leave(&mut self, ctx: &Context) {
+        if self.leave
+            && top_modal(ctx).is_none()
+            && let Some(r) = self.restore.take()
+        {
+            self.leave = false;
+            ctx.memory_mut(|m| m.request_focus(r));
+        }
+    }
 }
 
 /// Foreground area anchored to a trigger, sized by its last shown size: opens with initial
@@ -498,7 +566,7 @@ mod tests {
     use super::{Dismiss, OverlayResponse, Popup};
     use crate::{
         anchor::{Align, Anchor, Side},
-        input::synth::key_down,
+        input::synth::{key_down, key_tap},
         test_support::{Run, harness, press},
     };
 
@@ -625,6 +693,79 @@ mod tests {
         let order: Vec<_> = h.ctx.memory(|m| m.layer_ids().collect());
         let at = |l| order.iter().position(|&o| o == l);
         assert!(at(popup) > at(modal), "popup above its dialog: {order:?}");
+    }
+
+    #[derive(Default)]
+    struct Modal {
+        open: bool,
+        rejects: bool,
+        defaulted: bool,
+        clicked: bool,
+    }
+
+    fn modal_harness(trigger: Id, target: Id) -> Harness<'static, Run<Modal>> {
+        harness(
+            move |ui, s: &mut Modal| {
+                ui.interact(
+                    Rect::from_min_size(pos2(10.0, 10.0), vec2(40.0, 20.0)),
+                    trigger,
+                    Sense::click(),
+                );
+                let rt = ui.rt();
+                let ctx = rt.ctx().clone();
+                super::ModalFocus::scope(&ctx, Id::unique("focus"), &mut s.open, None, |focus, open| {
+                    if !*open {
+                        return;
+                    }
+                    crate::kit::layer::modal(rt.core(), Id::unique("modal")).show(&ctx, |ui| {
+                        let rejects = s.rejects;
+                        s.defaulted |=
+                            crate::kit::layer::default_action_pressed_with(ui, |r| r.sense.senses_click() && !rejects);
+                        let (rect, _) = ui.allocate_exact_size(vec2(40.0, 20.0), Sense::hover());
+                        let r = ui.interact(rect, target, Sense::click());
+                        s.clicked |= r.clicked();
+                        focus.enter(ui.ctx(), target);
+                    });
+                });
+            },
+            Modal::default(),
+        )
+    }
+
+    #[test]
+    fn modal_focus_enters_the_target_and_returns_on_close() {
+        let (trigger, target) = (Id::unique("trigger"), Id::unique("target"));
+        let mut h = modal_harness(trigger, target);
+        h.ctx.memory_mut(|m| m.request_focus(trigger));
+        h.run();
+        h.state_mut().value.open = true;
+        h.run();
+        assert_eq!(h.ctx.memory(egui::Memory::focused), Some(target));
+        h.state_mut().value.open = false;
+        h.run_steps(2);
+        assert_eq!(h.ctx.memory(egui::Memory::focused), Some(trigger));
+    }
+
+    #[test]
+    fn default_action_takes_enter_from_a_widget_the_predicate_rejects() {
+        let mut h = modal_harness(Id::unique("trigger"), Id::unique("target"));
+        h.state_mut().value.open = true;
+        h.run();
+        h.input_mut().events.extend(key_tap(Key::Enter, Modifiers::NONE));
+        h.run();
+        assert!(
+            h.state().value.clicked && !h.state().value.defaulted,
+            "a clickable focus handles Enter"
+        );
+
+        h.state_mut().value = Modal {
+            open: true,
+            rejects: true,
+            ..Modal::default()
+        };
+        h.input_mut().events.extend(key_tap(Key::Enter, Modifiers::NONE));
+        h.run();
+        assert!(h.state().value.defaulted && !h.state().value.clicked);
     }
 
     #[test]

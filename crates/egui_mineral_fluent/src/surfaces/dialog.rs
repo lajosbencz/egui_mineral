@@ -10,7 +10,7 @@ use egui_mineral::{
     widget::MineralUi,
 };
 
-use super::overlay::{Look, ModalFocus, framed, text};
+use super::overlay::{Look, framed, text};
 use crate::spec::ColorToken::{ColorBackgroundOverlay, ColorNeutralBackground1, ColorNeutralForeground1};
 use crate::{
     Fluent, FluentExt, Rt,
@@ -22,6 +22,7 @@ use crate::{
     theme::Elevation,
     widget::vocab::ButtonAppearance,
 };
+use egui_mineral::overlay::ModalFocus;
 
 /// `modalType` of a [`Dialog`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -231,7 +232,7 @@ impl<A: ActionValue> Dialog<A> {
     ) -> DialogResponse<R, A> {
         let ctx = rt.ctx();
         self.id = kit::scoped_id(rt.core(), self.id);
-        ModalFocus::scope(ctx, self.id.with("focus"), open, |focus, open| {
+        ModalFocus::scope(ctx, self.id.with("focus"), open, None, |focus, open| {
             let visibility = if *open { Visibility::Visible } else { Visibility::Hidden };
             let Some(k) = motion::presence(rt.core(), self.id.with("presence"), visibility, d::MOTION) else {
                 return DialogResponse::closed();

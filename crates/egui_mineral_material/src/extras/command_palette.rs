@@ -7,8 +7,8 @@ use crate::Material;
 use crate::MaterialExt;
 use crate::Rt;
 use crate::containment::dialog::surface_modal;
-use crate::widget::modal_focus::ModalFocus;
 use egui::{Align2, Id, KeyboardShortcut, Rangef, Rect, Sense, pos2, vec2};
+use egui_mineral::overlay::ModalFocus;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::{Availability, MineralUi};
 use egui_mineral::{
