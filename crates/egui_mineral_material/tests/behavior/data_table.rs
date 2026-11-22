@@ -274,3 +274,38 @@ fn resize_grip_clicks_do_not_sort_and_drags_track_the_pointer() {
     );
     assert_eq!(h.state().value.sort_changed, 0);
 }
+
+fn select_table<'a>(behavior: egui_mineral::select::SelectionBehavior) -> Harness<'a, Selection<usize>> {
+    harness(WIDE, Selection::multiple(), move |ui, sel| {
+        DataTable::new("tbl", "Names", [TableColumn::new("Name")])
+            .selection(sel)
+            .selection_behavior(behavior)
+            .show(ui, NAMES.len(), |r, _| TableCell::from(NAMES[r]));
+    })
+}
+
+fn selected(h: &Harness<'_, Selection<usize>>) -> Vec<usize> {
+    h.state().value.selected().copied().collect()
+}
+
+#[test]
+fn rows_toggle_by_default_shift_arrows_extend_and_ctrl_a_selects_every_page() {
+    use egui_mineral::select::SelectionBehavior::{Replace, Toggle};
+    let mut h = select_table(Toggle);
+    h.click("tbl-0-0-cell");
+    h.click("tbl-2-0-cell");
+    assert_eq!(selected(&h), [0, 2], "clicks toggle");
+    h.press(Key::ArrowDown);
+    assert_eq!(selected(&h), [0, 2], "a plain move only moves focus");
+    h.key_press_modifiers(Modifiers::COMMAND, Key::A);
+    h.run();
+    assert_eq!(selected(&h), [0, 1, 2, 3]);
+
+    let mut h = select_table(Replace);
+    h.click("tbl-0-0-cell");
+    h.press(Key::ArrowDown);
+    assert_eq!(selected(&h), [1], "Replace: the move selects");
+    h.key_press_modifiers(Modifiers::SHIFT, Key::ArrowDown);
+    h.run();
+    assert_eq!(selected(&h), [1, 2]);
+}

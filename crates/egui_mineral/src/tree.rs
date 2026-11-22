@@ -470,16 +470,14 @@ pub fn flatten_with<'a, N: TreeData>(
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum TreeNav {
-    /// Moves focus to `row`; `extend` (Shift) extends a multiple selection to it, see
+    /// Moves focus to `row` with the key's `modifiers`, for
     /// [`Selection::follow_focus`](crate::select::Selection::follow_focus).
     Focus {
         /// Row index.
         row: usize,
-        /// Shift held.
-        extend: bool,
+        /// Modifiers of the key.
+        modifiers: Modifiers,
     },
-    /// Ctrl/Cmd+A: selects every row ([`Selection::select_all`](crate::select::Selection::select_all)).
-    SelectAll,
     /// Expands the row; focus stays.
     Expand(usize),
     /// Collapses the row; focus stays.
@@ -487,7 +485,7 @@ pub enum TreeNav {
 }
 
 /// <https://www.w3.org/WAI/ARIA/apg/patterns/treeview/>; horizontal arrows flip in RTL. Focus moves skip
-/// disabled rows; Shift on the vertical moves and Home/End extends the selection, Ctrl/Cmd+A selects all.
+/// disabled rows. Plain, Shift and Ctrl/Cmd keys move; others are left alone.
 pub fn on_key<N>(
     rows: &[TreeRow<'_, N>],
     current: usize,
@@ -496,30 +494,26 @@ pub fn on_key<N>(
     dir: Direction,
 ) -> Option<TreeNav> {
     let row = rows.get(current)?;
-    let extend = modifiers.shift;
-    let focus = |row: usize| TreeNav::Focus { row, extend };
+    if !(modifiers.is_none() || modifiers.shift_only() || modifiers.command_only()) {
+        return None;
+    }
+    let focus = |row: usize| TreeNav::Focus { row, modifiers };
     let fwd = dir.forward_key();
     let enabled = |i: &usize| rows.get(*i).is_some_and(|r| !r.disabled);
     let next = current.saturating_add(1);
     Some(match key {
-        k if crate::select::is_select_all(k, modifiers) => TreeNav::SelectAll,
         Key::ArrowDown => focus((next..rows.len()).find(enabled)?),
         Key::ArrowUp => focus((0..current).rev().find(enabled)?),
         Key::Home => focus((0..rows.len()).find(enabled)?),
         Key::End => focus((0..rows.len()).rev().find(enabled)?),
         Key::ArrowLeft | Key::ArrowRight if key == fwd => match (row.has_children, row.expanded) {
             (true, false) => TreeNav::Expand(current),
-            (true, true) if rows.get(next).is_some_and(|r| r.parent == Some(current)) && enabled(&next) => {
-                TreeNav::Focus {
-                    row: next,
-                    extend: false,
-                }
-            }
+            (true, true) if rows.get(next).is_some_and(|r| r.parent == Some(current)) && enabled(&next) => focus(next),
             _ => return None,
         },
         Key::ArrowLeft | Key::ArrowRight => match (row.expanded, row.parent) {
             (true, _) => TreeNav::Collapse(current),
-            (false, Some(p)) => TreeNav::Focus { row: p, extend: false },
+            (false, Some(p)) => focus(p),
             (false, None) => return None,
         },
         _ => return None,
@@ -661,7 +655,10 @@ mod tests {
         );
         assert_eq!(
             on_key(&rows, 2, Key::ArrowLeft, Modifiers::NONE, Direction::Ltr),
-            Some(TreeNav::Focus { row: 0, extend: false })
+            Some(TreeNav::Focus {
+                row: 0,
+                modifiers: Modifiers::NONE
+            })
         );
         assert_eq!(
             on_key(&rows, 0, Key::ArrowRight, Modifiers::NONE, Direction::Rtl),
@@ -679,28 +676,29 @@ mod tests {
     }
 
     #[test]
-    fn shift_extends_focus_moves_and_ctrl_a_selects_all() {
+    fn focus_moves_carry_their_modifiers() {
         let roots = vec![N(1, vec![]), N(2, vec![]), N(3, vec![])];
         let rows = flatten(&roots, &Expansion::default());
         let ltr = Direction::Ltr;
         assert_eq!(
-            on_key(&rows, 0, Key::ArrowDown, Modifiers::SHIFT, ltr),
-            Some(TreeNav::Focus { row: 1, extend: true })
-        );
-        assert_eq!(
             on_key(&rows, 0, Key::End, Modifiers::SHIFT, ltr),
-            Some(TreeNav::Focus { row: 2, extend: true })
+            Some(TreeNav::Focus {
+                row: 2,
+                modifiers: Modifiers::SHIFT
+            })
         );
         assert_eq!(
             on_key(&rows, 1, Key::ArrowUp, Modifiers::COMMAND, ltr),
-            Some(TreeNav::Focus { row: 0, extend: false }),
-            "Ctrl moves focus only"
+            Some(TreeNav::Focus {
+                row: 0,
+                modifiers: Modifiers::COMMAND
+            })
         );
         assert_eq!(
-            on_key(&rows, 1, Key::A, Modifiers::COMMAND, ltr),
-            Some(TreeNav::SelectAll)
+            on_key(&rows, 1, Key::ArrowUp, Modifiers::ALT, ltr),
+            None,
+            "Alt moves rows instead"
         );
-        assert_eq!(on_key(&rows, 1, Key::A, Modifiers::NONE, ltr), None);
     }
 
     #[test]
@@ -720,12 +718,18 @@ mod tests {
         let ltr = Direction::Ltr;
         assert_eq!(
             on_key(&rows, 0, Key::ArrowDown, Modifiers::NONE, ltr),
-            Some(TreeNav::Focus { row: 4, extend: false }),
+            Some(TreeNav::Focus {
+                row: 4,
+                modifiers: Modifiers::NONE
+            }),
             "skips 2, 3 and 4"
         );
         assert_eq!(
             on_key(&rows, 4, Key::ArrowUp, Modifiers::NONE, ltr),
-            Some(TreeNav::Focus { row: 0, extend: false })
+            Some(TreeNav::Focus {
+                row: 0,
+                modifiers: Modifiers::NONE
+            })
         );
         assert_eq!(
             on_key(&rows, 4, Key::ArrowRight, Modifiers::NONE, ltr),

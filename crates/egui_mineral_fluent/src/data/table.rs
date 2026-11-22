@@ -2,13 +2,15 @@ use crate::msg;
 use egui_mineral::focus::Items;
 use std::{borrow::Cow, ops::Range, sync::Arc};
 
-use egui::{CursorIcon, Galley, Id, Rangef, Rect, Sense, Stroke, StrokeKind, UiBuilder, pos2, text::LayoutJob, vec2};
+use egui::{
+    CursorIcon, Galley, Id, Modifiers, Rangef, Rect, Sense, Stroke, StrokeKind, UiBuilder, pos2, text::LayoutJob, vec2,
+};
 use egui_mineral::{
     focus::{self, Cell, RovingFocus, TabStop},
     i18n::{Direction, I18n},
     kit::{self, state::TempState},
     layout::{Constraints, Measure},
-    select::{self, ItemKey, RowInput, Selection, SelectionMode},
+    select::{self, ItemKey, RowInput, Selection, SelectionBehavior, SelectionMode},
     semantic::{self, AgentKey, KeyedSalt, Role, SemanticNode, StableId},
     table::{ColumnWidths, RowStyle, Rows, SortOrder, SortState, sort_order},
     widget::{Availability, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
@@ -322,6 +324,7 @@ pub struct Table<'a, K> {
     columns: Vec<TableColumn>,
     sort: Option<&'a mut SortState>,
     selection: Option<&'a mut Selection<K>>,
+    behavior: SelectionBehavior,
     widths: Option<&'a mut ColumnWidths>,
     sort_key: Option<SortKey<'a>>,
     row_style: Option<RowStyleFn<'a>>,
@@ -344,6 +347,7 @@ impl<'a, K: ItemKey> Table<'a, K> {
             columns: columns.into_iter().map(Into::into).collect(),
             sort: None,
             selection: None,
+            behavior: SelectionBehavior::Toggle,
             widths: None,
             sort_key: None,
             row_style: None,
@@ -369,9 +373,17 @@ impl<'a, K: ItemKey> Table<'a, K> {
         self
     }
 
-    /// Selectable rows bound by row key: a checkbox column, or a circular one for a single selection.
+    /// Selectable rows bound by row key: a checkbox column, or a circular one for a single selection. Rows select
+    /// per [`Self::selection_behavior`] ([`Selection::apply`], [`Selection::follow_focus`]); Ctrl/Cmd+A selects
+    /// every row.
     pub fn selection(mut self, selection: &'a mut Selection<K>) -> Self {
         self.selection = Some(selection);
+        self
+    }
+
+    /// How clicks and arrows select; [`SelectionBehavior::Toggle`] by default (`useTableSelection`).
+    pub fn selection_behavior(mut self, behavior: SelectionBehavior) -> Self {
+        self.behavior = behavior;
         self
     }
 
@@ -462,6 +474,12 @@ impl<'a, K: ItemKey> DataGrid<'a, K> {
     /// See [`Table::selection`].
     pub fn selection(mut self, selection: &'a mut Selection<K>) -> Self {
         self.0 = self.0.selection(selection);
+        self
+    }
+
+    /// See [`Table::selection_behavior`].
+    pub fn selection_behavior(mut self, behavior: SelectionBehavior) -> Self {
+        self.0 = self.0.selection_behavior(behavior);
         self
     }
 
@@ -566,22 +584,17 @@ impl Grid {
     }
 
     // Arrow, Home and End keys: the target takes focus when its row is shown, after scrolling to it. Returns the
-    // body row focus moved to with whether Shift extends to it, and whether Ctrl/Cmd+A was pressed.
+    // body row focus moved to with the modifiers of the move.
     fn finish(mut self, ui: &mut MineralUi<'_, Fluent>, id: Id, cells: usize, geo: &Geometry) -> GridKeys {
         let mut keys = GridKeys::default();
         if !self.on {
             return keys;
         }
-        if self.focused.is_some() {
-            keys.select_all = kit::interact::key_presses(ui.ctx())
-                .into_iter()
-                .any(|(k, m)| select::is_select_all(k, m));
-        }
         if let Some((current, focused)) = self.focused
-            && let Some((next, extend)) =
+            && let Some((next, modifiers)) =
                 RovingFocus::grid(self.columns).on_select_key(ui.core(), focused, current, &Items::all(cells))
         {
-            keys.moved = self.row(next).checked_sub(1).map(|r| (r, extend));
+            keys.moved = self.row(next).checked_sub(1).map(|r| (r, modifiers));
             self.focus.pending = Some(next);
             ui.scroll_to_rect(geo.row(self.row(next)), None);
             #[expect(
@@ -597,8 +610,7 @@ impl Grid {
 
 #[derive(Default)]
 struct GridKeys {
-    moved: Option<(usize, bool)>,
-    select_all: bool,
+    moved: Option<(usize, Modifiers)>,
 }
 
 struct Geometry {
@@ -721,6 +733,11 @@ fn run<K: ItemKey>(
     };
     let grid_id = id.with("mineral::grid");
     let mut grid = Grid::load(ui.ctx(), grid_id, tb.grid, columns, cells);
+    let rt = ui.rt();
+    // Focus scope of the cells, for Ctrl/Cmd+A.
+    let mut body = ui.new_child(UiBuilder::new().id_salt("mineral::cells").max_rect(area));
+    let scope = body.unique_id();
+    let ui = &mut rt.ui(&mut body);
     let mut ev = Events {
         sort: false,
         selection: false,
@@ -758,16 +775,17 @@ fn run<K: ItemKey>(
         }
     }
     let grid_keys = grid.finish(ui, grid_id, cells, &geo);
+    let select_all = selectable && select::select_all_shortcut(ui.ctx(), scope);
     if let Some(sel) = tb.selection.as_deref_mut()
-        && (grid_keys.moved.is_some() || grid_keys.select_all)
+        && (grid_keys.moved.is_some() || select_all)
     {
         let all: Vec<K> = order.keys(keys).collect();
-        if let Some((r, extend)) = grid_keys.moved
+        if let Some((r, modifiers)) = grid_keys.moved
             && let Some(key) = order.data(r).and_then(|d| keys.key(d))
         {
-            ev.selection |= sel.follow_focus(key, extend, &all);
+            ev.selection |= sel.follow_focus(key, modifiers, tb.behavior, &all);
         }
-        if grid_keys.select_all {
+        if select_all {
             ev.selection |= sel.select_all(&all);
         }
     }
@@ -934,7 +952,7 @@ fn body_row<K: ItemKey>(
     row_background(ui, rect, tb.appearance, selected, &row, &tokens);
     let mut clicked = clickable && row.clicked();
     let mut input = if clickable {
-        RowInput::of(&row)
+        RowInput::of(&ui.pass_input(), &row)
     } else {
         RowInput::default()
     };
@@ -975,7 +993,7 @@ fn body_row<K: ItemKey>(
                 focus_outline(ui, crect, &tokens);
             }
             clicked |= resp.clicked();
-            input = input.or(RowInput::of(&resp));
+            input = input.or(RowInput::of(&ui.pass_input(), &resp));
             whole |= resp;
         }
         // Cell content clipped to its cell.
@@ -996,7 +1014,7 @@ fn body_row<K: ItemKey>(
         } else {
             Vec::new()
         };
-        ev.selection |= s.apply(key.clone(), input, &all);
+        ev.selection |= s.apply(key.clone(), input, tb.behavior, &all);
     }
     if clicked {
         ev.activated = Some(key.clone());

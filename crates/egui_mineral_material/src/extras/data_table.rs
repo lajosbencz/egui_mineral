@@ -19,7 +19,7 @@ use egui_mineral::{
     pagination::Paging,
     perf::VirtualList,
     range::{RangeModel, Track},
-    select::{Check, Selection},
+    select::{self, Check, RowInput, Selection, SelectionBehavior},
     semantic::{self, Action, Role, SemanticNode, StableId},
     table::{ColumnSize, ColumnWidths, SortOrder, SortState, sort_order},
 };
@@ -250,8 +250,8 @@ struct Events {
 }
 
 enum RowEvent {
-    Check(usize, Modifiers),
-    Click(usize, Modifiers),
+    Check(usize, RowInput),
+    Click(usize, RowInput),
 }
 
 type SortFn<'a> = Box<dyn Fn(usize, SortState) -> Vec<usize> + 'a>;
@@ -265,6 +265,7 @@ pub struct DataTable<'a, K> {
     columns: Vec<TableColumn>,
     rows: usize,
     selection: Option<&'a mut Selection<K>>,
+    behavior: SelectionBehavior,
     page_sizes: Vec<usize>,
     max_height: Option<f32>,
     data_version: u64,
@@ -318,6 +319,7 @@ impl<'a, K: ItemKey> DataTable<'a, K> {
             columns: columns.into_iter().map(Into::into).collect(),
             rows: 0,
             selection: None,
+            behavior: SelectionBehavior::Toggle,
             page_sizes: Vec::new(),
             max_height: None,
             data_version: 0,
@@ -333,9 +335,16 @@ impl<'a, K: ItemKey> DataTable<'a, K> {
         agent_key(salt)
     }
 
-    /// Checkbox column bound to the selected row keys.
+    /// Checkbox column bound to the selected row keys. Rows select per [`Self::selection_behavior`]
+    /// ([`Selection::apply`], [`Selection::follow_focus`]); Ctrl/Cmd+A selects every row of every page.
     pub fn selection(mut self, selection: &'a mut Selection<K>) -> Self {
         self.selection = Some(selection);
+        self
+    }
+
+    /// How clicks and arrows select; [`SelectionBehavior::Toggle`] by default (MUI X `checkboxSelection`).
+    pub fn selection_behavior(mut self, behavior: SelectionBehavior) -> Self {
+        self.behavior = behavior;
         self
     }
 
@@ -666,23 +675,20 @@ impl<'a, K: ItemKey> DataTable<'a, K> {
             view.grid(ui, &mut st, &mut pass, cell);
         }
 
-        if let Some((cell_pos, fid)) = pass.focused {
-            kit::interact::lock_arrows(ctx, fid, kit::interact::Arrows::Both);
-            let grid = focus::Grid::new(GridSize {
-                rows: page_rows + 1,
-                columns: grid_cols,
-            })
-            .jump_rows(view_rows);
-            if let Some(target) = grid_focus_target(ctx, cell_pos, grid, dir) {
-                st.pending = Some(target);
-            }
-        }
+        let grid = focus::Grid::new(GridSize {
+            rows: page_rows + 1,
+            columns: grid_cols,
+        })
+        .jump_rows(view_rows);
+        let moved = pass.focused.and_then(|f| grid_keys(ctx, f, grid, dir, &mut st));
         if let Some(c) = pass.sort_click {
             st.sort.cycle(c);
             out.sort_changed = true;
         }
         let page_ids = order.get(page).unwrap_or_default();
         self.apply_row_events(&pass, keys, page_ids, &order, &mut out);
+        let select_all = has_sel && !self.disabled && select::select_all_shortcut(ctx, ui.unique_id());
+        self.apply_keys(keys, (page_ids, &order), moved, select_all, &mut out);
         out.rows = std::mem::take(&mut pass.rows).into_iter().collect();
 
         if let Some(paging) = st.paging.as_mut() {
@@ -700,6 +706,32 @@ impl<'a, K: ItemKey> DataTable<'a, K> {
         out
     }
 
+    // `moved`: body row of the page focus moved to, with the move's modifiers.
+    fn apply_keys(
+        &mut self,
+        keys: &dyn Rows<K>,
+        (page_ids, order): (&[usize], &[usize]),
+        moved: Option<(usize, Modifiers)>,
+        select_all: bool,
+        out: &mut Events,
+    ) {
+        let Some(sel) = self.selection.as_deref_mut() else {
+            return;
+        };
+        if moved.is_none() && !select_all {
+            return;
+        }
+        let all: Vec<K> = order.iter().filter_map(|d| keys.key(*d)).collect();
+        if let Some((r, modifiers)) = moved
+            && let Some(k) = page_ids.get(r).and_then(|d| keys.key(*d))
+        {
+            out.changed |= sel.follow_focus(k, modifiers, self.behavior, &all);
+        }
+        if select_all {
+            out.changed |= sel.select_all(&all);
+        }
+    }
+
     fn apply_row_events(
         &mut self,
         pass: &Pass,
@@ -709,7 +741,7 @@ impl<'a, K: ItemKey> DataTable<'a, K> {
         out: &mut Events,
     ) {
         out.activated = pass.events.iter().rev().find_map(|e| match e {
-            RowEvent::Click(d, _) => Some(*d),
+            RowEvent::Click(d, input) => input.click.map(|_| *d),
             RowEvent::Check(..) => None,
         });
         let Some(sel) = self.selection.as_deref_mut() else {
@@ -725,9 +757,12 @@ impl<'a, K: ItemKey> DataTable<'a, K> {
         }
         let order: Vec<K> = order.iter().filter_map(|d| keys.key(*d)).collect();
         for e in &pass.events {
-            let (RowEvent::Check(d, m) | RowEvent::Click(d, m)) = *e;
+            let (d, input, behavior) = match *e {
+                RowEvent::Check(d, input) => (d, input, SelectionBehavior::Toggle),
+                RowEvent::Click(d, input) => (d, input, self.behavior),
+            };
             if let Some(k) = keys.key(d) {
-                out.changed |= toggle_row(sel, k, m, &order);
+                out.changed |= sel.apply(k, input, behavior, &order);
             }
         }
     }
@@ -1103,7 +1138,7 @@ impl<K: ItemKey> TableView<'_, '_, K> {
             );
             kit::interact::hover_cursor(rt.core(), &r, Availability::disabled_if(disabled));
             if r.clicked() && !disabled {
-                pass.events.push(RowEvent::Check(d, ui.input(|i| i.modifiers)));
+                pass.events.push(RowEvent::Check(d, RowInput::of(&ui.pass_input(), &r)));
             }
             take_cell(
                 ctx,
@@ -1141,8 +1176,9 @@ impl<K: ItemKey> TableView<'_, '_, K> {
                     &r,
                     &mut pass.focused,
                 );
-                if r.clicked() && !disabled {
-                    pass.events.push(RowEvent::Click(d, ui.input(|i| i.modifiers)));
+                let input = RowInput::of(&ui.pass_input(), &r);
+                if !input.is_empty() && !disabled {
+                    pass.events.push(RowEvent::Click(d, input));
                 }
                 cells.push(r);
             }
@@ -1215,27 +1251,31 @@ impl<K: ItemKey> TableView<'_, '_, K> {
     }
 }
 
-fn grid_focus_target(ctx: &Context, from: Cell, grid: focus::Grid, dir: Direction) -> Option<Cell> {
-    let mut target = from;
+// Moves focus from the `focused` cell by this pass's grid keys; the body row it moved to and the last move's
+// modifiers.
+fn grid_keys(
+    ctx: &Context,
+    (from, id): (Cell, Id),
+    grid: focus::Grid,
+    dir: Direction,
+    st: &mut TableState,
+) -> Option<(usize, Modifiers)> {
+    kit::interact::lock_arrows(ctx, id, kit::interact::Arrows::Both);
+    let (mut target, mut modifiers) = (from, Modifiers::NONE);
     for (k, m) in kit::interact::key_presses(ctx) {
         if let Some(next) = focus::on_grid_key(grid, target, k, m, dir) {
             target = next;
+            modifiers = m;
         }
     }
-    (target != from).then_some(target)
-}
-
-fn toggle_row<K: ItemKey>(sel: &mut Selection<K>, d: K, m: Modifiers, order: &[K]) -> bool {
-    if m.shift {
-        let extend = Modifiers {
-            shift: true,
-            command: true,
-            ..Modifiers::NONE
-        };
-        sel.click(d, extend, order)
-    } else {
-        sel.toggle(d)
+    if target == from {
+        return None;
     }
+    st.pending = Some(target);
+    (target.row != from.row)
+        .then(|| target.row.checked_sub(1))
+        .flatten()
+        .map(|r| (r, modifiers))
 }
 
 fn take_cell(ctx: &Context, st: &mut TableState, pos: Cell, r: &egui::Response, focused: &mut Option<(Cell, Id)>) {

@@ -263,14 +263,27 @@ impl InputContext {
         })
     }
 
+    /// Position of a tap on `r` this pass, hit-tested like [`Self::tap_on`] without marking `r` clicked.
+    pub fn tapped(&self, r: &egui::Response) -> Option<Pos2> {
+        self.gestures().find_map(|g| match g {
+            Gesture::Tap { pos } if hit(r, *pos, Sense::senses_click) => Some(*pos),
+            _ => None,
+        })
+    }
+
+    /// Position of a long press on `r` this pass, hit-tested like [`Self::tap_on`].
+    pub fn long_pressed(&self, r: &egui::Response) -> Option<Pos2> {
+        self.gestures().find_map(|g| match g {
+            Gesture::LongPress { pos } if hit(r, *pos, Sense::senses_click) => Some(*pos),
+            _ => None,
+        })
+    }
+
     /// Tap on `r`, hit-tested like egui clicks against the previous pass: inside `r`'s clipped
     /// interact rect on its uncovered layer, under no later click-sensing widget of that layer. A widget
     /// new this pass (a dialog opened by the same tap) gets none. Makes `r.clicked()` true when `r` is enabled and senses clicks.
     pub fn tap_on(&self, r: &mut egui::Response) -> Option<Pos2> {
-        let pos = self.gestures().find_map(|g| match g {
-            Gesture::Tap { pos } if hit(r, *pos, Sense::senses_click) => Some(*pos),
-            _ => None,
-        })?;
+        let pos = self.tapped(r)?;
         if r.enabled() && r.sense.senses_click() {
             // doc(hidden) on egui 0.37; see `Flags::FAKE_PRIMARY_CLICKED`.
             r.flags |= egui::response::Flags::FAKE_PRIMARY_CLICKED;

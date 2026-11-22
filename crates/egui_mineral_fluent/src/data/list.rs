@@ -1,10 +1,10 @@
 use crate::msg;
-use egui::{Align, Id, Key, Response, Sense, Stroke, StrokeKind, Ui, UiBuilder};
+use egui::{Align, Id, Response, Sense, Stroke, StrokeKind, Ui, UiBuilder};
 use egui_mineral::{
     focus::{self as roving, RovingFocus, TabStop},
     kit,
     layout::Axis,
-    select::{ItemKey, Selection, SelectionMode},
+    select::{self, ItemKey, RowInput, RowSource, Selection, SelectionBehavior, SelectionMode},
     semantic::{self, AgentKey, KeyedSalt, Role, SemanticNode},
     widget::{Availability, MineralUi},
 };
@@ -47,7 +47,7 @@ pub struct ListResponse<K, R = ()> {
     pub inner: R,
     /// Key of the item that was clicked or entered.
     pub activated: Option<K>,
-    /// Selection changed this pass by a click, Space or a checkmark.
+    /// Selection changed this pass by a click, a key or a checkmark.
     pub changed: bool,
 }
 
@@ -60,6 +60,7 @@ pub struct List<'a, K> {
     key: AgentKey,
     navigation: Option<ListNavigation>,
     selection: Option<&'a mut Selection<K>>,
+    behavior: SelectionBehavior,
 }
 
 impl<'a, K: ItemKey> List<'a, K> {
@@ -70,6 +71,7 @@ impl<'a, K: ItemKey> List<'a, K> {
             key: egui_mineral::agent_key!("list"),
             navigation: None,
             selection: None,
+            behavior: SelectionBehavior::Toggle,
         }
     }
 
@@ -79,9 +81,17 @@ impl<'a, K: ItemKey> List<'a, K> {
         self
     }
 
-    /// Selection of item keys owned by the app; items become focusable and selectable.
+    /// Selection of item keys owned by the app; items become focusable and select per
+    /// [`Self::selection_behavior`] ([`Selection::apply`], [`Selection::follow_focus`]). Enter is the item action;
+    /// Ctrl/Cmd+A selects every enabled item.
     pub fn selection(mut self, selection: &'a mut Selection<K>) -> Self {
         self.selection = Some(selection);
+        self
+    }
+
+    /// How clicks and arrows select; [`SelectionBehavior::Toggle`] by default (`useListSelection`).
+    pub fn selection_behavior(mut self, behavior: SelectionBehavior) -> Self {
+        self.behavior = behavior;
         self
     }
 
@@ -112,8 +122,10 @@ impl<'a, K: ItemKey> List<'a, K> {
         let selection = self.selection;
         // Position of the first selected item last pass.
         let first: Option<usize> = ui.ctx().data(|d| d.get_temp(first_id));
+        let behavior = self.behavior;
         let scope = ui.scope(|ui| {
             ui.spacing_mut().item_spacing.y = 0.0;
+            let items_scope = ui.unique_id();
             let stop = roving::tab_stop(rt.ctx(), id, first, &roving::Items::all(known));
             let mut lui = ListUi {
                 ui,
@@ -124,17 +136,29 @@ impl<'a, K: ItemKey> List<'a, K> {
                 focusable,
                 stop,
                 selection,
+                behavior,
                 index: 0,
                 ids: Vec::new(),
+                keys: Vec::new(),
+                input: None,
                 first: None,
                 activated: None,
                 changed: false,
             };
             let inner = add(&mut lui);
-            if focusable {
-                RovingFocus::new(Axis::Vertical)
-                    .wrap(false)
-                    .update(rt.core(), &lui.ids, |_| true);
+            let roving = RovingFocus::new(Axis::Vertical).wrap(false);
+            if let Some(sel) = lui.selection.as_deref_mut() {
+                if let Some((k, input)) = lui.input.take() {
+                    lui.changed |= sel.apply(k, input, behavior, &lui.keys);
+                }
+                if let Some((i, m)) = roving.update_select_group(rt.core(), id, &lui.ids, |_| true) {
+                    lui.changed |= sel.follow_focus(lui.keys[i].clone(), m, behavior, &lui.keys);
+                }
+                if select::select_all_shortcut(rt.ctx(), items_scope) {
+                    lui.changed |= sel.select_all(&lui.keys);
+                }
+            } else if focusable {
+                roving.update_group(rt.core(), id, &lui.ids, |_| true);
             }
             if lui.index != known {
                 rt.ctx().data_mut(|d| d.insert_temp(count_id, lui.index));
@@ -214,8 +238,13 @@ pub struct ListUi<'u, 'e, K> {
     focusable: bool,
     stop: usize,
     selection: Option<&'e mut Selection<K>>,
+    behavior: SelectionBehavior,
     index: usize,
     ids: Vec<Id>,
+    // Keys of `ids`.
+    keys: Vec<K>,
+    // Applied once every key is known, for Shift.
+    input: Option<(K, RowInput)>,
     first: Option<usize>,
     activated: Option<K>,
     changed: bool,
@@ -224,6 +253,33 @@ pub struct ListUi<'u, 'e, K> {
 kit::opaque_debug!(ListUi<'_, '_, K>);
 
 impl<K: ItemKey> ListUi<'_, '_, K> {
+    // Pointer and key input of an enabled item: activation now, selection once every key is known.
+    fn take_input(&mut self, key: &K, response: &Response) {
+        let mut input = RowInput::of(&self.rt.core().input(), response);
+        let source = input.click.map(|c| c.1);
+        if let Some(sel) = self.selection.as_deref() {
+            let activates = match source {
+                Some(RowSource::Space) | None => false,
+                Some(RowSource::Touch) => {
+                    self.behavior == SelectionBehavior::Toggle || sel.activates(input, self.behavior)
+                }
+                Some(RowSource::Mouse | RowSource::Enter) => true,
+            };
+            // Fluent List: Enter is the item action only.
+            if source == Some(RowSource::Enter) {
+                input.click = None;
+            }
+            if !input.is_empty() {
+                self.input = Some((key.clone(), input));
+            }
+            if activates {
+                self.activated = Some(key.clone());
+            }
+        } else if source.is_some() {
+            self.activated = Some(key.clone());
+        }
+    }
+
     /// One [`ListItem`] keyed by `key` in the selection, activation and its default agent key; `add` places its
     /// content.
     pub fn item<R>(
@@ -274,7 +330,11 @@ impl<K: ItemKey> ListUi<'_, '_, K> {
                             .disabled(disabled),
                     );
                     if checked != before {
-                        self.changed |= flip(sel, key.clone());
+                        self.changed |= if sel.mode() == SelectionMode::Multiple {
+                            sel.toggle(key.clone())
+                        } else {
+                            sel.select(key.clone())
+                        };
                     }
                     rui.add_space(d::CHECKMARK_MARGIN);
                 }
@@ -282,20 +342,12 @@ impl<K: ItemKey> ListUi<'_, '_, K> {
             },
         );
         let response = scope.response;
-        let by_enter = response.has_focus() && self.ui.input(|inp| inp.key_pressed(Key::Enter));
-        let by_space = response.has_focus() && self.ui.input(|inp| inp.key_pressed(Key::Space));
-        if response.clicked() && !disabled {
-            if let Some(sel) = self.selection.as_deref_mut()
-                && !by_enter
-            {
-                self.changed |= flip(sel, key.clone());
-            }
-            if !(selectable && by_space) {
-                self.activated = Some(key);
-            }
+        if !disabled {
+            self.take_input(&key, &response);
         }
         if self.focusable && !disabled {
             self.ids.push(response.id);
+            self.keys.push(key);
             if response.has_focus() && roving::visible(self.ui.ctx(), response.id) {
                 self.ui.painter().rect_stroke(
                     response.rect,
@@ -325,13 +377,5 @@ impl<K: ItemKey> ListUi<'_, '_, K> {
             response,
             inner: scope.inner,
         }
-    }
-}
-
-fn flip<K: ItemKey>(selection: &mut Selection<K>, key: K) -> bool {
-    if selection.mode() == SelectionMode::Multiple {
-        selection.toggle(key)
-    } else {
-        selection.select(key)
     }
 }

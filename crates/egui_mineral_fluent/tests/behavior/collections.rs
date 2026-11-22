@@ -84,6 +84,54 @@ fn arrow_keys_move_between_headers() {
 }
 
 #[test]
+fn multiple_list_toggles_extends_by_shift_arrows_and_leaves_enter_to_the_action() {
+    let mut h = harness(
+        (Selection::multiple(), None),
+        |ui, (sel, act): &mut (Selection<usize>, Option<usize>)| {
+            let out = List::new("l")
+                .navigation(Some(ListNavigation::Items))
+                .selection(sel)
+                .show(ui, |l| {
+                    for i in 0..4 {
+                        l.item(i, format!("Row {i}"), |ui| {
+                            ui.add(egui::Label::new(format!("Row {i}")).selectable(false));
+                        });
+                    }
+                });
+            *act = out.activated.or(*act);
+        },
+    );
+    h.run();
+    let selected =
+        |h: &Harness<'_, (Selection<usize>, Option<usize>)>| h.state().value.0.selected().copied().collect::<Vec<_>>();
+    // Past the checkmark, which takes focus of its own.
+    let body = |h: &Harness<'_, (Selection<usize>, Option<usize>)>, key: &str| {
+        h.rect(key).right_center() - egui::vec2(8.0, 0.0)
+    };
+    for key in ["l-item-0-item", "l-item-2-item"] {
+        let at = body(&h, key);
+        h.click_at(at);
+    }
+    assert_eq!(selected(&h), [0, 2], "clicks toggle");
+    h.press(Key::Tab);
+    h.press(Key::ArrowDown);
+    h.press(Key::ArrowDown);
+    assert!(h.focused("l-item-2-item"), "arrows move focus");
+    assert_eq!(selected(&h), [0, 2], "and only focus");
+    h.press(Key::Enter);
+    assert_eq!(selected(&h), [0, 2], "Enter is the action");
+    assert_eq!(h.state().value.1, Some(2));
+    h.key_press_modifiers(egui::Modifiers::SHIFT, Key::ArrowDown);
+    h.run();
+    assert_eq!(selected(&h), [0, 2, 3]);
+    h.press(Key::Space);
+    assert_eq!(selected(&h), [0, 2], "Space toggles");
+    h.key_press_modifiers(egui::Modifiers::COMMAND, Key::A);
+    h.run();
+    assert_eq!(selected(&h), [0, 1, 2, 3]);
+}
+
+#[test]
 fn single_list_selects_one_item_by_click() {
     let mut h = harness(Selection::single(), |ui, sel: &mut Selection<usize>| {
         List::new("l")
@@ -334,7 +382,7 @@ mod tag_group {
 mod table {
     use egui::Key;
     use egui_mineral::{
-        select::Selection,
+        select::{Selection, SelectionBehavior},
         semantic::Role,
         table::{SortOrder, SortState},
     };
@@ -366,6 +414,10 @@ mod table {
     }
 
     fn table(grid: bool) -> Harness<'static, State> {
+        table_with(grid, SelectionBehavior::Toggle)
+    }
+
+    fn table_with(grid: bool, behavior: SelectionBehavior) -> Harness<'static, State> {
         harness(state(), move |ui, s| {
             let State {
                 sort,
@@ -385,12 +437,14 @@ mod table {
                 DataGrid::new("t", "People", columns())
                     .sort(sort)
                     .selection(selection)
+                    .selection_behavior(behavior)
                     .sort_by_key(|c| NAMES[c.row])
                     .show(ui, NAMES.len(), cell)
             } else {
                 Table::new("t", "People", columns())
                     .sort(sort)
                     .selection(selection)
+                    .selection_behavior(behavior)
                     .sort_by_key(|c| NAMES[c.row])
                     .show(ui, NAMES.len(), cell)
             };
@@ -537,9 +591,21 @@ mod table {
     }
 
     #[test]
-    fn a_row_selects_on_press() {
+    fn rows_toggle_by_default_and_replace_selects_on_press() {
         let mut h = table(false);
         h.run();
+        h.click("t-row-0");
+        h.click("t-row-2");
+        let selected = |h: &Harness<'static, State>| h.state().value.selection.selected().copied().collect::<Vec<_>>();
+        assert_eq!(selected(&h), [0, 2], "clicks toggle");
+        h.click("t-row-0");
+        assert_eq!(selected(&h), [2]);
+
+        let mut h = table_with(false, SelectionBehavior::Replace);
+        h.run();
+        h.click("t-row-0");
+        h.click("t-row-2");
+        assert_eq!(selected(&h), [2], "a click replaces");
         let at = h.rect("t-row-1").center();
         h.hover_at(at);
         h.drag_at(at);

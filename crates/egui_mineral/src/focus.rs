@@ -215,29 +215,29 @@ impl RovingFocus {
         (idx != current).then_some(idx)
     }
 
-    /// [`Self::on_key`] of a selectable collection: Shift+arrows move too and report `true`, for
-    /// [`Selection::follow_focus`](crate::select::Selection::follow_focus).
+    /// [`Self::on_key`] of a selectable collection: Shift and Ctrl/Cmd arrows move too, reported with the last
+    /// move's modifiers for [`Selection::follow_focus`](crate::select::Selection::follow_focus).
     pub fn on_select_key(
         &self,
         core: &crate::runtime::Core,
         focused: Id,
         current: usize,
         items: &Items<impl Fn(usize) -> bool>,
-    ) -> Option<(usize, bool)> {
+    ) -> Option<(usize, Modifiers)> {
         let ctx = core.ctx();
         lock_arrows(ctx, focused, self.arrows());
         let dir = core.i18n().direction();
-        let (mut idx, mut extend) = (current, false);
+        let (mut idx, mut modifiers) = (current, Modifiers::NONE);
         for (key, m) in key_presses(ctx) {
-            if !(m.is_none() || m.shift_only()) {
+            if !(m.is_none() || m.shift_only() || m.command_only()) {
                 continue;
             }
             if let Some(next) = self.target(key, dir, idx, items) {
                 idx = next;
-                extend |= m.shift;
+                modifiers = m;
             }
         }
-        (idx != current).then_some((idx, extend))
+        (idx != current).then_some((idx, modifiers))
     }
 
     fn arrows(&self) -> Arrows {
@@ -288,6 +288,27 @@ impl RovingFocus {
     ) -> Option<usize> {
         let ctx = core.ctx();
         let moved = self.update(core, ids, enabled);
+        remember(ctx, group, ids.iter().copied().enumerate());
+        moved
+    }
+
+    /// [`Self::update_group`] of a selectable collection via [`Self::on_select_key`]: the index focus moved to and
+    /// the move's modifiers.
+    pub fn update_select_group(
+        &self,
+        core: &crate::runtime::Core,
+        group: Id,
+        ids: &[Id],
+        enabled: impl Fn(usize) -> bool,
+    ) -> Option<(usize, Modifiers)> {
+        let ctx = core.ctx();
+        let moved = ctx.memory(egui::Memory::focused).and_then(|focused| {
+            let current = ids.iter().position(|id| *id == focused)?;
+            self.on_select_key(core, focused, current, &Items::new(ids.len(), enabled))
+        });
+        if let Some((i, _)) = moved {
+            ctx.memory_mut(|m| m.request_focus(ids[i]));
+        }
         remember(ctx, group, ids.iter().copied().enumerate());
         moved
     }

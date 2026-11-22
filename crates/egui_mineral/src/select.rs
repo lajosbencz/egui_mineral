@@ -210,16 +210,19 @@ impl<K: Ord + Clone> Selection<K> {
     }
 
     /// Desktop listbox click: plain selects only `key`, Ctrl/Cmd toggles, Shift extends from the
-    /// anchor through `order` (visual order of all keys). `true` when the selected keys changed.
+    /// anchor through `order` (visual order of all keys) like [`Self::extend_to`], Ctrl/Cmd+Shift adds the range. Shift with an anchor outside `order` (another page)
+    /// adds `key` and makes it the anchor. `true` when the selected keys changed.
     pub fn click(&mut self, key: K, modifiers: Modifiers, order: &[K]) -> bool {
         if self.mode == SelectionMode::Single {
             return self.select(key);
         }
-        if modifiers.shift
-            && let Some(changed) = self.range_to(&key, order, modifiers.command)
-        {
-            self.current = Some(key);
-            changed
+        if modifiers.shift {
+            if let Some(changed) = self.range_to(&key, order, modifiers.command) {
+                self.current = Some(key);
+                changed
+            } else {
+                self.select(key)
+            }
         } else if modifiers.command {
             self.current = Some(key.clone());
             self.toggle(key)
@@ -256,8 +259,8 @@ impl<K: Ord + Clone> Selection<K> {
         true
     }
 
-    /// Shift+arrow: selects only the range from the anchor through `key` in `order` and makes `key` current;
-    /// selects `key` alone without an anchor in `order`. `true` when the selected keys changed.
+    /// Shift+arrow: swaps the anchor's previous range for the one through `key` in `order`, keeping other keys,
+    /// and makes `key` current; selects `key` alone without an anchor in `order`. `true` when the selected keys changed.
     pub fn extend_to(&mut self, key: K, order: &[K]) -> bool {
         if self.mode == SelectionMode::Multiple
             && let Some(changed) = self.range_to(&key, order, false)
@@ -268,34 +271,67 @@ impl<K: Ord + Clone> Selection<K> {
         self.click(key, Modifiers::NONE, order)
     }
 
-    /// Row `input` on `key`: a pointer press [`Self::press`]es, the click ending it [`Self::release`]s, an Enter or
-    /// Space click [`Self::click`]s. `order` is the visual order Shift reads. `true` when the selected keys changed.
-    pub fn apply(&mut self, key: K, input: RowInput, order: &[K]) -> bool {
-        let mut changed = false;
-        if let Some(m) = input.press {
-            changed |= self.press(key.clone(), m, order);
-        }
-        changed
-            | match input.click {
-                Some((m, true)) => self.release(key, m),
-                Some((m, false)) => self.click(key, m, order),
-                None => false,
+    /// Row `input` on `key` under `behavior`; `order` is the visual order Shift reads. `true` when the selected
+    /// keys changed.
+    ///
+    /// [`SelectionBehavior::Replace`]: a mouse press [`Self::press`]es and the click ending it [`Self::release`]s;
+    /// Space [`Self::click`]s (Ctrl/Cmd+Space toggles); a touch tap toggles while anything is selected and a long
+    /// press adds the row, so an empty selection leaves taps to the row action; Enter is the row action's.
+    /// [`SelectionBehavior::Toggle`]: clicks, taps, Space and Enter toggle, Shift adds the range from the anchor.
+    pub fn apply(&mut self, key: K, input: RowInput, behavior: SelectionBehavior, order: &[K]) -> bool {
+        let single = self.mode == SelectionMode::Single;
+        match behavior {
+            SelectionBehavior::Replace => {
+                let mut changed = input.press.is_some_and(|m| self.press(key.clone(), m, order));
+                if input.long_press && !self.is_selected(&key) {
+                    changed |= self.select(key.clone());
+                }
+                changed
+                    | match input.click {
+                        Some((m, RowSource::Mouse)) => self.release(key, m),
+                        Some((_, RowSource::Touch)) if self.is_empty() => false,
+                        Some((_, RowSource::Touch)) if single => self.select(key),
+                        Some((_, RowSource::Touch)) => self.toggle(key),
+                        Some((m, RowSource::Space)) if m.command && !single => self.toggle(key),
+                        Some((m, RowSource::Space)) => self.click(key, m, order),
+                        _ => false,
+                    }
             }
+            SelectionBehavior::Toggle => match input.click {
+                None => false,
+                Some(_) if single => self.select(key),
+                Some((m, _)) if m.shift => self.click(key, Modifiers::SHIFT | Modifiers::COMMAND, order),
+                Some(_) => self.toggle(key),
+            },
+        }
     }
 
-    /// Keyboard focus moved to `to`: `extend` (Shift) extends a multiple selection to it ([`Self::extend_to`]),
-    /// any other move only makes it current. `true` when the selected keys changed.
-    pub fn follow_focus(&mut self, to: K, extend: bool, order: &[K]) -> bool {
-        if extend && self.mode == SelectionMode::Multiple {
+    /// `input` runs the row's action, judged before [`Self::apply`]: Enter, and under
+    /// [`SelectionBehavior::Replace`] a touch tap while nothing is selected. Kits add their own (double click).
+    pub fn activates(&self, input: RowInput, behavior: SelectionBehavior) -> bool {
+        match input.click {
+            Some((_, RowSource::Enter)) => true,
+            Some((_, RowSource::Touch)) => behavior == SelectionBehavior::Replace && self.is_empty(),
+            _ => false,
+        }
+    }
+
+    /// Keyboard focus moved to `to` with `modifiers`: Shift extends a multiple selection to it ([`Self::extend_to`]),
+    /// Ctrl/Cmd only makes it current; a plain move selects only `to` under [`SelectionBehavior::Replace`] and makes
+    /// it current under [`SelectionBehavior::Toggle`]. `true` when the selected keys changed.
+    pub fn follow_focus(&mut self, to: K, modifiers: Modifiers, behavior: SelectionBehavior, order: &[K]) -> bool {
+        if modifiers.shift && self.mode == SelectionMode::Multiple {
             self.extend_to(to, order)
-        } else {
+        } else if modifiers.command || behavior == SelectionBehavior::Toggle {
             self.set_current(to);
             false
+        } else {
+            self.click(to, Modifiers::NONE, order)
         }
     }
 
-    /// Ctrl/Cmd+A ([`is_select_all`]): every key of `order` in a multiple selection; `true` when the selected
-    /// keys changed.
+    /// Every key of `order` in a multiple selection ([`select_all_shortcut`]); `true` when the selected keys
+    /// changed.
     pub fn select_all(&mut self, order: &[K]) -> bool {
         if self.mode != SelectionMode::Multiple {
             return false;
@@ -305,64 +341,104 @@ impl<K: Ord + Clone> Selection<K> {
             .fold(false, |changed, k| self.selected.insert(k.clone()) | changed)
     }
 
-    // Anchor through `key` in `order`; `keep` adds the range to the selection instead of replacing it. `None`
-    // when either is missing from `order`.
+    // Anchor through `key` in `order` replaces the anchor's previous range (through `current`), keeping other
+    // keys (React Aria `extendSelection`); `keep` adds without dropping it. `None` when the anchor or `key` is
+    // missing from `order`.
     fn range_to(&mut self, key: &K, order: &[K], keep: bool) -> Option<bool> {
-        let anchor = self.anchor.as_ref()?;
-        let a = order.iter().position(|k| k == anchor)?;
-        let b = order.iter().position(|k| k == key)?;
-        let range = &order[a.min(b)..=a.max(b)];
-        let mut changed = false;
-        if !keep {
-            let before = self.selected.len();
-            self.selected.retain(|k| range.contains(k));
-            changed = self.selected.len() != before;
+        let at = |k: &K| order.iter().position(|o| o == k);
+        let a = at(self.anchor.as_ref()?)?;
+        let b = at(key)?;
+        let before = self.selected.clone();
+        if !keep && let Some(c) = self.current.as_ref().and_then(at) {
+            for k in &order[a.min(c)..=a.max(c)] {
+                self.selected.remove(k);
+            }
         }
-        for k in range {
-            changed |= self.selected.insert(k.clone());
-        }
-        Some(changed)
+        self.selected.extend(order[a.min(b)..=a.max(b)].iter().cloned());
+        Some(self.selected != before)
     }
 }
 
-/// Pointer press and click of a selectable row this pass, applied by [`Selection::apply`].
+/// How clicks and plain arrows act on a collection's [`Selection`] ([`Selection::apply`], [`Selection::follow_focus`]),
+/// after React Aria's `selectionBehavior`.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum SelectionBehavior {
+    /// Clicks, taps and Space toggle rows like a checkbox group; plain arrows only move focus. Touch-first lists
+    /// and tables.
+    #[default]
+    Toggle,
+    /// Clicks and plain arrows select only the row, Ctrl/Cmd toggles, Shift extends; on touch a long press starts
+    /// a selection that taps then toggle. Desktop trees and grids.
+    Replace,
+}
+
+/// Source of a [`RowInput`] click.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RowSource {
+    /// Mouse or pen click; ends a [`RowInput::press`].
+    Mouse,
+    /// Touch tap.
+    Touch,
+    /// Space on the focused row.
+    Space,
+    /// Enter on the focused row.
+    Enter,
+}
+
+/// Press, click and long press of a selectable row this pass, applied by [`Selection::apply`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct RowInput {
-    /// Primary press that started on the row.
+    /// Mouse press that started on the row; touch never presses, so a scroll never selects.
     pub press: Option<Modifiers>,
-    /// Click; `true` from the pointer, which ends a `press`, `false` from Enter or Space.
-    pub click: Option<(Modifiers, bool)>,
+    /// Click and its source.
+    pub click: Option<(Modifiers, RowSource)>,
+    /// Touch long press on the row.
+    pub long_press: bool,
 }
 
 impl RowInput {
-    /// Of `response` this pass. Reads the press from this pass's input, not `is_pointer_button_down_on`: a fast click
-    /// presses and releases in one pass.
-    pub fn of(response: &egui::Response) -> Self {
-        let (modifiers, origin) = response.ctx.input(|i| {
+    /// Of `response` this pass, from egui's press and click for the mouse and keys and from the gestures of `input`
+    /// for touch. Reads the press from this pass's input, not `is_pointer_button_down_on`: a fast click presses and
+    /// releases in one pass.
+    pub fn of(input: &crate::input::InputContext, response: &egui::Response) -> Self {
+        let touch = input.modality == crate::input::PointerKind::Touch;
+        let (modifiers, origin, space) = response.ctx.input(|i| {
             let origin = i.pointer.primary_pressed().then(|| i.pointer.press_origin()).flatten();
-            (i.modifiers, origin)
+            (i.modifiers, origin, i.key_pressed(egui::Key::Space))
         });
-        let pressed = response.hovered() && origin.is_some_and(|p| response.rect.contains(p));
+        let pressed = !touch && response.hovered() && origin.is_some_and(|p| response.rect.contains(p));
+        let by_pointer = response.clicked_by(egui::PointerButton::Primary);
+        let click = if touch && input.tapped(response).is_some() {
+            Some(RowSource::Touch)
+        } else if !response.clicked() || (touch && by_pointer) {
+            None
+        } else if by_pointer {
+            Some(RowSource::Mouse)
+        } else if space {
+            Some(RowSource::Space)
+        } else {
+            Some(RowSource::Enter)
+        };
         Self {
             press: pressed.then_some(modifiers),
-            click: response
-                .clicked()
-                .then(|| (modifiers, response.clicked_by(egui::PointerButton::Primary))),
+            click: click.map(|c| (modifiers, c)),
+            long_press: input.long_pressed(response).is_some(),
         }
     }
 
-    /// Either part of `self`, else of `other`; rows made of several responses.
+    /// Each part of `self`, else of `other`; rows made of several responses.
     #[must_use]
     pub fn or(self, other: Self) -> Self {
         Self {
             press: self.press.or(other.press),
             click: self.click.or(other.click),
+            long_press: self.long_press || other.long_press,
         }
     }
 
-    /// No press and no click.
+    /// No press, click or long press.
     pub fn is_empty(&self) -> bool {
-        self.press.is_none() && self.click.is_none()
+        self.press.is_none() && self.click.is_none() && !self.long_press
     }
 
     /// Shift held, so applying it reads the visual order.
@@ -371,9 +447,18 @@ impl RowInput {
     }
 }
 
-/// Ctrl/Cmd+A, the select-all key of every selectable collection.
-pub fn is_select_all(key: egui::Key, modifiers: Modifiers) -> bool {
-    key == egui::Key::A && modifiers.command && !modifiers.shift && !modifiers.alt
+/// Ctrl/Cmd+A for the collection whose `Ui` has `scope` as its `unique_id`: bound in
+/// [`Scope::Focus`](crate::shortcut::Scope::Focus) for the next pass, so it wins over app-wide bindings while focus is inside and
+/// is consumed; `true` when it fired this pass. Left unbound while a text edit has focus, which keeps its own
+/// select-all.
+pub fn select_all_shortcut(ctx: &egui::Context, scope: egui::Id) -> bool {
+    use crate::shortcut;
+    let action = shortcut::ActionId::widget(scope.with("mineral::select-all"));
+    if !ctx.text_edit_focused() {
+        let keys = egui::KeyboardShortcut::new(Modifiers::COMMAND, egui::Key::A);
+        shortcut::bind(ctx, shortcut::Scope::Focus(scope), keys, action.clone());
+    }
+    shortcut::take_action(ctx, &action)
 }
 
 /// Collects into an empty [`SelectionMode::Multiple`] selection.
@@ -496,60 +581,121 @@ mod tests {
         assert_eq!(s.selected().copied().collect::<Vec<_>>(), [1, 4]);
     }
 
+    fn input(click: Option<(Modifiers, RowSource)>) -> RowInput {
+        RowInput {
+            click,
+            ..RowInput::default()
+        }
+    }
+
+    fn keys(s: &Selection<u8>) -> Vec<u8> {
+        s.selected().copied().collect()
+    }
+
     #[test]
-    fn apply_presses_on_the_pointer_and_clicks_on_keys() {
+    fn replace_presses_on_the_mouse_and_leaves_enter_to_the_action() {
+        use SelectionBehavior::Replace;
         let order = [1, 2, 3];
         let mut s = Selection::multiple().with([1, 2]);
         let press = RowInput {
             press: Some(Modifiers::NONE),
-            click: None,
+            ..RowInput::default()
         };
-        assert!(!s.apply(2, press, &order), "a press keeps the set to drag");
-        let release = RowInput {
-            press: None,
-            click: Some((Modifiers::NONE, true)),
-        };
-        assert!(s.apply(2, release, &order));
-        assert_eq!(s.selected().copied().collect::<Vec<_>>(), [2]);
-        let key = RowInput {
-            press: None,
-            click: Some((Modifiers::SHIFT, false)),
-        };
-        assert!(key.shift());
-        assert!(s.apply(3, key, &order), "Enter with Shift extends");
-        assert_eq!(s.selected().copied().collect::<Vec<_>>(), [2, 3]);
-        assert!(RowInput::default().is_empty());
+        assert!(!s.apply(2, press, Replace, &order), "a press keeps the set to drag");
+        assert!(s.apply(2, input(Some((Modifiers::NONE, RowSource::Mouse))), Replace, &order));
+        assert_eq!(keys(&s), [2], "the release without a drag narrows it");
+        assert!(!s.apply(3, input(Some((Modifiers::NONE, RowSource::Enter))), Replace, &order));
+        let shift_space = input(Some((Modifiers::SHIFT, RowSource::Space)));
+        assert!(shift_space.shift());
+        assert!(s.apply(3, shift_space, Replace, &order));
+        assert_eq!(keys(&s), [2, 3]);
+        assert!(s.apply(2, input(Some((Modifiers::COMMAND, RowSource::Space))), Replace, &order));
+        assert_eq!(keys(&s), [3], "Ctrl+Space toggles");
     }
 
     #[test]
-    fn focus_moves_apart_from_the_selection_and_shift_extends_from_the_anchor() {
+    fn replace_touch_taps_act_until_a_long_press_starts_a_selection() {
+        use SelectionBehavior::Replace;
+        let order = [1, 2, 3];
+        let tap = input(Some((Modifiers::NONE, RowSource::Touch)));
+        let mut s = Selection::multiple();
+        assert!(
+            !s.apply(1, tap, Replace, &order),
+            "an empty selection leaves taps to the action"
+        );
+        let long = RowInput {
+            long_press: true,
+            ..RowInput::default()
+        };
+        assert!(s.apply(1, long, Replace, &order));
+        assert!(s.apply(3, tap, Replace, &order), "then taps toggle");
+        assert_eq!(keys(&s), [1, 3]);
+        assert!(s.apply(1, tap, Replace, &order) && s.apply(3, tap, Replace, &order));
+        assert!(s.is_empty(), "deselecting everything ends it");
+        assert!(!s.apply(2, tap, Replace, &order));
+    }
+
+    #[test]
+    fn toggle_clicks_and_space_toggle_and_shift_adds_ranges() {
+        use SelectionBehavior::Toggle;
+        let order = [1, 2, 3, 4];
+        let mut s = Selection::multiple();
+        let press = RowInput {
+            press: Some(Modifiers::NONE),
+            ..RowInput::default()
+        };
+        assert!(
+            !s.apply(1, press, Toggle, &order),
+            "toggle acts on the click, so a drag changes nothing"
+        );
+        assert!(s.apply(1, input(Some((Modifiers::NONE, RowSource::Mouse))), Toggle, &order));
+        assert!(s.apply(2, input(Some((Modifiers::NONE, RowSource::Touch))), Toggle, &order));
+        assert!(s.apply(1, input(Some((Modifiers::NONE, RowSource::Space))), Toggle, &order));
+        assert_eq!(keys(&s), [2]);
+        assert!(s.apply(3, input(Some((Modifiers::NONE, RowSource::Enter))), Toggle, &order));
+        assert!(s.apply(3, input(Some((Modifiers::NONE, RowSource::Enter))), Toggle, &order));
+        assert!(s.apply(4, input(Some((Modifiers::SHIFT, RowSource::Mouse))), Toggle, &order));
+        assert_eq!(keys(&s), [2, 3, 4], "Shift adds the anchor's range");
+        let mut single = Selection::single();
+        assert!(single.apply(3, input(Some((Modifiers::NONE, RowSource::Mouse))), Toggle, &order));
+        assert!(!single.apply(3, input(Some((Modifiers::NONE, RowSource::Mouse))), Toggle, &order));
+    }
+
+    #[test]
+    fn plain_moves_select_under_replace_and_only_focus_under_toggle() {
+        use SelectionBehavior::{Replace, Toggle};
         let order = [1, 2, 3, 4, 5];
         let mut s = Selection::multiple();
         s.click(2, Modifiers::NONE, &order);
-        s.set_current(4);
+        assert!(!s.follow_focus(4, Modifiers::NONE, Toggle, &order));
         assert_eq!((s.current(), s.anchor()), (Some(&4), Some(&2)));
-        assert_eq!(s.selected().copied().collect::<Vec<_>>(), [2]);
-        assert!(s.extend_to(4, &order));
-        assert_eq!(s.selected().copied().collect::<Vec<_>>(), [2, 3, 4]);
-        assert!(s.extend_to(1, &order));
-        assert_eq!(
-            s.selected().copied().collect::<Vec<_>>(),
-            [1, 2],
-            "the range replaces the last one"
+        assert!(s.follow_focus(4, Modifiers::SHIFT, Toggle, &order));
+        assert_eq!(keys(&s), [2, 3, 4]);
+        assert!(
+            !s.follow_focus(5, Modifiers::COMMAND, Replace, &order),
+            "Ctrl moves focus only"
         );
-        assert_eq!(s.current(), Some(&1));
+        assert!(s.follow_focus(1, Modifiers::NONE, Replace, &order));
+        assert_eq!(keys(&s), [1]);
         assert!(s.select_all(&order));
         assert_eq!(s.len(), 5);
-        assert!(!s.follow_focus(5, false, &order), "a plain move only makes it current");
-        assert_eq!(s.current(), Some(&5));
         let mut single = Selection::single();
-        assert!(
-            !single.follow_focus(3, true, &order),
-            "Shift moves do not select in single mode"
-        );
         assert!(!single.select_all(&order));
-        assert!(single.extend_to(3, &order), "single selects the key");
+        assert!(
+            single.follow_focus(3, Modifiers::NONE, Replace, &order),
+            "selection follows focus"
+        );
+        assert!(!single.follow_focus(4, Modifiers::NONE, Toggle, &order));
         assert_eq!(single.first(), Some(&3));
+    }
+
+    #[test]
+    fn shift_with_an_anchor_on_another_page_adds_instead_of_clearing() {
+        let mut s = Selection::multiple();
+        s.click(1, Modifiers::NONE, &[1, 2]);
+        assert!(s.click(7, Modifiers::SHIFT, &[6, 7, 8]));
+        assert_eq!(keys(&s), [1, 7]);
+        assert_eq!(s.anchor(), Some(&7));
     }
 
     #[test]

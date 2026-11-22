@@ -351,3 +351,66 @@ fn dragging_a_selected_row_keeps_the_selection_and_a_plain_click_narrows_it() {
     h.drop_at(to);
     h.run();
 }
+
+#[test]
+fn plain_arrows_select_and_ctrl_a_wins_over_an_app_binding() {
+    use egui_mineral::shortcut::{self, Scope};
+    let roots = vec![TreeNode::leaf(1, "Guide"), TreeNode::leaf(2, "API")];
+    let mut expansion = Expansion::default();
+    let mut h = harness(SCREEN, (Selection::multiple(), false), move |ui, (sel, app)| {
+        let keys = egui::KeyboardShortcut::new(Modifiers::COMMAND, Key::A);
+        shortcut::bind(ui.ctx(), Scope::Global, keys, "app-select-all");
+        *app |= shortcut::take_action(ui.ctx(), &"app-select-all".into());
+        TreeView::new("tree", "Files", &roots, &mut expansion)
+            .selection(sel)
+            .show(ui);
+    });
+    h.click("tree-1-treeitem");
+    h.press(Key::ArrowDown);
+    assert_eq!(
+        h.state().value.0.selected().copied().collect::<Vec<_>>(),
+        [2],
+        "Replace: the move selects"
+    );
+    h.key_press_modifiers(Modifiers::COMMAND, Key::A);
+    h.run();
+    assert_eq!(h.state().value.0.len(), 2);
+    assert!(!h.state().value.1, "the tree consumed Ctrl+A");
+}
+
+#[test]
+fn a_touch_tap_activates_until_a_long_press_starts_selecting() {
+    use egui::{Event, PointerButton, TouchPhase};
+    use egui_mineral::input::synth;
+    let mut h = tree();
+    let tap = |h: &mut Harness<'_, Tree>, key: &str, hold: u32| {
+        let at = h.rect(key).center();
+        h.input_mut().events.extend([
+            synth::touch(at, TouchPhase::Start),
+            Event::PointerMoved(at),
+            synth::pointer_down(at, PointerButton::Primary),
+        ]);
+        h.step();
+        for _ in 0..hold {
+            h.step();
+        }
+        h.input_mut().events.extend([
+            synth::touch(at, TouchPhase::End),
+            synth::pointer_up(at, PointerButton::Primary),
+            Event::PointerGone,
+        ]);
+        h.run();
+    };
+    tap(&mut h, "tree-4-treeitem", 0);
+    assert_eq!(
+        h.state().value.activated,
+        [4],
+        "a tap on an empty selection is the row action"
+    );
+    assert!(h.state().value.selection.is_empty(), "a touch press never selects");
+    tap(&mut h, "tree-4-treeitem", 40);
+    assert!(h.state().value.selection.is_selected(&4), "a long press selects");
+    tap(&mut h, "tree-1-treeitem", 0);
+    assert!(h.state().value.selection.is_selected(&1), "then taps select");
+    assert_eq!(h.state().value.activated, [4]);
+}

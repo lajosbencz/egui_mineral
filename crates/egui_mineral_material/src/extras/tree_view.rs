@@ -23,8 +23,8 @@ use egui_mineral::{
     kit,
     layout::{Constraints, Measure},
     perf::VirtualList,
-    select::ItemKey,
-    select::{Check, RowInput, Selection},
+    select::{self, ItemKey},
+    select::{Check, RowInput, RowSource, Selection, SelectionBehavior},
     semantic::{self, Action, Role, SemanticNode, StableId},
     shortcut,
     tree::{self, DropAccept, DropPosition, TreeData, TreeDrop, TreeMove, TreeNav, TreeRow},
@@ -403,7 +403,7 @@ impl<A: ActionValue> MineralWidget for RowWidget<'_, A> {
         }
         let on_control = out.toggled || out.action.is_some();
         let on_chevron = |p: Option<egui::Pos2>| self.has_children && p.is_some_and(|p| chevron_hit.contains(p));
-        let mut input = RowInput::of(r);
+        let mut input = RowInput::of(&ui.pass_input(), r);
         if self.disabled || on_chevron(ui.input(|i| i.pointer.press_origin())) {
             input.press = None;
         }
@@ -515,6 +515,7 @@ pub struct TreeView<'a, N: TreeData, A = NoAction> {
     roots: &'a [N],
     expansion: &'a mut Expansion<N::Key>,
     selection: Option<&'a mut Selection<N::Key>>,
+    behavior: SelectionBehavior,
     max_height: Option<f32>,
     row_height: Option<f32>,
     indent: Option<f32>,
@@ -552,6 +553,7 @@ impl<'a, N: TreeData> TreeView<'a, N> {
             roots,
             expansion,
             selection: None,
+            behavior: SelectionBehavior::Replace,
             max_height: None,
             row_height: None,
             indent: None,
@@ -576,11 +578,16 @@ impl<'a, N: TreeData, A: ActionValue> TreeView<'a, N, A> {
         agent_key(salt)
     }
 
-    /// Rows select on pointer press ([`Selection::press`]: a selected row keeps a multiple selection to drag and
-    /// narrows it on release), Space and Enter. Arrows move [`Selection::current`] only, Shift extends a multiple
-    /// selection, Ctrl/Cmd+A selects every enabled row. Without one rows only activate.
+    /// Rows select per [`Self::selection_behavior`] ([`Selection::apply`], [`Selection::follow_focus`]); Ctrl/Cmd+A
+    /// selects every enabled row. Without one rows only activate.
     pub fn selection(mut self, selection: &'a mut Selection<N::Key>) -> Self {
         self.selection = Some(selection);
+        self
+    }
+
+    /// How clicks and arrows select; [`SelectionBehavior::Replace`] by default.
+    pub fn selection_behavior(mut self, behavior: SelectionBehavior) -> Self {
+        self.behavior = behavior;
         self
     }
 
@@ -642,6 +649,7 @@ impl<'a, N: TreeData, A: ActionValue> TreeView<'a, N, A> {
             roots: self.roots,
             expansion: self.expansion,
             selection: self.selection,
+            behavior: self.behavior,
             max_height: self.max_height,
             row_height: self.row_height,
             indent: self.indent,
@@ -938,6 +946,10 @@ impl<'a, N: TreeData, A: ActionValue> TreeView<'a, N, A> {
             if o.toggle {
                 Self::toggle_node(out, self.expansion, key.clone());
             }
+            let activates = match self.selection.as_deref() {
+                Some(sel) => sel.activates(o.select, self.behavior),
+                None => matches!(o.select.click, Some((_, RowSource::Enter | RowSource::Touch))),
+            };
             if let Some(selection) = self.selection.as_deref_mut()
                 && !o.select.is_empty()
             {
@@ -947,7 +959,7 @@ impl<'a, N: TreeData, A: ActionValue> TreeView<'a, N, A> {
                 } else {
                     &mut Vec::new()
                 };
-                out.changed |= selection.apply(key.clone(), o.select, order);
+                out.changed |= selection.apply(key.clone(), o.select, self.behavior, order);
             }
             if o.toggled {
                 out.leading_toggled = Some(key.clone());
@@ -959,9 +971,24 @@ impl<'a, N: TreeData, A: ActionValue> TreeView<'a, N, A> {
                     rect,
                 });
             }
-            if o.activated {
+            if o.activated || activates {
                 out.activated = Some(key);
             }
+        }
+    }
+
+    fn select_all(
+        &mut self,
+        ctx: &egui::Context,
+        scope: Id,
+        rows: &[TreeRow<'a, N>],
+        out: &mut TreeViewResponse<N::Key, A>,
+    ) {
+        if !self.disabled
+            && select::select_all_shortcut(ctx, scope)
+            && let Some(sel) = self.selection.as_deref_mut()
+        {
+            out.changed |= sel.select_all(&Self::selectable(rows));
         }
     }
 
@@ -999,18 +1026,13 @@ impl<'a, N: TreeData, A: ActionValue> TreeView<'a, N, A> {
                 continue;
             }
             match tree::on_key(rows, cur, k, m, dir) {
-                Some(TreeNav::Focus { row, extend }) => {
+                Some(TreeNav::Focus { row, modifiers }) => {
                     let key = rows[row].node.key().clone();
                     if let Some(sel) = self.selection.as_deref_mut() {
-                        out.changed |= sel.follow_focus(key.clone(), extend, &Self::selectable(rows));
+                        out.changed |= sel.follow_focus(key.clone(), modifiers, self.behavior, &Self::selectable(rows));
                     }
                     state.pending = Some(key);
                     state.pending_passes = 0;
-                }
-                Some(TreeNav::SelectAll) => {
-                    if let Some(sel) = self.selection.as_deref_mut() {
-                        out.changed |= sel.select_all(&Self::selectable(rows));
-                    }
                 }
                 Some(TreeNav::Expand(j) | TreeNav::Collapse(j)) => {
                     Self::toggle_node(out, self.expansion, rows[j].node.key().clone());
@@ -1142,7 +1164,7 @@ impl<'a, N: TreeData, A: ActionValue> TreeView<'a, N, A> {
         let reorderable = self.can_reorder();
         let dim = rt.tokens().state.disabled_content;
         let scope = self.salt.child("rows");
-        egui_mineral::layout::child(ui, scope, area, rt.i18n().direction().column(), |ui| {
+        let rows_ui = egui_mineral::layout::child(ui, scope, area, rt.i18n().direction().column(), |ui| {
             ui.spacing_mut().item_spacing.y = 0.0;
             VirtualList::uniform(self.salt.child("rows"), row_h).show_culled(
                 ui,
@@ -1188,6 +1210,7 @@ impl<'a, N: TreeData, A: ActionValue> TreeView<'a, N, A> {
         state.focused = focused.is_some();
 
         self.apply_events(&rows, events, &mut out);
+        self.select_all(ctx, rows_ui.response.id, &rows, &mut out);
         if let Some((cur, fid)) = focused {
             kit::interact::lock_arrows(ctx, fid, kit::interact::Arrows::Both);
             self.navigate(rt, &rows, cur, &mut state, &mut out);
