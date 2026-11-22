@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.2](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral_fluent-v0.12.1...egui_mineral_fluent-v0.12.2) - 2026-11-22
+
+### Added
+
+- *(overlay)* core overlay::ModalFocus replaces both kits' copies; kit::layer::default_action_pressed_with lets a kit pick which focused widgets keep Enter.
+
 ## [0.12.1](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral_fluent-v0.12.0...egui_mineral_fluent-v0.12.1) - 2026-11-22
 
 ### Added
