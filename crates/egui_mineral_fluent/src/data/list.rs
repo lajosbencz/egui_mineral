@@ -62,6 +62,7 @@ pub struct List<'a, K> {
     selection: Option<&'a mut Selection<K>>,
     behavior: SelectionBehavior,
     action_selects: bool,
+    select_all: bool,
 }
 
 impl<'a, K: ItemKey> List<'a, K> {
@@ -74,6 +75,7 @@ impl<'a, K: ItemKey> List<'a, K> {
             selection: None,
             behavior: SelectionBehavior::Toggle,
             action_selects: true,
+            select_all: true,
         }
     }
 
@@ -86,9 +88,16 @@ impl<'a, K: ItemKey> List<'a, K> {
     /// Selection of item keys owned by the app; items become focusable and select per
     /// [`Self::selection_behavior`] ([`Selection::apply`], [`Selection::follow_focus`]): Space toggles, click and
     /// Enter run the item action ([`ListResponse::activated`]), which toggles unless [`Self::action_selects`] is
-    /// off. Ctrl/Cmd+A selects every enabled item.
+    /// off; [`Self::select_all`].
     pub fn selection(mut self, selection: &'a mut Selection<K>) -> Self {
         self.selection = Some(selection);
+        self
+    }
+
+    /// Ctrl/Cmd+A selects every enabled item while focus is inside; `false` leaves the shortcut to the app (React Aria
+    /// `disallowSelectAll`). Default `true`.
+    pub fn select_all(mut self, select_all: bool) -> Self {
+        self.select_all = select_all;
         self
     }
 
@@ -133,7 +142,7 @@ impl<'a, K: ItemKey> List<'a, K> {
         let selection = self.selection;
         // Position of the first selected item last pass.
         let first: Option<usize> = ui.ctx().data(|d| d.get_temp(first_id));
-        let behavior = self.behavior;
+        let (behavior, select_all) = (self.behavior, self.select_all);
         let scope = ui.scope(|ui| {
             ui.spacing_mut().item_spacing.y = 0.0;
             let items_scope = ui.unique_id();
@@ -166,7 +175,7 @@ impl<'a, K: ItemKey> List<'a, K> {
                 if let Some((i, m)) = roving.update_select_group(rt.core(), id, &lui.ids, |_| true) {
                     lui.changed |= sel.follow_focus(lui.keys[i].clone(), m, behavior, &lui.keys);
                 }
-                if select::select_all_shortcut(rt.ctx(), items_scope) {
+                if select_all && select::select_all_shortcut(rt.ctx(), items_scope) {
                     lui.changed |= sel.select_all(&lui.keys);
                 }
             } else if focusable {

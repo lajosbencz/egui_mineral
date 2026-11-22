@@ -461,3 +461,24 @@ fn agents_click_rows_and_add_with_ctrl_space() {
     h.run();
     assert_eq!(selected(&h), [1, 3], "Ctrl+Space adds");
 }
+
+#[test]
+fn select_all_off_leaves_ctrl_a_to_the_app() {
+    use egui_mineral::shortcut::{self, Scope};
+    let roots = vec![TreeNode::leaf(1, "Guide"), TreeNode::leaf(2, "API")];
+    let mut expansion = Expansion::default();
+    let mut h = harness(SCREEN, (Selection::multiple(), false), move |ui, (sel, app)| {
+        let keys = egui::KeyboardShortcut::new(Modifiers::COMMAND, Key::A);
+        shortcut::bind(ui.ctx(), Scope::Global, keys, "app-select-all");
+        *app |= shortcut::take_action(ui.ctx(), &"app-select-all".into());
+        TreeView::new("tree", "Files", &roots, &mut expansion)
+            .selection(sel)
+            .select_all(false)
+            .show(ui);
+    });
+    h.click("tree-1-treeitem");
+    h.key_press_modifiers(Modifiers::COMMAND, Key::A);
+    h.run();
+    assert_eq!(h.state().value.0.len(), 1);
+    assert!(h.state().value.1, "the app's binding fires");
+}

@@ -516,6 +516,7 @@ pub struct TreeView<'a, N: TreeData, A = NoAction> {
     expansion: &'a mut Expansion<N::Key>,
     selection: Option<&'a mut Selection<N::Key>>,
     behavior: SelectionBehavior,
+    select_all: bool,
     max_height: Option<f32>,
     row_height: Option<f32>,
     indent: Option<f32>,
@@ -554,6 +555,7 @@ impl<'a, N: TreeData> TreeView<'a, N> {
             expansion,
             selection: None,
             behavior: SelectionBehavior::Replace,
+            select_all: true,
             max_height: None,
             row_height: None,
             indent: None,
@@ -578,10 +580,17 @@ impl<'a, N: TreeData, A: ActionValue> TreeView<'a, N, A> {
         agent_key(salt)
     }
 
-    /// Rows select per [`Self::selection_behavior`] ([`Selection::apply`], [`Selection::follow_focus`]); Ctrl/Cmd+A
-    /// selects every enabled row. Without one rows only activate.
+    /// Rows select per [`Self::selection_behavior`] ([`Selection::apply`], [`Selection::follow_focus`]) and
+    /// [`Self::select_all`]. Without one rows only activate.
     pub fn selection(mut self, selection: &'a mut Selection<N::Key>) -> Self {
         self.selection = Some(selection);
+        self
+    }
+
+    /// Ctrl/Cmd+A selects every enabled row while focus is inside; `false` leaves the shortcut to the app (React Aria
+    /// `disallowSelectAll`). Default `true`.
+    pub fn select_all(mut self, select_all: bool) -> Self {
+        self.select_all = select_all;
         self
     }
 
@@ -650,6 +659,7 @@ impl<'a, N: TreeData, A: ActionValue> TreeView<'a, N, A> {
             expansion: self.expansion,
             selection: self.selection,
             behavior: self.behavior,
+            select_all: self.select_all,
             max_height: self.max_height,
             row_height: self.row_height,
             indent: self.indent,
@@ -1005,7 +1015,7 @@ impl<'a, N: TreeData, A: ActionValue> TreeView<'a, N, A> {
         }
     }
 
-    fn select_all(
+    fn take_select_all(
         &mut self,
         ctx: &egui::Context,
         scope: Id,
@@ -1013,6 +1023,7 @@ impl<'a, N: TreeData, A: ActionValue> TreeView<'a, N, A> {
         out: &mut TreeViewResponse<N::Key, A>,
     ) {
         if !self.disabled
+            && self.select_all
             && select::select_all_shortcut(ctx, scope)
             && let Some(sel) = self.selection.as_deref_mut()
         {
@@ -1234,7 +1245,7 @@ impl<'a, N: TreeData, A: ActionValue> TreeView<'a, N, A> {
         state.focused = focused.is_some();
 
         self.apply_events(&rows, events, &mut out);
-        self.select_all(ctx, rows_ui.response.id, &rows, &mut out);
+        self.take_select_all(ctx, rows_ui.response.id, &rows, &mut out);
         if let Some((cur, fid)) = focused {
             kit::interact::lock_arrows(ctx, fid, kit::interact::Arrows::Both);
             self.navigate(rt, &rows, cur, &mut state, &mut out);

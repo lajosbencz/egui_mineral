@@ -266,6 +266,7 @@ pub struct DataTable<'a, K> {
     rows: usize,
     selection: Option<&'a mut Selection<K>>,
     behavior: SelectionBehavior,
+    select_all: bool,
     page_sizes: Vec<usize>,
     max_height: Option<f32>,
     data_version: u64,
@@ -320,6 +321,7 @@ impl<'a, K: ItemKey> DataTable<'a, K> {
             rows: 0,
             selection: None,
             behavior: SelectionBehavior::Toggle,
+            select_all: true,
             page_sizes: Vec::new(),
             max_height: None,
             data_version: 0,
@@ -336,9 +338,16 @@ impl<'a, K: ItemKey> DataTable<'a, K> {
     }
 
     /// Checkbox column bound to the selected row keys. Rows select per [`Self::selection_behavior`]
-    /// ([`Selection::apply`], [`Selection::follow_focus`]); Ctrl/Cmd+A selects every row of every page.
+    /// ([`Selection::apply`], [`Selection::follow_focus`]) and [`Self::select_all`].
     pub fn selection(mut self, selection: &'a mut Selection<K>) -> Self {
         self.selection = Some(selection);
+        self
+    }
+
+    /// Ctrl/Cmd+A selects every row of every page while focus is inside; `false` leaves the shortcut to the app (React Aria
+    /// `disallowSelectAll`). Default `true`.
+    pub fn select_all(mut self, select_all: bool) -> Self {
+        self.select_all = select_all;
         self
     }
 
@@ -688,7 +697,7 @@ impl<'a, K: ItemKey> DataTable<'a, K> {
         }
         let page_ids = order.get(page).unwrap_or_default();
         self.apply_row_events(&pass, keys, page_ids, &order, &mut out);
-        let select_all = has_sel && !self.disabled && select::select_all_shortcut(ctx, ui.unique_id());
+        let select_all = has_sel && !self.disabled && self.select_all && select::select_all_shortcut(ctx, ui.unique_id());
         self.apply_keys(keys, (page_ids, &order), moved, select_all, &mut out);
         out.rows = std::mem::take(&mut pass.rows).into_iter().collect();
 

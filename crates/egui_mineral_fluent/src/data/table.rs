@@ -325,6 +325,7 @@ pub struct Table<'a, K> {
     sort: Option<&'a mut SortState>,
     selection: Option<&'a mut Selection<K>>,
     behavior: SelectionBehavior,
+    select_all: bool,
     widths: Option<&'a mut ColumnWidths>,
     sort_key: Option<SortKey<'a>>,
     row_style: Option<RowStyleFn<'a>>,
@@ -348,6 +349,7 @@ impl<'a, K: ItemKey> Table<'a, K> {
             sort: None,
             selection: None,
             behavior: SelectionBehavior::Toggle,
+            select_all: true,
             widths: None,
             sort_key: None,
             row_style: None,
@@ -374,10 +376,17 @@ impl<'a, K: ItemKey> Table<'a, K> {
     }
 
     /// Selectable rows bound by row key: a checkbox column, or a circular one for a single selection. Rows select
-    /// per [`Self::selection_behavior`] ([`Selection::apply`], [`Selection::follow_focus`]); Ctrl/Cmd+A selects
-    /// every row.
+    /// per [`Self::selection_behavior`] ([`Selection::apply`], [`Selection::follow_focus`]) and
+    /// [`Self::select_all`].
     pub fn selection(mut self, selection: &'a mut Selection<K>) -> Self {
         self.selection = Some(selection);
+        self
+    }
+
+    /// Ctrl/Cmd+A selects every row while focus is inside; `false` leaves the shortcut to the app (React Aria
+    /// `disallowSelectAll`). Default `true`.
+    pub fn select_all(mut self, select_all: bool) -> Self {
+        self.select_all = select_all;
         self
     }
 
@@ -474,6 +483,12 @@ impl<'a, K: ItemKey> DataGrid<'a, K> {
     /// See [`Table::selection`].
     pub fn selection(mut self, selection: &'a mut Selection<K>) -> Self {
         self.0 = self.0.selection(selection);
+        self
+    }
+
+    /// See [`Table::select_all`].
+    pub fn select_all(mut self, select_all: bool) -> Self {
+        self.0 = self.0.select_all(select_all);
         self
     }
 
@@ -775,7 +790,7 @@ fn run<K: ItemKey>(
         }
     }
     let grid_keys = grid.finish(ui, grid_id, cells, &geo);
-    let select_all = selectable && select::select_all_shortcut(ui.ctx(), scope);
+    let select_all = selectable && tb.select_all && select::select_all_shortcut(ui.ctx(), scope);
     if let Some(sel) = tb.selection.as_deref_mut()
         && (grid_keys.moved.is_some() || select_all)
     {
