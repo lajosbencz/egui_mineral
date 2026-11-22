@@ -1068,3 +1068,12 @@ fn search(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
         }
     });
 }
+
+#[cfg(test)]
+impl State {
+    // Opens the `i`th overlay of the page; `None` past the last.
+    pub(crate) fn open_overlay(&mut self, i: usize) -> Option<&'static str> {
+        *self.menu_open.get_mut(i)? = true;
+        Some("menu")
+    }
+}

@@ -20,12 +20,12 @@ pub(crate) struct State {
     menu_open: bool,
     split_open: bool,
     clicks: u32,
-    inputs: super::inputs::State,
-    feedback: super::feedback::State,
-    surfaces: super::surfaces::State,
-    data: super::data::State,
-    navigation: super::navigation::State,
-    extras: super::extras::State,
+    pub(crate) inputs: super::inputs::State,
+    pub(crate) feedback: super::feedback::State,
+    pub(crate) surfaces: super::surfaces::State,
+    pub(crate) data: super::data::State,
+    pub(crate) navigation: super::navigation::State,
+    pub(crate) extras: super::extras::State,
 }
 
 pub(crate) fn actions(ui: &mut FluentUi<'_>, s: &mut State) {
@@ -173,4 +173,25 @@ pub(crate) fn extras(ui: &mut FluentUi<'_>, s: &mut State) {
 
 pub(crate) fn navigation(ui: &mut FluentUi<'_>, s: &mut State) {
     super::navigation::show(ui, &mut s.navigation);
+}
+
+#[cfg(test)]
+impl State {
+    // Opens the `i`th overlay; returns its page and name, `None` past the last.
+    pub(crate) fn open_overlay(&mut self, i: usize) -> Option<(super::Category, &'static str)> {
+        use super::Category as C;
+        let (s, n) = (&mut self.surfaces, &mut self.navigation);
+        let (f, page, name): (&mut bool, _, _) = match i {
+            0..=2 => (&mut s.popovers[i], C::Surfaces, "popover"),
+            3 => (&mut s.teaching, C::Surfaces, "teaching popover"),
+            4..=7 => (&mut s.dialogs[i - 4], C::Surfaces, "dialog"),
+            8..=10 => (&mut s.drawers[i - 8], C::Surfaces, "drawer"),
+            11 => (&mut n.menu_open, C::Navigation, "menu"),
+            12 => (&mut n.menu_grid_open, C::Navigation, "menu grid"),
+            13 => (&mut self.extras.palette_open, C::Extras, "command palette"),
+            _ => return None,
+        };
+        *f = true;
+        Some((page, name))
+    }
 }

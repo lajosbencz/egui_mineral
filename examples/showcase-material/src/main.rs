@@ -634,6 +634,67 @@ mod tests {
         assert_eq!(app.app().pages.navigation.last_action, "Command: Quit");
     }
 
+    #[test]
+    fn overlays_fit_small_viewports() {
+        let mut failed = Vec::new();
+        for size in [
+            egui::vec2(320.0, 568.0),
+            egui::vec2(360.0, 640.0),
+            egui::vec2(640.0, 360.0),
+            egui::vec2(915.0, 412.0),
+        ] {
+            let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, size);
+            for page in [Page::Containment, Page::Selection, Page::Navigation] {
+                for i in 0.. {
+                    let ctx = egui::Context::default();
+                    let mut app = new_app(&ctx).expect("showcase app");
+                    app.rt().core().motion().set_reduced(true);
+                    app.app_mut().navigate(page);
+                    let pages = &mut app.app_mut().pages;
+                    let Some(name) = (match page {
+                        Page::Containment => pages.containment.open_overlay(i),
+                        Page::Selection => pages.selection.open_overlay(i),
+                        _ => pages.navigation.open_overlay(i),
+                    }) else {
+                        break;
+                    };
+                    for _ in 0..FRAME_BUDGET {
+                        let raw = RawInput {
+                            screen_rect: Some(screen),
+                            ..RawInput::default()
+                        };
+                        let mut out = ctx.run_ui(raw, |ui| {
+                            eframe::App::ui(&mut app, ui, &mut eframe::Frame::_new_kittest());
+                        });
+                        out.textures_delta.clear();
+                    }
+                    let overlays = overlay_rects(&ctx);
+                    if overlays.is_empty() {
+                        failed.push(format!("{size:?} {page:?} {name} #{i}: did not open"));
+                    }
+                    failed.extend(
+                        overlays
+                            .into_iter()
+                            .filter(|r| !screen.expand(0.5).contains_rect(*r))
+                            .map(|r| format!("{size:?} {page:?} {name} #{i}: {r:?}")),
+                    );
+                }
+            }
+        }
+        assert!(failed.is_empty(), "overlays past the viewport:\n{}", failed.join("\n"));
+    }
+
+    fn overlay_rects(ctx: &egui::Context) -> Vec<egui::Rect> {
+        ctx.memory(|m| {
+            m.areas()
+                .visible_layer_ids()
+                .into_iter()
+                .filter(|l| l.order != egui::Order::Background)
+                .filter_map(|l| m.area_rect(l.id))
+                .collect()
+        })
+    }
+
     macro_rules! every_page_holds_up {
         ($($test:ident: $page:ident),* $(,)?) => {
             mod every_page_holds_up {

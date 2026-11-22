@@ -79,6 +79,8 @@ pub struct Placement {
     /// Anchor center projected on the edge of `rect` facing the anchor, clamped into `rect`
     /// (arrow/caret position).
     pub arrow: Pos2,
+    /// Padded viewport the popup must fit; with shift on, `rect` never exceeds it.
+    pub room: Rect,
 }
 
 /// Space a popup is placed in.
@@ -141,7 +143,7 @@ impl Anchor {
         self
     }
 
-    /// Clamps into the padded viewport, pinned to its start when larger. Default on.
+    /// Clamps into the padded viewport; a larger popup shrinks to it. Default on.
     pub fn shift(mut self, shift: bool) -> Self {
         self.shift = shift;
         self
@@ -215,6 +217,7 @@ impl Anchor {
                     lo.clamp(min, max - len)
                 }
             };
+            let dim = dim.min(area.size().max(Vec2::ZERO));
             let x = clamp(rect.left(), dim.x, area.left(), area.right());
             let y = clamp(rect.top(), dim.y, area.top(), area.bottom());
             rect = Rect::from_min_size(pos2(x, y), dim);
@@ -227,7 +230,12 @@ impl Anchor {
             let x = if side.is_right(dir) { rect.left() } else { rect.right() };
             pos2(x, c.y.clamp(rect.top(), rect.bottom()))
         };
-        Placement { rect, side, arrow }
+        Placement {
+            rect,
+            side,
+            arrow,
+            room: area,
+        }
     }
 }
 
@@ -311,6 +319,23 @@ mod tests {
         assert_eq!(p.side, Side::Bottom);
         assert_eq!(p.rect.right(), 392.0);
         assert_eq!(p.arrow.x, 390.0);
+    }
+
+    #[test]
+    fn shift_shrinks_a_popup_larger_than_the_padded_viewport() {
+        let anchor = Rect::from_min_size(pos2(10.0, 10.0), vec2(40.0, 30.0));
+        let p = Anchor::new(Side::Bottom, Align::Start).padding(8.0).place(
+            anchor,
+            vec2(500.0, 400.0),
+            screen(Direction::Ltr),
+        );
+        assert_eq!(p.rect, Rect::from_min_max(pos2(8.0, 8.0), pos2(392.0, 292.0)));
+        let free = Anchor::new(Side::Bottom, Align::Start).shift(false).place(
+            anchor,
+            vec2(500.0, 400.0),
+            screen(Direction::Ltr),
+        );
+        assert_eq!(free.rect.size(), vec2(500.0, 400.0));
     }
 
     #[test]

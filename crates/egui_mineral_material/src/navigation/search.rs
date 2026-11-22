@@ -960,7 +960,9 @@ impl<'a, K: Clone> SearchView<'a, K> {
         let (min_h, max_h) = if full {
             (screen.height(), screen.height())
         } else {
-            let max = screen.height() * sb::DOCKED_MAX_HEIGHT_RATIO;
+            // Below the bar, within the screen.
+            let room = (screen.bottom() - bar_rect.top() - header_h).max(0.0);
+            let max = (screen.height() * sb::DOCKED_MAX_HEIGHT_RATIO).min(room);
             (header_h + sb::DOCKED_MIN_HEIGHT.min(max), header_h + max)
         };
         ViewGeometry {

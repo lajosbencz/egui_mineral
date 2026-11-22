@@ -5,8 +5,8 @@ use crate::Rt;
 use crate::adaptive::Density;
 use crate::msg;
 use egui::{
-    Align, Color32, Context, CornerRadius, Frame, Id, Key, Margin, Pos2, Rangef, Rect, ScrollArea, Sense, Stroke,
-    StrokeKind, Ui, UiBuilder, Vec2, pos2, scroll_area::ScrollBarVisibility, vec2,
+    Align, Color32, Context, CornerRadius, Frame, Id, Key, Margin, Rangef, Rect, ScrollArea, Sense, Stroke, StrokeKind,
+    Ui, UiBuilder, Vec2, pos2, scroll_area::ScrollBarVisibility, vec2,
 };
 use egui_mineral::i18n::Sides;
 use egui_mineral::kit::state::TempState;
@@ -477,7 +477,8 @@ impl Config {
             .name(&self.label)
             .anchor_rect(out.zones().visual)
             .return_focus(edit_id)
-            .show(rt, out.response(), &mut open, |ui, _| {
+            .show(rt, out.response(), &mut open, |ui, placement| {
+                ui.set_width(WIDTH.min(placement.room.width()));
                 Frame::new()
                     .fill(t.role(m::CONTAINER_COLOR))
                     .corner_radius(DOCKED_SHAPE.corner_radius(&t.shape, ui.i18n().direction()))
@@ -561,22 +562,18 @@ impl Config {
             value,
             pick,
             |ui, work| (self.modal_body(ui, &mc, work), self.label.as_str()),
+            |ui, work, valid| self.modal_actions(ui, &mc, work, valid),
             |d| d.remove::<View>(grid_id),
         )
     }
 
-    fn modal_body(
-        &self,
-        ui: &mut MineralUi<'_, Material>,
-        mc: &ModalCx<'_>,
-        work: &mut Work,
-    ) -> Option<dialog::Choice> {
+    // Header and calendar or fields; returns whether the typed dates parse.
+    fn modal_body(&self, ui: &mut MineralUi<'_, Material>, mc: &ModalCx<'_>, work: &mut Work) -> bool {
         let rt = ui.rt();
         let (ctx, id, range) = (mc.ctx, mc.id, mc.range);
         let loc = rt.i18n().format();
         let loc = loc.as_ref();
-        let dir = rt.i18n().direction();
-        ui.set_width(WIDTH);
+        ui.set_width(WIDTH.min(ctx.content_rect().width()));
         ui.spacing_mut().item_spacing = Vec2::ZERO;
         let headline = if range {
             headline_range(rt, loc, &work.range)
@@ -612,6 +609,20 @@ impl Config {
         } else {
             self.calendar(ui, mc.grid_id, &mut Sel::Single(&mut work.single));
         }
+        valid
+    }
+
+    fn modal_actions(
+        &self,
+        ui: &mut MineralUi<'_, Material>,
+        mc: &ModalCx<'_>,
+        work: &Work,
+        valid: bool,
+    ) -> Option<dialog::Choice> {
+        let rt = ui.rt();
+        let w = width(ui);
+        let range = mc.range;
+        let dir = rt.i18n().direction();
         let complete = valid
             && if range {
                 work.range.is_complete()
@@ -632,7 +643,7 @@ impl Config {
                 bottom,
             })
             .show(ui, |ui| {
-                let size = vec2(WIDTH - dp::DIALOG_BUTTONS_END_PADDING, 0.0);
+                let size = vec2(w - dp::DIALOG_BUTTONS_END_PADDING, 0.0);
                 ui.allocate_ui(size, |ui| {
                     action = dialog::confirm_cancel(&mut rt.ui(ui), &self.salt, &mc.choice, complete);
                 });
@@ -642,6 +653,7 @@ impl Config {
 
     // Compose DatePickerHeader
     fn header(&self, ui: &mut MineralUi<'_, Material>, _id: Id, h: &Header<'_>) -> bool {
+        let w = width(ui);
         let rt = ui.rt();
         let t = rt.tokens();
         let dir = rt.i18n().direction();
@@ -671,7 +683,7 @@ impl Config {
         let row_h = headline_box.max(toggle_size.y + dp::MODE_TOGGLE_PADDING);
         let title_h = title_top + m::HEADER_SUPPORTING_TEXT_FONT.line_height();
         let height = min_h.max(title_h + row_h + divider::THICKNESS);
-        let (rect, _) = ui.allocate_exact_size(vec2(WIDTH, height), Sense::hover());
+        let (rect, _) = ui.allocate_exact_size(vec2(w, height), Sense::hover());
         let x = |from_start: f32, w: f32| dir.start_x(rect, Rangef::new(from_start, from_start + w));
         let p = ui.painter();
         let title = parts::type_wrapped(
@@ -679,7 +691,7 @@ impl Config {
             h.title,
             m::HEADER_SUPPORTING_TEXT_FONT,
             t.role(m::HEADER_SUPPORTING_TEXT_COLOR),
-            WIDTH - start - dp::HEADER_END_PADDING,
+            w - start - dp::HEADER_END_PADDING,
             1,
         );
         p.galley(
@@ -690,7 +702,7 @@ impl Config {
         let divider_top = rect.bottom() - divider::THICKNESS;
         let row_top = divider_top - row_h;
         let toggle_slot = toggle_size.x + dp::MODE_TOGGLE_PADDING;
-        let headline_w = WIDTH - toggle_slot - start - dp::HEADER_END_PADDING;
+        let headline_w = w - toggle_slot - start - dp::HEADER_END_PADDING;
         let mut offset = 0.0;
         for text in h.headline {
             let g = parts::type_wrapped(
@@ -716,7 +728,7 @@ impl Config {
         );
         let slot = Rect::from_min_size(
             pos2(
-                x(WIDTH - toggle_slot, toggle_size.x),
+                x(w - toggle_slot, toggle_size.x),
                 row_top + (row_h - toggle_size.y - dp::MODE_TOGGLE_PADDING) / 2.0,
             ),
             toggle_size,
@@ -728,6 +740,7 @@ impl Config {
 
     // Compose DateInputContent, DateRangeInputContent
     fn input_fields(&self, ui: &mut MineralUi<'_, Material>, _id: Id, work: &mut Work, range: bool) -> bool {
+        let w = width(ui);
         let rt = ui.rt();
         let loc = rt.i18n().format();
         let loc = loc.as_ref();
@@ -738,7 +751,7 @@ impl Config {
             &[msg::DATE_LABEL]
         };
         let n = labels.len() as f32;
-        let inner = WIDTH - 2.0 * dp::INPUT_HORIZONTAL_PADDING;
+        let inner = w - 2.0 * dp::INPUT_HORIZONTAL_PADDING;
         let field_w = (inner - (n - 1.0) * dp::RANGE_INPUT_SPACING) / n;
         let errors: Vec<Option<String>> = work.texts[..labels.len()]
             .iter()
@@ -816,6 +829,7 @@ impl Config {
 
     // Compose DatePickerContent
     fn calendar(&self, ui: &mut MineralUi<'_, Material>, id: Id, sel: &mut Sel<'_>) -> bool {
+        let w = width(ui);
         let rt = ui.rt();
         let ctx = rt.ctx();
         let t = rt.tokens();
@@ -824,9 +838,9 @@ impl Config {
         let shown = v.init.then(|| Date::new(v.year, v.month, 1).ok()).flatten();
         let d = self.limits().clamp(shown.unwrap_or_else(|| self.initial_view(sel)));
         (v.year, v.month, v.init) = (d.year(), d.month(), true);
-        let (nav, _) = ui.allocate_exact_size(vec2(WIDTH, dp::MONTH_YEAR_HEIGHT), Sense::hover());
+        let (nav, _) = ui.allocate_exact_size(vec2(w, dp::MONTH_YEAR_HEIGHT), Sense::hover());
         let nav = nav.shrink2(vec2(dp::HORIZONTAL_PADDING, 0.0));
-        let (body, _) = ui.allocate_exact_size(vec2(WIDTH, BODY_H), Sense::hover());
+        let (body, _) = ui.allocate_exact_size(vec2(w, BODY_H), Sense::hover());
         let body = body.shrink2(vec2(dp::HORIZONTAL_PADDING, 0.0));
         self.months_navigation(ui, id, nav, &mut v, &t);
         let picked = if v.years {
@@ -1161,16 +1175,13 @@ impl Config {
     }
 
     // Compose WeekDays
-    fn weekdays(&self, ui: &MineralUi<'_, Material>, top_left: Pos2, loc: &dyn LocaleFormat, t: &Tokens) {
+    fn weekdays(&self, ui: &MineralUi<'_, Material>, row: Rangef, top: f32, loc: &dyn LocaleFormat, t: &Tokens) {
         let rt = ui.rt();
         let dir = rt.i18n().direction();
         let color = t.role(m::WEEKDAYS_LABEL_TEXT_COLOR);
         let p = ui.painter();
         for (col, w) in weekdays_from(self.week_start(loc)).iter().enumerate() {
-            let cell = Rect::from_min_size(
-                pos2(col_x(top_left.x, col, dir), top_left.y),
-                Vec2::splat(dp::CELL_SIZE),
-            );
+            let cell = day_cell(row, top, col, dir);
             let g = parts::type_galley(
                 rt.core(),
                 p,
@@ -1259,7 +1270,7 @@ impl Config {
             return false;
         };
         let grid = MonthGrid::new(first, week_start);
-        self.weekdays(ui, body.min, loc, t);
+        self.weekdays(ui, body.x_range(), body.top(), loc, t);
         let grid_top = body.top() + dp::CELL_SIZE;
         let mut picked = false;
         let mut focused_date = None;
@@ -1285,7 +1296,7 @@ impl Config {
                 if !grid.in_month(d) {
                     continue;
                 }
-                let cell = Rect::from_min_size(pos2(col_x(body.left(), col, env.dir), top), Vec2::splat(dp::CELL_SIZE));
+                let cell = day_cell(body.x_range(), top, col, env.dir);
                 let resp = self.day(&grid_ui, &env, cell, d, sel, focus::TabStop::at(day_index(d), stop));
                 day_ids.push((day_index(d), resp.id));
                 if resp.has_focus() {
@@ -1325,14 +1336,15 @@ impl Config {
 
     // Compose DateRangePickerContent
     fn range_calendar(&self, ui: &mut MineralUi<'_, Material>, id: Id, height: f32, range: &mut DateRange) -> bool {
+        let w = width(ui);
         let rt = ui.rt();
         let ctx = rt.ctx();
         let t = rt.tokens();
         let loc = rt.i18n().format();
         let mut v = View::load(ctx, id);
-        let (rect, _) = ui.allocate_exact_size(vec2(WIDTH, height), Sense::hover());
+        let (rect, _) = ui.allocate_exact_size(vec2(w, height), Sense::hover());
         let body = rect.shrink2(vec2(dp::HORIZONTAL_PADDING, 0.0));
-        self.weekdays(ui, body.min, loc.as_ref(), &t);
+        self.weekdays(ui, body.x_range(), body.top(), loc.as_ref(), &t);
         let list = Rect::from_min_max(pos2(body.left(), body.top() + dp::CELL_SIZE), body.max);
         let env = self.day_env(rt, id, loc.as_ref(), &t);
         let picked = self.months_list(ui, &env, list, &mut Sel::Range(range), &mut v);
@@ -1419,10 +1431,7 @@ impl Config {
                             if !grid.in_month(d) {
                                 continue;
                             }
-                            let cell = Rect::from_min_size(
-                                pos2(col_x(item.left(), col, env.dir), grid_top + dp::CELL_SIZE * row as f32),
-                                Vec2::splat(dp::CELL_SIZE),
-                            );
+                            let cell = day_cell(item.x_range(), grid_top + dp::CELL_SIZE * row as f32, col, env.dir);
                             let resp = self.day(&rt.ui(ui), env, cell, d, sel, focus::TabStop::at(d, stop));
                             if resp.has_focus() {
                                 focused = Some(d);
@@ -1483,8 +1492,16 @@ struct DayEnv<'a> {
     t: &'a Tokens,
 }
 
-fn col_x(left: f32, col: usize, dir: Direction) -> f32 {
-    left + dp::CELL_SIZE * dir.slot(col, dp::DAYS_IN_WEEK) as f32
+// Compose Week: `Arrangement.SpaceEvenly` over the row, so a row narrower than seven cells keeps its days apart.
+fn day_cell(row: Rangef, top: f32, col: usize, dir: Direction) -> Rect {
+    let pitch = row.span() / dp::DAYS_IN_WEEK as f32;
+    let left = row.min + pitch * dir.slot(col, dp::DAYS_IN_WEEK) as f32;
+    Rect::from_min_size(pos2(left, top), vec2(pitch, dp::CELL_SIZE))
+}
+
+// The container width, or less where the parent is narrower.
+fn width(ui: &egui::Ui) -> f32 {
+    WIDTH.min(ui.available_width())
 }
 
 fn key_target(ctx: &Context, cur: Date, limits: Limits, dir: Direction, week_start: Weekday) -> Date {

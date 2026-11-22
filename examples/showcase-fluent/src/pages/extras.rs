@@ -14,7 +14,7 @@ use crate::FluentUi;
 #[derive(Default)]
 pub(crate) struct State {
     page: usize,
-    palette_open: bool,
+    pub(crate) palette_open: bool,
     query: String,
     ran: Option<&'static str>,
 }

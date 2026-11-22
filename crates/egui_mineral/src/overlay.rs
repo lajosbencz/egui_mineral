@@ -100,7 +100,8 @@ pub fn top_modal(ctx: &Context) -> Option<LayerId> {
 
 /// Foreground area anchored to a trigger, sized by its last shown size: opens with initial
 /// focus, closes on Escape (returning focus) and outside presses, and marks the trigger
-/// expanded. Paints nothing; the content draws its own surface.
+/// expanded. Content is capped to [`Placement::room`], so it wraps to fit the viewport; it paints its own
+/// surface.
 #[derive(Clone, Debug)]
 #[must_use = "call .show(..)"]
 pub struct Popup {
@@ -288,7 +289,10 @@ impl Popup {
         if let Some(owner) = self.owner {
             area = area.accessibility_parent(owner);
         }
-        let InnerResponse { inner, response } = area.show(ctx, |ui| add(&mut rt.ui(ui), &placement));
+        let InnerResponse { inner, response } = area.show(ctx, |ui| {
+            ui.set_max_size(ui.max_rect().size().min(placement.room.size().max(Vec2::ZERO)));
+            add(&mut rt.ui(ui), &placement)
+        });
         if let Some(owner) = self.owner {
             crate::kit::nodes::own_layer(ctx, response.layer_id, owner);
         }

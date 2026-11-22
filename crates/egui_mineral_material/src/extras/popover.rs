@@ -58,7 +58,7 @@ fn frame<R>(
         &t,
         Frame::new().fill(fill).corner_radius(r).inner_margin(PADDING),
         |ui| {
-            ui.set_max_width(max_width - 2.0 * PADDING);
+            ui.set_max_width(ui.max_rect().width().min(max_width - 2.0 * PADDING));
             if let Some(f) = focus_id {
                 // Focus target ahead of the content in Tab order.
                 ui.interact(

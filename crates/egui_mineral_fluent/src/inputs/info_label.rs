@@ -119,7 +119,7 @@ impl Composite for InfoLabel {
                 .inner_margin(Margin::same(pad as i8))
                 .shadow(t.shadow(Elevation::E16, ShadowTint::Neutral).ambient)
                 .show(ui, |ui| {
-                    ui.set_max_width(il::POPOVER_MAX_WIDTH - 2.0 * pad);
+                    ui.set_max_width(ui.max_rect().width().min(il::POPOVER_MAX_WIDTH - 2.0 * pad));
                     let format = crate::typography::format(
                         ui.ctx(),
                         crate::typography::TypeSpec {

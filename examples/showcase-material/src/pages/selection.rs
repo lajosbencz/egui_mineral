@@ -852,3 +852,19 @@ fn times(ui: &mut MaterialUi<'_>, s: &mut State) {
         ui.label(format!("Modal time: {}", s.time_modal));
     });
 }
+
+#[cfg(test)]
+impl State {
+    // Opens the `i`th overlay of the page; `None` past the last.
+    pub(crate) fn open_overlay(&mut self, i: usize) -> Option<&'static str> {
+        let (f, name): (&mut bool, _) = match i {
+            0 => (&mut self.date_modal_open, "date_modal"),
+            1 => (&mut self.date_input_open, "date_input"),
+            2 => (&mut self.date_range_open, "date_range"),
+            3 => (&mut self.time_modal_open, "time_modal"),
+            _ => return None,
+        };
+        *f = true;
+        Some(name)
+    }
+}

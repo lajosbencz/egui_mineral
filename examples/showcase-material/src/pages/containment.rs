@@ -813,3 +813,21 @@ fn image_lists(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     }
     ui.label(format!("Last clicked: {:?}", s.image_clicked));
 }
+
+#[cfg(test)]
+impl State {
+    // Opens the `i`th overlay of the page; `None` past the last.
+    pub(crate) fn open_overlay(&mut self, i: usize) -> Option<&'static str> {
+        let (f, name): (&mut bool, _) = match i {
+            0 => (&mut self.dialog_basic, "dialog_basic"),
+            1 => (&mut self.dialog_icon, "dialog_icon"),
+            2 => (&mut self.dialog_full, "dialog_full"),
+            3 => (&mut self.bottom_modal, "bottom_modal"),
+            4 => (&mut self.side_modal, "side_modal"),
+            5..=10 => (&mut self.popovers[i - 5], "popover"),
+            _ => return None,
+        };
+        *f = true;
+        Some(name)
+    }
+}

@@ -365,6 +365,55 @@ mod tests {
     // Page overflow settles once its scroll bar appears.
     const SETTLE: usize = 8;
 
+    #[test]
+    fn overlays_fit_small_viewports() {
+        let mut failed = Vec::new();
+        for size in [
+            egui::vec2(320.0, 568.0),
+            egui::vec2(360.0, 640.0),
+            egui::vec2(640.0, 360.0),
+            egui::vec2(915.0, 412.0),
+        ] {
+            let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, size);
+            for i in 0.. {
+                let ctx = egui::Context::default();
+                let mut app = new_app(&ctx).expect("showcase app");
+                let Some((category, name)) = app.app_mut().state.open_overlay(i) else {
+                    break;
+                };
+                app.app_mut().navigate(Page::Category(category));
+                for _ in 0..SETTLE {
+                    let raw = RawInput {
+                        screen_rect: Some(screen),
+                        ..RawInput::default()
+                    };
+                    let mut out = ctx.run_ui(raw, |ui| {
+                        eframe::App::ui(&mut app, ui, &mut eframe::Frame::_new_kittest());
+                    });
+                    out.textures_delta.clear();
+                }
+                let overlays: Vec<egui::Rect> = ctx.memory(|m| {
+                    m.areas()
+                        .visible_layer_ids()
+                        .into_iter()
+                        .filter(|l| l.order != egui::Order::Background)
+                        .filter_map(|l| m.area_rect(l.id))
+                        .collect()
+                });
+                if overlays.is_empty() {
+                    failed.push(format!("{size:?} {name} #{i}: did not open"));
+                }
+                failed.extend(
+                    overlays
+                        .into_iter()
+                        .filter(|r| !screen.expand(0.5).contains_rect(*r))
+                        .map(|r| format!("{size:?} {name} #{i}: {r:?}")),
+                );
+            }
+        }
+        assert!(failed.is_empty(), "overlays past the viewport:\n{}", failed.join("\n"));
+    }
+
     macro_rules! every_page_holds_up {
         ($($test:ident: $page:expr),* $(,)?) => {
             mod every_page_holds_up {

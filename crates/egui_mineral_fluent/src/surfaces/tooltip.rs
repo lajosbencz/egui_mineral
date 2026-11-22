@@ -218,7 +218,11 @@ impl Tooltip {
                     bottom: d::PADDING_BOTTOM as i8 + border,
                 };
                 let shown = framed(ui, &t, &look, margin, |ui| {
-                    ui.set_max_width(d::MAX_WIDTH - f32::from(margin.left + margin.right));
+                    ui.set_max_width(
+                        ui.max_rect()
+                            .width()
+                            .min(d::MAX_WIDTH - f32::from(margin.left + margin.right)),
+                    );
                     text(ui, rt, &self.content, CAPTION1, t.color(fg));
                 });
                 if let Some(h) = height {

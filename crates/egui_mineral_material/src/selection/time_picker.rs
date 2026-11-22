@@ -85,7 +85,7 @@ pub struct TimePicker<'a> {
     time: &'a mut Time,
     mode: DisplayMode,
     hour_cycle: Option<HourCycle>,
-    axis: Axis,
+    axis: Option<Axis>,
     labels: dialog::PickerLabels,
     hour_label: Option<String>,
     minute_label: Option<String>,
@@ -104,7 +104,7 @@ impl<'a> TimePicker<'a> {
             time,
             mode: DisplayMode::Picker,
             hour_cycle: None,
-            axis: Axis::Vertical,
+            axis: None,
             labels: dialog::PickerLabels::default(),
             hour_label: None,
             minute_label: None,
@@ -136,10 +136,11 @@ impl<'a> TimePicker<'a> {
         self
     }
 
-    /// Compose `TimePickerLayoutType`: [`Axis::Horizontal`] puts the clock display beside the dial;
-    /// default [`Axis::Vertical`].
+    /// Compose `TimePickerLayoutType`: [`Axis::Horizontal`] puts the clock display beside the dial.
+    /// Default follows the screen like `TimePickerDefaults.layoutType()`: horizontal when it is wider
+    /// than tall.
     pub fn axis(mut self, axis: Axis) -> Self {
-        self.axis = axis;
+        self.axis = Some(axis);
         self
     }
 
@@ -180,7 +181,14 @@ impl<'a> TimePicker<'a> {
             salt: self.salt.clone(),
             label: self.label.clone(),
             hour24: self.hour_cycle.unwrap_or_else(|| loc.hour_cycle()) == HourCycle::H23,
-            horizontal: self.axis == Axis::Horizontal,
+            horizontal: self.axis.unwrap_or_else(|| {
+                let screen = rt.ctx().content_rect();
+                if screen.height() < screen.width() {
+                    Axis::Horizontal
+                } else {
+                    Axis::Vertical
+                }
+            }) == Axis::Horizontal,
             headlines: [
                 self.labels.headline(rt.i18n(), msg::TIME_HEADLINE),
                 self.labels.headline(rt.i18n(), msg::TIME_INPUT_HEADLINE),
@@ -323,7 +331,7 @@ impl Resolved {
                 }
                 .store(ctx, state_id);
             }
-            self.modal_body(ui, state_id, &t, work)
+            (self.modal_body(ui, state_id, &t, work), self.label.as_str())
         };
         dialog::PickerModal {
             id,
@@ -331,23 +339,24 @@ impl Resolved {
             disabled: self.disabled,
             initial: *time,
         }
-        .show(rt, open, time, |work| *work, body, |d| d.remove::<State>(state_id))
+        .show(
+            rt,
+            open,
+            time,
+            |work| *work,
+            body,
+            |ui, _, mode| self.modal_actions(ui, state_id, mode),
+            |d| d.remove::<State>(state_id),
+        )
     }
 
-    fn modal_body(
-        &self,
-        ui: &mut MineralUi<'_, Material>,
-        state_id: Id,
-        t: &Tokens,
-        work: &mut Time,
-    ) -> (Option<dialog::Choice>, &str) {
+    // Title and picker; returns the mode shown.
+    fn modal_body(&self, ui: &mut MineralUi<'_, Material>, state_id: Id, t: &Tokens, work: &mut Time) -> Mode {
         let rt = ui.rt();
         let ctx = &ui.ctx().clone();
         ui.spacing_mut().item_spacing = Vec2::ZERO;
         let mode = self.dialog_mode(&Self::state(ctx, state_id));
         let content = self.content_size(mode);
-        let toggle = self.mode_toggle(rt, state_id);
-        let actions_h = toggle.footprint(ui.density()).y;
         let pad = ct::DIALOG_PADDING;
         let headline = &self.headlines[usize::from(mode == Mode::Input)];
         let title = parts::type_wrapped(
@@ -358,21 +367,12 @@ impl Resolved {
             content.x,
             1,
         );
-        let landscape = mode == Mode::Horizontal;
-        let (content_top, actions_gap, bottom) = if landscape {
-            (
-                ct::DIALOG_LANDSCAPE_CONTENT_TOP_PADDING,
-                ct::DIALOG_LANDSCAPE_CONTENT_ACTIONS_PADDING,
-                ct::DIALOG_LANDSCAPE_ACTIONS_BOTTOM_PADDING,
-            )
+        let content_top = if mode == Mode::Horizontal {
+            ct::DIALOG_LANDSCAPE_CONTENT_TOP_PADDING
         } else {
-            (pad + title.size().y + ct::DIALOG_TITLE_BOTTOM_PADDING, 0.0, pad)
+            pad + title.size().y + ct::DIALOG_TITLE_BOTTOM_PADDING
         };
-        let size = vec2(
-            content.x + 2.0 * pad,
-            content_top + content.y + actions_gap + actions_h + bottom,
-        );
-        let (rect, _) = ui.allocate_exact_size(size, Sense::hover());
+        let (rect, _) = ui.allocate_exact_size(vec2(content.x + 2.0 * pad, content_top + content.y), Sense::hover());
         let title_x = rt
             .i18n()
             .direction()
@@ -381,14 +381,30 @@ impl Resolved {
             .galley(pos2(title_x, rect.top() + pad), title, Color32::PLACEHOLDER);
         let area = Rect::from_min_size(rect.min + vec2(pad, content_top), content);
         self.content(ui, state_id, area, mode, work);
-        let row = Rect::from_min_size(
-            pos2(area.left(), area.bottom() + actions_gap),
-            vec2(content.x, actions_h),
-        );
+        mode
+    }
+
+    // Mode toggle, Cancel and OK below the picker.
+    fn modal_actions(&self, ui: &mut MineralUi<'_, Material>, state_id: Id, mode: Mode) -> Option<dialog::Choice> {
+        let rt = ui.rt();
+        let content = self.content_size(mode);
+        let toggle = self.mode_toggle(rt, state_id);
+        let actions_h = toggle.footprint(ui.density()).y;
+        let pad = ct::DIALOG_PADDING;
+        let (actions_gap, bottom) = if mode == Mode::Horizontal {
+            (
+                ct::DIALOG_LANDSCAPE_CONTENT_ACTIONS_PADDING,
+                ct::DIALOG_LANDSCAPE_ACTIONS_BOTTOM_PADDING,
+            )
+        } else {
+            (0.0, pad)
+        };
+        let size = vec2(content.x + 2.0 * pad, actions_gap + actions_h + bottom);
+        let (rect, _) = ui.allocate_exact_size(size, Sense::hover());
+        let row = Rect::from_min_size(rect.min + vec2(pad, actions_gap), vec2(content.x, actions_h));
         Self::place_toggle(ui, state_id, row, toggle);
         let actions = &mut ui.new_child(UiBuilder::new().id_salt("actions").max_rect(row));
-        let action = dialog::confirm_cancel(&mut rt.ui(actions), &self.salt, &self.choice, true);
-        (action, &self.label)
+        dialog::confirm_cancel(&mut rt.ui(actions), &self.salt, &self.choice, true)
     }
 
     // Compose TimePickerDialogDefaults.DisplayModeToggle

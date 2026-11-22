@@ -16,10 +16,10 @@ use egui_mineral_fluent::egui_mineral::layout::FlowItems;
 
 #[derive(Debug, Default)]
 pub(crate) struct State {
-    popovers: [bool; 3],
-    teaching: bool,
-    dialogs: [bool; 4],
-    drawers: [bool; 4],
+    pub(crate) popovers: [bool; 3],
+    pub(crate) teaching: bool,
+    pub(crate) dialogs: [bool; 4],
+    pub(crate) drawers: [bool; 4],
     cards: [bool; 2],
     accordion: Expansion<usize>,
     accordion_multiple: Expansion<usize>,

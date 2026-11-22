@@ -1031,8 +1031,7 @@ impl<A: ActionValue> Menu<A> {
                 rows: Vec::new(),
                 enabled: Vec::new(),
             };
-            let area = egui_mineral::kit::layer::floating(rt.core(), id.with(("level", level)), rect.min)
-                .show(ctx, |ui| self.paint_level(&mut lr, &mut rt.ui(ui), &geo, rect));
+            let area = self.show_level(rt, id.with(("level", level)), &mut lr, &geo, rect);
             let LevelRun { rows, enabled, .. } = lr;
             egui_mineral::kit::layer::keep_above(ctx, area.response.layer_id, parent);
             parent = area.response.layer_id;
@@ -1106,6 +1105,31 @@ impl<A: ActionValue> Menu<A> {
             st.path.clear();
             st.pending.cancel();
         }
+    }
+
+    // Compose DropdownMenuContent: `verticalScroll` once the window caps the height.
+    fn show_level(
+        &self,
+        rt: &Rt,
+        id: Id,
+        lr: &mut LevelRun<'_, '_, A>,
+        geo: &Geometry,
+        rect: Rect,
+    ) -> egui::InnerResponse<()> {
+        egui_mineral::kit::layer::floating(rt.core(), id, rect.min).show(rt.ctx(), |ui| {
+            if rect.height() + 0.5 < geo.size.y {
+                egui::ScrollArea::vertical()
+                    .id_salt("scroll")
+                    .max_height(rect.height())
+                    .auto_shrink([true, true])
+                    .show(ui, |ui| {
+                        let (full, _) = ui.allocate_exact_size(geo.size, egui::Sense::hover());
+                        self.paint_level(lr, &mut rt.ui(ui), geo, full);
+                    });
+            } else {
+                self.paint_level(lr, &mut rt.ui(ui), geo, rect);
+            }
+        })
     }
 
     fn paint_level(&self, lr: &mut LevelRun<'_, '_, A>, ui: &mut MineralUi<'_, Material>, geo: &Geometry, rect: Rect) {

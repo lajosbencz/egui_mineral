@@ -167,7 +167,7 @@ impl<A: ActionValue> RichTooltip<A> {
                     .inner_margin(vec2(d::RICH_HORIZONTAL_PADDING, 0.0)),
                 |ui| {
                     let width = d::RICH_MAX_WIDTH - 2.0 * d::RICH_HORIZONTAL_PADDING;
-                    ui.set_max_width(width);
+                    ui.set_max_width(ui.max_rect().width().min(width));
                     ui.set_min_size(vec2(d::MIN_WIDTH, d::MIN_HEIGHT) - vec2(2.0 * d::RICH_HORIZONTAL_PADDING, 0.0));
                     ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
                     let painter = ui.painter().clone();
