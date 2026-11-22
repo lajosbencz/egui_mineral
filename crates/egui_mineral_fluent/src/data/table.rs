@@ -8,7 +8,7 @@ use egui_mineral::{
     i18n::{Direction, I18n},
     kit::{self, state::TempState},
     layout::{Constraints, Measure},
-    select::{ItemKey, Selection, SelectionMode},
+    select::{self, ItemKey, Selection, SelectionMode},
     semantic::{self, AgentKey, KeyedSalt, Role, SemanticNode, StableId},
     table::{ColumnWidths, RowStyle, Rows, SortOrder, SortState, sort_order},
     widget::{Availability, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
@@ -565,14 +565,23 @@ impl Grid {
         }
     }
 
-    // Arrow, Home and End keys: the target takes focus when its row is shown, after scrolling to it.
-    fn finish(mut self, ui: &mut MineralUi<'_, Fluent>, id: Id, cells: usize, geo: &Geometry) {
+    // Arrow, Home and End keys: the target takes focus when its row is shown, after scrolling to it. Returns the
+    // body row focus moved to with whether Shift extends to it, and whether Ctrl/Cmd+A was pressed.
+    fn finish(mut self, ui: &mut MineralUi<'_, Fluent>, id: Id, cells: usize, geo: &Geometry) -> GridKeys {
+        let mut keys = GridKeys::default();
         if !self.on {
-            return;
+            return keys;
+        }
+        if self.focused.is_some() {
+            keys.select_all = kit::interact::key_presses(ui.ctx())
+                .into_iter()
+                .any(|(k, m)| select::is_select_all(k, m));
         }
         if let Some((current, focused)) = self.focused
-            && let Some(next) = RovingFocus::grid(self.columns).on_key(ui.core(), focused, current, &Items::all(cells))
+            && let Some((next, extend)) =
+                RovingFocus::grid(self.columns).on_select_key(ui.core(), focused, current, &Items::all(cells))
         {
+            keys.moved = self.row(next).checked_sub(1).map(|r| (r, extend));
             self.focus.pending = Some(next);
             ui.scroll_to_rect(geo.row(self.row(next)), None);
             #[expect(
@@ -582,7 +591,14 @@ impl Grid {
             ui.ctx().request_repaint();
         }
         self.focus.store(ui.ctx(), id);
+        keys
     }
+}
+
+#[derive(Default)]
+struct GridKeys {
+    moved: Option<(usize, bool)>,
+    select_all: bool,
 }
 
 struct Geometry {
@@ -741,7 +757,20 @@ fn run<K: ItemKey>(
             }
         }
     }
-    grid.finish(ui, grid_id, cells, &geo);
+    let grid_keys = grid.finish(ui, grid_id, cells, &geo);
+    if let Some(sel) = tb.selection.as_deref_mut()
+        && (grid_keys.moved.is_some() || grid_keys.select_all)
+    {
+        let all: Vec<K> = order.keys(keys).collect();
+        if let Some((r, extend)) = grid_keys.moved
+            && let Some(key) = order.data(r).and_then(|d| keys.key(d))
+        {
+            ev.selection |= sel.follow_focus(key, extend, &all);
+        }
+        if grid_keys.select_all {
+            ev.selection |= sel.select_all(&all);
+        }
+    }
     semantic::emit(ui.ctx(), Some(response.id), area, || {
         SemanticNode::new(tb.key.id(&tb.salt), Role::Grid, &tb.label)
     });

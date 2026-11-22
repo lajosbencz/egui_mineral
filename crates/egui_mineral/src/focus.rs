@@ -6,7 +6,7 @@ use egui::{Context, Event, Id, Key, Modifiers, Sense, TouchPhase};
 
 use crate::{
     i18n::Direction,
-    kit::interact::{Arrows, lock_arrows, plain_key_presses, remember},
+    kit::interact::{Arrows, key_presses, lock_arrows, plain_key_presses, remember},
     layout::Axis,
 };
 
@@ -204,12 +204,7 @@ impl RovingFocus {
         items: &Items<impl Fn(usize) -> bool>,
     ) -> Option<usize> {
         let ctx = core.ctx();
-        let arrows = match self.orientation {
-            Orientation::Horizontal => Arrows::Axis(Axis::Horizontal),
-            Orientation::Vertical => Arrows::Axis(Axis::Vertical),
-            Orientation::Grid { .. } => Arrows::Both,
-        };
-        lock_arrows(ctx, focused, arrows);
+        lock_arrows(ctx, focused, self.arrows());
         let dir = core.i18n().direction();
         let mut idx = current;
         for key in plain_key_presses(ctx) {
@@ -218,6 +213,39 @@ impl RovingFocus {
             }
         }
         (idx != current).then_some(idx)
+    }
+
+    /// [`Self::on_key`] of a selectable collection: Shift+arrows move too and report `true`, for
+    /// [`Selection::follow_focus`](crate::select::Selection::follow_focus).
+    pub fn on_select_key(
+        &self,
+        core: &crate::runtime::Core,
+        focused: Id,
+        current: usize,
+        items: &Items<impl Fn(usize) -> bool>,
+    ) -> Option<(usize, bool)> {
+        let ctx = core.ctx();
+        lock_arrows(ctx, focused, self.arrows());
+        let dir = core.i18n().direction();
+        let (mut idx, mut extend) = (current, false);
+        for (key, m) in key_presses(ctx) {
+            if !(m.is_none() || m.shift_only()) {
+                continue;
+            }
+            if let Some(next) = self.target(key, dir, idx, items) {
+                idx = next;
+                extend |= m.shift;
+            }
+        }
+        (idx != current).then_some((idx, extend))
+    }
+
+    fn arrows(&self) -> Arrows {
+        match self.orientation {
+            Orientation::Horizontal => Arrows::Axis(Axis::Horizontal),
+            Orientation::Vertical => Arrows::Axis(Axis::Vertical),
+            Orientation::Grid { .. } => Arrows::Both,
+        }
     }
 
     /// Next index for `key`, stepping past disabled items; `None` when no enabled item is reachable.

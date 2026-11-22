@@ -268,7 +268,19 @@ impl<K: Ord + Clone> Selection<K> {
         self.click(key, Modifiers::NONE, order)
     }
 
-    /// Ctrl+A: every key of `order` in a multiple selection; `true` when the selected keys changed.
+    /// Keyboard focus moved to `to`: `extend` (Shift) extends a multiple selection to it ([`Self::extend_to`]),
+    /// any other move only makes it current. `true` when the selected keys changed.
+    pub fn follow_focus(&mut self, to: K, extend: bool, order: &[K]) -> bool {
+        if extend && self.mode == SelectionMode::Multiple {
+            self.extend_to(to, order)
+        } else {
+            self.set_current(to);
+            false
+        }
+    }
+
+    /// Ctrl/Cmd+A ([`is_select_all`]): every key of `order` in a multiple selection; `true` when the selected
+    /// keys changed.
     pub fn select_all(&mut self, order: &[K]) -> bool {
         if self.mode != SelectionMode::Multiple {
             return false;
@@ -296,6 +308,11 @@ impl<K: Ord + Clone> Selection<K> {
         }
         Some(changed)
     }
+}
+
+/// Ctrl/Cmd+A, the select-all key of every selectable collection.
+pub fn is_select_all(key: egui::Key, modifiers: Modifiers) -> bool {
+    key == egui::Key::A && modifiers.command && !modifiers.shift && !modifiers.alt
 }
 
 /// Collects into an empty [`SelectionMode::Multiple`] selection.
@@ -437,7 +454,13 @@ mod tests {
         assert_eq!(s.current(), Some(&1));
         assert!(s.select_all(&order));
         assert_eq!(s.len(), 5);
+        assert!(!s.follow_focus(5, false, &order), "a plain move only makes it current");
+        assert_eq!(s.current(), Some(&5));
         let mut single = Selection::single();
+        assert!(
+            !single.follow_focus(3, true, &order),
+            "Shift moves do not select in single mode"
+        );
         assert!(!single.select_all(&order));
         assert!(single.extend_to(3, &order), "single selects the key");
         assert_eq!(single.first(), Some(&3));

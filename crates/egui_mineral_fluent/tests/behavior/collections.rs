@@ -513,6 +513,30 @@ mod table {
     }
 
     #[test]
+    fn data_grid_shift_arrows_extend_the_selection_and_ctrl_a_selects_all() {
+        let mut h = table(true);
+        h.run();
+        h.press(Key::Tab);
+        h.press(Key::ArrowDown);
+        assert!(h.state().value.selection.is_empty(), "a plain move selects nothing");
+        assert_eq!(h.state().value.selection.current(), Some(&0));
+        h.press(Key::Enter);
+        let selected = |h: &Harness<'static, State>| h.state().value.selection.selected().copied().collect::<Vec<_>>();
+        for (key, want) in [
+            (Key::ArrowDown, vec![0, 1]),
+            (Key::ArrowDown, vec![0, 1, 2]),
+            (Key::ArrowUp, vec![0, 1]),
+        ] {
+            h.key_press_modifiers(egui::Modifiers::SHIFT, key);
+            h.run();
+            assert_eq!(selected(&h), want, "Shift+{key:?}");
+        }
+        h.key_press_modifiers(egui::Modifiers::COMMAND, Key::A);
+        h.run();
+        assert_eq!(selected(&h), [0, 1, 2]);
+    }
+
+    #[test]
     fn data_grid_is_one_tab_stop() {
         let mut h = harness(Selection::<usize>::multiple(), |ui, selection| {
             DataGrid::new("t", "People", columns())

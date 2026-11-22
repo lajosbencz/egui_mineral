@@ -470,8 +470,8 @@ pub fn flatten_with<'a, N: TreeData>(
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum TreeNav {
-    /// Moves focus to `row`; `extend` (Shift) extends a multiple selection to it
-    /// ([`Selection::extend_to`](crate::select::Selection::extend_to)), otherwise the selection stays.
+    /// Moves focus to `row`; `extend` (Shift) extends a multiple selection to it, see
+    /// [`Selection::follow_focus`](crate::select::Selection::follow_focus).
     Focus {
         /// Row index.
         row: usize,
@@ -502,7 +502,7 @@ pub fn on_key<N>(
     let enabled = |i: &usize| rows.get(*i).is_some_and(|r| !r.disabled);
     let next = current.saturating_add(1);
     Some(match key {
-        Key::A if modifiers.command && !modifiers.shift => TreeNav::SelectAll,
+        k if crate::select::is_select_all(k, modifiers) => TreeNav::SelectAll,
         Key::ArrowDown => focus((next..rows.len()).find(enabled)?),
         Key::ArrowUp => focus((0..current).rev().find(enabled)?),
         Key::Home => focus((0..rows.len()).find(enabled)?),

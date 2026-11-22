@@ -1018,11 +1018,7 @@ impl<'a, N: TreeData, A: ActionValue> TreeView<'a, N, A> {
                 Some(TreeNav::Focus { row, extend }) => {
                     let key = rows[row].node.key().clone();
                     if let Some(sel) = self.selection.as_deref_mut() {
-                        if extend {
-                            out.changed |= sel.extend_to(key.clone(), &Self::selectable(rows));
-                        } else {
-                            sel.set_current(key.clone());
-                        }
+                        out.changed |= sel.follow_focus(key.clone(), extend, &Self::selectable(rows));
                     }
                     state.pending = Some(key);
                     state.pending_passes = 0;
