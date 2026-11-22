@@ -268,6 +268,21 @@ impl<K: Ord + Clone> Selection<K> {
         self.click(key, Modifiers::NONE, order)
     }
 
+    /// Row `input` on `key`: a pointer press [`Self::press`]es, the click ending it [`Self::release`]s, an Enter or
+    /// Space click [`Self::click`]s. `order` is the visual order Shift reads. `true` when the selected keys changed.
+    pub fn apply(&mut self, key: K, input: RowInput, order: &[K]) -> bool {
+        let mut changed = false;
+        if let Some(m) = input.press {
+            changed |= self.press(key.clone(), m, order);
+        }
+        changed
+            | match input.click {
+                Some((m, true)) => self.release(key, m),
+                Some((m, false)) => self.click(key, m, order),
+                None => false,
+            }
+    }
+
     /// Keyboard focus moved to `to`: `extend` (Shift) extends a multiple selection to it ([`Self::extend_to`]),
     /// any other move only makes it current. `true` when the selected keys changed.
     pub fn follow_focus(&mut self, to: K, extend: bool, order: &[K]) -> bool {
@@ -307,6 +322,52 @@ impl<K: Ord + Clone> Selection<K> {
             changed |= self.selected.insert(k.clone());
         }
         Some(changed)
+    }
+}
+
+/// Pointer press and click of a selectable row this pass, applied by [`Selection::apply`].
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct RowInput {
+    /// Primary press that started on the row.
+    pub press: Option<Modifiers>,
+    /// Click; `true` from the pointer, which ends a `press`, `false` from Enter or Space.
+    pub click: Option<(Modifiers, bool)>,
+}
+
+impl RowInput {
+    /// Of `response` this pass. Reads the press from this pass's input, not `is_pointer_button_down_on`: a fast click
+    /// presses and releases in one pass.
+    pub fn of(response: &egui::Response) -> Self {
+        let (modifiers, origin) = response.ctx.input(|i| {
+            let origin = i.pointer.primary_pressed().then(|| i.pointer.press_origin()).flatten();
+            (i.modifiers, origin)
+        });
+        let pressed = response.hovered() && origin.is_some_and(|p| response.rect.contains(p));
+        Self {
+            press: pressed.then_some(modifiers),
+            click: response
+                .clicked()
+                .then(|| (modifiers, response.clicked_by(egui::PointerButton::Primary))),
+        }
+    }
+
+    /// Either part of `self`, else of `other`; rows made of several responses.
+    #[must_use]
+    pub fn or(self, other: Self) -> Self {
+        Self {
+            press: self.press.or(other.press),
+            click: self.click.or(other.click),
+        }
+    }
+
+    /// No press and no click.
+    pub fn is_empty(&self) -> bool {
+        self.press.is_none() && self.click.is_none()
+    }
+
+    /// Shift held, so applying it reads the visual order.
+    pub fn shift(&self) -> bool {
+        self.press.or(self.click.map(|c| c.0)).is_some_and(|m| m.shift)
     }
 }
 
@@ -433,6 +494,31 @@ mod tests {
         assert!(s.press(1, Modifiers::COMMAND, &order));
         assert!(!s.release(1, Modifiers::COMMAND), "modified releases change nothing");
         assert_eq!(s.selected().copied().collect::<Vec<_>>(), [1, 4]);
+    }
+
+    #[test]
+    fn apply_presses_on_the_pointer_and_clicks_on_keys() {
+        let order = [1, 2, 3];
+        let mut s = Selection::multiple().with([1, 2]);
+        let press = RowInput {
+            press: Some(Modifiers::NONE),
+            click: None,
+        };
+        assert!(!s.apply(2, press, &order), "a press keeps the set to drag");
+        let release = RowInput {
+            press: None,
+            click: Some((Modifiers::NONE, true)),
+        };
+        assert!(s.apply(2, release, &order));
+        assert_eq!(s.selected().copied().collect::<Vec<_>>(), [2]);
+        let key = RowInput {
+            press: None,
+            click: Some((Modifiers::SHIFT, false)),
+        };
+        assert!(key.shift());
+        assert!(s.apply(3, key, &order), "Enter with Shift extends");
+        assert_eq!(s.selected().copied().collect::<Vec<_>>(), [2, 3]);
+        assert!(RowInput::default().is_empty());
     }
 
     #[test]

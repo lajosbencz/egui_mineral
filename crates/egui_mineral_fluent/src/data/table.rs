@@ -8,7 +8,7 @@ use egui_mineral::{
     i18n::{Direction, I18n},
     kit::{self, state::TempState},
     layout::{Constraints, Measure},
-    select::{self, ItemKey, Selection, SelectionMode},
+    select::{self, ItemKey, RowInput, Selection, SelectionMode},
     semantic::{self, AgentKey, KeyedSalt, Role, SemanticNode, StableId},
     table::{ColumnWidths, RowStyle, Rows, SortOrder, SortState, sort_order},
     widget::{Availability, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
@@ -933,6 +933,11 @@ fn body_row<K: ItemKey>(
     }
     row_background(ui, rect, tb.appearance, selected, &row, &tokens);
     let mut clicked = clickable && row.clicked();
+    let mut input = if clickable {
+        RowInput::of(&row)
+    } else {
+        RowInput::default()
+    };
     let mut whole = row.clone();
     let first = (r + 1) * grid.columns;
     if selectable {
@@ -970,6 +975,7 @@ fn body_row<K: ItemKey>(
                 focus_outline(ui, crect, &tokens);
             }
             clicked |= resp.clicked();
+            input = input.or(RowInput::of(&resp));
             whole |= resp;
         }
         // Cell content clipped to its cell.
@@ -982,12 +988,17 @@ fn body_row<K: ItemKey>(
         });
         x += w;
     }
+    if !input.is_empty()
+        && let Some(s) = tb.selection.as_mut()
+    {
+        let all: Vec<K> = if input.shift() {
+            order.keys(keys).collect()
+        } else {
+            Vec::new()
+        };
+        ev.selection |= s.apply(key.clone(), input, &all);
+    }
     if clicked {
-        if let Some(s) = tb.selection.as_mut() {
-            let modifiers = ui.input(|i| i.modifiers);
-            let all: Vec<K> = order.keys(keys).collect();
-            ev.selection |= s.click(key.clone(), modifiers, &all);
-        }
         ev.activated = Some(key.clone());
     }
     // `useTableRowStyles`: `extra-small` rows have no `borderBottom`.

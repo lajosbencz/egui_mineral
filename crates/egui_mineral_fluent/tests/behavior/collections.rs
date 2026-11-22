@@ -537,6 +537,20 @@ mod table {
     }
 
     #[test]
+    fn a_row_selects_on_press() {
+        let mut h = table(false);
+        h.run();
+        let at = h.rect("t-row-1").center();
+        h.hover_at(at);
+        h.drag_at(at);
+        h.step();
+        assert!(h.state().value.selection.is_selected(&1), "selected before the release");
+        h.drop_at(at);
+        h.run();
+        assert_eq!(h.state().value.selection.len(), 1);
+    }
+
+    #[test]
     fn data_grid_is_one_tab_stop() {
         let mut h = harness(Selection::<usize>::multiple(), |ui, selection| {
             DataGrid::new("t", "People", columns())

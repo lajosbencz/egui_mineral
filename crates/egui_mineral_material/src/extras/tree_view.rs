@@ -12,7 +12,7 @@ use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::MineralUi;
 use std::f32::consts::FRAC_PI_2;
 
-use egui::{Color32, DragAndDrop, Id, Key, Modifiers, Rangef, Rect, Response, Sense, StrokeKind, Ui, Vec2, pos2, vec2};
+use egui::{Color32, DragAndDrop, Id, Key, Rangef, Rect, Response, Sense, StrokeKind, Ui, Vec2, pos2, vec2};
 use egui_mineral::widget::Availability;
 use egui_mineral::{
     action::{ActionValue, ItemResponses, NoAction},
@@ -24,7 +24,7 @@ use egui_mineral::{
     layout::{Constraints, Measure},
     perf::VirtualList,
     select::ItemKey,
-    select::{Check, Selection},
+    select::{Check, RowInput, Selection},
     semantic::{self, Action, Role, SemanticNode, StableId},
     shortcut,
     tree::{self, DropAccept, DropPosition, TreeData, TreeDrop, TreeMove, TreeNav, TreeRow},
@@ -144,10 +144,8 @@ impl<K, A> TreeViewResponse<K, A> {
 
 struct RowOut<A> {
     toggle: bool,
-    // Pointer press on the row body.
-    press: Option<Modifiers>,
-    // Click; `true` from the pointer, which ends a `press`.
-    select: Option<(Modifiers, bool)>,
+    // Press and click on the row body.
+    select: RowInput,
     activated: bool,
     toggled: bool,
     action: Option<(A, Rect)>,
@@ -155,12 +153,7 @@ struct RowOut<A> {
 
 impl<A> RowOut<A> {
     fn any(&self) -> bool {
-        self.toggle
-            || self.press.is_some()
-            || self.select.is_some()
-            || self.activated
-            || self.toggled
-            || self.action.is_some()
+        self.toggle || !self.select.is_empty() || self.activated || self.toggled || self.action.is_some()
     }
 }
 
@@ -168,8 +161,7 @@ impl<A> Default for RowOut<A> {
     fn default() -> Self {
         Self {
             toggle: false,
-            press: None,
-            select: None,
+            select: RowInput::default(),
             activated: false,
             toggled: false,
             action: None,
@@ -410,20 +402,20 @@ impl<A: ActionValue> MineralWidget for RowWidget<'_, A> {
             }
         }
         let on_control = out.toggled || out.action.is_some();
-        let modifiers = ui.input(|i| i.modifiers);
         let on_chevron = |p: Option<egui::Pos2>| self.has_children && p.is_some_and(|p| chevron_hit.contains(p));
-        // Hover, not `is_pointer_button_down_on`: a fast click presses and releases in one pass.
-        let origin = ui.input(|i| i.pointer.primary_pressed().then(|| i.pointer.press_origin()).flatten());
-        if !self.disabled && r.hovered() && origin.is_some_and(|p| r.rect.contains(p)) && !on_chevron(origin) {
-            out.press = Some(modifiers);
+        let mut input = RowInput::of(r);
+        if self.disabled || on_chevron(ui.input(|i| i.pointer.press_origin())) {
+            input.press = None;
         }
         if parts::press(ui, frame, Availability::disabled_if(self.disabled)).clicked && !on_control {
             if on_chevron(press) {
                 out.toggle = true;
-            } else {
-                out.select = Some((modifiers, r.clicked_by(egui::PointerButton::Primary)));
+                input.click = None;
             }
+        } else {
+            input.click = None;
         }
+        out.select = input;
         if r.double_clicked() {
             out.activated = true;
             if self.has_children {
@@ -475,7 +467,7 @@ impl<A: ActionValue> MineralWidget for RowWidget<'_, A> {
         let g = parts::type_wrapped(p, self.label, self.look.font, col.label, avail, 1);
         p.galley(cur.peek(g.size().x, g.size().y).min, g, Color32::PLACEHOLDER);
         self.control_semantics(ui, control.as_ref(), &actions);
-        let changed = out.select.is_some();
+        let changed = out.select.click.is_some();
         WidgetResponse::new(r.clone(), out).with_changed(changed)
     }
 
@@ -947,23 +939,15 @@ impl<'a, N: TreeData, A: ActionValue> TreeView<'a, N, A> {
                 Self::toggle_node(out, self.expansion, key.clone());
             }
             if let Some(selection) = self.selection.as_deref_mut()
-                && (o.press.is_some() || o.select.is_some())
+                && !o.select.is_empty()
             {
                 // Only Shift reads the visual order.
-                let shift = o.press.or(o.select.map(|s| s.0)).is_some_and(|m| m.shift);
-                let order = if shift {
+                let order = if o.select.shift() {
                     visible.get_or_insert_with(|| Self::selectable(rows))
                 } else {
                     &mut Vec::new()
                 };
-                if let Some(m) = o.press {
-                    out.changed |= selection.press(key.clone(), m, order);
-                }
-                out.changed |= match o.select {
-                    Some((m, true)) => selection.release(key.clone(), m),
-                    Some((m, false)) => selection.click(key.clone(), m, order),
-                    None => false,
-                };
+                out.changed |= selection.apply(key.clone(), o.select, order);
             }
             if o.toggled {
                 out.leading_toggled = Some(key.clone());
