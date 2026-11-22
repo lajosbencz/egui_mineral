@@ -20,7 +20,7 @@
 //! Mnemonics follow ARIA/APG menu conventions: <https://www.w3.org/WAI/ARIA/apg/patterns/menubar/>.
 
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fmt,
     hash::{Hash, Hasher},
     ops::Range,
@@ -175,12 +175,28 @@ pub enum Scope {
     Focus(Id),
 }
 
-/// Access key: an ASCII letter or digit, stored upper-case. Any other character gives an inert
-/// mnemonic that never fires.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+/// Access key: a letter or digit, stored upper-case, optionally at a byte offset of its label ([`Self::parse`]).
+/// ASCII ones match key presses, others the typed text. Any other character gives an inert mnemonic that never
+/// fires. Equality ignores the offset.
+#[derive(Clone, Copy, Debug)]
 pub struct Mnemonic {
     c: char,
     key: Option<Key>,
+    at: Option<usize>,
+}
+
+impl PartialEq for Mnemonic {
+    fn eq(&self, other: &Self) -> bool {
+        self.c == other.c
+    }
+}
+
+impl Eq for Mnemonic {}
+
+impl std::hash::Hash for Mnemonic {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.c.hash(state);
+    }
 }
 
 /// Position of the mnemonic character in a label.
@@ -211,39 +227,85 @@ impl From<char> for Mnemonic {
 }
 
 impl Mnemonic {
-    /// Mnemonic for `c`, an ASCII letter or digit (the keys egui reports); anything else is inert.
+    /// Mnemonic for `c`, a letter or digit; anything else is inert.
     pub fn new(c: char) -> Self {
-        let c = c.to_ascii_uppercase();
+        let c = upper(c);
         let key = c
             .is_ascii_alphanumeric()
             .then(|| Key::from_name(c.encode_utf8(&mut [0; 4])))
             .flatten();
-        if key.is_none() {
-            crate::kit::sanitize::report(format_args!("mnemonic must be an ASCII letter or digit: {c:?}"));
+        if !c.is_alphanumeric() {
+            crate::kit::sanitize::report(format_args!("mnemonic must be a letter or digit: {c:?}"));
         }
-        Self { c, key }
+        Self { c, key, at: None }
     }
 
-    /// Upper-case when ASCII.
+    /// Label and mnemonic of `&`-marked text (`"Save &As"`): the first `&` marks the character after it, `&&` is
+    /// a literal `&`. `None` without a mark.
+    pub fn parse(marked: &str) -> (String, Option<Self>) {
+        let mut label = String::with_capacity(marked.len());
+        let mut mnemonic = None;
+        let mut chars = marked.chars();
+        while let Some(c) = chars.next() {
+            if c != '&' {
+                label.push(c);
+                continue;
+            }
+            match chars.next() {
+                Some('&') | None => label.push('&'),
+                Some(next) => {
+                    if mnemonic.is_none() {
+                        mnemonic = Some(Self {
+                            at: Some(label.len()),
+                            ..Self::new(next)
+                        });
+                    }
+                    label.push(next);
+                }
+            }
+        }
+        (label, mnemonic)
+    }
+
+    /// Upper-case when it maps to one upper-case character.
     pub fn char(self) -> char {
         self.c
     }
 
-    /// egui key the mnemonic listens for; `None` when inert.
+    /// egui key an ASCII mnemonic listens for; `None` for others, which match typed text.
     pub fn key(self) -> Option<Key> {
         self.key
     }
 
-    /// First grapheme of `label` starting with the letter, case-insensitive; [`MnemonicMark::Suffix`] when none.
+    /// Fires at all: a letter or digit.
+    pub fn is_active(self) -> bool {
+        self.c.is_alphanumeric()
+    }
+
+    /// Grapheme at the parsed offset when it holds the letter, else the first one starting with it,
+    /// case-insensitive; [`MnemonicMark::Suffix`] when none.
     pub fn underline(self, label: &str) -> MnemonicMark {
-        label
-            .grapheme_indices(true)
-            .find(|(_, g)| {
-                g.chars()
-                    .next()
-                    .is_some_and(|c| self.key.is_some() && c.eq_ignore_ascii_case(&self.c))
-            })
+        let starts = |g: &str| self.is_active() && g.chars().next().is_some_and(|c| upper(c) == self.c);
+        let marked = self
+            .at
+            .and_then(|at| label.grapheme_indices(true).find(|(i, g)| *i == at && starts(g)));
+        marked
+            .or_else(|| label.grapheme_indices(true).find(|(_, g)| starts(g)))
             .map_or(MnemonicMark::Suffix, |(i, g)| MnemonicMark::At(i..i + g.len()))
+    }
+
+    fn matches_text(self, text: &str) -> bool {
+        let mut chars = text.chars();
+        chars.next().is_some_and(|c| upper(c) == self.c) && chars.next().is_none()
+    }
+}
+
+// Simple case mapping; characters without a one-character upper case stay as they are.
+fn upper(c: char) -> char {
+    let mut u = c.to_uppercase();
+    match (u.next(), u.next()) {
+        (Some(one), None) => one,
+        _ => c,
     }
 }
 
@@ -268,7 +330,7 @@ struct Registry {
     mnemonics: Vec<MnemonicBinding>,
     // Position in `shortcuts` / `mnemonics` of the first binding per key.
     shortcut_index: HashMap<(Scope, KeyboardShortcut), usize>,
-    mnemonic_index: HashMap<(Scope, Mnemonic), usize>,
+    mnemonic_index: HashSet<(Scope, Mnemonic, Id)>,
     last_shortcuts: Vec<ShortcutBinding>,
     last_mnemonics: Vec<MnemonicBinding>,
     fired: Vec<ActionId>,
@@ -341,20 +403,13 @@ pub fn bind(ctx: &Context, scope: Scope, shortcut: KeyboardShortcut, action: imp
 }
 
 /// Registers `mnemonic` for `item` in `scope` for this pass; activation is reported by [`take_item`].
-/// Another item on the same mnemonic is reported and ignored, the first binding stays.
+/// Items sharing a mnemonic in a scope are not activated: the key moves focus to the next of them in binding
+/// order, from the focused one.
 pub fn bind_mnemonic(ctx: &Context, scope: Scope, mnemonic: Mnemonic, trigger: Trigger, item: Id) {
     with_registry(ctx, |r| {
-        if let Some(&at) = r.mnemonic_index.get(&(scope, mnemonic)) {
-            if let Some(other) = r.mnemonics.get(at).filter(|b| b.item != item) {
-                crate::kit::sanitize::report(format_args!(
-                    "mnemonic {:?} bound twice in {scope:?}: {:?} and {item:?}",
-                    mnemonic.char(),
-                    other.item
-                ));
-            }
+        if !r.mnemonic_index.insert((scope, mnemonic, item)) {
             return;
         }
-        r.mnemonic_index.insert((scope, mnemonic), r.mnemonics.len());
         r.mnemonics.push(MnemonicBinding {
             scope,
             mnemonic,
@@ -596,18 +651,31 @@ fn consume_shortcut(input: &mut InputState, shortcut: KeyboardShortcut) -> bool 
 }
 
 fn consume_mnemonic(input: &mut InputState, mnemonic: Mnemonic, trigger: Trigger) -> bool {
-    let Some(key) = mnemonic.key() else {
-        return false;
-    };
     let (alt, bare) = (
         matches!(trigger, Trigger::Alt | Trigger::Either),
         matches!(trigger, Trigger::Bare | Trigger::Either),
     );
-    let (consumed, fired) = consume_presses(input, |k, m| k == key && plain(m) && if m.alt { alt } else { bare });
+    let wanted = |m: Modifiers| plain(m) && if m.alt { alt } else { bare };
+    let Some(key) = mnemonic.key() else {
+        // egui has no key for non-ASCII letters; the typed text carries them (also under Alt, not Ctrl/Cmd).
+        if !mnemonic.is_active() || !wanted(input.modifiers) {
+            return false;
+        }
+        let mut fired = false;
+        input.events.retain(|e| match e {
+            Event::Text(t) if mnemonic.matches_text(t) => {
+                fired = true;
+                false
+            }
+            _ => true,
+        });
+        return fired;
+    };
+    let (consumed, fired) = consume_presses(input, |k, m| k == key && wanted(m));
     if consumed {
         input
             .events
-            .retain(|e| !matches!(e, Event::Text(t) if t.eq_ignore_ascii_case(mnemonic.c.encode_utf8(&mut [0; 4]))));
+            .retain(|e| !matches!(e, Event::Text(t) if mnemonic.matches_text(t)));
     }
     fired
 }
@@ -828,7 +896,7 @@ fn dispatch(core: &crate::runtime::Core, reg: &mut Registry) {
         i.events.iter().any(|e| {
             matches!(
                 e,
-                Event::Key { pressed: true, .. } | Event::Cut | Event::Copy | Event::Paste(_)
+                Event::Key { pressed: true, .. } | Event::Text(_) | Event::Cut | Event::Copy | Event::Paste(_)
             )
         })
     });
@@ -856,6 +924,8 @@ fn dispatch(core: &crate::runtime::Core, reg: &mut Registry) {
     candidates.sort_by_key(|(rank, mods, _)| (*rank, std::cmp::Reverse(*mods)));
 
     let text_focused = ctx.text_edit_focused();
+    let focused = ctx.memory(egui::Memory::focused);
+    let mut cycle_to = None;
     let (os, readline) = (ctx.os(), core.policies().readline);
     let inert = |scope: Scope, edits: bool| text_focused && edits && !matches!(scope, Scope::Focus(_));
     ctx.input_mut(|input| {
@@ -883,12 +953,31 @@ fn dispatch(core: &crate::runtime::Core, reg: &mut Registry) {
                         continue;
                     }
                     if consume_mnemonic(input, b.mnemonic, b.trigger) {
-                        reg.activated.push(b.item);
+                        let shared: Vec<Id> = reg
+                            .last_mnemonics
+                            .iter()
+                            .filter(|o| o.scope == b.scope && o.mnemonic == b.mnemonic)
+                            .map(|o| o.item)
+                            .collect();
+                        match shared.as_slice() {
+                            [one] => reg.activated.push(*one),
+                            _ => cycle_to = next_after(&shared, focused),
+                        }
                     }
                 }
             }
         }
     });
+    if let Some(id) = cycle_to {
+        ctx.memory_mut(|m| m.request_focus(id));
+    }
+}
+
+// Item after `focused` in `items`, wrapping; the first when focus is elsewhere.
+fn next_after(items: &[Id], focused: Option<Id>) -> Option<Id> {
+    let at = focused.and_then(|f| items.iter().position(|i| *i == f));
+    let next = at.map_or(0, |a| a + 1);
+    items.get(next).or_else(|| items.first()).copied()
 }
 
 #[cfg(test)]
@@ -1202,23 +1291,90 @@ mod tests {
     }
 
     #[test]
-    fn duplicate_mnemonic_keeps_the_first_binding() {
+    fn shared_mnemonic_cycles_focus_without_activating() {
         let ctx = Context::default();
-        let (a, b) = (Id::unique("a"), Id::unique("b"));
-        bind_mnemonic(&ctx, Scope::Global, Mnemonic::new('f'), Trigger::Alt, a);
-        bind_mnemonic(&ctx, Scope::Global, Mnemonic::new('F'), Trigger::Alt, b);
-        with_registry(&ctx, |r| {
-            let items: Vec<_> = r.mnemonics.iter().map(|m| m.item).collect();
-            assert_eq!(items, [a]);
-        });
+        let rt = set_mnemonics(&ctx, true);
+        let (a, b, c) = (Id::unique("a"), Id::unique("b"), Id::unique("c"));
+        let register = |ui: &mut egui::Ui| {
+            for id in [a, b, c] {
+                let rect = ui.allocate_space(egui::vec2(10.0, 10.0)).1;
+                ui.interact(rect, id, egui::Sense::click());
+            }
+            bind_mnemonic(ui.ctx(), Scope::Global, Mnemonic::new('f'), Trigger::Alt, a);
+            bind_mnemonic(ui.ctx(), Scope::Global, Mnemonic::new('F'), Trigger::Alt, b);
+            bind_mnemonic(ui.ctx(), Scope::Global, Mnemonic::new('f'), Trigger::Alt, b);
+            bind_mnemonic(ui.ctx(), Scope::Global, Mnemonic::new('g'), Trigger::Alt, c);
+        };
+        step(&rt, vec![], register);
+        let alt_f = || {
+            crate::input::synth::key_tap(Key::F, Modifiers::ALT)
+                .into_iter()
+                .collect()
+        };
+        let focused = || ctx.memory(egui::Memory::focused);
+        for want in [a, b, a] {
+            let (_, activated) = step(&rt, alt_f(), register);
+            assert!(activated.is_empty(), "shared letters only move focus");
+            step(&rt, vec![], register);
+            assert_eq!(focused(), Some(want));
+        }
+        let (_, activated) = step(&rt, vec![key_down(Key::G, Modifiers::ALT)], register);
+        assert_eq!(activated, [c], "a unique letter activates");
     }
 
     #[test]
-    fn invalid_mnemonic_is_inert() {
+    fn non_ascii_mnemonics_match_typed_text() {
+        let ctx = Context::default();
+        let rt = set_mnemonics(&ctx, true);
+        let item = Id::unique("file");
+        let register = |ui: &mut egui::Ui| {
+            bind_mnemonic(ui.ctx(), Scope::Global, Mnemonic::new('\u{444}'), Trigger::Alt, item);
+        };
+        step(&rt, vec![], register);
+        let typed = |m: Modifiers, t: &str| vec![Event::ModifiersChanged(m), Event::Text(t.into())];
+        assert_eq!(
+            step(&rt, typed(Modifiers::ALT, "\u{424}"), register).1,
+            [item],
+            "Alt+letter, either case"
+        );
+        assert!(
+            step(&rt, typed(Modifiers::NONE, "\u{444}"), register).1.is_empty(),
+            "Alt trigger"
+        );
+        assert!(
+            step(&rt, typed(Modifiers::ALT, "\u{444}\u{444}"), register)
+                .1
+                .is_empty(),
+            "one character"
+        );
+    }
+
+    #[test]
+    fn letters_and_digits_are_active_others_inert() {
         let m = Mnemonic::new('\u{e9}');
-        assert_eq!(m.key(), None);
-        assert_eq!(m.underline("\u{e9}t\u{e9}"), MnemonicMark::Suffix);
+        assert_eq!((m.char(), m.key(), m.is_active()), ('\u{c9}', None, true));
         assert_eq!(Mnemonic::new('f').key(), Some(Key::F));
+        assert!(!Mnemonic::new('-').is_active());
+        assert_eq!(Mnemonic::new('-').underline("a-b"), MnemonicMark::Suffix);
+    }
+
+    #[test]
+    fn parse_takes_the_first_mark_and_unescapes() {
+        let (label, m) = Mnemonic::parse("Save &As");
+        assert_eq!(label, "Save As");
+        let m = m.expect("marked");
+        assert_eq!(m, Mnemonic::new('a'));
+        assert_eq!(
+            m.underline(&label),
+            MnemonicMark::At(5..6),
+            "the marked a, not the first"
+        );
+        let (label, m) = Mnemonic::parse("R&&D &T&ools &");
+        assert_eq!(label, "R&D Tools &");
+        assert_eq!(m.map(Mnemonic::char), Some('T'));
+        assert_eq!(Mnemonic::parse("Plain"), ("Plain".into(), None));
+        let (label, m) = Mnemonic::parse("\u{dc}ber &\u{e9}t\u{e9}");
+        assert_eq!(m.map(|m| m.underline(&label)), Some(MnemonicMark::At(6..8)));
     }
 
     #[test]
@@ -1227,6 +1383,7 @@ mod tests {
         assert_eq!(f.underline("Open file"), MnemonicMark::At(5..6));
         assert_eq!(f.underline("File"), MnemonicMark::At(0..1));
         assert_eq!(f.underline("\u{30d5}\u{30a1}\u{30a4}\u{30eb}"), MnemonicMark::Suffix);
+        assert_eq!(Mnemonic::new('\u{e9}').underline("Ab\u{c9}"), MnemonicMark::At(2..4));
         // multi-byte prefix; the cluster is `e` + combining acute
         assert_eq!(Mnemonic::new('e').underline("\u{dc}be\u{301}r"), MnemonicMark::At(3..6));
         assert_eq!(Mnemonic::new('Q').underline("\u{dc}ber"), MnemonicMark::Suffix);

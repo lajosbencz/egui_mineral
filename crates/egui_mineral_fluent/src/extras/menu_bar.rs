@@ -11,6 +11,7 @@ use egui_mineral::{
     layout::Axis,
     overlay::Dismiss,
     semantic::{self, KeyedSalt, Role, SemanticNode, StableId},
+    shortcut::Mnemonic,
     widget::{Availability, MineralUi},
 };
 
@@ -30,7 +31,7 @@ type Rows<'a, A> = Box<dyn FnOnce(&mut MenuUi<'_, '_, A>) + 'a>;
 #[must_use]
 pub struct BarMenu<'a, A = NoAction> {
     title: String,
-    mnemonic: Option<char>,
+    mnemonic: Option<Mnemonic>,
     disabled: bool,
     rows: Rows<'a, A>,
 }
@@ -49,8 +50,8 @@ impl<'a, A: ActionValue> BarMenu<'a, A> {
     }
 
     /// Alt+letter opens the menu; the letter is underlined while mnemonics are visible.
-    pub fn mnemonic(mut self, mnemonic: char) -> Self {
-        self.mnemonic = Some(mnemonic);
+    pub fn mnemonic(mut self, mnemonic: impl Into<Mnemonic>) -> Self {
+        self.mnemonic = Some(mnemonic.into());
         self
     }
 

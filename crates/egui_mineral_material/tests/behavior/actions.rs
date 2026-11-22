@@ -428,3 +428,26 @@ fn button_group_reports_the_item_value() {
         "an own salt keys the button, the value still reports"
     );
 }
+
+#[test]
+fn marked_mnemonic_activates_and_shared_letters_cycle_focus() {
+    let mut h = harness(SCREEN, 0, |ui, clicks| {
+        let (label, save_as) = egui_mineral::shortcut::Mnemonic::parse("Save &As");
+        if let Some(m) = save_as
+            && ui.mineral(PushButton::new("save-as", label).mnemonic(m)).clicked()
+        {
+            *clicks += 1;
+        }
+        ui.mineral(PushButton::new("bold", "Bold").mnemonic('b'));
+        ui.mineral(PushButton::new("back", "Back").mnemonic('b'));
+    });
+    h.run();
+    h.key_press_modifiers(Modifiers::ALT, Key::A);
+    h.run();
+    assert_eq!(h.state().value, 1, "Alt+A activates the marked button");
+    for want in ["bold-button", "back-button", "bold-button"] {
+        h.key_press_modifiers(Modifiers::ALT, Key::B);
+        h.run();
+        assert!(h.focused(want), "Alt+B focuses {want}");
+    }
+}

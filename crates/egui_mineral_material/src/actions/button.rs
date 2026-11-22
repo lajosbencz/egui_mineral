@@ -631,8 +631,8 @@ impl PushButton<'_> {
     }
 
     /// Alt+letter activates the button; the letter is underlined while mnemonics are visible.
-    pub fn mnemonic(mut self, mnemonic: char) -> Self {
-        self.mnemonic = Some(Mnemonic::new(mnemonic));
+    pub fn mnemonic(mut self, mnemonic: impl Into<Mnemonic>) -> Self {
+        self.mnemonic = Some(mnemonic.into());
         self
     }
 
@@ -896,7 +896,7 @@ impl<'a> ToggleButton<'a> {
     }
 
     /// Alt+letter activates the button; the letter is underlined while mnemonics are visible.
-    pub fn mnemonic(mut self, mnemonic: char) -> Self {
+    pub fn mnemonic(mut self, mnemonic: impl Into<Mnemonic>) -> Self {
         self.0 = self.0.mnemonic(mnemonic);
         self
     }

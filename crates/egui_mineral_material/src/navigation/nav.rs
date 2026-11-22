@@ -88,8 +88,8 @@ impl NavDestination {
     }
 
     /// Alt+letter selects the destination.
-    pub fn mnemonic(mut self, mnemonic: char) -> Self {
-        self.mnemonic = Some(Mnemonic::new(mnemonic));
+    pub fn mnemonic(mut self, mnemonic: impl Into<Mnemonic>) -> Self {
+        self.mnemonic = Some(mnemonic.into());
         self
     }
     crate::widget::setters! {
@@ -1196,7 +1196,7 @@ fn rail_item_shape(layout: RailLayout, width: f32) -> ItemShape {
 
 enum DrawerEntry {
     Section(String),
-    Item(NavDestination),
+    Item(Box<NavDestination>),
     Divider,
 }
 
@@ -1248,7 +1248,9 @@ impl<'a, K: ItemKey> NavigationDrawer<'a, K> {
     /// Appends one destination carrying `value`.
     pub fn item(mut self, value: K, destination: impl Into<NavDestination>) -> Self {
         self.choice.push(value);
-        self.drawer.entries.push(DrawerEntry::Item(destination.into()));
+        self.drawer
+            .entries
+            .push(DrawerEntry::Item(Box::new(destination.into())));
         self
     }
 
@@ -1285,7 +1287,7 @@ struct Drawer {
 impl Drawer {
     fn prepare(&mut self) {
         let items = self.entries.iter_mut().filter_map(|e| match e {
-            DrawerEntry::Item(d) => Some(d),
+            DrawerEntry::Item(d) => Some(&mut **d),
             DrawerEntry::Section(_) | DrawerEntry::Divider => None,
         });
         self.group.apply(items);

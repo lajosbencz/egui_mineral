@@ -82,8 +82,8 @@ impl Tab {
     }
 
     /// Alt+letter selects the tab.
-    pub fn mnemonic(mut self, mnemonic: char) -> Self {
-        self.mnemonic = Some(Mnemonic::new(mnemonic));
+    pub fn mnemonic(mut self, mnemonic: impl Into<Mnemonic>) -> Self {
+        self.mnemonic = Some(mnemonic.into());
         self
     }
 }

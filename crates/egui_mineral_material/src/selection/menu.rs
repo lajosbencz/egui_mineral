@@ -307,8 +307,8 @@ impl MenuItem {
     }
 
     /// Letter that activates the item while its menu is open (bare or Alt).
-    pub fn mnemonic(mut self, mnemonic: char) -> Self {
-        self.mnemonic = Some(Mnemonic::new(mnemonic));
+    pub fn mnemonic(mut self, mnemonic: impl Into<Mnemonic>) -> Self {
+        self.mnemonic = Some(mnemonic.into());
         self
     }
     /// [`PlainTooltip`](crate::communication::PlainTooltip) on hover; also the item's accessible description.
@@ -585,8 +585,8 @@ impl<A: ActionValue> Menu<A> {
     }
 
     /// Alt+letter opens the menu from a `MenuStrip`.
-    pub fn mnemonic(mut self, mnemonic: char) -> Self {
-        self.mnemonic = Some(Mnemonic::new(mnemonic));
+    pub fn mnemonic(mut self, mnemonic: impl Into<Mnemonic>) -> Self {
+        self.mnemonic = Some(mnemonic.into());
         self
     }
 

@@ -1,4 +1,4 @@
-use egui::Key;
+use egui::{Key, Modifiers};
 use egui_mineral::select::Check;
 use egui_mineral_fluent::actions::{PushButton, SplitButton, TextLink, ToggleButton};
 
@@ -79,4 +79,27 @@ fn link_carries_its_url() {
     let n = h.node("l-link");
     assert_eq!(n.role, egui::accesskit::Role::Link);
     assert_eq!(n.value.as_deref(), Some("https://example.com"));
+}
+
+#[test]
+fn marked_mnemonic_activates_and_shared_letters_cycle_focus() {
+    let mut h = harness(0, |ui, clicks| {
+        let (label, save_as) = egui_mineral::shortcut::Mnemonic::parse("Save &As");
+        if let Some(m) = save_as
+            && ui.mineral(PushButton::new("save-as", label).mnemonic(m)).clicked()
+        {
+            *clicks += 1;
+        }
+        ui.mineral(PushButton::new("bold", "Bold").mnemonic('b'));
+        ui.mineral(PushButton::new("back", "Back").mnemonic('b'));
+    });
+    h.run();
+    h.key_press_modifiers(Modifiers::ALT, Key::A);
+    h.run();
+    assert_eq!(h.state().value, 1, "Alt+A activates the marked button");
+    for want in ["bold-button", "back-button", "bold-button"] {
+        h.key_press_modifiers(Modifiers::ALT, Key::B);
+        h.run();
+        assert!(h.focused(want), "Alt+B focuses {want}");
+    }
 }

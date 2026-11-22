@@ -641,8 +641,8 @@ impl<'a> CheckButton<'a> {
     }
 
     /// Alt+letter toggles the control; the letter is underlined while mnemonics are visible.
-    pub fn mnemonic(mut self, mnemonic: char) -> Self {
-        self.mnemonic = Some(Mnemonic::new(mnemonic));
+    pub fn mnemonic(mut self, mnemonic: impl Into<Mnemonic>) -> Self {
+        self.mnemonic = Some(mnemonic.into());
         self
     }
 
@@ -803,8 +803,8 @@ impl Radio {
     }
 
     /// Alt+letter toggles the control; the letter is underlined while mnemonics are visible.
-    pub fn mnemonic(mut self, mnemonic: char) -> Self {
-        self.mnemonic = Some(Mnemonic::new(mnemonic));
+    pub fn mnemonic(mut self, mnemonic: impl Into<Mnemonic>) -> Self {
+        self.mnemonic = Some(mnemonic.into());
         self
     }
 
@@ -1093,8 +1093,8 @@ impl<'a> Switch<'a> {
     }
 
     /// Alt+letter toggles the control; the letter is underlined while mnemonics are visible.
-    pub fn mnemonic(mut self, mnemonic: char) -> Self {
-        self.mnemonic = Some(Mnemonic::new(mnemonic));
+    pub fn mnemonic(mut self, mnemonic: impl Into<Mnemonic>) -> Self {
+        self.mnemonic = Some(mnemonic.into());
         self
     }
 

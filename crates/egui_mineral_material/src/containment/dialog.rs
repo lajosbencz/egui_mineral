@@ -289,8 +289,8 @@ impl DialogAction {
     }
 
     /// Alt+letter activates the action while the dialog is the topmost modal.
-    pub fn mnemonic(mut self, mnemonic: char) -> Self {
-        self.mnemonic = Some(Mnemonic::new(mnemonic));
+    pub fn mnemonic(mut self, mnemonic: impl Into<Mnemonic>) -> Self {
+        self.mnemonic = Some(mnemonic.into());
         self
     }
     crate::widget::setters! {

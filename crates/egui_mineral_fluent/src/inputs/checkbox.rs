@@ -122,8 +122,8 @@ impl<'a> Checkbox<'a> {
     }
 
     /// Alt+letter toggles the box; the letter is underlined while mnemonics are visible.
-    pub fn mnemonic(mut self, mnemonic: char) -> Self {
-        self.mnemonic = Some(Mnemonic::new(mnemonic));
+    pub fn mnemonic(mut self, mnemonic: impl Into<Mnemonic>) -> Self {
+        self.mnemonic = Some(mnemonic.into());
         self
     }
 

@@ -37,7 +37,7 @@ macro_rules! common {
             /// Greys out the button and ignores input.
             disabled(disabled: bool);
             /// Alt+letter activates the button; the letter is underlined while mnemonics are visible.
-            mnemonic(mnemonic: char);
+            mnemonic(mnemonic: impl Into<egui_mineral::shortcut::Mnemonic>);
             /// Activates like a click while enabled and visible.
             shortcut(shortcut: KeyboardShortcut);
         }
