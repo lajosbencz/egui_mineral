@@ -1,5 +1,6 @@
 use crate::msg;
 use egui::{Rangef, Rect, ScrollArea, Sense, Stroke, StrokeKind, UiBuilder, pos2, vec2};
+use egui_mineral::widget::ShowIn as _;
 use egui_mineral::{
     kit,
     kit::paint::FocusStroke,
@@ -450,7 +451,7 @@ fn show_overflow(
             ScrollArea::vertical()
                 .max_height(d::POPOVER_MAX_HEIGHT)
                 .min_scrolled_height(d::POPOVER_MIN_HEIGHT)
-                .show(ui, |ui| {
+                .show_in(ui, |ui| {
                     for (i, mut avatar) in items.into_iter().enumerate() {
                         avatar.size = size;
                         avatar.place = None;
@@ -459,7 +460,6 @@ fn show_overflow(
                         let row_salt = salt.child(("overflow-label", i));
                         ui.horizontal(|ui| {
                             ui.spacing_mut().item_spacing.x = geometry::SPACING_HORIZONTAL_S;
-                            let mut ui = rt.ui(ui);
                             ui.mineral(avatar);
                             ui.mineral(Text::new(row_salt, name).ramp(TypeRamp::Body1));
                         });

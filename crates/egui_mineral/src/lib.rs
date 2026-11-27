@@ -313,6 +313,6 @@ pub mod prelude {
         toast::ToastQueue,
         tone::Tone,
         tree::{TreeData, TreeDataMut},
-        widget::{MineralUi, SizeExt, WidgetResponse},
+        widget::{MineralUi, ShowIn, SizeExt, WidgetResponse},
     };
 }

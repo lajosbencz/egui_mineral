@@ -467,6 +467,52 @@ layout_wrappers! {
     add_enabled_ui(enabled: bool);
 }
 
+/// egui container shown with a [`MineralUi`] body, so its content needs no [`Runtime::ui`] re-wrap:
+/// `Frame::new().show_in(ui, |ui| ui.mineral(..))`. Implemented for egui's `Ui`-taking containers and for
+/// `Area` and `Window`, which open on the `Ui`'s context.
+pub trait ShowIn: Sized {
+    /// What the container's `show` returns for a body returning `R`.
+    type Output<R>;
+
+    /// Forwards to the container's `show`; `Area` and `Window` open on `ui.ctx()`, outside `ui`'s layout.
+    fn show_in<K, R>(
+        self,
+        ui: &mut MineralUi<'_, K>,
+        add_contents: impl FnOnce(&mut MineralUi<'_, K>) -> R,
+    ) -> Self::Output<R>;
+}
+
+macro_rules! show_in {
+    ($($ty:ty => $out:ty, |$this:ident, $ui:ident, $body:ident| $show:expr;)+) => {$(
+        impl ShowIn for $ty {
+            type Output<R> = $out;
+
+            fn show_in<K, R>(
+                self,
+                ui: &mut MineralUi<'_, K>,
+                add_contents: impl FnOnce(&mut MineralUi<'_, K>) -> R,
+            ) -> Self::Output<R> {
+                let (rt, input) = (ui.rt, ui.input.clone());
+                let $body = |ui: &mut Ui| add_contents(&mut MineralUi { ui, rt, input });
+                let ($this, $ui) = (self, &mut *ui.ui);
+                $show
+            }
+        }
+    )+};
+}
+
+show_in! {
+    egui::Frame => egui::InnerResponse<R>, |c, ui, body| c.show(ui, body);
+    egui::ScrollArea => egui::scroll_area::ScrollAreaOutput<R>, |c, ui, body| c.show(ui, body);
+    egui::Grid => egui::InnerResponse<R>, |c, ui, body| c.show(ui, body);
+    egui::CollapsingHeader => egui::CollapsingResponse<R>, |c, ui, body| c.show(ui, body);
+    egui::Resize => R, |c, ui, body| c.show(ui, body);
+    egui::Panel => egui::InnerResponse<R>, |c, ui, body| c.show(ui, body);
+    egui::CentralPanel => egui::InnerResponse<R>, |c, ui, body| c.show(ui, body);
+    egui::Area => egui::InnerResponse<R>, |c, ui, body| c.show(ui.ctx(), body);
+    egui::Window<'_> => Option<egui::InnerResponse<Option<R>>>, |c, ui, body| c.show(ui.ctx(), body);
+}
+
 impl<K: Stylekit> MineralUi<'_, K> {
     /// Lays out, places zones, runs input and emits semantics for `widget`; culls off-screen leaves.
     pub fn mineral<W: MineralWidget<Kit = K>>(&mut self, widget: W) -> WidgetResponse<W::Output> {
@@ -872,7 +918,7 @@ fn bounds(range: &impl RangeBounds<f32>) -> (f32, f32) {
 mod tests {
     use egui::{IdSalt, Vec2, vec2};
 
-    use super::{Interaction, InteractionKind, MineralUi, MineralWidget, SizeExt, WidgetFrame, WidgetResponse};
+    use super::{Interaction, InteractionKind, MineralUi, MineralWidget, ShowIn, SizeExt, WidgetFrame, WidgetResponse};
     use crate::{
         layout::{Constraints, Measure, MinTarget},
         semantic::{Role, SemanticNode, StableId},
@@ -1052,5 +1098,24 @@ mod tests {
         assert_eq!(i.dominant(), Some(InteractionKind::Hovered));
         assert_eq!(Interaction { disabled: true, ..all }.dominant(), None);
         assert_eq!(Interaction::default().dominant(), None);
+    }
+
+    #[test]
+    fn containers_show_a_mineral_body() {
+        let h = harness(
+            |ui, seen: &mut Vec<Option<u8>>| {
+                seen.clear();
+                ui.with_scoped(7_u8, |ui| {
+                    let scoped = |ui: &mut MineralUi<'_, TestKit>| ui.scoped::<u8>().copied();
+                    seen.push(egui::Frame::NONE.show_in(ui, scoped).inner);
+                    seen.push(egui::ScrollArea::vertical().show_in(ui, scoped).inner);
+                    seen.push(egui::Grid::new("grid").show_in(ui, scoped).inner);
+                    let r = egui::Frame::NONE.show_in(ui, |ui| ui.mineral(Probe));
+                    seen.push(r.inner.output().map(|_| 0));
+                });
+            },
+            Vec::new(),
+        );
+        assert_eq!(h.state().value, [Some(7), Some(7), Some(7), Some(0)]);
     }
 }

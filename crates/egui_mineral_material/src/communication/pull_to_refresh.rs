@@ -7,6 +7,7 @@ use egui_mineral::kit::state::TempState;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::Availability;
 use egui_mineral::widget::MineralUi;
+use egui_mineral::widget::ShowIn as _;
 use egui_mineral::{
     input::{Pull, PullConfig, PullDrag, PullInput},
     kit,
@@ -118,7 +119,7 @@ impl PullToRefresh {
         let scroll = egui::ScrollArea::vertical()
             .id_salt(id.with("scroll"))
             .auto_shrink([false, false])
-            .show(ui, |ui| add(&mut rt.ui(ui)));
+            .show_in(ui, add);
         let region = scroll.inner_rect;
         let response = ui.interact(region, id.with("region"), Sense::hover());
         let at_top = scroll.state.clamped_offset().y <= 0.5;

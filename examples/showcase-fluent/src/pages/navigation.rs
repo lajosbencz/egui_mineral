@@ -1,3 +1,4 @@
+use egui_mineral_fluent::prelude::ShowIn as _;
 use egui_mineral_fluent::{
     FluentExt, Size,
     actions::PushButton,
@@ -181,8 +182,7 @@ fn navs(ui: &mut FluentUi<'_>, s: &mut State) {
             egui::Frame::new()
                 .fill(t.color(ColorToken::ColorNeutralBackground4))
                 .inner_margin(egui::Margin::symmetric(10, 4))
-                .show(ui, |ui| {
-                    let ui = &mut rt.ui(ui);
+                .show_in(ui, |ui| {
                     Nav::optional(("nav", i), format!("{density:?}"), selected)
                         .density(density)
                         .default_open([10])

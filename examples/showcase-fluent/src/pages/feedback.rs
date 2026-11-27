@@ -1,3 +1,4 @@
+use egui_mineral_fluent::prelude::ShowIn as _;
 use egui_mineral_fluent::{
     IconPosition,
     actions::PushButton,
@@ -58,7 +59,6 @@ fn progress(ui: &mut FluentUi<'_>) {
 
 fn spinners(ui: &mut FluentUi<'_>) {
     heading(ui, "h-spinner", "Spinners");
-    let rt = ui.rt();
     row(ui, |ui| {
         for (i, size) in SpinnerSize::ALL.iter().copied().enumerate() {
             ui.mineral(Spinner::new(("spinner-size", i)).size(size));
@@ -76,8 +76,8 @@ fn spinners(ui: &mut FluentUi<'_>) {
     egui::Frame::NONE
         .fill(egui::Color32::from_rgb(0x0f, 0x6c, 0xbd))
         .inner_margin(8)
-        .show(ui, |ui| {
-            rt.ui(ui).mineral(
+        .show_in(ui, |ui| {
+            ui.mineral(
                 Spinner::new("spinner-inverted")
                     .label("Inverted")
                     .appearance(SpinnerAppearance::Inverted),

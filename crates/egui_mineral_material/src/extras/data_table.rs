@@ -8,6 +8,7 @@ use egui_mineral::select::ItemKey;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::table::{RowStyle, Rows};
 use egui_mineral::widget::MineralUi;
+use egui_mineral::widget::ShowIn as _;
 use std::{borrow::Cow, cmp::Ordering, sync::Arc};
 
 use egui::{Color32, Context, CursorIcon, Id, Modifiers, Pos2, Rangef, Rect, Response, Sense, Stroke, Ui, pos2, vec2};
@@ -679,7 +680,7 @@ impl<'a, K: ItemKey> DataTable<'a, K> {
         if view.geo.table_w > avail_w + 0.5 {
             let h = egui::ScrollArea::horizontal()
                 .id_salt((self.salt.id_salt(), "mineral::table_h"))
-                .show(ui, |ui| view.grid(&mut rt.ui(ui), &mut st, &mut pass, cell));
+                .show_in(ui, |ui| view.grid(ui, &mut st, &mut pass, cell));
             kit::scroll::chain(ui, &h);
         } else {
             view.grid(ui, &mut st, &mut pass, cell);

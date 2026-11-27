@@ -13,6 +13,7 @@ use egui_mineral::kit::state::TempState;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::Availability;
 use egui_mineral::widget::MineralUi;
+use egui_mineral::widget::ShowIn as _;
 use egui_mineral::{
     anchor::{self, Anchor, Side},
     date::{self, Date, DateBounds, DateRange, MonthGrid, Weekday, add_months, weekdays_from},
@@ -421,9 +422,9 @@ impl Config {
         let t = rt.tokens();
         Frame::new()
             .fill(t.role(m::CONTAINER_COLOR))
-            .show(ui, |ui| {
+            .show_in(ui, |ui| {
                 ui.spacing_mut().item_spacing = Vec2::ZERO;
-                add(&mut rt.ui(ui))
+                add(ui)
             })
             .inner
     }
@@ -483,9 +484,9 @@ impl Config {
                     .fill(t.role(m::CONTAINER_COLOR))
                     .corner_radius(DOCKED_SHAPE.corner_radius(&t.shape, ui.i18n().direction()))
                     .shadow(t.elevation_shadow(m::CONTAINER_ELEVATION))
-                    .show(ui, |ui| {
+                    .show_in(ui, |ui| {
                         ui.spacing_mut().item_spacing = Vec2::ZERO;
-                        self.calendar(&mut rt.ui(ui), grid_id, &mut Sel::Single(value))
+                        self.calendar(ui, grid_id, &mut Sel::Single(value))
                     })
                     .inner
             });

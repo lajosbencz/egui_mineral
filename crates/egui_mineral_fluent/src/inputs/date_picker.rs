@@ -1,5 +1,6 @@
 use crate::tokens::ShadowTint;
 use egui::{CornerRadius, Frame, Margin, Stroke};
+use egui_mineral::widget::ShowIn as _;
 use egui_mineral::{
     anchor::{Align, Anchor, Side},
     date::{Date, DateBounds, Weekday},
@@ -251,7 +252,7 @@ impl Composite for DatePicker<'_> {
                         .corner_radius(CornerRadius::from(g::BORDER_RADIUS_MEDIUM))
                         .inner_margin(Margin::ZERO)
                         .shadow(t.shadow(Elevation::E16, ShadowTint::Neutral).ambient)
-                        .show(ui, |ui| rt.ui(ui).mineral(self.calendar(&mut picked)).changed())
+                        .show_in(ui, |ui| ui.mineral(self.calendar(&mut picked)).changed())
                         .inner
                 });
             if shown.inner == Some(true) {

@@ -217,15 +217,14 @@ impl Shell {
     }
 
     fn body(&mut self, ui: &mut FluentUi<'_>) -> ScrollAreaOutput<()> {
-        let rt = ui.rt();
-        Panel::top("top-bar").show(ui, |ui| self.top_bar(&mut rt.ui(ui)));
+        Panel::top("top-bar").show_in(ui, |ui| self.top_bar(ui));
         let page = self.page;
         // The page bar reaches the window edge; the panel margin pads the content inside the scroll area.
         let panel = egui::Frame::central_panel(ui.style());
         let margin = panel.inner_margin;
-        let page_out = CentralPanel::default().frame(panel.inner_margin(0)).show(ui, |ui| {
-            scroll::page(&mut rt.ui(ui), ("page", page.key()), |ui| {
-                egui::Frame::NONE.inner_margin(margin).show(ui, |ui| {
+        let page_out = CentralPanel::default().frame(panel.inner_margin(0)).show_in(ui, |ui| {
+            scroll::page(ui, ("page", page.key()), |ui| {
+                egui::Frame::NONE.inner_margin(margin).show_in(ui, |ui| {
                     let w = ui.available_width().min(CONTENT_MAX_W);
                     let pad = (ui.available_width() - w) / 2.0;
                     let spacing = ui.spacing().item_spacing;
@@ -235,7 +234,7 @@ impl Shell {
                         ui.vertical(|ui| {
                             ui.spacing_mut().item_spacing = spacing;
                             ui.set_width(w);
-                            pages::show(page, &mut rt.ui(ui), &mut self.state);
+                            pages::show(page, ui, &mut self.state);
                         });
                     });
                 });

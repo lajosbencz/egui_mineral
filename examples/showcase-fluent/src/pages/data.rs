@@ -1,4 +1,5 @@
 use egui::{Color32, ColorImage, TextureHandle, TextureOptions, vec2};
+use egui_mineral_fluent::prelude::ShowIn as _;
 use egui_mineral_fluent::{
     data::{
         Avatar, AvatarActive, AvatarActiveAppearance, AvatarColor, AvatarGroup, AvatarGroupLayout, AvatarShape,
@@ -207,10 +208,9 @@ fn tags(ui: &mut FluentUi<'_>, s: &mut State) {
         group = group.interaction_tag(v.clone(), InteractionTag::new(v.clone(), v.clone()));
     }
     // Upstream TagGroup does not wrap; narrow windows scroll it.
-    let rt = ui.rt();
     let shown = egui::ScrollArea::horizontal()
         .id_salt("tag-group-scroll")
-        .show(ui, |ui| group.show(&mut rt.ui(ui)))
+        .show_in(ui, |ui| group.show(ui))
         .inner;
     if let Some(gone) = shown.removed {
         values.retain(|v| *v != gone);

@@ -165,10 +165,7 @@ impl Default for State {
 
 // Pagination rows of touch targets are wider than compact windows.
 fn scroll_x(ui: &mut MaterialUi<'_>, id_salt: &str, add: impl FnOnce(&mut MaterialUi<'_>)) {
-    let rt = ui.rt();
-    egui::ScrollArea::horizontal()
-        .id_salt(id_salt)
-        .show(ui, |ui| add(&mut rt.ui(ui)));
+    egui::ScrollArea::horizontal().id_salt(id_salt).show_in(ui, add);
 }
 
 fn boxed(ui: &mut MaterialUi<'_>, size: egui::Vec2, add: impl FnOnce(&mut MaterialUi<'_>)) {
