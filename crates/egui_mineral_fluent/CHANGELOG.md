@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.3](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral_fluent-v0.12.2...egui_mineral_fluent-v0.12.3) - 2026-11-27
+
+### Other
+
+- updated the following local packages: egui_mineral, egui_mineral_material
+
 ## [0.12.2](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral_fluent-v0.12.1...egui_mineral_fluent-v0.12.2) - 2026-11-22
 
 ### Added
