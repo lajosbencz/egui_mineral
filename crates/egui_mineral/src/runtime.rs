@@ -486,12 +486,9 @@ impl<K: Stylekit> Runtime<K> {
 impl<K> Runtime<K> {
     /// Wraps a plain `Ui` inside egui closures that hand one out: `Frame::show(ui, |ui| { let ui = &mut rt.ui(ui); .. })`.
     /// The layout methods of [`MineralUi`] (`horizontal`, `scope`, ..) need no wrap.
-    /// Root `Ui`s (area, window) get the kit's style.
+    /// Root `Ui`s (an `Area`'s) get the kit's style; window content does through [`ShowIn`](crate::widget::ShowIn).
     pub fn ui<'a>(&'a self, ui: &'a mut Ui) -> MineralUi<'a, K> {
-        if ui.stack().is_root_ui() {
-            ui.set_style(self.style());
-        }
-        MineralUi::new(ui, self)
+        MineralUi::nested(ui, self, std::cell::OnceCell::new())
     }
 
     /// One pass of the current viewport: agent queue, semantic collection, shortcuts and IAL, then `add`
@@ -759,6 +756,23 @@ mod tests {
 
     fn pass_once(ctx: &Context, rt: &Runtime<StyledKit>) -> egui::FullOutput {
         run(ctx, input(vec![]), |ui| rt.pass(ui, |_| {}))
+    }
+
+    #[test]
+    fn root_containers_shown_in_get_the_kit_style() {
+        use crate::widget::ShowIn as _;
+        let ctx = ctx();
+        let rt = styled(&ctx);
+        let mut seen = Vec::new();
+        run(&ctx, input(vec![]), |ui| {
+            rt.pass(ui, |ui| {
+                let spacing = |ui: &mut MineralUi<'_, StyledKit>| ui.spacing().item_spacing.x;
+                seen.push(egui::Window::new("w").show_in(ui, spacing).and_then(|r| r.inner));
+                let area = crate::kit::layer::area(rt.core(), egui::Id::unique("a"));
+                seen.push(Some(area.show_in(ui, spacing).inner));
+            });
+        });
+        assert_eq!(seen, [Some(37.0), Some(37.0)]);
     }
 
     #[test]

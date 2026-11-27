@@ -362,6 +362,14 @@ impl<'a, K> MineralUi<'a, K> {
         }
     }
 
+    // Root `Ui`s (area, window) get the kit's style.
+    pub(crate) fn nested(ui: &'a mut Ui, rt: &'a Runtime<K>, input: OnceCell<Rc<InputContext>>) -> Self {
+        if ui.stack().is_root_ui() {
+            ui.set_style(rt.style());
+        }
+        Self { ui, rt, input }
+    }
+
     /// Input of this pass, read once per `MineralUi` ([`Core::input`] locks per call).
     pub fn pass_input(&self) -> Rc<InputContext> {
         Rc::clone(self.input.get_or_init(|| Rc::new(self.rt.core().input())))
@@ -469,7 +477,8 @@ layout_wrappers! {
 
 /// egui container shown with a [`MineralUi`] body, so its content needs no [`Runtime::ui`] re-wrap:
 /// `Frame::new().show_in(ui, |ui| ui.mineral(..))`. Implemented for egui's `Ui`-taking containers and for
-/// `Area` and `Window`, which open on the `Ui`'s context.
+/// `Area` and `Window`, which open on the `Ui`'s context; their content gets the kit's style, the window decoration
+/// keeps egui's under [`GlobalStyle::Egui`](crate::runtime::GlobalStyle::Egui).
 pub trait ShowIn: Sized {
     /// What the container's `show` returns for a body returning `R`.
     type Output<R>;
@@ -483,7 +492,7 @@ pub trait ShowIn: Sized {
 }
 
 macro_rules! show_in {
-    ($($ty:ty => $out:ty, |$this:ident, $ui:ident, $body:ident| $show:expr;)+) => {$(
+    ($($ty:ty => $out:ty, |$this:ident, $ui:ident, $body:ident, $rt:ident| $show:expr;)+) => {$(
         impl ShowIn for $ty {
             type Output<R> = $out;
 
@@ -493,8 +502,8 @@ macro_rules! show_in {
                 add_contents: impl FnOnce(&mut MineralUi<'_, K>) -> R,
             ) -> Self::Output<R> {
                 let (rt, input) = (ui.rt, ui.input.clone());
-                let $body = |ui: &mut Ui| add_contents(&mut MineralUi { ui, rt, input });
-                let ($this, $ui) = (self, &mut *ui.ui);
+                let $body = |ui: &mut Ui| add_contents(&mut MineralUi::nested(ui, rt, input));
+                let ($this, $ui, $rt) = (self, &mut *ui.ui, rt);
                 $show
             }
         }
@@ -502,15 +511,19 @@ macro_rules! show_in {
 }
 
 show_in! {
-    egui::Frame => egui::InnerResponse<R>, |c, ui, body| c.show(ui, body);
-    egui::ScrollArea => egui::scroll_area::ScrollAreaOutput<R>, |c, ui, body| c.show(ui, body);
-    egui::Grid => egui::InnerResponse<R>, |c, ui, body| c.show(ui, body);
-    egui::CollapsingHeader => egui::CollapsingResponse<R>, |c, ui, body| c.show(ui, body);
-    egui::Resize => R, |c, ui, body| c.show(ui, body);
-    egui::Panel => egui::InnerResponse<R>, |c, ui, body| c.show(ui, body);
-    egui::CentralPanel => egui::InnerResponse<R>, |c, ui, body| c.show(ui, body);
-    egui::Area => egui::InnerResponse<R>, |c, ui, body| c.show(ui.ctx(), body);
-    egui::Window<'_> => Option<egui::InnerResponse<Option<R>>>, |c, ui, body| c.show(ui.ctx(), body);
+    egui::Frame => egui::InnerResponse<R>, |c, ui, body, _rt| c.show(ui, body);
+    egui::ScrollArea => egui::scroll_area::ScrollAreaOutput<R>, |c, ui, body, _rt| c.show(ui, body);
+    egui::Grid => egui::InnerResponse<R>, |c, ui, body, _rt| c.show(ui, body);
+    egui::CollapsingHeader => egui::CollapsingResponse<R>, |c, ui, body, _rt| c.show(ui, body);
+    egui::Resize => R, |c, ui, body, _rt| c.show(ui, body);
+    egui::Panel => egui::InnerResponse<R>, |c, ui, body, _rt| c.show(ui, body);
+    egui::CentralPanel => egui::InnerResponse<R>, |c, ui, body, _rt| c.show(ui, body);
+    egui::Area => egui::InnerResponse<R>, |c, ui, body, _rt| c.show(ui.ctx(), body);
+    // The window's content `Ui` is a child of its root, so it gets the kit's style here.
+    egui::Window<'_> => Option<egui::InnerResponse<Option<R>>>, |c, ui, body, rt| c.show(ui.ctx(), |ui| {
+        ui.set_style(rt.style());
+        body(ui)
+    });
 }
 
 impl<K: Stylekit> MineralUi<'_, K> {
