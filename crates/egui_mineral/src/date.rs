@@ -202,7 +202,7 @@ pub fn from_12h(hour12: i8, period: DayPeriod) -> i8 {
 
 /// Today in the system time zone.
 pub fn today() -> Date {
-    jiff::Zoned::now().date()
+    jiff::ZonedDateTime::now().date()
 }
 
 #[cfg(test)]
