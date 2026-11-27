@@ -111,7 +111,9 @@ impl TokenStore {
 
     pub(crate) fn set_overrides(&mut self, theme: Theme, overrides: &ColorOverrides) {
         self.overrides[mode(theme)] = *overrides;
-        self.apply(self.spec);
+        let mut tokens = (*self.themed(theme).tokens).clone();
+        tokens.color = self.spec.scheme(theme).with(overrides);
+        *self.slot(theme) = Themed::new(tokens);
     }
 }
 
@@ -313,6 +315,24 @@ mod tests {
             "unset roles follow the spec"
         );
         assert_eq!(m.overrides(Theme::Light), overrides);
+    }
+
+    #[test]
+    fn overrides_recolor_only_their_brightness() {
+        let (ctx, m) = (Context::default(), Material::default());
+        let mut light = Tokens::baseline(Theme::Light, Contrast::STANDARD);
+        light.shape.small = 3;
+        let dark = Tokens::baseline(Theme::Dark, Contrast::HIGH);
+        m.set_tokens(&ctx, light);
+        m.set_tokens(&ctx, dark.clone());
+        let overrides = crate::color::ColorOverrides {
+            primary: Some(egui::Color32::RED),
+            ..Default::default()
+        };
+        m.set_overrides(&ctx, Theme::Light, overrides);
+        let light = m.tokens(Theme::Light);
+        assert_eq!((light.color.primary, light.shape.small), (egui::Color32::RED, 3));
+        assert_eq!(*m.tokens(Theme::Dark), dark, "the other brightness is untouched");
     }
 
     #[test]

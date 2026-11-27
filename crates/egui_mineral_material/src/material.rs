@@ -118,7 +118,8 @@ impl Material {
     }
 
     /// Exact roles of `theme` kept over every scheme [`Self::apply`] and [`Self::set_contrast`] generate, e.g. a
-    /// brand color as `primary`; replaces the previous overrides of `theme`.
+    /// brand color as `primary`; replaces the previous overrides of `theme`. Re-colors `theme`'s tokens from the
+    /// current spec and keeps their shape, state layers and durations; the other brightness stays as is.
     pub fn set_overrides(&self, ctx: &Context, theme: Theme, overrides: ColorOverrides) {
         self.tokens.lock().set_overrides(theme, &overrides);
         repaint(ctx);
