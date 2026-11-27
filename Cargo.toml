@@ -26,12 +26,12 @@ keywords = ["egui", "gui", "ui", "widgets", "accessibility"]
 categories = ["gui", "accessibility"]
 
 [workspace.dependencies]
-egui_mineral = { path = "crates/egui_mineral", version = "0.12.2", default-features = false }
+egui_mineral = { path = "crates/egui_mineral", version = "0.12.3", default-features = false }
 egui_mineral_macros = { path = "crates/egui_mineral_macros", version = "0.12.0" }
-egui_mineral_eframe = { path = "crates/egui_mineral_eframe", version = "0.12.2", default-features = false }
-egui_mineral_material = { path = "crates/egui_mineral_material", version = "0.12.2", default-features = false }
-egui_mineral_fluent = { path = "crates/egui_mineral_fluent", version = "0.12.2", default-features = false }
-egui_mineral_mcp = { path = "crates/egui_mineral_mcp", version = "0.12.2" }
+egui_mineral_eframe = { path = "crates/egui_mineral_eframe", version = "0.12.3", default-features = false }
+egui_mineral_material = { path = "crates/egui_mineral_material", version = "0.12.3", default-features = false }
+egui_mineral_fluent = { path = "crates/egui_mineral_fluent", version = "0.12.3", default-features = false }
+egui_mineral_mcp = { path = "crates/egui_mineral_mcp", version = "0.12.3" }
 mineral_inspector = { path = "tools/mineral_inspector" }
 
 egui = { version = "0.37.0", features = ["serde"] }
