@@ -104,12 +104,12 @@ impl SearchInput<'_> {
             &t,
         );
         let format = search_bar::INPUT_TEXT_FONT.format(ui.ctx(), input);
-        text_field::BareEdit::new(id, rect, format, &colors, &t).show(ui, text, |ui, edit| {
+        text_field::bare_edit(id, rect, format, &colors, &t).show(ui, text, |edit| {
             let filter = EventFilter {
                 escape: keep_escape,
                 ..edit.get_event_filter()
             };
-            ui.add(edit.interactive(interactive).event_filter(filter))
+            edit.interactive(interactive).event_filter(filter)
         })
     }
 }

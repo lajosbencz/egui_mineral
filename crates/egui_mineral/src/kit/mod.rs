@@ -3,7 +3,8 @@
 //! modules (`focus`, `overlay`, `semantic`, ...); widget code adds these.
 //!
 //! - Interaction: [`interact`] (tap-aware `interact`, press-to-focus, arrow locks, roving memory, cursors, key
-//!   events), [`layer`] (library areas and modals, Escape and default action), [`scroll`].
+//!   events), [`layer`] (library areas and modals, Escape and default action), [`scroll`], [`text`] (the
+//!   frameless editor inside text input chrome).
 //! - Semantics: [`nodes`] (collection checks, parent rects, culled emits).
 //! - Painting: [`paint`] (glyph shapes, tabular figures, window close glyph).
 //! - State: [`state`] (temp memory, memos, pass caches), [`choice`] (value-bound selection groups).
@@ -28,6 +29,7 @@ pub mod sanitize;
 pub mod scroll;
 pub mod state;
 pub mod strip;
+pub mod text;
 
 use crate::i18n::{I18n, IntoMessage};
 

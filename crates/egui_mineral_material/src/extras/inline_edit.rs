@@ -156,9 +156,9 @@ impl InlineEdit<'_> {
             let (rect, _) = ui.allocate_exact_size(vec2(edit_w, h), egui::Sense::hover());
             let format = self.style.format(ui.ctx(), colors.input);
             // The child inherits this row layout, which centers the edit vertically.
-            let te = text_field::BareEdit::new(edit_id, rect.shrink2(vec2(pad, 0.0)), format, &colors, &t)
+            let te = text_field::bare_edit(edit_id, rect.shrink2(vec2(pad, 0.0)), format, &colors, &t)
                 .v_align(Align::Center)
-                .show(&mut rt.ui(ui), &mut *draft, |ui, edit| ui.add(edit));
+                .show(&mut rt.ui(ui), &mut *draft, |edit| edit);
             let line = filled_text_field::FOCUS_ACTIVE_INDICATOR_HEIGHT;
             ui.painter().rect_filled(
                 Rect::from_min_max(pos2(rect.left(), rect.bottom() - line), rect.max),

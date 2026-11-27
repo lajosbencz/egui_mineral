@@ -241,14 +241,14 @@ impl MineralWidget for TagsField<'_> {
             paint_placeholder(ui, ph, input_rect, row_top, colors.placeholder, dir);
         }
         let interactive = !self.disabled && !self.full();
-        let te = text_field::BareEdit::new(
+        let te = text_field::bare_edit(
             edit_id,
             input_rect,
             self.chrome.text_style.unwrap_or(INPUT_FONT).format(ctx, colors.input),
             &colors,
             &t,
         )
-        .show(ui, &mut input, |ui, edit| ui.add(edit.interactive(interactive)));
+        .show(ui, &mut input, |edit| edit.interactive(interactive));
         if !focused && frame.response.clicked() {
             ctx.memory_mut(|m| m.request_focus(edit_id));
         }

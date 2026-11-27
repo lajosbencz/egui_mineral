@@ -14,7 +14,7 @@ use std::sync::Arc;
 use super::field::Validation;
 use super::{
     bar::digits,
-    textbox::{self, Chrome, Edit, InputAppearance, Live},
+    textbox::{self, Chrome, InputAppearance, Live},
 };
 use crate::spec::ColorToken::{
     ColorNeutralBackground1Hover, ColorNeutralBackground1Pressed, ColorNeutralBackground3Hover,
@@ -487,22 +487,15 @@ impl<N: Numeric> MineralWidget for SpinButton<'_, N> {
             ),
         ];
         let text_rect = self.paint_content(ui, chrome, visual, column, pass.text_mut().is_empty(), &t);
-        let te = Edit {
-            id: edit_id,
-            rect: text_rect,
-            format: chrome.text_format(ctx, &t),
-            t: &t,
-            mask: false,
-            rows: None,
-        }
-        .show(ui, pass.text_mut(), |e| {
-            e.interactive(!self.disabled).event_filter(egui::EventFilter {
-                tab: false,
-                horizontal_arrows: true,
-                vertical_arrows: true,
-                escape: true,
-            })
-        });
+        let te =
+            textbox::edit(edit_id, text_rect, chrome.text_format(ctx, &t), &t, None).show(ui, pass.text_mut(), |e| {
+                e.interactive(!self.disabled).event_filter(egui::EventFilter {
+                    tab: false,
+                    horizontal_arrows: true,
+                    vertical_arrows: true,
+                    escape: true,
+                })
+            });
         let scrub = self.scrub_handle(ui, text_rect, base.with("scrub"), focused);
         if !focused
             && !self.disabled

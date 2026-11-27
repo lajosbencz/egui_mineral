@@ -7,14 +7,16 @@ use crate::msg;
 use egui_mineral::i18n::I18n;
 use egui_mineral::i18n::Sides;
 use egui_mineral::kit::state::TempState;
+use egui_mineral::kit::text::BareEdit;
+pub(crate) use egui_mineral::kit::text::submitted;
 use egui_mineral::semantic::AgentKey;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::MineralUi;
 use std::sync::Arc;
 
 use egui::{
-    Color32, EventFilter, FontId, Frame, Galley, Id, Margin, Painter, Pos2, Rangef, Rect, Response, ScrollArea, Shape,
-    Stroke, StrokeKind, TextBuffer, TextEdit, TextFormat, Ui, UiBuilder, Vec2,
+    Color32, EventFilter, FontId, Galley, Id, Painter, Pos2, Rangef, Rect, Response, Shape, Stroke, StrokeKind,
+    TextFormat, Ui, Vec2,
     epaint::MarginF32,
     pos2,
     text::{LayoutJob, TextWrapping},
@@ -167,12 +169,6 @@ impl FieldColors {
             supporting: l(self.supporting, to.supporting),
             caret: l(self.caret, to.caret),
         }
-    }
-
-    fn apply_editor(&self, ui: &mut Ui, t: &Tokens) {
-        let v = ui.visuals_mut();
-        v.text_cursor.stroke.color = self.caret;
-        v.selection.bg_fill = FieldColors::selection(t);
     }
 }
 
@@ -661,32 +657,6 @@ pub(crate) fn counter(rt: &Rt, count: usize, max: usize) -> String {
     })
 }
 
-fn input_layouter(
-    format: TextFormat,
-    password: bool,
-    multiline: bool,
-) -> impl FnMut(&Ui, &dyn TextBuffer, f32) -> Arc<Galley> {
-    move |ui, buf, wrap_width| {
-        let text = if password {
-            std::iter::repeat_n(
-                egui::epaint::text::PASSWORD_REPLACEMENT_CHAR,
-                buf.as_str().chars().count(),
-            )
-            .collect()
-        } else {
-            buf.as_str().to_owned()
-        };
-        let mut job = LayoutJob::single_section(text, format.clone());
-        job.keep_trailing_whitespace = true;
-        if multiline {
-            job.wrap.max_width = wrap_width;
-        } else {
-            job.break_on_newline = false;
-        }
-        ui.fonts_mut(|f| f.layout_job(job))
-    }
-}
-
 #[derive(Clone, Debug, Default)]
 pub(crate) struct FieldChrome {
     pub variant: TextFieldVariant,
@@ -1055,87 +1025,9 @@ struct EditorCx<'a> {
     t: &'a Tokens,
 }
 
-// Frameless `TextEdit` in a child Ui filling `rect`, with field caret and selection colors.
-pub(crate) struct BareEdit<'a> {
-    id: Id,
-    rect: Rect,
-    format: TextFormat,
-    colors: &'a FieldColors,
-    t: &'a Tokens,
-    v_align: egui::Align,
-    h_align: Edge,
-    mask: bool,
-    rows: Option<usize>,
-}
-
-impl<'a> BareEdit<'a> {
-    pub(crate) fn new(id: Id, rect: Rect, format: TextFormat, colors: &'a FieldColors, t: &'a Tokens) -> Self {
-        Self {
-            id,
-            rect,
-            format,
-            colors,
-            t,
-            v_align: egui::Align::Min,
-            h_align: Edge::Start,
-            mask: false,
-            rows: None,
-        }
-    }
-
-    #[cfg(feature = "extras")]
-    pub(crate) fn v_align(mut self, v_align: egui::Align) -> Self {
-        self.v_align = v_align;
-        self
-    }
-
-    pub(crate) fn h_align(mut self, h_align: Edge) -> Self {
-        self.h_align = h_align;
-        self
-    }
-
-    pub(crate) fn mask(mut self, mask: bool) -> Self {
-        self.mask = mask;
-        self
-    }
-
-    // `Some(rows)`: wrapping multiline edit.
-    pub(crate) fn rows(mut self, rows: Option<usize>) -> Self {
-        self.rows = rows;
-        self
-    }
-
-    // `add` sets the remaining options and adds the edit to the child Ui.
-    pub(crate) fn show(
-        self,
-        ui: &mut MineralUi<'_, Material>,
-        text: &mut dyn TextBuffer,
-        add: impl FnOnce(&mut Ui, TextEdit<'_>) -> Response,
-    ) -> Response {
-        let dir = ui.i18n().direction().from_edge(self.h_align);
-        let mut layouter = input_layouter(self.format, self.mask, self.rows.is_some());
-        let edit = match self.rows {
-            Some(rows) => TextEdit::multiline(text).desired_rows(rows),
-            None => TextEdit::singleline(text),
-        }
-        .id(self.id)
-        .frame(Frame::NONE)
-        .margin(Margin::ZERO)
-        .layouter(&mut layouter)
-        // egui otherwise takes the parent layout's alignment.
-        .align(egui::Align2([dir.start_align(), self.v_align]))
-        .password(self.mask)
-        .desired_width(self.rect.width());
-        // A child Ui leaves the parent cursor alone (`put`/`scope_builder` would move it back).
-        let mut child = ui.new_child(UiBuilder::new().id_salt(self.id).max_rect(self.rect));
-        self.colors.apply_editor(&mut child, self.t);
-        add(&mut child, edit)
-    }
-}
-
-// Single-line submit: Enter pressed as the edit lost focus.
-pub(crate) fn submitted(edit: &Response) -> bool {
-    edit.lost_focus() && edit.ctx.input(|i| i.key_pressed(egui::Key::Enter))
+// Core frameless editor with field caret and selection colors.
+pub(crate) fn bare_edit(id: Id, rect: Rect, format: TextFormat, colors: &FieldColors, t: &Tokens) -> BareEdit {
+    BareEdit::new(id, rect, format, FieldColors::selection(t)).caret(colors.caret)
 }
 
 impl TextField<'_> {
@@ -1200,11 +1092,12 @@ impl TextField<'_> {
             ui.painter()
                 .galley(pos2(x, cx.rect.top()), Arc::clone(g), Color32::PLACEHOLDER);
         }
-        BareEdit::new(cx.id, cx.rect, style.format(ui.ctx(), color), cx.colors, cx.t)
+        bare_edit(cx.id, cx.rect, style.format(ui.ctx(), color), cx.colors, cx.t)
             .h_align(align)
             .mask(mask)
             .rows(rows)
-            .show(ui, text, |ui, mut edit| {
+            .stick_to_bottom(cx.focused)
+            .show(ui, text, |mut edit| {
                 edit = edit.interactive(interactive);
                 if let Some(n) = max_chars {
                     edit = edit.char_limit(n);
@@ -1217,18 +1110,7 @@ impl TextField<'_> {
                     let f = edit.get_event_filter();
                     edit = edit.event_filter(EventFilter { escape: true, ..f });
                 }
-                if rows.is_some() {
-                    let out = ScrollArea::vertical()
-                        .id_salt("scroll")
-                        .max_height(cx.rect.height())
-                        .auto_shrink([false; 2])
-                        .stick_to_bottom(cx.focused)
-                        .show(ui, |ui| ui.add(edit));
-                    egui_mineral::kit::scroll::chain(ui, &out);
-                    out.inner
-                } else {
-                    ui.add(edit)
-                }
+                edit
             })
     }
 

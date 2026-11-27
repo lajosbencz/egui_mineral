@@ -1,11 +1,7 @@
-use std::sync::Arc;
-
-use egui::{
-    Align, Align2, Color32, CornerRadius, Frame, Galley, Id, Margin, Pos2, Rangef, Rect, Response, ScrollArea, Stroke,
-    StrokeKind, TextBuffer, TextEdit, TextFormat, Ui, UiBuilder, text::LayoutJob, vec2,
-};
+use egui::{Align, Color32, CornerRadius, Id, Pos2, Rangef, Rect, Response, Stroke, StrokeKind, TextFormat, vec2};
 use egui_mineral::{
     i18n::{Direction, Sides},
+    kit::text::BareEdit,
     widget::MineralUi,
 };
 
@@ -306,79 +302,15 @@ pub(crate) fn rects(frame: Rect, dir: Direction, m: &Metrics, pads: &Pads, slots
     }
 }
 
-// Frameless `TextEdit` in a child Ui filling `rect`.
-pub(crate) struct Edit<'a> {
-    pub id: Id,
-    pub rect: Rect,
-    pub format: TextFormat,
-    pub t: &'a Tokens,
-    pub mask: bool,
-    pub rows: Option<usize>,
+// Core frameless editor: brand selection, single-line text centered in `rect`.
+pub(crate) fn edit(id: Id, rect: Rect, format: TextFormat, t: &Tokens, rows: Option<usize>) -> BareEdit {
+    let selection = t.color(ColorCompoundBrandStroke).gamma_multiply(0.4);
+    BareEdit::new(id, rect, format, selection)
+        .rows(rows)
+        .v_align(if rows.is_some() { Align::Min } else { Align::Center })
 }
 
-impl Edit<'_> {
-    pub(crate) fn show(
-        self,
-        ui: &mut MineralUi<'_, Fluent>,
-        text: &mut dyn TextBuffer,
-        add: impl FnOnce(TextEdit<'_>) -> TextEdit<'_>,
-    ) -> Response {
-        let dir = ui.i18n().direction();
-        let multiline = self.rows.is_some();
-        let (format, mask) = (self.format.clone(), self.mask);
-        let mut layouter = move |ui: &Ui, buf: &dyn TextBuffer, wrap: f32| -> Arc<Galley> {
-            let shown = if mask {
-                std::iter::repeat_n(
-                    egui::epaint::text::PASSWORD_REPLACEMENT_CHAR,
-                    buf.as_str().chars().count(),
-                )
-                .collect()
-            } else {
-                buf.as_str().to_owned()
-            };
-            let mut job = LayoutJob::single_section(shown, format.clone());
-            job.keep_trailing_whitespace = true;
-            if multiline {
-                job.wrap.max_width = wrap;
-            } else {
-                job.break_on_newline = false;
-            }
-            ui.fonts_mut(|f| f.layout_job(job))
-        };
-        let v_align = if multiline { Align::Min } else { Align::Center };
-        let base = match self.rows {
-            Some(rows) => TextEdit::multiline(text).desired_rows(rows),
-            None => TextEdit::singleline(text),
-        }
-        .id(self.id)
-        .frame(Frame::NONE)
-        .margin(Margin::ZERO)
-        .layouter(&mut layouter)
-        .align(Align2([dir.start_align(), v_align]))
-        .password(self.mask)
-        .desired_width(self.rect.width());
-        let edit = add(base);
-        let mut child = ui.new_child(UiBuilder::new().id_salt(self.id).max_rect(self.rect));
-        let v = child.visuals_mut();
-        v.text_cursor.stroke.color = self.format.color;
-        v.selection.bg_fill = self.t.color(ColorCompoundBrandStroke).gamma_multiply(0.4);
-        if multiline {
-            let out = ScrollArea::vertical()
-                .id_salt("scroll")
-                .max_height(self.rect.height())
-                .auto_shrink([false; 2])
-                .show(&mut child, |ui| ui.add(edit));
-            egui_mineral::kit::scroll::chain(&child, &out);
-            out.inner
-        } else {
-            child.add(edit)
-        }
-    }
-}
-
-pub(crate) fn submitted(edit: &Response) -> bool {
-    edit.lost_focus() && edit.ctx.input(|i| i.key_pressed(egui::Key::Enter))
-}
+pub(crate) use egui_mineral::kit::text::submitted;
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Content {
@@ -443,15 +375,9 @@ pub(crate) fn show(ui: &mut MineralUi<'_, Fluent>, text: &mut String, frame: &Re
         };
         p.galley(Pos2::new(x, y), g, color);
     }
-    let response = Edit {
-        id: edit_id,
-        rect: text_rect,
-        format,
-        t: &t,
-        mask: f.mask,
-        rows: f.rows,
-    }
-    .show(ui, text, |e| e.interactive(!f.chrome.disabled));
+    let response = edit(edit_id, text_rect, format, &t, f.rows)
+        .mask(f.mask)
+        .show(ui, text, |e| e.interactive(!f.chrome.disabled));
     if !focused && frame.clicked() && !f.chrome.disabled {
         ctx.memory_mut(|m| m.request_focus(edit_id));
     }

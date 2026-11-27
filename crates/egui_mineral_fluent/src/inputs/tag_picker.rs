@@ -16,7 +16,7 @@ use egui_mineral::{
 use super::combobox::{Click, toggle};
 use super::field::Validation;
 use super::listbox::{self, Entry, Flat, View};
-use super::textbox::{Chrome, Edit, InputAppearance, Live, paint_frame};
+use super::textbox::{self, Chrome, InputAppearance, Live, paint_frame};
 use super::value::{self, ListState};
 use crate::spec::ColorToken::{
     ColorCompoundBrandForeground1Hover, ColorCompoundBrandForeground1Pressed, ColorNeutralBackground3,
@@ -722,15 +722,8 @@ impl<K: ItemKey> TagPicker<'_, K> {
         }
         let chevron = self.chevron(ui, base, visual);
         let shown = (!self.button).then(|| {
-            Edit {
-                id: edit_id(base),
-                rect: slot,
-                format: chrome.text_format(&ctx, &t),
-                t: &t,
-                mask: false,
-                rows: None,
-            }
-            .show(ui, self.text, |e| e.interactive(!self.disabled))
+            textbox::edit(edit_id(base), slot, chrome.text_format(&ctx, &t), &t, None)
+                .show(ui, self.text, |e| e.interactive(!self.disabled))
         });
         (shown, chevron, dismissed)
     }
