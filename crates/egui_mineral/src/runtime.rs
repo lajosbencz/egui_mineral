@@ -95,7 +95,9 @@ pub enum InitError {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum GlobalStyle {
-    /// egui's global style and theme stay the app's (the default).
+    /// egui's global style and theme stay the app's (the default, for a runtime embedded in an egui app): only
+    /// the runtime's passes follow the kit; `CentralPanel` and other panel frames, root tooltips, popups and
+    /// windows keep egui's style.
     #[default]
     Egui,
     /// Each outermost pass writes [`Runtime::style`] into egui's style of the shown theme when it differs, and

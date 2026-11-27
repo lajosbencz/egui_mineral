@@ -43,7 +43,7 @@
 use std::sync::Arc;
 
 use egui_mineral::egui::{Context, RawInput, Ui};
-use egui_mineral::runtime::{Runtime, Stylekit};
+use egui_mineral::runtime::{GlobalStyle, Runtime, Stylekit};
 use egui_mineral::widget::MineralUi;
 
 pub use eframe;
@@ -80,8 +80,10 @@ impl<K, A> std::fmt::Debug for EframeApp<K, A> {
 }
 
 impl<K: Stylekit, A: MineralApp<K>> EframeApp<K, A> {
-    /// `app` run by `rt`.
-    pub const fn new(rt: Arc<Runtime<K>>, app: A) -> Self {
+    /// `app` run by `rt`; sets [`GlobalStyle::Kit`], since the app owns the whole `Context` (panel frames,
+    /// root tooltips, popups and windows follow the kit). `rt.core().set_global_style` changes it back.
+    pub fn new(rt: Arc<Runtime<K>>, app: A) -> Self {
+        rt.core().set_global_style(GlobalStyle::Kit);
         Self { rt, app }
     }
 
@@ -114,5 +116,54 @@ impl<K: Stylekit, A: MineralApp<K>> eframe::App for EframeApp<K, A> {
 
     fn raw_input_hook(&mut self, ctx: &Context, raw_input: &mut RawInput) {
         self.app.raw_input_hook(ctx, raw_input);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use egui_mineral::{
+        egui::{Context, Theme},
+        i18n::Catalog,
+        policy::Policies,
+        runtime::{GlobalStyle, Runtime, Stylekit},
+        widget::MineralUi,
+    };
+
+    use super::{EframeApp, MineralApp};
+
+    struct Kit;
+
+    impl Stylekit for Kit {
+        fn policies(&self, _: &Context) -> Policies {
+            Policies::baseline()
+        }
+
+        fn catalogs(&self) -> &'static [Catalog] {
+            &[]
+        }
+
+        fn setup(&self, _: &Context) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+            Ok(())
+        }
+
+        fn style(&self, ctx: &Context, theme: Theme) -> Arc<egui_mineral::egui::Style> {
+            ctx.style_of(theme)
+        }
+    }
+
+    struct App;
+
+    impl MineralApp<Kit> for App {
+        fn ui(&mut self, _: &mut MineralUi<'_, Kit>, _: &mut eframe::Frame) {}
+    }
+
+    #[test]
+    fn the_app_styles_egui_globals() {
+        let rt = Runtime::new(&Context::default(), Kit).expect("runtime");
+        assert_eq!(rt.core().global_style(), GlobalStyle::Egui);
+        let app = EframeApp::new(rt, App);
+        assert_eq!(app.rt().core().global_style(), GlobalStyle::Kit);
     }
 }

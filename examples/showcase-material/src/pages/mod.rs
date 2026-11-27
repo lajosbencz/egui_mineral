@@ -201,7 +201,7 @@ impl Default for Settings {
         Self {
             theme: 0,
             high_contrast: false,
-            global_kit: false,
+            global_kit: true,
             seed: [s.r(), s.g(), s.b()],
             variant: 0,
             density: 0,

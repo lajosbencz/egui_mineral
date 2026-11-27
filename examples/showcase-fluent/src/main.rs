@@ -140,8 +140,6 @@ impl Shell {
         let ctx = rt.ctx();
         let kit = rt.kit();
         rt.core().set_preference(THEMES[s.theme].0);
-        rt.core()
-            .set_global_style(egui_mineral_fluent::egui_mineral::runtime::GlobalStyle::Kit);
         kit.set_contrast_mode(
             ctx,
             if s.high_contrast {
