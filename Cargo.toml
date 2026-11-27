@@ -31,7 +31,7 @@ egui_mineral_macros = { path = "crates/egui_mineral_macros", version = "0.13.0" 
 egui_mineral_eframe = { path = "crates/egui_mineral_eframe", version = "0.13.0", default-features = false }
 egui_mineral_material = { path = "crates/egui_mineral_material", version = "0.13.0", default-features = false }
 egui_mineral_fluent = { path = "crates/egui_mineral_fluent", version = "0.13.0", default-features = false }
-egui_mineral_mcp = { path = "crates/egui_mineral_mcp", version = "0.12.4" }
+egui_mineral_mcp = { path = "crates/egui_mineral_mcp", version = "0.13.0" }
 mineral_inspector = { path = "tools/mineral_inspector" }
 
 egui = { version = "0.37.0", features = ["serde"] }
