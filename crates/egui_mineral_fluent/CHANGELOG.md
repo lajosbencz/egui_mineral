@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral_fluent-v0.12.3...egui_mineral_fluent-v0.13.0) - 2026-11-27
+
+### Added
+
+- *(widget)* ShowIn::show_in for egui containers with a MineralUi body; kits and showcases drop the rt.ui re-wrap.
+- *(kit)* kit::paint state ramps, state-layer overlay and focus strokes shared by both kits.
+- *(kit)* kit::text::BareEdit and submitted, the frameless editor shared by both kits.
+- *(form)* [**breaking**] declaration-first forms via #[derive(Form)] with typed field keys, model-owned rules, widget kinds dispatched to kit FieldWidget impls and Fluent attribute labels; Material, Fluent and showcase ported.
+
 ## [0.12.3](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral_fluent-v0.12.2...egui_mineral_fluent-v0.12.3) - 2026-11-27
 
 ### Other
