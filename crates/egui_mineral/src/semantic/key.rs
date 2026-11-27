@@ -10,11 +10,59 @@ use egui::{AsIdSalt, IdSalt};
 // Inline parts; a longer key renders its prefix into `base`.
 const CAP: usize = 5;
 
-// 16 bytes: `Number` takes the null niche of the `&str` pointer.
+// Bytes of a part's inline text; longer text renders into `Key::base`.
+const INLINE: usize = 23;
+
+// Text or number digits; a `Copy` struct, so key clones are a memcpy.
 #[derive(Clone, Copy, Debug)]
-enum Part {
-    Text(&'static str),
-    Number(u64),
+struct Part {
+    len: u8,
+    buf: [u8; INLINE],
+}
+
+impl Part {
+    const EMPTY: Self = Self {
+        len: 0,
+        buf: [0; INLINE],
+    };
+
+    // `None` past `INLINE` bytes.
+    fn new(text: &str) -> Option<Self> {
+        let bytes = text.as_bytes();
+        let mut buf = [0; INLINE];
+        buf.get_mut(..bytes.len())?.copy_from_slice(bytes);
+        Some(Self {
+            len: u8::try_from(bytes.len()).ok()?,
+            buf,
+        })
+    }
+
+    // Decimal digits; `fmt` costs more than the rest of a key push.
+    fn digits(mut n: u64) -> Self {
+        let mut buf = [0_u8; 20];
+        let mut i = buf.len();
+        loop {
+            i -= 1;
+            if let Some(d) = buf.get_mut(i) {
+                *d = b'0' + (n % 10) as u8;
+            }
+            n /= 10;
+            if n == 0 {
+                break;
+            }
+        }
+        buf.get(i..)
+            .and_then(|d| std::str::from_utf8(d).ok())
+            .and_then(Self::new)
+            .unwrap_or(Self::EMPTY)
+    }
+
+    fn as_str(&self) -> &str {
+        self.buf
+            .get(..usize::from(self.len))
+            .and_then(|b| std::str::from_utf8(b).ok())
+            .unwrap_or_default()
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -55,7 +103,7 @@ impl Key {
     const fn new() -> Self {
         Self {
             base: None,
-            parts: [Part::Text(""); CAP],
+            parts: [Part::EMPTY; CAP],
             joins: [Join::Salt; CAP],
             len: 0,
             verbatim: false,
@@ -67,7 +115,10 @@ impl Key {
         let mut key = Self::new();
         key.verbatim = !is_normalized(&text);
         match text {
-            Cow::Borrowed(s) => key.push(Part::Text(s), Join::Salt),
+            Cow::Borrowed(s) => match Part::new(s) {
+                Some(part) => key.push(part, Join::Salt),
+                None => key.base = Some(Arc::new(s.to_owned())),
+            },
             Cow::Owned(s) => key.base = Some(Arc::new(s)),
         }
         key
@@ -118,7 +169,7 @@ impl Key {
         if join == Join::Kind && part < 0 {
             self.push_text(Arc::new(part.to_string()), join);
         } else {
-            self.push(Part::Number(part.unsigned_abs()), join);
+            self.push(Part::digits(part.unsigned_abs()), join);
         }
     }
 
@@ -126,7 +177,7 @@ impl Key {
         match (self.len, &self.base, self.parts.first(), self.joins.first()) {
             (0, None, ..) => "",
             (0, Some(base), ..) => base.as_str(),
-            (1, None, Some(Part::Text(s)), Some(Join::Salt)) => s,
+            (1, None, Some(p), Some(Join::Salt)) => p.as_str(),
             _ => self.text.get_or_init(|| self.to_string().into()),
         }
     }
@@ -164,15 +215,12 @@ impl fmt::Display for Key {
             started = true;
         }
         for (part, join) in self.parts() {
-            match (part, join) {
-                (Part::Text(""), Join::Salt) => continue,
-                (_, Join::Salt) if !started => {}
+            match join {
+                Join::Salt if part.len == 0 => continue,
+                Join::Salt if !started => {}
                 _ => f.write_char('-')?,
             }
-            match part {
-                Part::Text(s) => f.write_str(s)?,
-                Part::Number(n) => write!(f, "{n}")?,
-            }
+            f.write_str(part.as_str())?;
             started = true;
         }
         Ok(())
@@ -370,18 +418,22 @@ pub struct KeyParts {
 }
 
 impl KeyParts {
-    /// Appends `part`; `false` when a salt key needs it normalized, which falls back to [`KeySalt::write_key`].
-    pub fn push_str(&mut self, part: &'static str) -> bool {
+    /// Appends `part`; `false` when a salt key needs it normalized or it is longer than 23 bytes, which falls
+    /// back to [`KeySalt::write_key`].
+    pub fn push_str(&mut self, part: &str) -> bool {
         if self.join == Join::Salt && !is_normalized(part) {
             return false;
         }
-        self.key.push(Part::Text(part), self.join);
+        let Some(part) = Part::new(part) else {
+            return false;
+        };
+        self.key.push(part, self.join);
         true
     }
 
     /// Appends a number.
     pub fn push_unsigned(&mut self, part: u64) {
-        self.key.push(Part::Number(part), self.join);
+        self.key.push(Part::digits(part), self.join);
     }
 
     /// Appends a number; salt keys drop the sign.
@@ -404,7 +456,7 @@ impl KeyParts {
 }
 
 /// Stable agent key text of an id salt, independent of `Debug` output and displayed text. Implemented for
-/// `&'static str`, `String`, `Cow<'static, str>`, integers, `char`, `bool`, references and tuples up to 4 (parts
+/// `str` (so `&str` of any lifetime), `String`, `Cow<'_, str>`, integers, `char`, `bool`, references and tuples up to 4 (parts
 /// joined with `-`). App salt types implement it next to `Hash` and `Debug`, which makes them convert into
 /// [`KeyedSalt`]; foreign types wrap into [`DisplaySalt`].
 pub trait KeySalt {
@@ -418,7 +470,7 @@ pub trait KeySalt {
     }
 }
 
-impl KeySalt for &'static str {
+impl KeySalt for str {
     fn write_key(&self, out: &mut String) {
         out.push_str(self);
     }
@@ -432,18 +484,19 @@ impl KeySalt for String {
     fn write_key(&self, out: &mut String) {
         out.push_str(self);
     }
+
+    fn key_parts(&self, parts: &mut KeyParts) -> bool {
+        parts.push_str(self)
+    }
 }
 
-impl KeySalt for Cow<'static, str> {
+impl KeySalt for Cow<'_, str> {
     fn write_key(&self, out: &mut String) {
         out.push_str(self);
     }
 
     fn key_parts(&self, parts: &mut KeyParts) -> bool {
-        match self {
-            Cow::Borrowed(s) => parts.push_str(s),
-            Cow::Owned(_) => false,
-        }
+        parts.push_str(self)
     }
 }
 
@@ -762,8 +815,20 @@ mod tests {
     #[test]
     #[cfg(target_pointer_width = "64")]
     fn keys_stay_compact() {
-        assert_eq!(size_of::<super::Part>(), 16, "number shares the str niche");
-        assert_eq!(size_of::<StableId>(), 120, "builders move keys by value");
+        assert_eq!(size_of::<super::Part>(), 24, "inline text and numbers");
+        assert_eq!(super::Part::digits(u64::MAX).as_str(), u64::MAX.to_string());
+        assert_eq!(super::Part::digits(0).as_str(), "0");
+        assert_eq!(size_of::<StableId>(), 160, "builders move keys by value");
+    }
+
+    #[test]
+    fn borrowed_text_of_any_lifetime_keys() {
+        let owned = String::from("Row Title");
+        let short: &str = &owned;
+        let long = "a-part-longer-than-the-inline-buffer".to_owned();
+        let salt = KeyedSalt::from(short).child(long.as_str()).child(3_usize);
+        assert_eq!(salt.key(), "row-title-a-part-longer-than-the-inline-buffer-3");
+        assert_eq!(KeyedSalt::from("row").child(short).key(), "row-row-title");
     }
 
     #[test]

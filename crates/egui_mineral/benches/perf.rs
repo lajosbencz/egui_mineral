@@ -3,7 +3,10 @@
 use std::hint::black_box;
 
 use criterion::{Criterion, criterion_group, criterion_main};
-use egui_mineral::perf::HeightIndex;
+use egui_mineral::{
+    perf::HeightIndex,
+    semantic::{KeyedSalt, StableId},
+};
 
 fn height_index(c: &mut Criterion) {
     let mut idx = HeightIndex::new(1_000_000, 20.0);
@@ -19,5 +22,35 @@ fn height_index(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, height_index);
+// Salt chains as widgets build them: static text, list indices, a node kind, read once.
+fn keys(c: &mut Criterion) {
+    c.bench_function("keys/static_chain", |b| {
+        b.iter(|| {
+            let salt = KeyedSalt::from(black_box("settings"))
+                .child("general")
+                .child(black_box(7_usize));
+            StableId::of(&salt, "switch").key().len()
+        });
+    });
+    c.bench_function("keys/owned_chain", |b| {
+        b.iter(|| {
+            let salt = KeyedSalt::from(black_box("settings".to_owned())).child(black_box("row".to_owned()));
+            StableId::of(&salt, "field").key().len()
+        });
+    });
+    c.bench_function("keys/static_build", |b| {
+        b.iter(|| {
+            let salt = KeyedSalt::from(black_box("settings"))
+                .child("general")
+                .child(black_box(7_usize));
+            StableId::of(&salt, "switch")
+        });
+    });
+    c.bench_function("keys/clone", |b| {
+        let salt = KeyedSalt::from("settings").child("general").child(7_usize);
+        b.iter(|| black_box(&salt).clone());
+    });
+}
+
+criterion_group!(benches, height_index, keys);
 criterion_main!(benches);
