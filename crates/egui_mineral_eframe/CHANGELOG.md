@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral_eframe-v0.12.3...egui_mineral_eframe-v0.13.0) - 2026-11-27
+
+### Added
+
+- *(eframe)* [**breaking**] EframeApp::new sets GlobalStyle::Kit; document what GlobalStyle::Egui leaves unstyled.
+
 ## [0.12.3](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral_eframe-v0.12.2...egui_mineral_eframe-v0.12.3) - 2026-11-27
 
 ### Other
