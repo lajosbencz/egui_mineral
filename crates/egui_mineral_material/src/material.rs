@@ -17,7 +17,7 @@ use parking_lot::Mutex;
 
 use crate::{
     adaptive::{self, Density},
-    color::{Contrast, SchemeSpec},
+    color::{ColorOverrides, Contrast, SchemeSpec},
     icon_set::IconSet,
     theme::{TokenStore, Tokens},
 };
@@ -110,10 +110,23 @@ impl Material {
         repaint(ctx);
     }
 
-    /// Default tokens of both brightnesses from `spec`; replaces [`Self::set_tokens`] ones.
+    /// Default tokens of both brightnesses from `spec` with the [`Self::set_overrides`] roles; replaces
+    /// [`Self::set_tokens`] ones.
     pub fn apply(&self, ctx: &Context, spec: SchemeSpec) {
         self.tokens.lock().apply(spec);
         repaint(ctx);
+    }
+
+    /// Exact roles of `theme` kept over every scheme [`Self::apply`] and [`Self::set_contrast`] generate, e.g. a
+    /// brand color as `primary`; replaces the previous overrides of `theme`.
+    pub fn set_overrides(&self, ctx: &Context, theme: Theme, overrides: ColorOverrides) {
+        self.tokens.lock().set_overrides(theme, &overrides);
+        repaint(ctx);
+    }
+
+    /// Value of [`Self::set_overrides`].
+    pub fn overrides(&self, theme: Theme) -> ColorOverrides {
+        self.tokens.lock().overrides(theme)
     }
 
     /// Contrast of the current spec.

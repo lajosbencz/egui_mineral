@@ -8,7 +8,10 @@ mod file;
 pub use file::{ThemeError, ThemeWatcher, load_toml, watch};
 
 pub use crate::tokens::{Durations, Shape, StateLayers, Tokens};
-use crate::{color::SchemeSpec, spec::TypeScale};
+use crate::{
+    color::{ColorOverrides, SchemeSpec},
+    spec::TypeScale,
+};
 
 #[derive(Debug)]
 struct Themed {
@@ -39,14 +42,25 @@ pub(crate) struct TokenStore {
     light: Themed,
     dark: Themed,
     spec: SchemeSpec,
+    // Light, dark.
+    overrides: [ColorOverrides; 2],
+}
+
+const fn mode(theme: Theme) -> usize {
+    match theme {
+        Theme::Light => 0,
+        Theme::Dark => 1,
+    }
 }
 
 impl TokenStore {
     pub(crate) fn new(spec: SchemeSpec) -> Self {
+        let [light, dark] = spec.schemes();
         Self {
-            light: Themed::new(Tokens::new(spec.scheme(Theme::Light))),
-            dark: Themed::new(Tokens::new(spec.scheme(Theme::Dark))),
+            light: Themed::new(Tokens::new(light)),
+            dark: Themed::new(Tokens::new(dark)),
             spec,
+            overrides: [ColorOverrides::default(); 2],
         }
     }
 
@@ -82,10 +96,22 @@ impl TokenStore {
     }
 
     pub(crate) fn apply(&mut self, spec: SchemeSpec) {
-        for theme in [Theme::Light, Theme::Dark] {
-            *self.slot(theme) = Themed::new(Tokens::new(spec.scheme(theme)));
+        let [light, dark] = spec.schemes();
+        for scheme in [light, dark] {
+            let theme = scheme.theme;
+            let overrides = self.overrides[mode(theme)];
+            *self.slot(theme) = Themed::new(Tokens::new(scheme.with(&overrides)));
         }
         self.spec = spec;
+    }
+
+    pub(crate) fn overrides(&self, theme: Theme) -> ColorOverrides {
+        self.overrides[mode(theme)]
+    }
+
+    pub(crate) fn set_overrides(&mut self, theme: Theme, overrides: &ColorOverrides) {
+        self.overrides[mode(theme)] = *overrides;
+        self.apply(self.spec);
     }
 }
 
@@ -260,6 +286,33 @@ mod tests {
         m.set_tokens(&ctx, custom.clone());
         assert_eq!(current(&m, Theme::Dark), custom);
         assert_eq!(current(&m, Theme::Light), Tokens::new(spec.scheme(Theme::Light)));
+    }
+
+    #[test]
+    fn overrides_survive_regeneration_per_brightness() {
+        const BRAND: egui::Color32 = egui::Color32::from_rgb(0xE6, 0x00, 0x7E);
+        let (ctx, m) = (Context::default(), Material::default());
+        let overrides = crate::color::ColorOverrides {
+            primary: Some(BRAND),
+            ..Default::default()
+        };
+        m.set_overrides(&ctx, Theme::Light, overrides);
+        assert_eq!(m.tokens(Theme::Light).color.primary, BRAND);
+        assert_ne!(
+            m.tokens(Theme::Dark).color.primary,
+            BRAND,
+            "the other brightness keeps its scheme"
+        );
+        m.apply(&ctx, SchemeSpec::new(SEED));
+        m.set_contrast(&ctx, Contrast::HIGH);
+        let generated = SchemeSpec::new(SEED).contrast(Contrast::HIGH).scheme(Theme::Light);
+        let light = m.tokens(Theme::Light);
+        assert_eq!(light.color.primary, BRAND);
+        assert_eq!(
+            light.color.secondary, generated.secondary,
+            "unset roles follow the spec"
+        );
+        assert_eq!(m.overrides(Theme::Light), overrides);
     }
 
     #[test]

@@ -131,7 +131,20 @@ pub mod adaptive;
 /// **Unstable:** outside the semver guarantee; any release may change it.
 #[cfg(feature = "unstable-catalog")]
 pub mod catalog;
-/// MD3 color schemes from a seed (material-color-utilities).
+/// MD3 color schemes from a seed (material-color-utilities). Brand colors: key colors on
+/// [`SchemeSpec`](color::SchemeSpec) give a role group its palette, and
+/// [`Material::set_overrides`] pins exact roles across [`Material::apply`] and [`Material::set_contrast`].
+///
+/// ```
+/// use egui::{Color32, Theme};
+/// use egui_mineral_material::{Material, color::{ColorOverrides, SchemeSpec}};
+///
+/// const BRAND: Color32 = Color32::from_rgb(0xE6, 0x00, 0x7E);
+/// let (ctx, material) = (egui::Context::default(), Material::default());
+/// material.apply(&ctx, SchemeSpec::new(BRAND).tertiary(Color32::from_rgb(0x00, 0x7A, 0x33)));
+/// material.set_overrides(&ctx, Theme::Light, ColorOverrides { primary: Some(BRAND), ..Default::default() });
+/// assert_eq!(material.tokens(Theme::Light).color.primary, BRAND);
+/// ```
 pub mod color;
 pub mod communication;
 pub mod containment;

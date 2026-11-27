@@ -171,13 +171,40 @@ impl FromStr for Contrast {
     }
 }
 
-/// Seed, contrast and variant that determine the [`ColorScheme`] of either brightness.
+/// Seed, key colors, contrast and variant that determine the [`ColorScheme`] of either brightness. A key color
+/// replaces the seed-derived tonal palette of its role group; exact role values are
+/// [`ColorOverrides`].
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[must_use]
 pub struct SchemeSpec {
     seed: Color32,
     pub(crate) contrast: Contrast,
     variant: SchemeVariant,
+    keys: KeyColors,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+struct KeyColors {
+    primary: Option<Color32>,
+    secondary: Option<Color32>,
+    tertiary: Option<Color32>,
+    error: Option<Color32>,
+    neutral: Option<Color32>,
+    neutral_variant: Option<Color32>,
+}
+
+macro_rules! key_setters {
+    ($($key:ident: $doc:literal),* $(,)?) => {$(
+        #[doc = $doc]
+        pub const fn $key(mut self, color: Color32) -> Self {
+            self.keys.$key = Some(color);
+            self
+        }
+    )*};
+}
+
+fn rgb(c: Color32) -> Rgb {
+    Rgb::new(c.r(), c.g(), c.b())
 }
 
 impl SchemeSpec {
@@ -187,8 +214,25 @@ impl SchemeSpec {
             seed,
             contrast: Contrast::STANDARD,
             variant: SchemeVariant::TonalSpot,
+            keys: KeyColors {
+                primary: None,
+                secondary: None,
+                tertiary: None,
+                error: None,
+                neutral: None,
+                neutral_variant: None,
+            },
         }
     }
+
+    key_setters!(
+        primary: "Key color of the primary roles; default the seed.",
+        secondary: "Key color of the secondary roles; default derived from the seed.",
+        tertiary: "Key color of the tertiary roles; default derived from the seed.",
+        error: "Key color of the error roles; default the MD3 error hue.",
+        neutral: "Key color of the surface and background roles; default derived from the seed.",
+        neutral_variant: "Key color of the variant surface and outline roles; default derived from the seed.",
+    );
     /// Default [`Contrast::STANDARD`].
     pub const fn contrast(mut self, contrast: Contrast) -> Self {
         self.contrast = contrast;
@@ -210,10 +254,26 @@ impl SchemeSpec {
     }
 
     pub(crate) fn schemes(self) -> [ColorScheme; 2] {
-        let theme = ThemeBuilder::with_source(Rgb::new(self.seed.r(), self.seed.g(), self.seed.b()))
+        let mut b = ThemeBuilder::with_source(rgb(self.seed))
             .variant(self.variant.material())
-            .contrast_level(self.contrast.0)
-            .build();
+            .contrast_level(self.contrast.0);
+        let k = self.keys;
+        for (key, set) in [
+            (
+                k.primary,
+                ThemeBuilder::primary as fn(ThemeBuilder, Rgb) -> ThemeBuilder,
+            ),
+            (k.secondary, ThemeBuilder::secondary),
+            (k.tertiary, ThemeBuilder::tertiary),
+            (k.error, ThemeBuilder::error),
+            (k.neutral, ThemeBuilder::neutral),
+            (k.neutral_variant, ThemeBuilder::neutral_variant),
+        ] {
+            if let Some(c) = key {
+                b = set(b, rgb(c));
+            }
+        }
+        let theme = b.build();
         [
             ColorScheme::from_scheme(&theme.schemes.light, Theme::Light),
             ColorScheme::from_scheme(&theme.schemes.dark, Theme::Dark),
@@ -243,6 +303,21 @@ macro_rules! roles {
                 let c = |c: Rgb| Color32::from_rgb(c.red, c.green, c.blue);
                 Self { $($role: c(s.$role),)* theme }
             }
+
+            /// Scheme with the set roles of `overrides`.
+            #[must_use]
+            pub fn with(mut self, overrides: &ColorOverrides) -> Self {
+                $(if let Some(c) = overrides.$role { self.$role = c; })*
+                self
+            }
+        }
+
+        /// Exact role values over a generated [`ColorScheme`], as Compose's `lightColorScheme(primary = ..)`;
+        /// unset roles keep the generated value.
+        #[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
+        #[serde(default)]
+        pub struct ColorOverrides {
+            $(#[doc = concat!("MD3 `", stringify!($role), "` role.")] pub $role: Option<Color32>,)*
         }
     };
 }
@@ -317,6 +392,20 @@ mod tests {
         assert_eq!(light.primary, Color32::from_rgb(0x65, 0x55, 0x8F));
         let hc = SchemeSpec::default().contrast(Contrast::HIGH).scheme(Theme::Light);
         assert_ne!(hc.primary, light.primary);
+    }
+
+    #[test]
+    fn key_colors_replace_their_palette_only() {
+        const KEY: Color32 = Color32::from_rgb(0x00, 0x7A, 0x33);
+        let base = SchemeSpec::default().scheme(Theme::Light);
+        let keyed = SchemeSpec::default().secondary(KEY).scheme(Theme::Light);
+        assert_ne!(keyed.secondary, base.secondary);
+        assert_eq!((keyed.primary, keyed.surface), (base.primary, base.surface));
+        let hc = SchemeSpec::default()
+            .secondary(KEY)
+            .contrast(Contrast::HIGH)
+            .scheme(Theme::Light);
+        assert_ne!(hc.secondary, keyed.secondary, "contrast still applies to keyed roles");
     }
 
     #[test]
