@@ -38,9 +38,8 @@ pub(crate) fn paint(
     t: &Tokens,
 ) {
     let p = ui.painter();
-    let layer = i.with_pressed(false).layer_opacity(t);
-    if layer > 0.0 {
-        p.rect_filled(rect, r, with_alpha(content, layer));
+    if let Some(layer) = egui_mineral::kit::paint::overlay(rect, r, content, i.with_pressed(false).layer_opacity(t)) {
+        p.add(layer);
     }
     let Some((origin, k, alpha)) = ripple(ui, response, rect.center(), i) else {
         return;

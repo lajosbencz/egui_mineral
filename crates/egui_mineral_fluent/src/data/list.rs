@@ -1,8 +1,9 @@
 use crate::msg;
-use egui::{Align, Id, Response, Sense, Stroke, StrokeKind, Ui, UiBuilder};
+use egui::{Align, Id, Response, Sense, Stroke, Ui, UiBuilder};
 use egui_mineral::{
     focus::{self as roving, RovingFocus, TabStop},
     kit,
+    kit::paint::FocusStroke,
     layout::Axis,
     select::{self, ItemKey, RowInput, RowSource, Selection, SelectionBehavior},
     semantic::{self, AgentKey, KeyedSalt, Role, SemanticNode},
@@ -376,11 +377,9 @@ impl<K: ItemKey> ListUi<'_, '_, K> {
             self.ids.push(response.id);
             self.keys.push(key);
             if response.has_focus() && roving::visible(self.ui.ctx(), response.id) {
-                self.ui.painter().rect_stroke(
-                    response.rect,
-                    Radius::Medium.on(response.rect),
-                    Stroke::new(geometry::STROKE_WIDTH_THICK, t.color(ColorStrokeFocus2)),
-                    StrokeKind::Outside,
+                self.ui.painter().add(
+                    FocusStroke::outside(Stroke::new(geometry::STROKE_WIDTH_THICK, t.color(ColorStrokeFocus2)))
+                        .shape(response.rect, Radius::Medium.on(response.rect)),
                 );
             }
         }

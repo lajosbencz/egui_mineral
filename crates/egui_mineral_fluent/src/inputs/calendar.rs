@@ -5,6 +5,7 @@ use egui_mineral::{
     focus,
     i18n::{DateFields, DateLength, Direction, I18n, LocaleFormat, NameWidth},
     kit,
+    kit::paint::FocusStroke,
     layout::{Constraints, Measure, MinTarget},
     semantic::{self, AgentKey, KeyedSalt, Role, SemanticNode, StableId},
     widget::{Availability, Interaction, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
@@ -256,11 +257,9 @@ fn item(ui: &mut MineralUi<'_, Fluent>, cx: &Cx<'_>, i: &Item<'_>) -> Response {
     let galley = p.layout_no_wrap(i.text.to_owned(), format.font_id, color);
     p.galley(i.rect.center() - galley.size() / 2.0, galley, color);
     if hot.focused && !off {
-        p.rect_stroke(
-            i.rect.expand(cal::FOCUS_RING / 2.0),
-            radius,
-            Stroke::new(cal::FOCUS_RING, cx.t.color(ColorStrokeFocus2)),
-            StrokeKind::Inside,
+        p.add(
+            FocusStroke::inside(Stroke::new(cal::FOCUS_RING, cx.t.color(ColorStrokeFocus2)))
+                .shape(i.rect.expand(cal::FOCUS_RING / 2.0), radius),
         );
     }
     r
@@ -336,12 +335,7 @@ impl Run<'_> {
         );
         p.galley(Pos2::new(x, tr.center().y - galley.size().y / 2.0), galley, color);
         if hot.focused {
-            p.rect_stroke(
-                tr,
-                radius,
-                Stroke::new(cal::FOCUS_RING, cx.t.color(ColorStrokeFocus2)),
-                StrokeKind::Inside,
-            );
+            p.add(FocusStroke::inside(Stroke::new(cal::FOCUS_RING, cx.t.color(ColorStrokeFocus2))).shape(tr, radius));
         }
         semantic::emit(ui.ctx(), Some(r.id), tr, || {
             SemanticNode::new(self.key("title"), Role::Button, title).clickable(availability)
@@ -381,11 +375,9 @@ impl Run<'_> {
                 cx.t.color(color),
             );
             if hot.focused {
-                p.rect_stroke(
-                    rect,
-                    radius,
-                    Stroke::new(cal::FOCUS_RING, cx.t.color(ColorStrokeFocus2)),
-                    StrokeKind::Inside,
+                p.add(
+                    FocusStroke::inside(Stroke::new(cal::FOCUS_RING, cx.t.color(ColorStrokeFocus2)))
+                        .shape(rect, radius),
                 );
             }
             emit_button(ui, &r, self.key(("nav", k)), name, None, off);
@@ -700,11 +692,9 @@ impl Run<'_> {
         let galley = p.layout_no_wrap(text.clone(), format.font_id, color);
         p.galley(rect.center() - galley.size() / 2.0, galley, color);
         if hot.focused {
-            p.rect_stroke(
-                rect,
-                CornerRadius::from(g::BORDER_RADIUS_SMALL),
-                Stroke::new(g::STROKE_WIDTH_THIN, cx.t.color(ColorStrokeFocus2)),
-                StrokeKind::Inside,
+            p.add(
+                FocusStroke::inside(Stroke::new(g::STROKE_WIDTH_THIN, cx.t.color(ColorStrokeFocus2)))
+                    .shape(rect, CornerRadius::from(g::BORDER_RADIUS_SMALL)),
             );
         }
         emit_button(ui, &r, self.key("go-to-today"), &text, None, cx.disabled);

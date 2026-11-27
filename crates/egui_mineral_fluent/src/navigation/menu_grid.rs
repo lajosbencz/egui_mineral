@@ -1,9 +1,10 @@
-use egui::{Id, Margin, Rangef, Rect, Response, Sense, Stroke, StrokeKind, UiBuilder, pos2, text::LayoutJob, vec2};
+use egui::{Id, Margin, Rangef, Rect, Response, Sense, Stroke, UiBuilder, pos2, text::LayoutJob, vec2};
 use egui_mineral::{
     action::ActionValue,
     anchor::{Align, Anchor, Side},
     focus::{self, Cell, Grid, GridSize, on_grid_key},
     i18n::I18n,
+    kit::paint::{FocusStroke, VisualState},
     kit::{self, state::TempState},
     layout::{Constraints, Measure, MinTarget},
     overlay::{self, Dismiss, Popup},
@@ -30,7 +31,7 @@ use crate::{
     typography::TypeRamp,
     widget::{
         focus as ring, paint,
-        state::{Ramp, State},
+        state::{Pick as _, Ramp},
     },
 };
 
@@ -200,7 +201,7 @@ impl<A: ActionValue> MenuGridRow<A> {
 struct GridCell<'a> {
     salt: KeyedSalt,
     cell: &'a MenuGridCell,
-    row_state: State,
+    row_state: VisualState,
     tab_stop: focus::TabStop,
     width: f32,
     height: f32,
@@ -241,7 +242,7 @@ impl MineralWidget for GridCell<'_> {
         let rect = frame.zones.visual;
         let dir = ui.i18n().direction();
         let fg = |s| {
-            Ramp::new(
+            Ramp::some(
                 ColorNeutralForeground2,
                 ColorNeutralForeground2Hover,
                 ColorNeutralForeground2Pressed,
@@ -251,7 +252,11 @@ impl MineralWidget for GridCell<'_> {
         };
         match self.cell {
             MenuGridCell::Item(item) => {
-                let s = if i.disabled { State::Disabled } else { self.row_state };
+                let s = if i.disabled {
+                    VisualState::Disabled
+                } else {
+                    self.row_state
+                };
                 let color = fg(s);
                 let engaged = s.engaged() && !i.disabled;
                 let cy = rect.center().y;
@@ -282,7 +287,7 @@ impl MineralWidget for GridCell<'_> {
                 };
                 line(&item.label, TypeRamp::Body1, color, top);
                 if let Some(sub) = sub {
-                    let muted = Ramp::new(
+                    let muted = Ramp::some(
                         ColorNeutralForeground3,
                         ColorNeutralForeground3Hover,
                         ColorNeutralForeground3Pressed,
@@ -296,11 +301,11 @@ impl MineralWidget for GridCell<'_> {
                 }
             }
             MenuGridCell::Action(action) => {
-                let s = State::of(i);
+                let s = VisualState::of(i);
                 let side = d::CELL_MIN_HEIGHT.min(rect.width());
                 let button = Rect::from_center_size(rect.center(), vec2(side, side));
                 let radius = Radius::Medium.on(button);
-                let fill = Ramp::new(
+                let fill = Ramp::some(
                     ColorSubtleBackground,
                     ColorSubtleBackgroundHover,
                     ColorSubtleBackgroundPressed,
@@ -316,11 +321,9 @@ impl MineralWidget for GridCell<'_> {
                     fg(s),
                 );
                 if i.focused {
-                    ui.painter().rect_stroke(
-                        button,
-                        radius,
-                        Stroke::new(g::STROKE_WIDTH_THICK, t.color(ColorStrokeFocus2)),
-                        StrokeKind::Inside,
+                    ui.painter().add(
+                        FocusStroke::inside(Stroke::new(g::STROKE_WIDTH_THICK, t.color(ColorStrokeFocus2)))
+                            .shape(button, radius),
                     );
                 }
             }
@@ -440,11 +443,11 @@ impl<A: ActionValue> MenuGridUi<'_, '_, A> {
         let over = self.ui.rect_contains_pointer(rect);
         let pressed = over && self.ui.input(|i| i.pointer.primary_down());
         let row_state = match (over, pressed) {
-            (_, true) => State::Pressed,
-            (true, false) => State::Hover,
-            _ => State::Rest,
+            (_, true) => VisualState::Pressed,
+            (true, false) => VisualState::Hover,
+            _ => VisualState::Rest,
         };
-        let fill = Ramp::new(
+        let fill = Ramp::some(
             ColorNeutralBackground1,
             ColorNeutralBackground1Hover,
             ColorNeutralBackground1Pressed,

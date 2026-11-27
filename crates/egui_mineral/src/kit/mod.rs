@@ -6,7 +6,8 @@
 //!   events), [`layer`] (library areas and modals, Escape and default action), [`scroll`], [`text`] (the
 //!   frameless editor inside text input chrome).
 //! - Semantics: [`nodes`] (collection checks, parent rects, culled emits).
-//! - Painting: [`paint`] (glyph shapes, tabular figures, window close glyph).
+//! - Painting: [`paint`] (glyph shapes, tabular figures, window close glyph, per-state values, state layers, focus
+//!   strokes).
 //! - State: [`state`] (temp memory, memos, pass caches), [`choice`] (value-bound selection groups).
 //! - Component models shared by both kits: [`command_palette`], [`menu`], [`menubar`], [`strip`], [`rating`].
 //! - Arguments: [`sanitize`] (rule 10: clamp and report instead of panicking).

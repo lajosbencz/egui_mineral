@@ -1,8 +1,181 @@
-//! Shapes and text layout jobs shared by stylekits; the core builds them, kits add them with their painter.
+//! Shapes, text layout jobs and state indication shared by stylekits: glyphs and tabular figures, per-state
+//! values ([`VisualState`], [`StateRamp`]), state-layer overlays ([`LayerOpacity`], [`overlay`]) and focus strokes
+//! ([`FocusStroke`]). Kits pass their token values in.
 
-use egui::{Color32, Context, Pos2, TextFormat, emath::Rot2, epaint::TextShape, text::LayoutJob, vec2};
+use egui::{
+    Color32, Context, CornerRadius, Pos2, Rect, Stroke, StrokeKind, TextFormat,
+    emath::Rot2,
+    epaint::{RectShape, TextShape},
+    text::LayoutJob,
+    vec2,
+};
 
-use crate::icon::Glyph;
+use crate::{
+    icon::Glyph,
+    widget::{Interaction, InteractionKind},
+};
+
+/// Pointer state a per-state value is picked by, CSS-style: rest, `:hover`, `:active`, disabled.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum VisualState {
+    /// No pointer interaction.
+    Rest,
+    /// Pointer over.
+    Hover,
+    /// Pressed; outranks hover.
+    Pressed,
+    /// Disabled; outranks the rest.
+    Disabled,
+}
+
+impl VisualState {
+    /// State of `i`; focus and drag do not change it.
+    pub const fn of(i: Interaction) -> Self {
+        if i.disabled {
+            Self::Disabled
+        } else if i.pressed {
+            Self::Pressed
+        } else if i.hovered {
+            Self::Hover
+        } else {
+            Self::Rest
+        }
+    }
+
+    /// Hovered or pressed.
+    pub const fn engaged(self) -> bool {
+        matches!(self, Self::Hover | Self::Pressed)
+    }
+}
+
+/// One property's value per [`VisualState`], e.g. a color token per state.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub struct StateRamp<T> {
+    /// At rest.
+    pub rest: T,
+    /// Hovered.
+    pub hover: T,
+    /// Pressed.
+    pub pressed: T,
+    /// Disabled.
+    pub disabled: T,
+}
+
+impl<T> StateRamp<T> {
+    /// Values in state order.
+    pub const fn new(rest: T, hover: T, pressed: T, disabled: T) -> Self {
+        Self {
+            rest,
+            hover,
+            pressed,
+            disabled,
+        }
+    }
+
+    /// Value of `state`.
+    pub const fn get(&self, state: VisualState) -> &T {
+        match state {
+            VisualState::Rest => &self.rest,
+            VisualState::Hover => &self.hover,
+            VisualState::Pressed => &self.pressed,
+            VisualState::Disabled => &self.disabled,
+        }
+    }
+
+    /// Replaces the disabled value.
+    #[must_use]
+    pub fn disabled(self, disabled: T) -> Self {
+        Self { disabled, ..self }
+    }
+
+    /// Ramp of `f` applied to every value.
+    pub fn map<U>(self, mut f: impl FnMut(T) -> U) -> StateRamp<U> {
+        StateRamp::new(f(self.rest), f(self.hover), f(self.pressed), f(self.disabled))
+    }
+}
+
+impl<T> StateRamp<Option<T>> {
+    /// No value in any state, e.g. a transparent fill.
+    pub const NONE: Self = Self::new(None, None, None, None);
+
+    /// Every state set.
+    pub const fn some(rest: T, hover: T, pressed: T, disabled: T) -> Self {
+        Self::new(Some(rest), Some(hover), Some(pressed), Some(disabled))
+    }
+}
+
+/// Opacity of an MD3-style state layer per [`Interaction::dominant`] kind, each 0..=1.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct LayerOpacity {
+    /// Hovered.
+    pub hover: f32,
+    /// Focused.
+    pub focus: f32,
+    /// Pressed.
+    pub pressed: f32,
+    /// Dragged.
+    pub dragged: f32,
+}
+
+impl LayerOpacity {
+    /// Opacity for `i`; 0 without a dominant interaction or while disabled.
+    pub fn of(&self, i: Interaction) -> f32 {
+        i.dominant().map_or(0.0, |kind| match kind {
+            InteractionKind::Dragged => self.dragged,
+            InteractionKind::Pressed => self.pressed,
+            InteractionKind::Focused => self.focus,
+            InteractionKind::Hovered => self.hover,
+        })
+    }
+}
+
+/// Fill of `rect` in `color` at `opacity`, laid over what is painted below; `None` at 0.
+pub fn overlay(rect: Rect, r: impl Into<CornerRadius>, color: Color32, opacity: f32) -> Option<RectShape> {
+    (opacity > 0.0).then(|| RectShape::filled(rect, r, color.gamma_multiply(opacity)))
+}
+
+/// Focus indicator stroke around or inside a shape.
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[must_use = "build a shape with .shape(..)"]
+pub struct FocusStroke {
+    /// Width in points and color, both from kit tokens.
+    pub stroke: Stroke,
+    /// Gap from the shape's edge; negative moves the stroke inward.
+    pub offset: f32,
+    /// Side of the offset edge the stroke lies on.
+    pub kind: StrokeKind,
+}
+
+impl FocusStroke {
+    /// `stroke` outside the shape's edge.
+    pub const fn outside(stroke: Stroke) -> Self {
+        Self {
+            stroke,
+            offset: 0.0,
+            kind: StrokeKind::Outside,
+        }
+    }
+
+    /// `stroke` inside the shape's edge.
+    pub const fn inside(stroke: Stroke) -> Self {
+        Self {
+            stroke,
+            offset: 0.0,
+            kind: StrokeKind::Inside,
+        }
+    }
+
+    /// Default 0; non-finite is 0.
+    pub fn offset(mut self, offset: f32) -> Self {
+        self.offset = crate::kit::sanitize::finite(offset, "FocusStroke::offset").unwrap_or(0.0);
+        self
+    }
+
+    /// Stroke of the shape `rect` with corners `r`.
+    pub fn shape(self, rect: Rect, r: impl Into<CornerRadius>) -> RectShape {
+        RectShape::stroke(rect.expand(self.offset), r, self.stroke, self.kind)
+    }
+}
 
 /// Glyph drawn centered on a point by its ink, not its line box.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -78,6 +251,38 @@ pub fn tabular_figures(ctx: &Context, text: &str, format: &TextFormat) -> Layout
 
 #[cfg(test)]
 mod tests {
+    use super::{LayerOpacity, StateRamp, VisualState};
+    use crate::widget::Interaction;
+
+    #[test]
+    fn states_rank_disabled_then_pressed_then_hover() {
+        let i = Interaction {
+            hovered: true,
+            pressed: true,
+            ..Interaction::default()
+        };
+        assert_eq!(VisualState::of(i), VisualState::Pressed);
+        assert_eq!(
+            VisualState::of(Interaction { disabled: true, ..i }),
+            VisualState::Disabled
+        );
+        let ramp = StateRamp::some(1, 2, 3, 4).disabled(None);
+        assert_eq!(
+            (*ramp.get(VisualState::Pressed), *ramp.get(VisualState::Disabled)),
+            (Some(3), None)
+        );
+        let layers = LayerOpacity {
+            hover: 0.08,
+            pressed: 0.1,
+            ..LayerOpacity::default()
+        };
+        assert!((layers.of(i) - 0.1).abs() < f32::EPSILON);
+        assert_eq!(
+            layers.of(Interaction { disabled: true, ..i }).to_bits(),
+            0.0_f32.to_bits()
+        );
+    }
+
     use egui::{FontId, TextFormat, text::LayoutJob};
 
     #[test]

@@ -4,6 +4,7 @@ use egui::{
 };
 use egui_mineral::{
     anchor::{Align, Anchor, Side},
+    kit::paint::FocusStroke,
     overlay::Popup,
     semantic::{self, KeyedSalt, Role, SemanticNode, StableId},
     widget::{Availability, MineralUi},
@@ -564,11 +565,8 @@ fn option_row<K>(
         format.color,
     );
     if look.active {
-        ui.painter().rect_stroke(
-            rect,
-            radius,
-            Stroke::new(cb::OPTION_FOCUS_RING, t.color(ColorStrokeFocus2)),
-            StrokeKind::Outside,
+        ui.painter().add(
+            FocusStroke::outside(Stroke::new(cb::OPTION_FOCUS_RING, t.color(ColorStrokeFocus2))).shape(rect, radius),
         );
     }
     r

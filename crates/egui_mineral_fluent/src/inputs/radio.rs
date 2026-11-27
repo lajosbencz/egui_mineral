@@ -4,6 +4,7 @@ use egui_mineral::{
     focus::{self, RovingFocus},
     i18n::I18n,
     kit,
+    kit::paint::VisualState,
     layout::{Axis, Constraints, Measure, MinTarget},
     select::SelectionResponse,
     semantic::{self, AgentKey, KeyedSalt, Role, SemanticNode, StableId},
@@ -26,7 +27,7 @@ use crate::{
     },
     widget::{
         focus as ring,
-        state::{Ramp, State},
+        state::{Pick as _, Ramp},
     },
 };
 use egui_mineral::kit::choice::Choice;
@@ -143,23 +144,23 @@ impl Radio {
     }
 
     // react-radio useRadioStyles.styles.ts useInputBaseClassName: label, indicator border and dot color.
-    fn colors(&self, s: State, t: &crate::theme::Tokens) -> [Color32; 3] {
+    fn colors(&self, s: VisualState, t: &crate::theme::Tokens) -> [Color32; 3] {
         let by = |r: Ramp| r.pick(s, t);
         if self.selected {
             [
-                by(Ramp::new(
+                by(Ramp::some(
                     ColorNeutralForeground1,
                     ColorNeutralForeground1,
                     ColorNeutralForeground1,
                     ColorNeutralForegroundDisabled,
                 )),
-                by(Ramp::new(
+                by(Ramp::some(
                     ColorCompoundBrandStroke,
                     ColorCompoundBrandStrokeHover,
                     ColorCompoundBrandStrokePressed,
                     ColorNeutralStrokeDisabled,
                 )),
-                by(Ramp::new(
+                by(Ramp::some(
                     ColorCompoundBrandForeground1,
                     ColorCompoundBrandForeground1Hover,
                     ColorCompoundBrandForeground1Pressed,
@@ -168,13 +169,13 @@ impl Radio {
             ]
         } else {
             [
-                by(Ramp::new(
+                by(Ramp::some(
                     ColorNeutralForeground3,
                     ColorNeutralForeground2,
                     ColorNeutralForeground1,
                     ColorNeutralForegroundDisabled,
                 )),
-                by(Ramp::new(
+                by(Ramp::some(
                     ColorNeutralStrokeAccessible,
                     ColorNeutralStrokeAccessibleHover,
                     ColorNeutralStrokeAccessiblePressed,
@@ -225,7 +226,7 @@ impl MineralWidget for Radio {
         let changed = kit::interact::toggle_clicked(r) && !self.disabled && !self.selected;
         self.selected |= changed;
         let i = Interaction::of(r, availability);
-        let s = State::of(i);
+        let s = VisualState::of(i);
         let [label, border, dot] = self.colors(s, &t);
         let visual = frame.zones.visual;
         let placed = self

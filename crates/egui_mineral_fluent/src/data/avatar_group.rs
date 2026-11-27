@@ -2,6 +2,7 @@ use crate::msg;
 use egui::{Rangef, Rect, ScrollArea, Sense, Stroke, StrokeKind, UiBuilder, pos2, vec2};
 use egui_mineral::{
     kit,
+    kit::paint::FocusStroke,
     layout::{Constraints, Measure, MinTarget},
     semantic::{self, AgentKey, KeyedSalt, Role, SemanticNode},
     widget::{Availability, Interaction, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
@@ -238,11 +239,9 @@ impl MineralWidget for Trigger {
             }
         }
         if i.focused {
-            p.rect_stroke(
-                rect,
-                radius,
-                Stroke::new(geometry::STROKE_WIDTH_THICK, t.color(ColorStrokeFocus2)),
-                StrokeKind::Inside,
+            p.add(
+                FocusStroke::inside(Stroke::new(geometry::STROKE_WIDTH_THICK, t.color(ColorStrokeFocus2)))
+                    .shape(rect, radius),
             );
         }
         WidgetResponse::new(r.clone(), ())

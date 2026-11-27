@@ -5,6 +5,7 @@ use egui_mineral::{
     i18n::I18n,
     input::PanMode,
     kit,
+    kit::paint::FocusStroke,
     layout::{Axis, Constraints, Measure, MinTarget},
     semantic::{AgentKey, KeyKind, KeyedSalt, NumericRange, Role, SemanticNode},
     widget::{Availability, Composite, Interaction, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
@@ -407,11 +408,8 @@ impl Handle<'_> {
         }
         p.rect_stroke(thumb.shrink(STROKE_WIDTH_THIN), circle, ring, StrokeKind::Inside);
         if i.focused {
-            p.rect_stroke(
-                thumb,
-                circle,
-                Stroke::new(STROKE_WIDTH_THICK, t.color(ColorStrokeFocus2)),
-                StrokeKind::Outside,
+            p.add(
+                FocusStroke::outside(Stroke::new(STROKE_WIDTH_THICK, t.color(ColorStrokeFocus2))).shape(thumb, circle),
             );
         }
     }

@@ -3,6 +3,7 @@ use egui_mineral::{
     focus::{TabStop, roving_sense},
     i18n::I18n,
     kit,
+    kit::paint::VisualState,
     layout::{Constraints, Measure, MinTarget},
     select::Check,
     semantic::{AgentKey, KeyedSalt, Role, SemanticNode},
@@ -27,7 +28,7 @@ use crate::{
     },
     widget::{
         focus, paint,
-        state::{Ramp, State},
+        state::{Pick as _, Ramp},
     },
 };
 
@@ -181,18 +182,18 @@ impl<'a> Checkbox<'a> {
     }
 
     // react-checkbox useCheckboxStyles.styles.ts useRootStyles: label, indicator border, fill, glyph.
-    fn colors(&self, s: State, t: &crate::theme::Tokens) -> [Color32; 4] {
+    fn colors(&self, s: VisualState, t: &crate::theme::Tokens) -> [Color32; 4] {
         let none = Color32::TRANSPARENT;
         let by = |r: Ramp| r.pick(s, t);
         match self.state() {
             Check::Unchecked => [
-                by(Ramp::new(
+                by(Ramp::some(
                     ColorNeutralForeground3,
                     ColorNeutralForeground2,
                     ColorNeutralForeground1,
                     ColorNeutralForegroundDisabled,
                 )),
-                by(Ramp::new(
+                by(Ramp::some(
                     ColorNeutralStrokeAccessible,
                     ColorNeutralStrokeAccessibleHover,
                     ColorNeutralStrokeAccessiblePressed,
@@ -202,26 +203,26 @@ impl<'a> Checkbox<'a> {
                 none,
             ],
             Check::Checked => [
-                by(Ramp::new(
+                by(Ramp::some(
                     ColorNeutralForeground1,
                     ColorNeutralForeground1,
                     ColorNeutralForeground1,
                     ColorNeutralForegroundDisabled,
                 )),
-                by(Ramp::new(
+                by(Ramp::some(
                     ColorCompoundBrandBackground,
                     ColorCompoundBrandBackgroundHover,
                     ColorCompoundBrandBackgroundPressed,
                     ColorNeutralStrokeDisabled,
                 )),
-                by(Ramp::new(
+                by(Ramp::some(
                     ColorCompoundBrandBackground,
                     ColorCompoundBrandBackgroundHover,
                     ColorCompoundBrandBackgroundPressed,
                     ColorNeutralStrokeDisabled,
                 )
                 .disabled(None)),
-                by(Ramp::new(
+                by(Ramp::some(
                     ColorNeutralForegroundInverted,
                     ColorNeutralForegroundInverted,
                     ColorNeutralForegroundInverted,
@@ -229,20 +230,20 @@ impl<'a> Checkbox<'a> {
                 )),
             ],
             Check::Mixed => [
-                by(Ramp::new(
+                by(Ramp::some(
                     ColorNeutralForeground1,
                     ColorNeutralForeground1,
                     ColorNeutralForeground1,
                     ColorNeutralForegroundDisabled,
                 )),
-                by(Ramp::new(
+                by(Ramp::some(
                     ColorCompoundBrandStroke,
                     ColorCompoundBrandStrokeHover,
                     ColorCompoundBrandStrokePressed,
                     ColorNeutralStrokeDisabled,
                 )),
                 none,
-                by(Ramp::new(
+                by(Ramp::some(
                     ColorCompoundBrandForeground1,
                     ColorCompoundBrandForeground1Hover,
                     ColorCompoundBrandForeground1Pressed,
@@ -288,7 +289,7 @@ impl MineralWidget for Checkbox<'_> {
             self.mixed = false;
         }
         let i = Interaction::of(r, availability);
-        let s = State::of(i);
+        let s = VisualState::of(i);
         let [label, border, fill, glyph] = self.colors(s, &t);
         let visual = frame.zones.visual;
         let placed = self

@@ -2,6 +2,7 @@ use egui::{Color32, CornerRadius, Rangef, Rect, Stroke, StrokeKind, Vec2, vec2};
 use egui_mineral::{
     i18n::I18n,
     kit,
+    kit::paint::VisualState,
     layout::{Constraints, Measure, MinTarget},
     select::Check,
     semantic::{AgentKey, KeyedSalt, Role, SemanticNode},
@@ -25,7 +26,7 @@ use crate::{
     },
     widget::{
         focus,
-        state::{Ramp, State},
+        state::{Pick as _, Ramp},
         tween,
     },
 };
@@ -154,9 +155,9 @@ impl<'a> Switch<'a> {
     }
 
     // react-switch useSwitchStyles.styles.ts useInputBaseClassName: label, border, track fill and thumb colors.
-    fn colors(&self, s: State, t: &crate::theme::Tokens) -> [Color32; 4] {
+    fn colors(&self, s: VisualState, t: &crate::theme::Tokens) -> [Color32; 4] {
         let by = |r: Ramp| r.pick(s, t);
-        let label = by(Ramp::new(
+        let label = by(Ramp::some(
             ColorNeutralForeground1,
             ColorNeutralForeground1,
             ColorNeutralForeground1,
@@ -165,19 +166,19 @@ impl<'a> Switch<'a> {
         if *self.checked {
             [
                 label,
-                by(Ramp::new(
+                by(Ramp::some(
                     ColorTransparentStroke,
                     ColorTransparentStrokeInteractive,
                     ColorTransparentStrokeInteractive,
                     ColorTransparentStrokeDisabled,
                 )),
-                by(Ramp::new(
+                by(Ramp::some(
                     ColorCompoundBrandBackground,
                     ColorCompoundBrandBackgroundHover,
                     ColorCompoundBrandBackgroundPressed,
                     ColorNeutralBackgroundDisabled,
                 )),
-                by(Ramp::new(
+                by(Ramp::some(
                     ColorNeutralForegroundInverted,
                     ColorNeutralForegroundInverted,
                     ColorNeutralForegroundInverted,
@@ -185,13 +186,13 @@ impl<'a> Switch<'a> {
                 )),
             ]
         } else {
-            let edge = by(Ramp::new(
+            let edge = by(Ramp::some(
                 ColorNeutralStrokeAccessible,
                 ColorNeutralStrokeAccessibleHover,
                 ColorNeutralStrokeAccessiblePressed,
                 ColorNeutralStrokeDisabled,
             ));
-            let thumb = by(Ramp::new(
+            let thumb = by(Ramp::some(
                 ColorNeutralStrokeAccessible,
                 ColorNeutralStrokeAccessibleHover,
                 ColorNeutralStrokeAccessiblePressed,
@@ -231,7 +232,7 @@ impl MineralWidget for Switch<'_> {
             *self.checked = !*self.checked;
         }
         let i = Interaction::of(r, availability);
-        let s = State::of(i);
+        let s = VisualState::of(i);
         let [label, border, fill, thumb] = self.colors(s, &t);
         let visual = frame.zones.visual;
         let dir = ui.i18n().direction();

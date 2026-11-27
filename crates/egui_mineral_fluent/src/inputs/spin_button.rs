@@ -2,6 +2,7 @@ use egui::{Color32, CornerRadius, CursorIcon, Galley, Pos2, Rangef, Rect, Sense,
 use egui_mineral::{
     edit::{EditEvent, FieldFocus},
     i18n::{Direction, I18n},
+    kit::paint::VisualState,
     kit::{self, state::TempState},
     layout::{Constraints, Measure, MinTarget},
     number::{self, NumberEdit, NumberRef, NumberSource, ScrubRate},
@@ -30,7 +31,7 @@ use crate::{
     },
     widget::{
         paint,
-        state::{Ramp, State},
+        state::{Pick as _, Ramp},
     },
 };
 
@@ -233,7 +234,7 @@ impl<'a, N: Numeric> SpinButton<'a, N> {
                 Sense::click() - Sense::FOCUSABLE
             };
             let r = ui.interact(rect, id, sense);
-            let s = State::of(egui_mineral::widget::Interaction::of(
+            let s = VisualState::of(egui_mineral::widget::Interaction::of(
                 &r,
                 Availability::disabled_if(self.disabled),
             ));
@@ -387,7 +388,7 @@ impl<'a, N: Numeric> SpinButton<'a, N> {
 
     // useBaseButtonClassName / useButtonStyles `:enabled` colors per appearance.
     fn button_ramps(&self) -> (Ramp, Ramp) {
-        let fore = Ramp::new(
+        let fore = Ramp::some(
             ColorNeutralForeground3,
             ColorNeutralForeground3Hover,
             ColorNeutralForeground3Pressed,

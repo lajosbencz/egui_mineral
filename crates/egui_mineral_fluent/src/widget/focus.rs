@@ -1,21 +1,24 @@
-use egui::{CornerRadius, Painter, Rect, Stroke, StrokeKind};
+use egui::{CornerRadius, Painter, Rect, Stroke};
+use egui_mineral::kit::paint::FocusStroke;
 
 use crate::{spec::ColorToken, spec::tokens::geometry, theme::Tokens};
 
 // react-tabster createFocusOutlineStyle: `strokeWidthThick` `colorStrokeFocus2` outside, `strokeWidthThin`
 // `colorStrokeFocus1` inside.
 pub(crate) fn outline(p: &Painter, rect: Rect, r: CornerRadius, t: &Tokens) {
-    p.rect_stroke(
-        rect,
-        r,
-        Stroke::new(geometry::STROKE_WIDTH_THIN, t.color(ColorToken::ColorStrokeFocus1)),
-        StrokeKind::Inside,
+    p.add(
+        FocusStroke::inside(Stroke::new(
+            geometry::STROKE_WIDTH_THIN,
+            t.color(ColorToken::ColorStrokeFocus1),
+        ))
+        .shape(rect, r),
     );
-    p.rect_stroke(
-        rect,
-        r,
-        Stroke::new(geometry::STROKE_WIDTH_THICK, t.color(ColorToken::ColorStrokeFocus2)),
-        StrokeKind::Outside,
+    p.add(
+        FocusStroke::outside(Stroke::new(
+            geometry::STROKE_WIDTH_THICK,
+            t.color(ColorToken::ColorStrokeFocus2),
+        ))
+        .shape(rect, r),
     );
 }
 
@@ -24,24 +27,21 @@ pub(crate) fn outline(p: &Painter, rect: Rect, r: CornerRadius, t: &Tokens) {
 // `strokeWidthThick` `colorNeutralForegroundOnBrand` inset ring under it.
 pub(crate) fn inset(p: &Painter, rect: Rect, r: CornerRadius, on_brand: bool, t: &Tokens) {
     if on_brand {
-        p.rect_stroke(
-            rect.shrink(geometry::STROKE_WIDTH_THIN),
-            r,
-            Stroke::new(
+        p.add(
+            FocusStroke::inside(Stroke::new(
                 geometry::STROKE_WIDTH_THICK,
                 t.color(ColorToken::ColorNeutralForegroundOnBrand),
-            ),
-            StrokeKind::Inside,
+            ))
+            .offset(-geometry::STROKE_WIDTH_THIN)
+            .shape(rect, r),
         );
     }
-    p.rect_stroke(
-        rect,
-        r,
-        Stroke::new(
+    p.add(
+        FocusStroke::inside(Stroke::new(
             geometry::STROKE_WIDTH_THIN + geometry::STROKE_WIDTH_THIN,
             t.color(ColorToken::ColorStrokeFocus2),
-        ),
-        StrokeKind::Inside,
+        ))
+        .shape(rect, r),
     );
 }
 

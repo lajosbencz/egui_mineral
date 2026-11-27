@@ -2,6 +2,7 @@ use egui::{OpenUrl, Stroke, text::LayoutJob};
 use egui_mineral::{
     i18n::I18n,
     kit,
+    kit::paint::VisualState,
     layout::{Constraints, Measure, MinTarget},
     semantic::{AgentKey, KeyedSalt, Role, SemanticNode},
     widget::{Availability, Interaction, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
@@ -18,7 +19,7 @@ use crate::{
     typography::TypeRamp,
     widget::{
         focus,
-        state::{Ramp, State},
+        state::{Pick as _, Ramp},
     },
 };
 
@@ -108,13 +109,13 @@ impl TextLink {
     // react-link useLinkStyles.styles.ts root, subtle, disabled
     fn ramp_colors(&self) -> Ramp {
         match self.appearance {
-            LinkAppearance::Default => Ramp::new(
+            LinkAppearance::Default => Ramp::some(
                 ColorBrandForegroundLink,
                 ColorBrandForegroundLinkHover,
                 ColorBrandForegroundLinkPressed,
                 ColorNeutralForegroundDisabled,
             ),
-            LinkAppearance::Subtle => Ramp::new(
+            LinkAppearance::Subtle => Ramp::some(
                 ColorNeutralForeground2Link,
                 ColorNeutralForeground2LinkHover,
                 ColorNeutralForeground2LinkPressed,
@@ -160,9 +161,9 @@ impl MineralWidget for TextLink {
             }
             ui.ctx().accesskit_node_builder(r.id, |b| b.set_url(url.as_str()));
         }
-        let s = State::of(i);
+        let s = VisualState::of(i);
         let color = self.ramp_colors().pick(s, &t);
-        let underline = s != State::Disabled && (self.inline || s.engaged()) && !i.focused;
+        let underline = s != VisualState::Disabled && (self.inline || s.engaged()) && !i.focused;
         let format = egui::TextFormat {
             underline: if underline {
                 Stroke::new(geometry::STROKE_WIDTH_THIN, color)

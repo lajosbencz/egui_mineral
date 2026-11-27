@@ -2,10 +2,11 @@ use crate::msg;
 use egui_mineral::select::ItemKey;
 use std::time::Duration;
 
-use egui::{Color32, Id, Rect, Sense, Stroke, StrokeKind, Ui, UiBuilder, vec2};
+use egui::{Color32, Id, Rect, Sense, Stroke, Ui, UiBuilder, vec2};
 use egui_mineral::{
     focus::{self, RovingFocus},
     i18n::I18n,
+    kit::paint::FocusStroke,
     kit::{self, state::TempState},
     layout::{Axis, Constraints, Measure},
     semantic::{self, AgentKey, KeyedSalt, Role, SemanticNode},
@@ -161,11 +162,9 @@ impl MineralWidget for Dot {
         ui.painter()
             .rect_filled(Rect::from_center_size(rect.center(), size), radius, color);
         if i.focused {
-            ui.painter().rect_stroke(
-                rect,
-                Radius::Medium.on(rect),
-                Stroke::new(g::STROKE_WIDTH_THICK, t.color(ColorStrokeFocus2)),
-                StrokeKind::Inside,
+            ui.painter().add(
+                FocusStroke::inside(Stroke::new(g::STROKE_WIDTH_THICK, t.color(ColorStrokeFocus2)))
+                    .shape(rect, Radius::Medium.on(rect)),
             );
         }
         WidgetResponse::new(r.clone(), ()).with_changed(r.clicked())

@@ -109,6 +109,18 @@ pub struct StateLayers {
     pub scrim: f32,
 }
 
+impl StateLayers {
+    /// [`Self::hover`], [`Self::focus`], [`Self::pressed`] and [`Self::dragged`] for core state layers.
+    pub const fn layers(&self) -> egui_mineral::kit::paint::LayerOpacity {
+        egui_mineral::kit::paint::LayerOpacity {
+            hover: self.hover,
+            focus: self.focus,
+            pressed: self.pressed,
+            dragged: self.dragged,
+        }
+    }
+}
+
 #[derive(Deserialize)]
 #[serde(default)]
 struct StateLayersRaw {

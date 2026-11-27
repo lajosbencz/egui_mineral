@@ -3,6 +3,7 @@ use egui::{Color32, CornerRadius, CursorIcon, Pos2, Rangef, Rect, Response, Sens
 use egui_mineral::{
     focus::{self, TabStop},
     i18n::{Direction, I18n},
+    kit::paint::VisualState,
     kit::state::TempState,
     layout::{Axis, Constraints, Measure},
     range::{RangeModel, Track, nearest_thumb},
@@ -20,7 +21,7 @@ use crate::{
     spec::{defaults::slider as sl, tokens::geometry as g},
     widget::{
         focus as ring,
-        state::{Ramp, State},
+        state::{Pick as _, Ramp},
     },
 };
 
@@ -179,12 +180,12 @@ impl Bar {
             .ranged(self.range.numeric(v), Availability::disabled_if(self.disabled))
     }
 
-    fn colors(&self, s: State, t: &crate::theme::Tokens) -> [Color32; 4] {
+    fn colors(&self, s: VisualState, t: &crate::theme::Tokens) -> [Color32; 4] {
         if self.disabled {
             let off = t.color(ColorNeutralForegroundDisabled);
             return [t.color(ColorNeutralBackgroundDisabled), off, off, off];
         }
-        let brand = Ramp::new(
+        let brand = Ramp::some(
             ColorCompoundBrandBackground,
             ColorCompoundBrandBackgroundHover,
             ColorCompoundBrandBackgroundPressed,
@@ -314,13 +315,13 @@ impl Bar {
         let hovered = r.hovered() || thumbs.iter().any(Response::hovered);
         let pressed = r.is_pointer_button_down_on() || thumbs.iter().any(Response::is_pointer_button_down_on);
         let s = if self.disabled {
-            State::Disabled
+            VisualState::Disabled
         } else if pressed {
-            State::Pressed
+            VisualState::Pressed
         } else if hovered {
-            State::Hover
+            VisualState::Hover
         } else {
-            State::Rest
+            VisualState::Rest
         };
         let [rail, progress, thumb, edge] = self.colors(s, &t);
         let fractions: Vec<f64> = values.iter().map(|v| self.range.fraction(*v)).collect();

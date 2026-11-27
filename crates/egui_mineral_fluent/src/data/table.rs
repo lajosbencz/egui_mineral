@@ -2,12 +2,11 @@ use crate::msg;
 use egui_mineral::focus::Items;
 use std::{borrow::Cow, ops::Range, sync::Arc};
 
-use egui::{
-    CursorIcon, Galley, Id, Modifiers, Rangef, Rect, Sense, Stroke, StrokeKind, UiBuilder, pos2, text::LayoutJob, vec2,
-};
+use egui::{CursorIcon, Galley, Id, Modifiers, Rangef, Rect, Sense, Stroke, UiBuilder, pos2, text::LayoutJob, vec2};
 use egui_mineral::{
     focus::{self, Cell, RovingFocus, TabStop},
     i18n::{Direction, I18n},
+    kit::paint::FocusStroke,
     kit::{self, state::TempState},
     layout::{Constraints, Measure},
     select::{self, ItemKey, RowInput, Selection, SelectionBehavior, SelectionMode},
@@ -1072,11 +1071,11 @@ fn place<R>(ui: &mut egui::Ui, rect: Rect, add: impl FnOnce(&mut egui::Ui) -> R)
 }
 
 fn focus_outline(ui: &egui::Ui, rect: Rect, t: &crate::theme::Tokens) {
-    ui.painter().rect_stroke(
-        rect.shrink(d::FOCUS_OUTLINE / 2.0),
-        crate::theme::Radius::Medium.on(rect),
-        Stroke::new(d::FOCUS_OUTLINE, t.color(ColorStrokeFocus2)),
-        StrokeKind::Inside,
+    ui.painter().add(
+        FocusStroke::inside(Stroke::new(d::FOCUS_OUTLINE, t.color(ColorStrokeFocus2))).shape(
+            rect.shrink(d::FOCUS_OUTLINE / 2.0),
+            crate::theme::Radius::Medium.on(rect),
+        ),
     );
 }
 

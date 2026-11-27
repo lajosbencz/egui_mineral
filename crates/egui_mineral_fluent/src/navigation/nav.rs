@@ -2,10 +2,11 @@ use egui_mineral::kit::choice::Choice;
 use egui_mineral::select::ItemKey;
 use std::collections::{HashMap, HashSet};
 
-use egui::{Frame, Id, Margin, Panel, Sense, Stroke, StrokeKind, UiBuilder, pos2, text::LayoutJob, vec2};
+use egui::{Frame, Id, Margin, Panel, Sense, Stroke, UiBuilder, pos2, text::LayoutJob, vec2};
 use egui_mineral::{
     i18n::{Direction, I18n},
     kit,
+    kit::paint::FocusStroke,
     layout::{Constraints, Measure},
     semantic::{self, AgentKey, KeyedSalt, Role, SemanticNode},
     widget::{Availability, Interaction, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
@@ -308,11 +309,8 @@ impl MineralWidget for Row {
             paint::icon(ui.painter(), pos2(x, cy), icon, false, d::ICON_SIZE, color);
         }
         if i.focused {
-            ui.painter().rect_stroke(
-                rect,
-                radius,
-                Stroke::new(g::STROKE_WIDTH_THICK, t.color(ColorStrokeFocus2)),
-                StrokeKind::Inside,
+            ui.painter().add(
+                FocusStroke::inside(Stroke::new(g::STROKE_WIDTH_THICK, t.color(ColorStrokeFocus2))).shape(rect, radius),
             );
         }
         WidgetResponse::new(r.clone(), ()).with_changed(r.clicked())

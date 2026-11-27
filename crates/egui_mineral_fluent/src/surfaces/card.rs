@@ -2,6 +2,7 @@ use crate::msg;
 use crate::tokens::ShadowTint;
 use egui::{Align, Frame, Margin, Rect, Response, Sense, Shape, Stroke, StrokeKind, Ui, UiBuilder, pos2, vec2};
 use egui_mineral::{
+    kit::paint::VisualState,
     layout::Axis,
     semantic::{self, AgentKey, KeyedSalt, Role, SemanticNode},
     widget::{Availability, Interaction, MineralUi},
@@ -25,7 +26,7 @@ use crate::{
     spec::{defaults::card as d, tokens::geometry},
     theme::{Elevation, Radius},
     typography::TypeRamp,
-    widget::{focus, paint, state::State},
+    widget::{focus, paint},
 };
 
 /// Card `appearance`.
@@ -235,12 +236,12 @@ impl<'a> Card<'a> {
         }
     }
 
-    fn colors(&self, s: State, selected: bool) -> (ColorToken, ColorToken, Option<Elevation>) {
+    fn colors(&self, s: VisualState, selected: bool) -> (ColorToken, ColorToken, Option<Elevation>) {
         let (mut fill, mut border, mut elevation) = self.rest();
         if s.engaged() {
-            (fill, elevation) = self.engaged(s == State::Hover);
+            (fill, elevation) = self.engaged(s == VisualState::Hover);
             if self.appearance == CardAppearance::Outline {
-                border = if s == State::Pressed {
+                border = if s == VisualState::Pressed {
                     ColorNeutralStroke1Pressed
                 } else {
                     ColorNeutralStroke1Hover
@@ -294,7 +295,7 @@ impl<'a> Card<'a> {
         ui: &MineralUi<'_, Fluent>,
         bg: egui::layers::ShapeIdx,
         rect: Rect,
-        s: State,
+        s: VisualState,
         selected: bool,
         focused: bool,
     ) {
@@ -389,7 +390,11 @@ impl<'a> Card<'a> {
         }
         let selected = self.selected.as_deref().copied().unwrap_or(false);
         let i = Interaction::of(&response, availability);
-        let s = if activatable { State::of(i) } else { State::Rest };
+        let s = if activatable {
+            VisualState::of(i)
+        } else {
+            VisualState::Rest
+        };
         self.paint(ui, bg, rect, s, selected, i.focused && activatable);
         if self.checkbox {
             let flipped = self.select_checkbox(rt, ui, rect);

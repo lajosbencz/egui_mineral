@@ -5,6 +5,7 @@ use egui_mineral::{
     focus::{self as roving, RovingFocus},
     i18n::I18n,
     kit,
+    kit::paint::{FocusStroke, VisualState},
     layout::{Axis, Constraints, Measure, MinTarget},
     select::SelectionResponse,
     semantic::{self, AgentKey, KeyedSalt, Role, SemanticNode},
@@ -35,7 +36,7 @@ use crate::{
     typography::TypeRamp,
     widget::{
         paint,
-        state::{Ramp, State},
+        state::{Pick as _, Ramp},
         tween,
     },
 };
@@ -187,7 +188,7 @@ struct Palette {
 }
 
 fn transparent() -> Ramp {
-    Ramp::new(
+    Ramp::some(
         ColorTransparentStroke,
         ColorTransparentStroke,
         ColorTransparentStroke,
@@ -196,7 +197,7 @@ fn transparent() -> Ramp {
 }
 
 fn muted() -> Ramp {
-    Ramp::new(
+    Ramp::some(
         ColorNeutralForeground2,
         ColorNeutralForeground2Hover,
         ColorNeutralForeground2Pressed,
@@ -206,14 +207,14 @@ fn muted() -> Ramp {
 
 fn regular(appearance: TabAppearance, selected: bool) -> Palette {
     let fill = if appearance == TabAppearance::Subtle {
-        Ramp::new(
+        Ramp::some(
             ColorSubtleBackground,
             ColorSubtleBackgroundHover,
             ColorSubtleBackgroundPressed,
             ColorTransparentBackground,
         )
     } else {
-        Ramp::new(
+        Ramp::some(
             ColorTransparentBackground,
             ColorTransparentBackgroundHover,
             ColorTransparentBackgroundPressed,
@@ -222,13 +223,13 @@ fn regular(appearance: TabAppearance, selected: bool) -> Palette {
     };
     let (icon, content) = if selected {
         (
-            Ramp::new(
+            Ramp::some(
                 ColorCompoundBrandForeground1,
                 ColorCompoundBrandForeground1Hover,
                 ColorCompoundBrandForeground1Pressed,
                 ColorNeutralForegroundDisabled,
             ),
-            Ramp::new(
+            Ramp::some(
                 ColorNeutralForeground1,
                 ColorNeutralForeground1Hover,
                 ColorNeutralForeground1Pressed,
@@ -249,19 +250,19 @@ fn regular(appearance: TabAppearance, selected: bool) -> Palette {
 fn subtle_circular(selected: bool) -> Palette {
     let (fill, fg, border) = if selected {
         (
-            Ramp::new(
+            Ramp::some(
                 ColorBrandBackground2,
                 ColorBrandBackground2Hover,
                 ColorBrandBackground2Pressed,
                 ColorNeutralBackgroundDisabled,
             ),
-            Ramp::new(
+            Ramp::some(
                 ColorBrandForeground2,
                 ColorBrandForeground2Hover,
                 ColorBrandForeground2Pressed,
                 ColorNeutralForegroundDisabled,
             ),
-            Ramp::new(
+            Ramp::some(
                 ColorCompoundBrandStroke,
                 ColorCompoundBrandStrokeHover,
                 ColorCompoundBrandStrokePressed,
@@ -270,14 +271,14 @@ fn subtle_circular(selected: bool) -> Palette {
         )
     } else {
         (
-            Ramp::new(
+            Ramp::some(
                 ColorSubtleBackground,
                 ColorSubtleBackgroundHover,
                 ColorSubtleBackgroundPressed,
                 ColorSubtleBackground,
             ),
             muted(),
-            Ramp::new(
+            Ramp::some(
                 ColorTransparentStroke,
                 ColorNeutralStroke1Hover,
                 ColorNeutralStroke1Pressed,
@@ -296,13 +297,13 @@ fn subtle_circular(selected: bool) -> Palette {
 fn filled_circular(selected: bool) -> Palette {
     let (fill, fg) = if selected {
         (
-            Ramp::new(
+            Ramp::some(
                 ColorBrandBackground,
                 ColorBrandBackgroundHover,
                 ColorBrandBackgroundPressed,
                 ColorNeutralBackgroundDisabled,
             ),
-            Ramp::new(
+            Ramp::some(
                 ColorNeutralForegroundOnBrand,
                 ColorNeutralForegroundOnBrand,
                 ColorNeutralForegroundOnBrand,
@@ -311,7 +312,7 @@ fn filled_circular(selected: bool) -> Palette {
         )
     } else {
         (
-            Ramp::new(
+            Ramp::some(
                 ColorNeutralBackground3,
                 ColorNeutralBackground3Hover,
                 ColorNeutralBackground3Pressed,
@@ -451,7 +452,7 @@ impl MineralWidget for TabItem<'_> {
         kit::interact::hover_cursor(ui.core(), r, availability);
         kit::interact::follow_press(r);
         let i = Interaction::of(r, availability);
-        let s = State::of(i);
+        let s = VisualState::of(i);
         let selected = self.selected;
         let pal = palette(self.appearance, selected);
         let rect = frame.zones.visual;
@@ -470,7 +471,7 @@ impl MineralWidget for TabItem<'_> {
                 StrokeKind::Inside,
             );
         } else if !selected && s.engaged() {
-            let token = if s == State::Pressed {
+            let token = if s == VisualState::Pressed {
                 ColorNeutralStroke1Pressed
             } else {
                 ColorNeutralStroke1Hover
@@ -512,11 +513,9 @@ impl MineralWidget for TabItem<'_> {
         if i.focused {
             let p = ui.painter();
             paint::shadow(p, rect, radius, Elevation::E4, &t);
-            p.rect_stroke(
-                rect,
-                radius,
-                Stroke::new(g::STROKE_WIDTH_THICK, t.color(ColorStrokeFocus2)),
-                StrokeKind::Outside,
+            p.add(
+                FocusStroke::outside(Stroke::new(g::STROKE_WIDTH_THICK, t.color(ColorStrokeFocus2)))
+                    .shape(rect, radius),
             );
             if circular {
                 p.rect_stroke(
@@ -580,8 +579,8 @@ impl Indicator {
             Rect::from_min_size(pos2(origin.x + from, sel.rect.top()), vec2(len, sel.rect.height()))
         };
         let t = ui.tokens();
-        let s = State::of(Interaction::of(sel, Availability::disabled_if(!enabled)));
-        let color = Ramp::new(
+        let s = VisualState::of(Interaction::of(sel, Availability::disabled_if(!enabled)));
+        let color = Ramp::some(
             ColorCompoundBrandStroke,
             ColorCompoundBrandStrokeHover,
             ColorCompoundBrandStrokePressed,

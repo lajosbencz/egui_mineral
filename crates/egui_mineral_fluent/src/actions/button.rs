@@ -4,6 +4,7 @@ use egui_mineral::{
     focus as roving,
     i18n::{Direction, I18n},
     kit,
+    kit::paint::VisualState,
     layout::{Constraints, Measure},
     select::Check,
     semantic::{AgentKey, KeyedSalt, Role, SemanticNode},
@@ -21,7 +22,7 @@ use crate::{
     theme::{Elevation, Radius, Tokens},
     widget::{
         focus, paint,
-        state::{Ramp, State},
+        state::{Pick as _, Ramp},
     },
 };
 
@@ -211,19 +212,19 @@ struct Ramps {
     icon: Option<Ramp>,
 }
 
-const NEUTRAL_STROKE: Ramp = Ramp::new(
+const NEUTRAL_STROKE: Ramp = Ramp::some(
     ColorNeutralStroke1,
     ColorNeutralStroke1Hover,
     ColorNeutralStroke1Pressed,
     ColorNeutralStrokeDisabled,
 );
-const NEUTRAL_CONTENT: Ramp = Ramp::new(
+const NEUTRAL_CONTENT: Ramp = Ramp::some(
     ColorNeutralForeground1,
     ColorNeutralForeground1Hover,
     ColorNeutralForeground1Pressed,
     ColorNeutralForegroundDisabled,
 );
-const TRANSPARENT_FILL: Ramp = Ramp::new(
+const TRANSPARENT_FILL: Ramp = Ramp::some(
     ColorTransparentBackground,
     ColorTransparentBackgroundHover,
     ColorTransparentBackgroundPressed,
@@ -232,13 +233,13 @@ const TRANSPARENT_FILL: Ramp = Ramp::new(
 
 // react-button useButtonStyles.styles.ts useRootStyles, useRootDisabledStyles
 fn rest_ramps(appearance: ButtonAppearance) -> Ramps {
-    let neutral_fill = Ramp::new(
+    let neutral_fill = Ramp::some(
         ColorNeutralBackground1,
         ColorNeutralBackground1Hover,
         ColorNeutralBackground1Pressed,
         ColorNeutralBackgroundDisabled,
     );
-    let none = Ramp::TRANSPARENT;
+    let none = Ramp::NONE;
     match appearance {
         ButtonAppearance::Secondary => Ramps {
             fill: neutral_fill,
@@ -253,14 +254,14 @@ fn rest_ramps(appearance: ButtonAppearance) -> Ramps {
             icon: None,
         },
         ButtonAppearance::Primary => Ramps {
-            fill: Ramp::new(
+            fill: Ramp::some(
                 ColorBrandBackground,
                 ColorBrandBackgroundHover,
                 ColorBrandBackgroundPressed,
                 ColorNeutralBackgroundDisabled,
             ),
             stroke: none,
-            content: Ramp::new(
+            content: Ramp::some(
                 ColorNeutralForegroundOnBrand,
                 ColorNeutralForegroundOnBrand,
                 ColorNeutralForegroundOnBrand,
@@ -269,20 +270,20 @@ fn rest_ramps(appearance: ButtonAppearance) -> Ramps {
             icon: None,
         },
         ButtonAppearance::Subtle => Ramps {
-            fill: Ramp::new(
+            fill: Ramp::some(
                 ColorSubtleBackground,
                 ColorSubtleBackgroundHover,
                 ColorSubtleBackgroundPressed,
                 ColorTransparentBackground,
             ),
             stroke: none,
-            content: Ramp::new(
+            content: Ramp::some(
                 ColorNeutralForeground2,
                 ColorNeutralForeground2Hover,
                 ColorNeutralForeground2Pressed,
                 ColorNeutralForegroundDisabled,
             ),
-            icon: Some(Ramp::new(
+            icon: Some(Ramp::some(
                 ColorNeutralForeground2,
                 ColorNeutralForeground2BrandHover,
                 ColorNeutralForeground2BrandPressed,
@@ -292,7 +293,7 @@ fn rest_ramps(appearance: ButtonAppearance) -> Ramps {
         ButtonAppearance::Transparent => Ramps {
             fill: TRANSPARENT_FILL,
             stroke: none,
-            content: Ramp::new(
+            content: Ramp::some(
                 ColorNeutralForeground2,
                 ColorNeutralForeground2BrandHover,
                 ColorNeutralForeground2BrandPressed,
@@ -319,7 +320,7 @@ fn checked_ramps(appearance: ButtonAppearance) -> Ramps {
         },
         ButtonAppearance::Outline => Ramps {
             fill: selected(ColorTransparentBackgroundSelected, rest.fill),
-            stroke: Ramp::new(
+            stroke: Ramp::some(
                 ColorNeutralStroke1,
                 ColorNeutralStroke1,
                 ColorNeutralStroke1,
@@ -335,7 +336,7 @@ fn checked_ramps(appearance: ButtonAppearance) -> Ramps {
         ButtonAppearance::Subtle => Ramps {
             fill: selected(ColorSubtleBackgroundSelected, rest.fill),
             content: selected(ColorNeutralForeground2Selected, rest.content),
-            icon: Some(Ramp::new(
+            icon: Some(Ramp::some(
                 ColorNeutralForeground2BrandSelected,
                 ColorNeutralForeground2BrandSelected,
                 ColorNeutralForeground2BrandSelected,
@@ -346,7 +347,7 @@ fn checked_ramps(appearance: ButtonAppearance) -> Ramps {
         ButtonAppearance::Transparent => Ramps {
             fill: selected(ColorTransparentBackgroundSelected, rest.fill),
             content: selected(ColorNeutralForeground2BrandSelected, rest.content),
-            icon: Some(Ramp::new(
+            icon: Some(Ramp::some(
                 ColorNeutralForeground2BrandSelected,
                 ColorNeutralForeground2BrandSelected,
                 ColorNeutralForeground2BrandSelected,
@@ -360,7 +361,7 @@ fn checked_ramps(appearance: ButtonAppearance) -> Ramps {
 // react-button useMenuButtonStyles.styles.ts useRootExpandedStyles, useIconExpandedStyles
 fn expanded_ramps(appearance: ButtonAppearance) -> Ramps {
     let rest = rest_ramps(appearance);
-    let all = |c: ColorToken, disabled: Ramp| Ramp::new(c, c, c, c).disabled(disabled.disabled);
+    let all = |c: ColorToken, disabled: Ramp| Ramp::some(c, c, c, c).disabled(disabled.disabled);
     match appearance {
         ButtonAppearance::Secondary => Ramps {
             fill: all(ColorNeutralBackground1Selected, rest.fill),
@@ -395,13 +396,13 @@ fn expanded_ramps(appearance: ButtonAppearance) -> Ramps {
 fn secondary_ramp(appearance: ButtonAppearance) -> Ramp {
     match appearance {
         ButtonAppearance::Primary => rest_ramps(appearance).content,
-        ButtonAppearance::Transparent => Ramp::new(
+        ButtonAppearance::Transparent => Ramp::some(
             ColorNeutralForeground2,
             ColorNeutralForeground2BrandHover,
             ColorNeutralForeground2BrandPressed,
             ColorNeutralForegroundDisabled,
         ),
-        ButtonAppearance::Secondary | ButtonAppearance::Outline | ButtonAppearance::Subtle => Ramp::new(
+        ButtonAppearance::Secondary | ButtonAppearance::Outline | ButtonAppearance::Subtle => Ramp::some(
             ColorNeutralForeground2,
             ColorNeutralForeground2Hover,
             ColorNeutralForeground2Pressed,
@@ -419,18 +420,18 @@ pub(crate) enum Mode {
     Expanded,
 }
 
-pub(crate) fn look(appearance: ButtonAppearance, mode: Mode, s: State, t: &Tokens) -> Look {
+pub(crate) fn look(appearance: ButtonAppearance, mode: Mode, s: VisualState, t: &Tokens) -> Look {
     let r = match mode {
         Mode::Rest => rest_ramps(appearance),
         Mode::Checked => checked_ramps(appearance),
         Mode::Expanded => expanded_ramps(appearance),
     };
     let thicker = match (appearance, mode) {
-        (ButtonAppearance::Outline, Mode::Checked | Mode::Expanded) => s != State::Disabled,
+        (ButtonAppearance::Outline, Mode::Checked | Mode::Expanded) => s != VisualState::Disabled,
         _ => false,
     };
     // `bundleIcon`: subtle and transparent show the filled glyph while hovered or pressed; toggles while checked.
-    let filled_icon = s != State::Disabled
+    let filled_icon = s != VisualState::Disabled
         && (mode == Mode::Checked
             || (s.engaged() && matches!(appearance, ButtonAppearance::Subtle | ButtonAppearance::Transparent)));
     Look {
@@ -471,9 +472,9 @@ fn joined(r: CornerRadius, join: Option<Join>, dir: Direction) -> CornerRadius {
 }
 
 // react-button useSplitButtonStyles.styles.ts useRootStyles: primary action `borderRightColor`.
-fn join_stroke(appearance: ButtonAppearance, s: State, t: &Tokens) -> Color32 {
+fn join_stroke(appearance: ButtonAppearance, s: VisualState, t: &Tokens) -> Color32 {
     match (appearance, s) {
-        (_, State::Disabled) => t.color(ColorNeutralStrokeDisabled),
+        (_, VisualState::Disabled) => t.color(ColorNeutralStrokeDisabled),
         (ButtonAppearance::Primary, _) => t.color(ColorNeutralStrokeOnBrand),
         (ButtonAppearance::Subtle | ButtonAppearance::Transparent, s) => TRANSPARENT_FILL.pick(s, t),
         (ButtonAppearance::Secondary | ButtonAppearance::Outline, s) => NEUTRAL_STROKE.pick(s, t),
@@ -760,7 +761,11 @@ impl MineralWidget for PushButton<'_> {
         } else {
             self.mode
         };
-        let s = if self.inert { State::Rest } else { State::of(i) };
+        let s = if self.inert {
+            VisualState::Rest
+        } else {
+            VisualState::of(i)
+        };
         let look = look(self.appearance, mode, s, &t);
         let dir = ui.i18n().direction();
         let r = joined(corners(self.shape, rect), self.join, dir);

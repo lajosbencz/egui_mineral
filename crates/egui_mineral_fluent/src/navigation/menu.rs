@@ -6,6 +6,7 @@ use egui_mineral::{
     anchor::{Align, Anchor, Side},
     focus::RovingFocus,
     i18n::I18n,
+    kit::paint::VisualState,
     kit::{
         self,
         menu::{MenuNav, Walk},
@@ -34,7 +35,7 @@ use crate::{
     typography::{self, TypeRamp},
     widget::{
         focus as ring, paint,
-        state::{Ramp, State},
+        state::{Pick as _, Ramp},
     },
 };
 
@@ -176,11 +177,19 @@ impl Row<'_> {
 }
 
 impl Row<'_> {
-    fn trailing(&self, ui: &MineralUi<'_, Fluent>, t: &Tokens, s: State, rect: Rect, cy: f32, color: egui::Color32) {
+    fn trailing(
+        &self,
+        ui: &MineralUi<'_, Fluent>,
+        t: &Tokens,
+        s: VisualState,
+        rect: Rect,
+        cy: f32,
+        color: egui::Color32,
+    ) {
         let dir = ui.i18n().direction();
         let at = |from: f32, w: f32| dir.start_x(rect, Rangef::new(from, from + w));
         let slot = d::ICON_SIZE + d::ITEM_GAP;
-        let secondary = Ramp::new(
+        let secondary = Ramp::some(
             ColorNeutralForeground3,
             ColorNeutralForeground3Hover,
             ColorNeutralForeground3Pressed,
@@ -259,20 +268,20 @@ impl MineralWidget for Row<'_> {
         let i = Interaction::of(r, availability);
         let open = self.kind == Kind::Submenu(true);
         let s = if open && !i.disabled {
-            State::Hover
+            VisualState::Hover
         } else {
-            State::of(i)
+            VisualState::of(i)
         };
         let engaged = s.engaged();
         let rect = frame.zones.visual;
         let radius = Radius::Medium.on(rect);
-        let fill = Ramp::new(
+        let fill = Ramp::some(
             ColorNeutralBackground1,
             ColorNeutralBackground1Hover,
             ColorNeutralBackground1Pressed,
             ColorNeutralBackground1,
         );
-        let fg = Ramp::new(
+        let fg = Ramp::some(
             ColorNeutralForeground2,
             ColorNeutralForeground2Hover,
             ColorNeutralForeground2Pressed,
@@ -382,9 +391,9 @@ impl MineralWidget for SplitTrigger<'_> {
         kit::interact::follow_press(r);
         let i = Interaction::of(r, availability);
         let s = if self.open && !i.disabled {
-            State::Hover
+            VisualState::Hover
         } else {
-            State::of(i)
+            VisualState::of(i)
         };
         let rect = frame.zones.visual;
         let dir = ui.i18n().direction();
@@ -394,14 +403,14 @@ impl MineralWidget for SplitTrigger<'_> {
             egui_mineral::i18n::Direction::Ltr => egui::CornerRadius { nw: 0, sw: 0, ..c },
             egui_mineral::i18n::Direction::Rtl => egui::CornerRadius { ne: 0, se: 0, ..c },
         };
-        let fill = Ramp::new(
+        let fill = Ramp::some(
             ColorNeutralBackground1,
             ColorNeutralBackground1Hover,
             ColorNeutralBackground1Pressed,
             ColorNeutralBackground1,
         );
         ui.painter().rect_filled(rect, flat(radius), fill.pick(s, &t));
-        let color = Ramp::new(
+        let color = Ramp::some(
             ColorNeutralForeground2,
             ColorNeutralForeground2Hover,
             ColorNeutralForeground2Pressed,

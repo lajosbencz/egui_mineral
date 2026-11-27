@@ -1,8 +1,8 @@
-use egui::{Color32, CornerRadius, Painter, Pos2, Rect, Shape, Stroke, StrokeKind, epaint::TextShape};
+use egui::{Color32, CornerRadius, Painter, Pos2, Rect, Shape, Stroke, epaint::TextShape};
 
 use egui_mineral::anchor::{Align, Anchor, Side};
 use egui_mineral::icon::IconStyle;
-use egui_mineral::widget::InteractionKind;
+use egui_mineral::kit::paint::FocusStroke;
 
 use crate::{Icon, spec::ElevationLevel, tokens::Tokens};
 
@@ -15,13 +15,7 @@ pub(crate) trait StateLayer {
 
 impl StateLayer for Interaction {
     fn layer_opacity(self, t: &Tokens) -> f32 {
-        let s = &t.state;
-        self.dominant().map_or(0.0, |kind| match kind {
-            InteractionKind::Dragged => s.dragged,
-            InteractionKind::Pressed => s.pressed,
-            InteractionKind::Focused => s.focus,
-            InteractionKind::Hovered => s.hover,
-        })
+        t.state.layers().of(self)
     }
 }
 
@@ -91,9 +85,8 @@ pub(crate) fn state_layer(
     i: Interaction,
     t: &Tokens,
 ) {
-    let o = i.layer_opacity(t);
-    if o > 0.0 {
-        p.rect_filled(rect, r, with_alpha(content, o));
+    if let Some(layer) = egui_mineral::kit::paint::overlay(rect, r, content, i.layer_opacity(t)) {
+        p.add(layer);
     }
 }
 
@@ -173,10 +166,9 @@ const FOCUS_RING_OFFSET: f32 = 2.0;
 const FOCUS_RING_WIDTH: f32 = 3.0;
 
 pub(crate) fn focus_ring(p: &Painter, rect: Rect, r: impl Into<CornerRadius>, t: &Tokens) {
-    p.rect_stroke(
-        rect.expand(FOCUS_RING_OFFSET),
-        r,
-        Stroke::new(FOCUS_RING_WIDTH, t.color.secondary),
-        StrokeKind::Outside,
+    p.add(
+        FocusStroke::outside(Stroke::new(FOCUS_RING_WIDTH, t.color.secondary))
+            .offset(FOCUS_RING_OFFSET)
+            .shape(rect, r),
     );
 }

@@ -1,11 +1,12 @@
 use crate::msg;
 use egui::{
-    Align2, CornerRadius, Frame, Id, KeyboardShortcut, Margin, Rangef, ScrollArea, Sense, Stroke, StrokeKind, Ui, Vec2,
-    pos2, text::LayoutJob, vec2,
+    Align2, CornerRadius, Frame, Id, KeyboardShortcut, Margin, Rangef, ScrollArea, Sense, Stroke, Ui, Vec2, pos2,
+    text::LayoutJob, vec2,
 };
 use egui_mineral::{
     action::{ActionValue, NoAction, Widen},
     i18n::Direction,
+    kit::paint::FocusStroke,
     kit::{
         self,
         command_palette::{self as palette, Entry, Labels, Row, State},
@@ -415,11 +416,9 @@ impl<'a, A: ActionValue> CommandPalette<'a, A> {
             );
         }
         if active {
-            ui.painter().rect_stroke(
-                rect,
-                radius,
-                Stroke::new(cb::OPTION_FOCUS_RING, t.color(ColorStrokeFocus2)),
-                StrokeKind::Outside,
+            ui.painter().add(
+                FocusStroke::outside(Stroke::new(cb::OPTION_FOCUS_RING, t.color(ColorStrokeFocus2)))
+                    .shape(rect, radius),
             );
         }
         semantic::emit(ui.ctx(), Some(resp.id), rect, || {

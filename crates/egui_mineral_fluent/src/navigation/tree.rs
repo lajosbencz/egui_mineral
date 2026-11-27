@@ -5,6 +5,7 @@ use egui_mineral::{
     expand::Expansion,
     focus::{self, Typeahead},
     i18n::I18n,
+    kit::paint::{FocusStroke, VisualState},
     kit::{self, state::TempState},
     layout::{Constraints, Measure},
     select::{Check, Selection, SelectionMode},
@@ -31,7 +32,7 @@ use crate::{
     typography::TypeRamp,
     widget::{
         paint,
-        state::{Ramp, State},
+        state::{Pick as _, Ramp},
     },
 };
 
@@ -355,19 +356,19 @@ impl Row<'_> {
 
     fn fill(&self) -> Ramp {
         match self.appearance {
-            TreeAppearance::Subtle => Ramp::new(
+            TreeAppearance::Subtle => Ramp::some(
                 ColorSubtleBackground,
                 ColorSubtleBackgroundHover,
                 ColorSubtleBackgroundPressed,
                 ColorSubtleBackground,
             ),
-            TreeAppearance::SubtleAlpha => Ramp::new(
+            TreeAppearance::SubtleAlpha => Ramp::some(
                 ColorSubtleBackground,
                 ColorSubtleBackgroundLightAlphaHover,
                 ColorSubtleBackgroundLightAlphaPressed,
                 ColorSubtleBackground,
             ),
-            TreeAppearance::Transparent => Ramp::new(
+            TreeAppearance::Transparent => Ramp::some(
                 ColorTransparentBackground,
                 ColorTransparentBackgroundHover,
                 ColorTransparentBackgroundPressed,
@@ -376,19 +377,19 @@ impl Row<'_> {
         }
     }
 
-    fn selector(&self, ui: &MineralUi<'_, Fluent>, s: State, center: egui::Pos2) {
+    fn selector(&self, ui: &MineralUi<'_, Fluent>, s: VisualState, center: egui::Pos2) {
         let t = ui.tokens();
         let p = ui.painter();
         let side = d::SELECTOR_INDICATOR;
         let rect = Rect::from_center_size(center, vec2(side, side));
         let checked = self.check == Check::Checked;
-        let accent = Ramp::new(
+        let accent = Ramp::some(
             ColorCompoundBrandBackground,
             ColorCompoundBrandBackgroundHover,
             ColorCompoundBrandBackgroundPressed,
             ColorNeutralStrokeDisabled,
         );
-        let neutral = Ramp::new(
+        let neutral = Ramp::some(
             ColorNeutralStrokeAccessible,
             ColorNeutralStrokeAccessibleHover,
             ColorNeutralStrokeAccessiblePressed,
@@ -586,20 +587,20 @@ impl MineralWidget for Row<'_> {
         kit::interact::hover_cursor(ui.core(), r, availability);
         kit::interact::follow_press(r);
         let i = Interaction::of(r, availability);
-        let s = State::of(i);
+        let s = VisualState::of(i);
         let rect = frame.zones.visual;
         let dir = ui.i18n().direction();
         let at = |range: Rangef| dir.start_x(rect, range);
         let mid = |x: f32| at(Rangef::new(x, x));
         ui.painter().rect_filled(rect, 0, self.fill().pick(s, &t));
-        let fg = Ramp::new(
+        let fg = Ramp::some(
             ColorNeutralForeground2,
             ColorNeutralForeground2Hover,
             ColorNeutralForeground2Pressed,
             ColorNeutralForegroundDisabled,
         )
         .pick(s, &t);
-        let muted = Ramp::new(
+        let muted = Ramp::some(
             ColorNeutralForeground3,
             ColorNeutralForeground3Hover,
             ColorNeutralForeground3Pressed,
@@ -633,11 +634,9 @@ impl MineralWidget for Row<'_> {
         }
         self.paint_content(ui, rect, spans.content, fg, muted);
         if i.focused {
-            ui.painter().rect_stroke(
-                rect,
-                Radius::Medium.on(rect),
-                Stroke::new(g::STROKE_WIDTH_THICK, t.color(ColorStrokeFocus2)),
-                StrokeKind::Outside,
+            ui.painter().add(
+                FocusStroke::outside(Stroke::new(g::STROKE_WIDTH_THICK, t.color(ColorStrokeFocus2)))
+                    .shape(rect, Radius::Medium.on(rect)),
             );
         }
 
