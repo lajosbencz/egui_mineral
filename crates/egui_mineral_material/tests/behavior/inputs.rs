@@ -187,22 +187,26 @@ fn combobox_toggle_opens_every_option_from_cold() {
     assert_eq!(h.state().value.1, Some(0), "the toggle opens on the first row");
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, egui_mineral::semantic::KeySalt)]
+enum Role {
+    Dev,
+    Pm,
+}
+
+const ROLES: [(Role, &str); 2] = [(Role::Dev, "Developer"), (Role::Pm, "PM")];
+
 #[test]
-fn form_renders_typed_kinds_and_submits_their_values() {
+fn form_renders_declared_fields_and_submits_their_values() {
     use egui_mineral_material::{
         egui_mineral::form::{Form, FormState},
-        text_inputs::{FormExt, FormUiExt},
+        text_inputs::FormExt,
     };
 
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, egui_mineral::semantic::KeySalt)]
-    enum Role {
-        Dev,
-        Pm,
-    }
-
-    #[derive(Default)]
+    #[derive(Default, Form)]
     struct Signup {
+        #[form(choices = ROLES)]
         role: Option<Role>,
+        #[form(label = "Accept", required)]
         terms: bool,
     }
 
@@ -210,17 +214,7 @@ fn form_renders_typed_kinds_and_submits_their_values() {
         SCREEN,
         (FormState::default(), Signup::default(), false),
         |ui, (state, value, submitted)| {
-            let r = Form::new("signup", state, value).show(ui, |f, v| {
-                f.select(
-                    "role",
-                    "Role",
-                    &mut v.role,
-                    [(Role::Dev, "Developer"), (Role::Pm, "PM")],
-                    |s| s,
-                );
-                f.check("terms", "Accept", &mut v.terms, |s| s.required(true));
-            });
-            *submitted |= r.submitted;
+            *submitted |= Form::new("signup", state, value).show_all(ui).submitted;
         },
     );
     h.click("signup-submit-button");
@@ -237,29 +231,109 @@ fn form_renders_typed_kinds_and_submits_their_values() {
 }
 
 #[test]
-fn form_number_field_binds_integers_and_validates_them() {
-    use egui_mineral_material::{
-        egui_mineral::form::{Form, FormState, NumberRange},
-        text_inputs::{FormExt, FormUiExt},
-    };
+fn form_renders_every_core_kind() {
+    use egui_mineral::{date::Date, form::Form, select::Selection};
+    use egui_mineral_material::{egui_mineral::form::FormState, text_inputs::FormExt};
+
+    #[derive(Default, Form)]
+    struct Kinds {
+        #[form(label = "Name", supporting = "Full name", placeholder = "Ann")]
+        name: String,
+        #[form(label = "Accept")]
+        terms: bool,
+        #[form(label = "Notify", kind = Switch, supporting = "By mail")]
+        notify: bool,
+        #[form(label = "Role", choices = ROLES)]
+        role: Option<Role>,
+        #[form(label = "Roles", choices = ROLES)]
+        roles: Selection<Role>,
+        #[form(label = "Start", kind = Date)]
+        start: Option<Date>,
+        #[form(label = "Level", kind = Slider, range = 0.0..=10.0)]
+        level: f32,
+    }
+
+    let (mut state, mut value) = (FormState::default(), Kinds::default());
+    let p = crate::support::render_on(SCREEN, |ui| {
+        Form::new("k", &mut state, &mut value).show_all(ui);
+    });
+    for key in [
+        "k-name-field",
+        "k-terms-checkbox",
+        "k-notify-switch",
+        "k-role-select",
+        "k-roles-select",
+        "k-level-slider",
+    ] {
+        assert!(p.rect(key).width() > 0.0, "{key} shown");
+    }
+    for text in ["Start", "Full name", "By mail"] {
+        assert!(p.text(text).width() > 0.0, "{text} painted");
+    }
+}
+
+#[test]
+fn form_switch_and_slider_show_errors_below() {
+    use egui_mineral::form::{Form, FormState, NumberRange};
+    use egui_mineral_material::text_inputs::FormExt;
+
+    #[derive(Default, Form)]
+    struct Prefs {
+        #[form(label = "Notify", kind = Switch, required)]
+        notify: bool,
+        #[form(label = "Level", kind = Slider, range = 0.0..=10.0, check = NumberRange::at_least(5.0))]
+        level: f32,
+    }
 
     let mut h = harness(
         SCREEN,
-        (FormState::default(), 0u8, false),
+        (FormState::default(), Prefs::default()),
+        |ui, (state, value)| {
+            Form::new("p", state, value).show_all(ui);
+        },
+    );
+    h.click("p-submit-button");
+    h.run();
+    let (mut state, mut value) = std::mem::take(&mut h.state_mut().value);
+    assert!(state.field(Prefs::NOTIFY).and_then(|f| f.error()).is_some());
+    assert!(state.field(Prefs::LEVEL).and_then(|f| f.error()).is_some());
+    let p = crate::support::render_on(SCREEN, |ui| {
+        Form::new("p", &mut state, &mut value).show_all(ui);
+    });
+    let below = p.text("This field is required");
+    assert!(
+        below.top() >= p.rect("p-notify-switch").bottom(),
+        "the error goes under the switch"
+    );
+    assert!(p.text("Enter a number of at least 5").top() >= p.rect("p-level-slider").bottom());
+}
+
+#[cfg(feature = "extras")]
+#[test]
+fn form_number_field_binds_integers_and_validates_them() {
+    use egui_mineral_material::{
+        egui_mineral::form::{Form, FormState, NumberRange},
+        text_inputs::FormExt,
+    };
+
+    #[derive(Default, Form)]
+    struct Exp {
+        #[form(range = 0.0..=10.0, check = NumberRange::at_most(1.0))]
+        years: u8,
+    }
+
+    let mut h = harness(
+        SCREEN,
+        (FormState::default(), Exp::default(), false),
         |ui, (state, value, submitted)| {
-            let r = Form::new("f", state, value).show(ui, |f, v| {
-                f.number("years", "Years", v, 0.0..=10.0, |s| {
-                    s.validator(NumberRange::at_most(1.0))
-                });
-            });
-            *submitted |= r.submitted;
+            *submitted |= Form::new("f", state, value).show_all(ui).submitted;
         },
     );
     h.click("f-years-increment");
     h.click("f-years-increment");
     h.click("f-submit-button");
     let (state, value, submitted) = &h.state().value;
-    assert_eq!(*value, 2, "whole steps on a u8");
+    assert_eq!(value.years, 2, "whole steps on a u8");
     assert!(!submitted, "above the validator's max");
-    assert!(state.field("years").and_then(|f| f.error()).is_some());
+    assert!(state.field(Exp::YEARS).and_then(|f| f.error()).is_some());
 }

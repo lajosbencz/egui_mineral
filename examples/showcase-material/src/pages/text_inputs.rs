@@ -1,7 +1,7 @@
 use egui::{Key, KeyboardShortcut, Modifiers};
 use egui_mineral::{
     edit,
-    form::{CheckError, FormUi, MaxLength, MinLength, ValidateOn, ValidationError, Validator},
+    form::{Form, MaxLength, MinLength, Validation, ValidationError, Validator},
     i18n::LocaleFormat,
     shortcut::{self, Scope},
 };
@@ -558,18 +558,8 @@ fn form(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
             let width = ui.available_width().min(420.0);
             ui.set_max_width(width);
             let r = Form::new("signup", &mut s.form, &mut s.signup)
-                .rule(|v: &Signup| {
-                    if v.password == v.confirm {
-                        Ok(())
-                    } else {
-                        Err(CheckError::on_field(
-                            "confirm",
-                            ValidationError::new("mismatch", "Passwords do not match"),
-                        ))
-                    }
-                })
                 .submit_label("Sign up")
-                .show(ui, signup_fields);
+                .show_all(ui);
             if r.submitted {
                 let v = &s.signup;
                 s.form_done = Some(format!(
@@ -580,7 +570,6 @@ fn form(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
                     v.topics.selected().collect::<Vec<_>>(),
                     v.start,
                 ));
-                s.form.finish_submit(Ok(()));
                 shared.toast("Signed up");
             }
             ui.add_space(8.0);
@@ -649,76 +638,59 @@ fn files(ui: &mut MaterialUi<'_>, s: &mut State, shared: &mut Shared) {
     });
 }
 
-fn signup_fields(f: &mut FormUi<'_, '_, Material>, v: &mut Signup) {
-    f.text("username", "Username", &mut v.username, |s| {
-        s.required(true)
-            .supporting("At least 3 characters")
-            .validator(MinLength(3))
-            .validate_on(ValidateOn::Change)
-    });
-    f.text("email", "Email", &mut v.email, |s| {
-        s.required(true).validator(EmailValidator)
-    });
-    f.text("password", "Password", &mut v.password, |s| {
-        s.required(true)
-            .masked(true)
-            .supporting("8+ characters, 3 of: lower, upper, digit, symbol")
-            .validator(PasswordPolicy {
-                min_len: 8,
-                min_classes: 3,
-            })
-            .validate_on(ValidateOn::Change)
-    });
-    f.text("confirm", "Confirm password", &mut v.confirm, |s| {
-        s.required(true).masked(true)
-    });
-    f.text("bio", "About you (optional)", &mut v.bio, |s| s.rows(3));
-    f.select(
-        "role",
-        "Role",
-        &mut v.role,
-        [
-            (Role::Dev, "Developer"),
-            (Role::Design, "Designer"),
-            (Role::Pm, "Product manager"),
-        ],
-        |s| s.required(true),
-    );
-    f.multi_select(
-        "topics",
-        "Topics (up to 2)",
-        &mut v.topics,
-        [
-            (Topic::Ui, "UI"),
-            (Topic::A11y, "Accessibility"),
-            (Topic::Perf, "Performance"),
-        ],
-        |s| s.validator(MaxLength(2)),
-    );
-    f.date("start", "Start date (optional)", &mut v.start, |s| s);
-    f.number(
-        "experience",
-        "Years of experience",
-        &mut v.experience,
-        0.0..=50.0,
-        |s| s,
-    );
-    f.check("terms", "I accept the terms", &mut v.terms, |s| s.required(true));
-}
-
-#[derive(Default)]
+#[derive(Default, Form)]
+#[form(check = Self::passwords_match)]
 struct Signup {
+    #[form(required, check = MinLength(3), supporting = "At least 3 characters", on = Change)]
     username: String,
+    #[form(required, check = EmailValidator)]
     email: String,
+    #[form(
+        required,
+        check = PasswordPolicy { min_len: 8, min_classes: 3 },
+        masked,
+        supporting = "8+ characters, 3 of: lower, upper, digit, symbol",
+        on = Change
+    )]
     password: String,
+    #[form(label = "Confirm password", required, masked)]
     confirm: String,
+    #[form(label = "About you (optional)", rows = 3)]
     bio: String,
+    #[form(required, choices = ROLES)]
     role: Option<Role>,
+    #[form(label = "Topics (up to 2)", check = MaxLength(2), choices = TOPIC_CHOICES)]
     topics: Selection<Topic>,
+    #[form(label = "Start date (optional)", kind = Date)]
     start: Option<Date>,
+    #[form(label = "Years of experience", range = 0.0..=50.0)]
     experience: u8,
+    #[form(label = "I accept the terms", required)]
     terms: bool,
 }
+
+impl Signup {
+    fn passwords_match(&self, v: &mut Validation<'_, Self>) {
+        if self.password != self.confirm {
+            v.error(
+                Self::CONFIRM,
+                ValidationError::new("mismatch", "Passwords do not match"),
+            );
+        }
+    }
+}
+
+const ROLES: [(Role, &str); 3] = [
+    (Role::Dev, "Developer"),
+    (Role::Design, "Designer"),
+    (Role::Pm, "Product manager"),
+];
+
+const TOPIC_CHOICES: [(Topic, &str); 3] = [
+    (Topic::Ui, "UI"),
+    (Topic::A11y, "Accessibility"),
+    (Topic::Perf, "Performance"),
+];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, egui_mineral::semantic::KeySalt)]
 enum Role {

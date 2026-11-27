@@ -10,6 +10,7 @@ mineral-percent = { NUMBER($value, maximumFractionDigits: 0) }%
 # Core messages (`egui_mineral::core_messages`)
 mineral-mnemonic-suffix = { $label } ({ $key })
 mineral-required = This field is required
+mineral-form-hidden-errors = Some fields in other sections need attention
 mineral-min-length = { $min ->
     [one] Use at least { $min } character
    *[other] Use at least { $min } characters

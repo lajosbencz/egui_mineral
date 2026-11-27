@@ -473,8 +473,8 @@ messages!(
 pub trait Localizer: Send + Sync {
     /// Locale of the primary catalog.
     fn locale(&self) -> &Locale;
-    /// `None` when the message is missing. Messages without arguments are cached until the locale, localizer or
-    /// catalogs change.
+    /// `None` when the message is missing; `message.attribute` addresses a Fluent attribute. Messages without
+    /// arguments are cached until the locale, localizer or catalogs change.
     fn message(&self, id: &str, args: &Args<'_>) -> Option<String>;
 }
 
@@ -618,8 +618,13 @@ impl Localizer for FluentLocalizer {
                 Arg::Num(n) => fargs.set(*k, FluentValue::from(*n)),
             }
         }
+        let (message, attribute) = id.split_once('.').map_or((id, None), |(m, a)| (m, Some(a)));
         self.bundles.iter().find_map(|bundle| {
-            let pattern = bundle.get_message(id)?.value()?;
+            let message = bundle.get_message(message)?;
+            let pattern = match attribute {
+                Some(a) => message.get_attribute(a)?.value(),
+                None => message.value()?,
+            };
             let mut errs = Vec::new();
             let out = bundle.format_pattern(pattern, Some(&fargs), &mut errs);
             if !errs.is_empty() {
@@ -907,7 +912,16 @@ impl I18n {
         self.lookup(message.id, &message.args)
     }
 
+    /// Fluent attribute `attribute` of `message`, e.g. a form field's `.supporting`; `None` when missing.
+    pub fn attribute<'a>(&self, message: impl IntoMessage<'a, 0>, attribute: &str) -> Option<String> {
+        self.resolve(&format!("{}.{attribute}", message.into_message().id), &[], false)
+    }
+
     pub(crate) fn lookup(&self, id: &str, args: &Args<'_>) -> String {
+        self.resolve(id, args, true).unwrap_or_else(|| id.to_owned())
+    }
+
+    fn resolve(&self, id: &str, args: &Args<'_>, required: bool) -> Option<String> {
         // Snapshot under one lock; messages format outside it, an app localizer may call back in.
         let snapshot = self.with(|s| {
             if s.missing.contains(id) {
@@ -920,7 +934,7 @@ impl I18n {
         });
         let (app, defaults, generation) = match snapshot {
             ControlFlow::Continue(snapshot) => snapshot,
-            ControlFlow::Break(cached) => return cached.map_or_else(|| id.to_owned(), |m| m.to_string()),
+            ControlFlow::Break(cached) => return cached.map(|m| m.to_string()),
         };
         let found = app
             .and_then(|a| a.message(id, args))
@@ -934,7 +948,9 @@ impl I18n {
                 }
                 match plain {
                     None => {
-                        tracing::warn!(target: "egui_mineral", id, "missing message");
+                        if required {
+                            tracing::warn!(target: "egui_mineral", id, "missing message");
+                        }
                         s.missing.insert(id.to_owned());
                     }
                     Some(m) => {
@@ -943,7 +959,7 @@ impl I18n {
                 }
             });
         }
-        found.unwrap_or_else(|| id.to_owned())
+        found
     }
 }
 

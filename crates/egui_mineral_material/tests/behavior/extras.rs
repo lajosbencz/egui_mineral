@@ -515,13 +515,21 @@ fn form_grid_stacks_labels_above_controls_when_narrow() {
 fn form_grid_places_typed_form_fields_in_its_columns() {
     use egui_mineral::form::{Form, FormState};
     use egui_mineral_material::{extras::FormGrid, prelude::*};
-    let (mut state, mut value) = (FormState::default(), (String::new(), false));
+
+    #[derive(Default, Form)]
+    struct Account {
+        #[form(required)]
+        name: String,
+        #[form(label = "Accept")]
+        terms: bool,
+    }
+
+    let (mut state, mut value) = (FormState::default(), Account::default());
     let p = crate::support::render_on(WIDE, |ui| {
-        Form::new("f", &mut state, &mut value).show(ui, |f, v| {
+        Form::new("f", &mut state, &mut value).show(ui, |f| {
             FormGrid::new("g").show_form(f, |f| {
                 f.section("acct", "Account");
-                f.text("name", "Name", &mut v.0, |s| s.required(true));
-                f.check("terms", "Accept", &mut v.1, |s| s);
+                f.rest();
             });
         });
     });

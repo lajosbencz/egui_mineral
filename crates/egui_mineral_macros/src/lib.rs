@@ -13,11 +13,16 @@
 //! keyed by its fields alone. `#[key_salt(rename = "key")]` on a variant or the type fixes the name,
 //! `#[key_salt(crate = path)]` on the type overrides the found `egui_mineral`.
 //!
+//! `#[derive(Form)]` declares a form on a struct with named fields: per field a typed key const
+//! (`start_date` -> `START_DATE`, keyed `start-date`), its presentation and rules, plus `FormModel` and `FormFields`
+//! impls. Use it through `egui_mineral::form::Form`, which documents the `#[form(..)]` attributes.
+//!
 //! `messages!(mod msg = "locales/en-US.ftl")` turns the Fluent catalog at that path (relative to the crate root)
 //! into a module of typed message ids. Use it through `egui_mineral::i18n::messages`, which documents it.
 
 #![warn(clippy::arithmetic_side_effects)]
 
+mod form;
 mod key_salt;
 mod messages;
 
@@ -106,6 +111,13 @@ pub fn derive_key_salt(input: TokenStream) -> TokenStream {
     key_salt::expand(&input)
         .unwrap_or_else(Error::into_compile_error)
         .into()
+}
+
+/// Derives a form declaration; documented at `egui_mineral::form::Form`.
+#[proc_macro_derive(Form, attributes(form))]
+pub fn derive_form(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    form::expand(&input).unwrap_or_else(Error::into_compile_error).into()
 }
 
 /// Derives `Route` for an enum from `#[route("/path")]` attributes. The enum itself may carry

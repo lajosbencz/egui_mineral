@@ -151,6 +151,7 @@ mineral-table-range = { $start }-{ $end } of { $total }
 
 # Form validation (core `form` validator codes)
 mineral-required = This field is required
+mineral-form-hidden-errors = Some fields in other sections need attention
 mineral-min-length = { $min ->
     [one] Use at least { $min } character
    *[other] Use at least { $min } characters

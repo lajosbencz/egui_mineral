@@ -32,7 +32,7 @@ fn attrs(attrs: &[syn::Attribute], allow_crate: bool) -> syn::Result<Attrs> {
 }
 
 // `ListItem` -> `list-item`, `HTTPServer` -> `http-server`.
-fn kebab(name: &str) -> String {
+pub(crate) fn kebab(name: &str) -> String {
     let chars: Vec<char> = name.chars().collect();
     let mut out = String::with_capacity(name.len().saturating_add(4));
     for (i, c) in chars.iter().enumerate() {

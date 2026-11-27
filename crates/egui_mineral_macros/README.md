@@ -19,6 +19,10 @@ kebab-case name (`ListItem` -> `list-item`), fields append their own keys joined
 keyed by its fields alone. `#[key_salt(rename = "key")]` on a variant or the type fixes the name,
 `#[key_salt(crate = path)]` on the type overrides the found `egui_mineral`.
 
+`#[derive(Form)]` declares a form on a struct with named fields: per field a typed key const
+(`start_date` -> `START_DATE`, keyed `start-date`), its presentation and rules, plus `FormModel` and `FormFields`
+impls. Use it through `egui_mineral::form::Form`, which documents the `#[form(..)]` attributes.
+
 `messages!(mod msg = "locales/en-US.ftl")` turns the Fluent catalog at that path (relative to the crate root)
 into a module of typed message ids. Use it through `egui_mineral::i18n::messages`, which documents it.
 

@@ -57,10 +57,10 @@ impl FormGrid {
 
     /// Places the fields `add` shows in `form` as grid rows; [`FormUiExt::section`](crate::inputs::FormUiExt::section)
     /// adds headings.
-    pub fn show_form<R>(
+    pub fn show_form<'s, T, R>(
         self,
-        form: &mut FormUi<'_, '_, Fluent>,
-        add: impl FnOnce(&mut FormUi<'_, '_, Fluent>) -> R,
+        form: &mut FormUi<'_, '_, 's, Fluent, T>,
+        add: impl FnOnce(&mut FormUi<'_, '_, 's, Fluent, T>) -> R,
     ) -> R {
         let ui = form.ui();
         let rt = ui.rt();

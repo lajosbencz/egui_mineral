@@ -4,6 +4,7 @@
 mineral-window-close = Close window
 mineral-mnemonic-suffix = { $label } ({ $key })
 mineral-required = This field is required
+mineral-form-hidden-errors = Some fields in other sections need attention
 mineral-min-length = Use at least { $min } characters
 mineral-max-length = Use at most { $max } characters
 mineral-min-picks = Pick at least { $min } options

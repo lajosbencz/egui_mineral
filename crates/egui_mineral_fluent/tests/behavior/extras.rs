@@ -334,14 +334,22 @@ fn form_grid_stacks_fields_vertically_when_narrow() {
 fn form_grid_places_typed_form_fields_in_its_columns() {
     use egui_mineral::form::{Form, FormState};
     use egui_mineral_fluent::inputs::{FormExt, FormUiExt};
+
+    #[derive(Default, Form)]
+    struct Account {
+        #[form(required)]
+        name: String,
+        #[form(label = "Accept")]
+        terms: bool,
+    }
+
     let mut h = harness(
-        (FormState::default(), (String::new(), false)),
-        |ui, (state, value): &mut (FormState, (String, bool))| {
-            Form::new("f", state, value).show(ui, |f, v| {
+        (FormState::default(), Account::default()),
+        |ui, (state, value): &mut (FormState, Account)| {
+            Form::new("f", state, value).show(ui, |f| {
                 FormGrid::new("g").stack_below(StackBelow::Never).show_form(f, |f| {
                     f.section("acct", "Account");
-                    f.text("name", "Name", &mut v.0, |s| s.required(true));
-                    f.check("terms", "Accept", &mut v.1, |s| s);
+                    f.rest();
                 });
             });
         },

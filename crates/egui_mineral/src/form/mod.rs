@@ -1,9 +1,47 @@
-//! Form validation and submission over app-owned values. Headless: a [`Form`] binds the app's value `T`, each field
-//! binds a `&mut V` part of it through [`FormUi::field`] with typed [`Validator`]s, and stylekits render the fields
-//! and the footer through [`Form::show_with`]. [`FormState`] keeps only per-field meta state (dirty, touched,
-//! errors) and the submission; the values stay in `T`, so a submit hands back nothing to extract.
+//! Form validation and submission over app-owned values. `#[derive(Form)]` declares a form on the value type `T`:
+//! each field's key, accessors, label, kind options and rules live on the field, so the UI names a field only to
+//! place it. A [`Form`](struct@Form) runs the rules ([`FormModel`]) every pass over the whole value, renders fields through
+//! the stylekit's [`FieldWidget`]s in [`FormUi::rest`] or wherever [`FormUi::show`] places them, and drives
+//! submission. [`FormState`] keeps only per-field meta state (dirty, touched, shown errors) and the submission;
+//! the values stay in `T`, so a submit hands back nothing to extract.
+//!
+//! ```
+//! use egui_mineral::form::{Form, FormModel, MinLength, Validation, ValidationError};
+//!
+//! #[derive(Default, Form)]
+//! #[form(check = Self::passwords_match)]
+//! struct Signup {
+//!     #[form(label = "Name", required, check = MinLength(3))]
+//!     name: String,
+//!     #[form(label = "Password", required, masked)]
+//!     password: String,
+//!     #[form(label = "Confirm password", masked)]
+//!     confirm: String,
+//! }
+//!
+//! impl Signup {
+//!     fn passwords_match(&self, v: &mut Validation<'_, Self>) {
+//!         if self.confirm != self.password {
+//!             v.error(Self::CONFIRM, ValidationError::new("mismatch", "Passwords differ"));
+//!         }
+//!     }
+//! }
+//!
+//! let report = Signup::default().report(&egui_mineral::i18n::AsciiFormat::default());
+//! assert_eq!(report.first_invalid(), Some(&Signup::NAME.into()));
+//! ```
+//!
+//! Labels and help texts take literals or message ids (`label = msg::SIGNUP_NAME`); `#[form(messages = msg)]` on
+//! the type looks up `<type>-<field>` for every label and its `.supporting` attribute for the help text. Options of
+//! a field's kind pass through to [`FieldSpec`] methods (`masked`, `rows = 3`, `choices = ROLES`,
+//! `range = 0.0..=50.0`), with `self` in scope for options computed from the value.
 
+mod input;
+mod model;
 mod placement;
+#[cfg(test)]
+mod tests;
+mod ui;
 mod validators;
 
 use std::{borrow::Cow, collections::HashMap, sync::Arc};
@@ -12,13 +50,37 @@ use egui::Id;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    date::Date,
     i18n::{self, Arg, LocaleFormat},
-    select::Selection,
     semantic::KeyedSalt,
     widget::MineralUi,
 };
+/// Declares a form on a struct with named fields: a key const per field (`start_date` -> `START_DATE`, keyed
+/// `start-date`) and the [`FormModel`] and [`FormFields`] impls.
+///
+/// On the type:
+/// - `check = path`: `fn(&self, &mut Validation<Self>)` run after the field rules, for cross-field rules;
+///   repeatable.
+/// - `messages = path`: the `messages!` module labels come from: message `<prefix>-<field>` labels a field, its
+///   `.supporting` attribute is the help text.
+/// - `prefix = "name"`: message prefix; default the kebab-case type name.
+/// - `crate = path`: path of `egui_mineral`.
+///
+/// On a field:
+/// - `label = expr`, `supporting = expr`: literal or message id ([`Label`]); the default label is the humanized
+///   field name.
+/// - `required`: blank fails ([`Blank`] types only); `check = expr`: a [`Validator`], repeatable, run in order.
+/// - `on = Change | Blur | Submit`: [`ValidateOn`].
+/// - `kind = Name`: widget kind, a [`kind`] marker or, given as a path (`kind = my::Stars`), an app's
+///   [`FieldKind`]; default the value type's [`FieldInput::Kind`].
+/// - `nested`: a nested `Form` value; `list`: a `Vec` of `Form` values.
+/// - `rename = "key"`, `skip`.
+/// - any other `name` or `name = expr`: the [`FieldSpec`] option method of the kind, `.name(true)` or
+///   `.name(expr)` (`masked`, `rows = 3`, `choices = ROLES`, `range = 0.0..=50.0`); `self` is the form value.
+pub use egui_mineral_macros::Form;
+pub use input::{Blank, Choices, FieldInput, FieldKind, Label, NumberOptions, TextOptions, kind};
+pub use model::{FieldCheck, FieldKey, FieldPath, FormModel, KeyName, ListKey, NestedKey, Report, Validation};
 pub use placement::{FieldPlacement, FormRow, LabelSlot, PlaceRender};
+pub use ui::{FieldCtx, FieldSpec, FieldWidget, FormFields, FormUi};
 pub use validators::{MaxLength, MinLength, NumberRange, Required};
 
 /// Field or form error; [`Self::message`] resolves the text for display. Built with [`Self::new`] or
@@ -76,71 +138,9 @@ impl std::fmt::Display for ValidationError {
 
 impl std::error::Error for ValidationError {}
 
-/// Value a field binds; [`Required`] fails and optional fields skip their validators while it is blank. Numbers and
-/// dates are never blank.
-pub trait Blank {
-    /// Blank text, unchecked, nothing picked.
-    fn is_blank(&self) -> bool;
-}
-
-impl Blank for str {
-    fn is_blank(&self) -> bool {
-        self.trim().is_empty()
-    }
-}
-
-impl Blank for String {
-    fn is_blank(&self) -> bool {
-        self.as_str().is_blank()
-    }
-}
-
-impl Blank for bool {
-    fn is_blank(&self) -> bool {
-        !self
-    }
-}
-
-impl<T> Blank for Option<T> {
-    fn is_blank(&self) -> bool {
-        self.is_none()
-    }
-}
-
-impl<T> Blank for Vec<T> {
-    fn is_blank(&self) -> bool {
-        self.is_empty()
-    }
-}
-
-impl<K: Ord + Clone> Blank for Selection<K> {
-    fn is_blank(&self) -> bool {
-        self.is_empty()
-    }
-}
-
-impl Blank for Date {
-    fn is_blank(&self) -> bool {
-        false
-    }
-}
-
-// Numbers always hold a value; a field that may be empty binds `Option<N>`.
-macro_rules! never_blank {
-    ($($t:ty),*) => {$(
-        impl Blank for $t {
-            fn is_blank(&self) -> bool {
-                false
-            }
-        }
-    )*};
-}
-
-never_blank!(i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, f32, f64);
-
 /// Check of a field value of type `V`; `locale` parses locale-formatted input (numbers, dates).
 pub trait Validator<V: ?Sized>: Send + Sync {
-    /// Never sees a blank value when called through [`FieldSpec::check`].
+    /// Never sees a blank value when called through [`FieldCheck::check`].
     ///
     /// # Errors
     /// [`ValidationError`] describing why `value` is rejected.
@@ -175,9 +175,14 @@ pub struct FieldState {
     pending: bool,
     #[serde(skip)]
     error: Option<ValidationError>,
-    // Validator result of the last pass, shown on submit.
+    // Rule result of the last pass, shown on submit.
     #[serde(skip)]
     latest: Option<ValidationError>,
+    // `error` came from `set_error` or a submission: kept until an edit of the field.
+    #[serde(skip)]
+    external: bool,
+    #[serde(skip)]
+    path: Option<FieldPath>,
 }
 
 impl FieldState {
@@ -205,36 +210,69 @@ impl FieldState {
     pub fn error(&self) -> Option<&ValidationError> {
         self.error.as_ref()
     }
+
+    fn show(&mut self, error: ValidationError) {
+        self.touched = true;
+        self.error = Some(error);
+        self.external = true;
+        self.pending = false;
+    }
+
+    fn reveal(&mut self) {
+        self.touched = true;
+        if !self.pending && !self.external {
+            self.error.clone_from(&self.latest);
+        }
+    }
 }
 
-fn field_id(salt: &KeyedSalt) -> Id {
+pub(crate) fn field_id(salt: &KeyedSalt) -> Id {
     Id::unique(salt.id_salt())
 }
 
-/// Meta state of a [`Form`]: fields by their salt, and the submission.
+/// Meta state of a [`Form`](struct@Form): fields by their path, and the submission.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct FormState {
     fields: HashMap<Id, FieldState>,
     #[serde(skip)]
     submitting: bool,
     #[serde(skip)]
+    submit_requested: bool,
+    #[serde(skip)]
     submit_count: u32,
     #[serde(skip)]
     form_error: Option<ValidationError>,
+    #[serde(skip)]
+    form_error_source: FormErrorSource,
+}
+
+// What set `FormState::form_error`, which decides when it updates.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+enum FormErrorSource {
+    // A rule: follows the rules once shown.
+    #[default]
+    Rules,
+    // Errors on fields not shown: clears once none is left.
+    Hidden,
+    // A submission: kept until the next submit.
+    Server,
 }
 
 impl FormState {
-    /// `None` for a field the form has not shown; [`Form::show_with`] drops fields a pass does not show.
-    pub fn field(&self, salt: impl Into<KeyedSalt>) -> Option<&FieldState> {
-        self.fields.get(&field_id(&salt.into()))
+    /// `None` for a field the form neither checks nor shows; [`Form::show_with`] drops the others each pass.
+    pub fn field(&self, path: impl Into<FieldPath>) -> Option<&FieldState> {
+        self.fields.get(&path.into().id())
     }
 
     /// Inserts a default state on first access.
-    pub fn field_mut(&mut self, salt: impl Into<KeyedSalt>) -> &mut FieldState {
-        self.fields.entry(field_id(&salt.into())).or_default()
+    pub fn field_mut(&mut self, path: impl Into<FieldPath>) -> &mut FieldState {
+        let path = path.into();
+        let f = self.fields.entry(path.id()).or_default();
+        f.path.get_or_insert(path);
+        f
     }
 
-    /// `true` from a submit until [`FormState::finish_submit`]; blocks re-submit.
+    /// `true` from a submit of a [`Form::pending_submit`] form until [`Self::finish_submit`]; blocks re-submit.
     pub fn submitting(&self) -> bool {
         self.submitting
     }
@@ -254,56 +292,116 @@ impl FormState {
         self.fields.values().any(|f| f.dirty)
     }
 
-    /// No shown field or form error and no pending check.
+    /// Every rule of the last pass passed (shown or not), no shown field or form error, no pending check.
     pub fn is_valid(&self) -> bool {
-        self.form_error.is_none() && self.fields.values().all(|f| f.error.is_none() && !f.pending)
+        self.form_error.is_none()
+            && self
+                .fields
+                .values()
+                .all(|f| f.error.is_none() && f.latest.is_none() && !f.pending)
     }
 
-    /// Server-side or async validation result of the field `salt`.
-    pub fn set_error(&mut self, salt: impl Into<KeyedSalt>, error: Option<ValidationError>) {
-        let f = self.field_mut(salt);
-        f.error = error;
-        f.pending = false;
+    /// Server-side or async validation result of the field at `path`; an error shows at once and stays until the
+    /// field is edited.
+    pub fn set_error(&mut self, path: impl Into<FieldPath>, error: Option<ValidationError>) {
+        let f = self.field_mut(path);
+        if let Some(e) = error {
+            f.show(e);
+        } else {
+            f.error = None;
+            f.external = false;
+            f.pending = false;
+        }
     }
 
-    /// Ends a submission: `Ok` clears every dirty flag; each `Err` entry shows on its field, or on the form when it
-    /// targets the form or a field not shown (the last such entry wins).
-    pub fn finish_submit(&mut self, result: Result<(), Vec<CheckError>>) {
+    /// Shows the errors of the fields at or under `prefix` (a wizard step's fields or nested value) as a submit
+    /// would; `true` when they all pass and none is pending, `false` when no field the form checked or showed
+    /// matches.
+    pub fn touch(&mut self, prefix: impl Into<FieldPath>) -> bool {
+        let prefix = prefix.into();
+        let (mut matched, mut valid) = (false, true);
+        for f in self.fields.values_mut() {
+            if f.path.as_ref().is_some_and(|p| p.starts_with(&prefix)) {
+                f.reveal();
+                matched = true;
+                valid &= f.error.is_none() && f.latest.is_none() && !f.pending;
+            }
+        }
+        matched && valid
+    }
+
+    /// Submits on the next pass of the form, as its submit control would.
+    pub fn request_submit(&mut self) {
+        self.submit_requested = true;
+    }
+
+    /// Ends a submission: `Ok` clears every dirty flag; each `Err` entry shows on its field until the field is
+    /// edited, or on the form when it targets the form or a field neither checked nor shown (the last such entry
+    /// wins).
+    pub fn finish_submit(&mut self, result: Result<(), Vec<SubmitError>>) {
         self.submitting = false;
         match result {
             Ok(()) => self.fields.values_mut().for_each(|f| f.dirty = false),
-            Err(errors) => errors.into_iter().for_each(|e| self.show_check(e)),
+            Err(errors) => errors.into_iter().for_each(|e| self.show_error(e)),
         }
     }
 
-    fn show_check(&mut self, CheckError { field, error }: CheckError) {
-        match field.and_then(|id| self.fields.get_mut(&id)) {
-            Some(f) => {
-                f.touched = true;
-                f.error = Some(error);
-            }
-            None => self.form_error = Some(error),
+    fn show_error(&mut self, SubmitError { field, error }: SubmitError) {
+        if let Some(f) = field.and_then(|id| self.fields.get_mut(&id)) {
+            f.show(error);
+        } else {
+            self.form_error = Some(error);
+            self.form_error_source = FormErrorSource::Server;
         }
+    }
+
+    fn hidden_errors(&self, seen: &[Id]) -> bool {
+        self.fields
+            .iter()
+            .any(|(id, f)| !seen.contains(id) && (f.error.is_some() || f.pending))
     }
 
     /// Clears the meta state of every field and the submission; the app resets its own value.
     pub fn reset(&mut self) {
         *self = Self::default();
     }
+
+    // Keeps the fields the rules check or the pass showed, stores the rule results, and updates shown errors: on
+    // a `refreshed` field, and on every field showing a rule error so a fix elsewhere (a cross-field rule) clears it.
+    fn sync(&mut self, report: &Report, seen: &[Id], refreshed: &[Id]) {
+        let checked = report.checked();
+        self.fields
+            .retain(|id, f| seen.contains(id) || checked.iter().any(|p| p.id() == *id) || f.external || f.pending);
+        for path in checked {
+            self.fields.entry(path.id()).or_default().path = Some(path.clone());
+        }
+        for (id, f) in &mut self.fields {
+            f.latest = report.error_of(*id).cloned();
+            let live = f.touched && f.error.is_some() && !f.external;
+            if !f.pending && !f.external && (live || refreshed.contains(id)) {
+                f.error.clone_from(&f.latest);
+            }
+        }
+        match self.form_error_source {
+            FormErrorSource::Rules if self.form_error.is_some() => self.form_error = report.form_error().cloned(),
+            FormErrorSource::Hidden if !self.hidden_errors(seen) => self.form_error = None,
+            _ => {}
+        }
+    }
 }
 
-/// Failed form rule or submission, attached to a field or to the form.
+/// Failed submission, attached to a field or to the form.
 #[derive(Clone, Debug, PartialEq)]
-pub struct CheckError {
+pub struct SubmitError {
     field: Option<Id>,
     error: ValidationError,
 }
 
-impl CheckError {
-    /// Error shown on the field with salt `salt`.
-    pub fn on_field(salt: impl Into<KeyedSalt>, error: ValidationError) -> Self {
+impl SubmitError {
+    /// Error shown on the field at `path`.
+    pub fn on_field(path: impl Into<FieldPath>, error: ValidationError) -> Self {
         Self {
-            field: Some(field_id(&salt.into())),
+            field: Some(path.into().id()),
             error,
         }
     }
@@ -313,9 +411,9 @@ impl CheckError {
         Self { field: None, error }
     }
 
-    /// Shows on the field with salt `salt`; `false` for a form error.
-    pub fn targets(&self, salt: impl Into<KeyedSalt>) -> bool {
-        self.field == Some(field_id(&salt.into()))
+    /// Shows on the field at `path`; `false` for a form error.
+    pub fn targets(&self, path: impl Into<FieldPath>) -> bool {
+        self.field == Some(path.into().id())
     }
 
     /// What failed.
@@ -324,317 +422,7 @@ impl CheckError {
     }
 }
 
-type FormRule<T> = Box<dyn Fn(&T) -> Result<(), CheckError> + Send + Sync>;
-
-/// Declaration of one field: label, help text, required flag, validation timing and typed validators.
-#[must_use]
-pub struct FieldSpec<V: ?Sized> {
-    label: String,
-    supporting: Option<String>,
-    required: bool,
-    validate_on: ValidateOn,
-    masked: bool,
-    rows: usize,
-    validators: Vec<Box<dyn Validator<V>>>,
-}
-
-impl<V: ?Sized> std::fmt::Debug for FieldSpec<V> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("FieldSpec")
-            .field("label", &self.label)
-            .field("supporting", &self.supporting)
-            .field("required", &self.required)
-            .field("validate_on", &self.validate_on)
-            .field("masked", &self.masked)
-            .field("rows", &self.rows)
-            .field("validators", &self.validators.len())
-            .finish()
-    }
-}
-
-impl<V: ?Sized> FieldSpec<V> {
-    /// `label` is the visible, accessible name.
-    pub fn new(label: impl Into<String>) -> Self {
-        Self {
-            label: label.into(),
-            supporting: None,
-            required: false,
-            validate_on: ValidateOn::default(),
-            masked: false,
-            rows: 1,
-            validators: Vec::new(),
-        }
-    }
-
-    /// Visible text; also the accessible name.
-    pub fn label(&self) -> &str {
-        &self.label
-    }
-
-    /// Value of [`Self::supporting`].
-    pub fn supporting_text(&self) -> Option<&str> {
-        self.supporting.as_deref()
-    }
-
-    /// Value of [`Self::required`].
-    pub fn is_required(&self) -> bool {
-        self.required
-    }
-
-    /// Value of [`Self::validate_on`].
-    pub fn validates_on(&self) -> ValidateOn {
-        self.validate_on
-    }
-
-    /// Helper text shown with the field.
-    pub fn supporting(mut self, supporting: impl Into<String>) -> Self {
-        self.supporting = Some(supporting.into());
-        self
-    }
-
-    /// Blank values ([`Blank`]) fail with [`Required`]; when `false`, blank values skip the validators.
-    pub fn required(mut self, required: bool) -> Self {
-        self.required = required;
-        self
-    }
-
-    /// Defaults to [`ValidateOn::Blur`].
-    pub fn validate_on(mut self, validate_on: ValidateOn) -> Self {
-        self.validate_on = validate_on;
-        self
-    }
-
-    /// Runs after the validators added before it.
-    pub fn validator(mut self, validator: impl Validator<V> + 'static) -> Self {
-        self.validators.push(Box::new(validator));
-        self
-    }
-}
-
-impl<V: Blank + ?Sized> FieldSpec<V> {
-    /// Required check, then validators in order; blank optional values pass.
-    ///
-    /// # Errors
-    /// Error of the required check, else of the first validator that rejects `value`.
-    pub fn check(&self, value: &V, locale: &dyn LocaleFormat) -> Result<(), ValidationError> {
-        if self.required {
-            Required.validate(value, locale)?;
-        } else if value.is_blank() {
-            return Ok(());
-        }
-        self.validators.iter().try_for_each(|v| v.validate(value, locale))
-    }
-}
-
-impl FieldSpec<String> {
-    /// Masked input (passwords); default `false`.
-    pub fn masked(mut self, masked: bool) -> Self {
-        self.masked = masked;
-        self
-    }
-
-    /// Visible text lines; more than one makes Enter insert a newline instead of submitting. Default 1.
-    pub fn rows(mut self, rows: usize) -> Self {
-        self.rows = rows.max(1);
-        self
-    }
-
-    /// Value of [`Self::masked`].
-    pub fn is_masked(&self) -> bool {
-        self.masked
-    }
-
-    /// Value of [`Self::rows`].
-    pub fn row_count(&self) -> usize {
-        self.rows
-    }
-}
-
-/// Per-field handle for renderers: the bound value, its spec, and edit, blur and Enter reports.
-pub struct FieldCtx<'a, V: ?Sized> {
-    salt: KeyedSalt,
-    spec: &'a FieldSpec<V>,
-    value: &'a mut V,
-    state: &'a mut FieldState,
-    refresh: bool,
-    submit: bool,
-    label: LabelSlot,
-}
-
-impl<V: ?Sized> std::fmt::Debug for FieldCtx<'_, V> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("FieldCtx").finish_non_exhaustive()
-    }
-}
-
-impl<'a, V: ?Sized> FieldCtx<'a, V> {
-    /// Widget salt of the field: the form salt joined with the field salt.
-    pub fn salt(&self) -> KeyedSalt {
-        self.salt.clone()
-    }
-
-    /// Declaration of the field.
-    pub fn spec(&self) -> &'a FieldSpec<V> {
-        self.spec
-    }
-
-    /// Where the field shows its label; [`LabelSlot::Own`] outside a [`FieldPlacement`].
-    pub fn label_slot(&self) -> LabelSlot {
-        self.label
-    }
-
-    /// Bound value; call [`Self::changed`] after an edit.
-    pub fn value(&mut self) -> &mut V {
-        self.value
-    }
-
-    /// Call after an edit: marks dirty; the shown error updates under [`ValidateOn::Change`], and under every mode
-    /// while [`Self::visible_error`] is `Some`, so a shown error clears on the edit that fixes it.
-    pub fn changed(&mut self) {
-        self.state.dirty = true;
-        if self.spec.validate_on == ValidateOn::Change || (self.state.touched && self.state.error.is_some()) {
-            self.refresh = true;
-        }
-    }
-
-    /// Call on focus loss: marks touched; the shown error updates unless [`ValidateOn::Submit`].
-    pub fn blurred(&mut self) {
-        self.state.touched = true;
-        if self.spec.validate_on != ValidateOn::Submit {
-            self.refresh = true;
-        }
-    }
-
-    /// Edit and focus loss in one: pickers and checkboxes have no blur step, so a pick shows its error at once.
-    pub fn committed(&mut self) {
-        self.changed();
-        self.blurred();
-    }
-
-    /// Call when Enter in a single-line input asks the form to submit.
-    pub fn submit(&mut self) {
-        self.submit = true;
-    }
-
-    /// Error to display: only after the field was touched or a submit was attempted.
-    pub fn visible_error(&self) -> Option<&ValidationError> {
-        self.state.error.as_ref().filter(|_| self.state.touched)
-    }
-}
-
-/// Places the fields of a [`Form`]; stylekits add typed field methods on top of [`Self::field`].
-pub struct FormUi<'u, 's, K> {
-    ui: &'u mut MineralUi<'s, K>,
-    salt: &'u KeyedSalt,
-    state: &'u mut FormState,
-    locale: &'u dyn LocaleFormat,
-    seen: Vec<Id>,
-    submit: bool,
-    placement: Option<&'u mut dyn FieldPlacement<K>>,
-}
-
-crate::kit::opaque_debug!(FormUi<'_, '_, K>);
-
-impl<'s, K> FormUi<'_, 's, K> {
-    /// Ui the fields are placed in, for content between them.
-    pub fn ui(&mut self) -> &mut MineralUi<'s, K> {
-        self.ui
-    }
-
-    /// Form salt; field widgets derive their salts from it.
-    pub fn form_salt(&self) -> &KeyedSalt {
-        self.salt
-    }
-
-    /// Lays out the rows `add` places through `placement`, e.g. a kit form grid; fields keep their state.
-    pub fn placed<R>(
-        &mut self,
-        placement: &mut dyn FieldPlacement<K>,
-        add: impl FnOnce(&mut FormUi<'_, 's, K>) -> R,
-    ) -> R {
-        let mut nested = FormUi {
-            ui: &mut *self.ui,
-            salt: self.salt,
-            state: &mut *self.state,
-            locale: self.locale,
-            seen: std::mem::take(&mut self.seen),
-            submit: false,
-            placement: Some(placement),
-        };
-        let r = add(&mut nested);
-        let FormUi { seen, submit, .. } = nested;
-        self.seen = seen;
-        self.submit |= submit;
-        r
-    }
-
-    /// Non-field `row` laid out by the placement, e.g. a heading or content spanning the form; `add` shows it,
-    /// told where a [`FormRow::Field`] label goes.
-    pub fn row(
-        &mut self,
-        row: FormRow<'_>,
-        add: impl FnOnce(&mut MineralUi<'_, K>, LabelSlot) -> egui::Response,
-    ) -> egui::Response {
-        match self.placement.as_deref_mut() {
-            Some(p) => p.place(self.ui, row, Box::new(add)),
-            None => add(self.ui, LabelSlot::Own),
-        }
-    }
-
-    /// Field `salt` bound to `value`: `render` shows its input, in the ui and [`FieldCtx::label_slot`] the
-    /// placement gives it, and reports edits through the [`FieldCtx`]; then `spec` validates the value of this
-    /// pass.
-    pub fn field<V: Blank + ?Sized>(
-        &mut self,
-        salt: impl Into<KeyedSalt>,
-        spec: &FieldSpec<V>,
-        value: &mut V,
-        render: impl FnOnce(&mut MineralUi<'_, K>, &mut FieldCtx<'_, V>) -> egui::Response,
-    ) -> egui::Response {
-        let salt = salt.into();
-        let id = field_id(&salt);
-        self.seen.push(id);
-        let state = self.state.fields.entry(id).or_default();
-        let mut ctx = FieldCtx {
-            salt: self.salt.join(&salt),
-            spec,
-            value,
-            state,
-            refresh: false,
-            submit: false,
-            label: LabelSlot::Own,
-        };
-        let row = FormRow::Field {
-            label: spec.label(),
-            required: spec.is_required(),
-        };
-        let response = match self.placement.as_deref_mut() {
-            Some(p) => p.place(
-                self.ui,
-                row,
-                Box::new(|ui, slot| {
-                    ctx.label = slot;
-                    render(ui, &mut ctx)
-                }),
-            ),
-            None => render(self.ui, &mut ctx),
-        };
-        let FieldCtx {
-            value,
-            state,
-            refresh,
-            submit,
-            ..
-        } = ctx;
-        let latest = spec.check(value, self.locale).err();
-        if refresh && !state.pending {
-            state.error.clone_from(&latest);
-        }
-        state.latest = latest;
-        self.submit |= submit;
-        response
-    }
-}
+type FormRule<'a, T> = Box<dyn Fn(&T, &mut Validation<'_, T>) + 'a>;
 
 /// Returned by [`Form::show_with`].
 #[derive(Clone, Debug)]
@@ -646,6 +434,8 @@ pub struct FormResponse<R = ()> {
     pub inner: R,
     /// `true` on the pass a valid submission starts; the values are in the bound `T`.
     pub submitted: bool,
+    /// On a rejected submit: the first field in check order with an error, e.g. to switch to its wizard step.
+    pub first_invalid: Option<FieldPath>,
 }
 
 /// Form driver over the app's value `T`: validation timing, submit and error state in a [`FormState`].
@@ -654,16 +444,17 @@ pub struct Form<'a, T> {
     salt: KeyedSalt,
     state: &'a mut FormState,
     value: &'a mut T,
-    rules: Vec<FormRule<T>>,
+    rules: Vec<FormRule<'a, T>>,
     submit_label: Option<String>,
     locale: Option<Arc<dyn LocaleFormat>>,
+    pending: bool,
 }
 
 crate::kit::opaque_debug!(Form<'_, T>);
 
-impl<'a, T> Form<'a, T> {
+impl<'a, T: FormModel> Form<'a, T> {
     /// `id_salt` salts field ids and derives the agent key; `state` persists across passes; `value` holds the
-    /// field values.
+    /// field values and their rules.
     pub fn new(id_salt: impl Into<KeyedSalt>, state: &'a mut FormState, value: &'a mut T) -> Self {
         Self {
             salt: id_salt.into(),
@@ -672,6 +463,7 @@ impl<'a, T> Form<'a, T> {
             rules: Vec::new(),
             submit_label: None,
             locale: None,
+            pending: false,
         }
     }
 
@@ -681,9 +473,8 @@ impl<'a, T> Form<'a, T> {
         self
     }
 
-    /// Cross-field rule over the whole value, run on submit; the error shows on its field
-    /// ([`CheckError::on_field`]), or on the form.
-    pub fn rule(mut self, rule: impl Fn(&T) -> Result<(), CheckError> + Send + Sync + 'static) -> Self {
+    /// Check run after [`FormModel::validate`] every pass, for rules that depend on app state outside `T`.
+    pub fn rule(mut self, rule: impl Fn(&T, &mut Validation<'_, T>) + 'a) -> Self {
         self.rules.push(Box::new(rule));
         self
     }
@@ -694,51 +485,85 @@ impl<'a, T> Form<'a, T> {
         self
     }
 
-    fn submit(&mut self) -> bool {
+    /// Keeps a valid submit in flight ([`FormState::submitting`], no re-submit) until
+    /// [`FormState::finish_submit`], e.g. for a server round trip; otherwise it finishes at once, clearing the
+    /// dirty flags.
+    pub fn pending_submit(mut self) -> Self {
+        self.pending = true;
+        self
+    }
+
+    fn report(&self, locale: &dyn LocaleFormat) -> Report {
+        let mut report = Report::default();
+        let mut v = Validation::new(&*self.value, locale, None, &mut report);
+        self.value.validate(&mut v);
+        for rule in &self.rules {
+            rule(self.value, &mut v);
+        }
+        report
+    }
+
+    fn submit(&mut self, report: &Report, seen: &[Id]) -> bool {
         self.state.submit_count += 1;
         if self.state.submitting {
             return false;
         }
-        self.state.form_error = None;
-        for f in self.state.fields.values_mut() {
-            f.touched = true;
-            if !f.pending {
-                f.error.clone_from(&f.latest);
-            }
+        self.state.form_error = report.form_error().cloned();
+        self.state.form_error_source = FormErrorSource::Rules;
+        self.state.fields.values_mut().for_each(FieldState::reveal);
+        let valid = self.state.is_valid();
+        if !valid && self.state.form_error.is_none() && self.state.hidden_errors(seen) {
+            self.state.form_error = Some(ValidationError::localized(i18n::msg::FORM_HIDDEN_ERRORS));
+            self.state.form_error_source = FormErrorSource::Hidden;
         }
-        for rule in &self.rules {
-            if let Err(e) = rule(self.value) {
-                self.state.show_check(e);
-            }
+        if valid && !self.pending {
+            self.state.finish_submit(Ok(()));
+        } else {
+            self.state.submitting = valid;
         }
-        self.state.submitting = self.state.is_valid();
-        self.state.submitting
+        valid
     }
 
-    /// `add` places the fields through [`FormUi::field`]; `footer` renders the form error and submit control and
-    /// returns `true` when activated. Stylekits wrap it in their own `show`.
+    /// `add` places the fields through [`FormUi`]; `footer` renders the form error and submit control and returns
+    /// `true` when activated. Stylekits wrap it in their own `show`.
     pub fn show_with<K, R>(
         mut self,
         ui: &mut MineralUi<'_, K>,
-        add: impl FnOnce(&mut FormUi<'_, '_, K>, &mut T) -> R,
+        add: impl FnOnce(&mut FormUi<'_, '_, '_, K, T>) -> R,
         footer: impl FnOnce(&mut MineralUi<'_, K>, &FormFooter<'_>) -> bool,
     ) -> FormResponse<R> {
         let rt = ui.rt();
         let locale = self.locale.clone().unwrap_or_else(|| rt.core().i18n().format());
         let scope = ui.scope(|ui| {
             let ui = &mut rt.ui(ui);
-            let mut form = FormUi {
+            let requested = std::mem::take(&mut self.state.submit_requested);
+            let start = self.report(locale.as_ref());
+            let mut pass = ui::Pass {
                 ui: &mut *ui,
                 salt: &self.salt,
-                state: self.state,
-                locale: locale.as_ref(),
+                state: &mut *self.state,
+                report: &start,
                 seen: Vec::new(),
+                refreshed: Vec::new(),
+                changed: false,
                 submit: false,
                 placement: None,
             };
-            let inner = add(&mut form, self.value);
-            let FormUi { seen, submit, .. } = form;
-            self.state.fields.retain(|id, _| seen.contains(id));
+            let inner = add(&mut FormUi {
+                pass: &mut pass,
+                value: &mut *self.value,
+                prefix: None,
+                placed: Vec::new(),
+            });
+            let ui::Pass {
+                seen,
+                refreshed,
+                changed,
+                submit,
+                ..
+            } = pass;
+            let mut report = if changed { self.report(locale.as_ref()) } else { start };
+            self.state.sync(&report, &seen, &refreshed);
             let clicked = footer(
                 ui,
                 &FormFooter {
@@ -748,16 +573,35 @@ impl<'a, T> Form<'a, T> {
                     enabled: !self.state.submitting,
                 },
             );
-            let submitted = (clicked || submit) && self.submit();
-            (inner, submitted)
+            let attempted = clicked || submit || requested;
+            if attempted {
+                // Edits through `FormUi::value` or a render that skipped `FieldCtx::changed` reach the rules here.
+                if !changed {
+                    report = self.report(locale.as_ref());
+                    self.state.sync(&report, &seen, &[]);
+                }
+                repaint(ui.ctx());
+            }
+            let submitted = attempted && self.submit(&report, &seen);
+            let first_invalid = (attempted && !submitted)
+                .then(|| report.first_invalid().cloned())
+                .flatten();
+            (inner, submitted, first_invalid)
         });
-        let (inner, submitted) = scope.inner;
+        let (inner, submitted, first_invalid) = scope.inner;
         FormResponse {
             response: scope.response,
             inner,
             submitted,
+            first_invalid,
         }
     }
+}
+
+// Errors shown by a submit appear after the fields and footer drew this pass.
+#[expect(clippy::disallowed_methods, reason = "one pass after a submit attempt")]
+fn repaint(ctx: &egui::Context) {
+    ctx.request_repaint();
 }
 
 /// Form-level state for the footer renderer.
@@ -772,196 +616,4 @@ pub struct FormFooter<'a> {
     pub submit_label: Option<&'a str>,
     /// `false` while a submission is in flight.
     pub enabled: bool,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::test_support::{TestKit, harness};
-
-    #[derive(Default)]
-    struct Signup {
-        email: String,
-        pw: String,
-        pw2: String,
-        extra: bool,
-    }
-
-    #[derive(Default)]
-    struct App {
-        state: FormState,
-        value: Signup,
-        press: bool,
-        edit: bool,
-        show_extra: bool,
-        submitted: bool,
-    }
-
-    fn blank<V: ?Sized>(ui: &mut MineralUi<'_, TestKit>, _: &mut FieldCtx<'_, V>) -> egui::Response {
-        ui.allocate_response(egui::Vec2::ZERO, egui::Sense::hover())
-    }
-
-    fn show(ui: &mut MineralUi<'_, TestKit>, app: &mut App) {
-        let press = std::mem::take(&mut app.press);
-        let edit = std::mem::take(&mut app.edit);
-        let show_extra = app.show_extra;
-        let r = Form::new("f", &mut app.state, &mut app.value)
-            .locale(Arc::new(crate::test_support::en_us()))
-            .rule(|v: &Signup| {
-                if v.pw == v.pw2 {
-                    Ok(())
-                } else {
-                    Err(CheckError::on_field(
-                        "pw2",
-                        ValidationError::new("mismatch", "Passwords differ"),
-                    ))
-                }
-            })
-            .show_with(
-                ui,
-                |f, v| {
-                    f.field(
-                        "email",
-                        &FieldSpec::new("Email")
-                            .required(true)
-                            .validator(|v: &String, _: &dyn LocaleFormat| {
-                                if v.contains('@') {
-                                    Ok(())
-                                } else {
-                                    Err(ValidationError::new("email", "Not an email"))
-                                }
-                            }),
-                        &mut v.email,
-                        |ui, c| {
-                            if edit {
-                                c.value().push('x');
-                                c.changed();
-                            }
-                            blank(ui, c)
-                        },
-                    );
-                    let pw = FieldSpec::new("Password").required(true).validator(MinLength(3));
-                    f.field("pw", &pw, &mut v.pw, blank);
-                    f.field("pw2", &FieldSpec::new("Repeat"), &mut v.pw2, blank);
-                    if show_extra {
-                        f.field("extra", &FieldSpec::new("Extra").required(true), &mut v.extra, blank);
-                    }
-                },
-                |_, _| press,
-            );
-        app.submitted |= r.submitted;
-    }
-
-    fn code(app: &App, field: &'static str) -> Option<String> {
-        let f = app.state.field(field)?;
-        f.error().map(|e| e.code.to_string())
-    }
-
-    #[test]
-    fn submit_validates_typed_fields_and_form_rules() {
-        let mut h = harness(show, App::default());
-        h.state_mut().value.value = Signup {
-            email: "nope".into(),
-            pw: "abc".into(),
-            pw2: "xyz".into(),
-            extra: false,
-        };
-        h.run();
-        assert_eq!(
-            code(&h.state().value, "email"),
-            None,
-            "errors show after touch or submit"
-        );
-        h.state_mut().value.press = true;
-        h.run();
-        let app = &h.state().value;
-        assert!(!app.submitted);
-        assert_eq!(code(app, "email").as_deref(), Some("email"));
-        assert_eq!(code(app, "pw2").as_deref(), Some("mismatch"));
-
-        let v = &mut h.state_mut().value;
-        "a@b.co".clone_into(&mut v.value.email);
-        "abc".clone_into(&mut v.value.pw2);
-        v.press = true;
-        h.run();
-        assert!(h.state().value.submitted, "valid values submit");
-        assert!(h.state().value.state.submitting());
-        h.state_mut().value.submitted = false;
-        h.state_mut().value.press = true;
-        h.run();
-        let app = &mut h.state_mut().value;
-        assert!(!app.submitted, "no double submit");
-        assert_eq!(app.state.submit_count(), 3);
-        app.state.finish_submit(Ok(()));
-        assert!(!app.state.submitting());
-    }
-
-    #[test]
-    fn edits_mark_dirty_and_code_values_do_not() {
-        let mut h = harness(show, App::default());
-        h.state_mut().value.value.email = "a@b".into();
-        h.run();
-        assert!(!h.state().value.state.is_dirty(), "values set from code are not edits");
-        h.state_mut().value.edit = true;
-        h.run();
-        let app = &mut h.state_mut().value;
-        assert_eq!(app.value.email, "a@bx");
-        assert!(app.state.is_dirty());
-        app.state.finish_submit(Ok(()));
-        assert!(!app.state.is_dirty());
-    }
-
-    #[test]
-    fn hidden_field_drops_its_state_and_stops_blocking() {
-        let mut h = harness(show, App::default());
-        let v = &mut h.state_mut().value;
-        v.value = Signup {
-            email: "a@b".into(),
-            pw: "abc".into(),
-            pw2: "abc".into(),
-            extra: false,
-        };
-        v.show_extra = true;
-        v.press = true;
-        h.run();
-        assert!(!h.state().value.submitted, "the required extra blocks");
-        h.state_mut().value.show_extra = false;
-        h.run();
-        assert!(h.state().value.state.field("extra").is_none());
-        h.state_mut().value.press = true;
-        h.run();
-        assert!(h.state().value.submitted);
-    }
-
-    #[test]
-    fn async_errors_and_pending_block_validity() {
-        let mut state = FormState::default();
-        state.field_mut("name").set_pending(true);
-        assert!(!state.is_valid(), "a pending check blocks validity");
-        state.set_error("name", Some(ValidationError::new("taken", "Name taken")));
-        let f = state.field("name").expect("field");
-        assert!(!f.pending() && f.error().is_some());
-        assert!(!state.is_valid());
-    }
-
-    #[test]
-    fn rejected_submission_shows_on_fields_and_form() {
-        let mut h = harness(show, App::default());
-        h.run();
-        let taken = CheckError::on_field("email", ValidationError::new("taken", "Email taken"));
-        assert!(taken.targets("email") && !taken.targets("pw"));
-        let state = &mut h.state_mut().value.state;
-        state.finish_submit(Err(vec![
-            CheckError::on_field("email", ValidationError::new("taken", "Email taken")),
-            CheckError::on_field("gone", ValidationError::new("x", "Unshown")),
-        ]));
-        assert_eq!(code(&h.state().value, "email").as_deref(), Some("taken"));
-        let state = &h.state().value.state;
-        assert!(state.field("email").is_some_and(FieldState::touched));
-        assert_eq!(
-            state.form_error().map(|e| e.code.as_ref()),
-            Some("x"),
-            "unshown field falls back"
-        );
-    }
 }

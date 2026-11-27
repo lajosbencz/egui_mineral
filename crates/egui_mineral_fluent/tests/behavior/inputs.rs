@@ -626,16 +626,19 @@ fn salted_dropdown_option_keeps_its_key_and_picks_when_an_option_is_inserted_bef
 fn form_blocks_an_empty_required_field_then_submits() {
     use egui_mineral_fluent::{
         egui_mineral::form::{Form, FormState},
-        inputs::{FormExt, FormUiExt},
+        inputs::FormExt,
     };
 
+    #[derive(Default, Form)]
+    struct Signup {
+        #[form(required, supporting = "Shown to others")]
+        name: String,
+    }
+
     let mut h = harness(
-        (FormState::default(), String::new(), false),
-        |ui, (state, name, submitted)| {
-            let r = Form::new("signup", state, name).show(ui, |f, name| {
-                f.text("name", "Name", name, |s| s.required(true).supporting("Shown to others"));
-            });
-            *submitted |= r.submitted;
+        (FormState::default(), Signup::default(), false),
+        |ui, (state, value, submitted)| {
+            *submitted |= Form::new("signup", state, value).show_all(ui).submitted;
         },
     );
     h.run();
@@ -647,45 +650,39 @@ fn form_blocks_an_empty_required_field_then_submits() {
         h.node("signup-name-field-validation-message").name,
         "This field is required"
     );
-    "Ada".clone_into(&mut h.state_mut().value.1);
+    "Ada".clone_into(&mut h.state_mut().value.1.name);
     h.run();
     h.click("signup-submit-button");
     assert!(h.state().value.2, "the value set from code submits");
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, egui_mineral::semantic::KeySalt)]
+enum Job {
+    Dev,
+    Pm,
+}
+
+const JOBS: [(Job, &str); 2] = [(Job::Dev, "Developer"), (Job::Pm, "PM")];
+
 #[test]
-fn form_renders_typed_kinds_and_submits_their_values() {
+fn form_renders_declared_fields_and_submits_their_values() {
     use egui_mineral_fluent::{
         egui_mineral::form::{Form, FormState},
-        inputs::{FormExt, FormUiExt},
+        inputs::FormExt,
     };
 
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, egui_mineral::semantic::KeySalt)]
-    enum Role {
-        Dev,
-        Pm,
-    }
-
-    #[derive(Default)]
+    #[derive(Default, Form)]
     struct Signup {
-        role: Option<Role>,
+        #[form(choices = JOBS)]
+        role: Option<Job>,
+        #[form(label = "Accept", required)]
         terms: bool,
     }
 
     let mut h = harness(
         (FormState::default(), Signup::default(), false),
         |ui, (state, value, submitted)| {
-            let r = Form::new("signup", state, value).show(ui, |f, v| {
-                f.select(
-                    "role",
-                    "Role",
-                    &mut v.role,
-                    [(Role::Dev, "Developer"), (Role::Pm, "PM")],
-                    |s| s,
-                );
-                f.check("terms", "Accept", &mut v.terms, |s| s.required(true));
-            });
-            *submitted |= r.submitted;
+            *submitted |= Form::new("signup", state, value).show_all(ui).submitted;
         },
     );
     h.run();
@@ -699,30 +696,97 @@ fn form_renders_typed_kinds_and_submits_their_values() {
     h.click("signup-submit-button");
     let (_, value, submitted) = &h.state().value;
     assert!(*submitted);
-    assert_eq!((value.terms, value.role), (true, Some(Role::Dev)));
+    assert_eq!((value.terms, value.role), (true, Some(Job::Dev)));
+}
+
+#[test]
+fn form_renders_every_core_kind() {
+    use egui_mineral::{
+        date::Date,
+        form::{Form, FormState, NumberRange},
+        select::Selection,
+    };
+    use egui_mineral_fluent::inputs::FormExt;
+
+    #[derive(Default, Form)]
+    struct Kinds {
+        #[form(label = "Name", supporting = "Full name", placeholder = "Ann")]
+        name: String,
+        #[form(label = "Bio", rows = 3)]
+        bio: String,
+        #[form(label = "Accept")]
+        terms: bool,
+        #[form(label = "Notify", kind = Switch, required)]
+        notify: bool,
+        #[form(label = "Role", choices = JOBS)]
+        role: Option<Job>,
+        #[form(label = "Roles", choices = JOBS)]
+        roles: Selection<Job>,
+        #[form(label = "Start", kind = Date)]
+        start: Option<Date>,
+        #[form(label = "Years", range = 0.0..=10.0)]
+        years: u8,
+        #[form(label = "Level", kind = Slider, range = 0.0..=10.0, check = NumberRange::at_least(5.0))]
+        level: f32,
+    }
+
+    let mut h = harness((FormState::default(), Kinds::default()), |ui, (state, value)| {
+        Form::new("k", state, value).show_all(ui);
+    });
+    h.run();
+    for key in [
+        "k-name-input",
+        "k-bio-textarea",
+        "k-terms-checkbox",
+        "k-notify-switch",
+        "k-role-dropdown",
+        "k-roles-dropdown",
+        "k-start-date-picker",
+        "k-years-spin-button",
+        "k-level-slider",
+    ] {
+        assert!(h.rect(key).width() > 0.0, "{key} shown");
+    }
+    assert_eq!(h.node("k-name-field-hint").name, "Full name");
+    // The submit button is below the harness screen.
+    h.state_mut().value.0.request_submit();
+    h.run();
+    assert_eq!(
+        h.node("k-notify-field-validation-message").name,
+        "This field is required",
+        "the switch shows its error"
+    );
+    assert_eq!(
+        h.node("k-level-field-validation-message").name,
+        "Enter a number of at least 5"
+    );
 }
 
 #[test]
 fn form_number_field_binds_integers_and_validates_them() {
     use egui_mineral_fluent::{
         egui_mineral::form::{Form, FormState, NumberRange},
-        inputs::{FormExt, FormUiExt},
+        inputs::FormExt,
     };
 
-    let mut h = harness((FormState::default(), 0u8, false), |ui, (state, value, submitted)| {
-        let r = Form::new("f", state, value).show(ui, |f, v| {
-            f.number("years", "Years", v, 0.0..=10.0, |s| {
-                s.validator(NumberRange::at_most(1.0))
-            });
-        });
-        *submitted |= r.submitted;
-    });
+    #[derive(Default, Form)]
+    struct Exp {
+        #[form(range = 0.0..=10.0, check = NumberRange::at_most(1.0))]
+        years: u8,
+    }
+
+    let mut h = harness(
+        (FormState::default(), Exp::default(), false),
+        |ui, (state, value, submitted)| {
+            *submitted |= Form::new("f", state, value).show_all(ui).submitted;
+        },
+    );
     h.click("f-years-spin-button");
     h.press(Key::ArrowUp);
     h.press(Key::ArrowUp);
     h.click("f-submit-button");
     let (state, value, submitted) = &h.state().value;
-    assert_eq!(*value, 2, "whole steps on a u8");
+    assert_eq!(value.years, 2, "whole steps on a u8");
     assert!(!submitted, "above the validator's max");
-    assert!(state.field("years").and_then(|f| f.error()).is_some());
+    assert!(state.field(Exp::YEARS).and_then(|f| f.error()).is_some());
 }
