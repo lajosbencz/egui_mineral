@@ -57,6 +57,12 @@ pub use crate::__opaque_debug as opaque_debug;
 /// Forwards every `MineralWidget` method except `layout`, `update` and `semantics` to field `$field` (`0`,
 /// `widget`), inside the `impl` block of a wrapping widget; new trait methods reach every wrapper.
 pub use crate::__delegate_widget_meta as delegate_widget_meta;
+/// `MineralWidget` metadata methods inside the widget's `impl` block, from keywords in any order:
+/// - `salt`: `id_salt` from field `salt: `[`KeyedSalt`](crate::semantic::KeyedSalt).
+/// - `enabled`: `enabled` is `!self.disabled`, field `disabled: bool`.
+/// - `no_target`: `min_target` is [`MinTarget::None`](crate::layout::MinTarget::None).
+/// - `frame_sense`: `sense` is [`interact::text_frame_sense`].
+/// - `hover`: `sense` is `Sense::hover()`.
 pub use crate::__widget_meta as widget_meta;
 
 /// Common imports for widget authors.
