@@ -385,7 +385,7 @@ impl Popup {
     ) -> OverlayResponse<R> {
         let id = crate::kit::scoped_id(rt.core(), popup_id(self.salt));
         let parent = top_modal(rt.ctx());
-        self.show_open(rt, id, anchor_rect, parent, self.return_focus, open, add)
+        self.show_open(rt, id, [anchor_rect; 2], parent, self.return_focus, open, add)
     }
 
     #[expect(clippy::too_many_arguments, reason = "shared body of the trigger and anchor forms")]
@@ -393,7 +393,8 @@ impl Popup {
         &self,
         rt: &Runtime<K>,
         id: Id,
-        anchor_rect: Rect,
+        // Placement anchor and the trigger, both exempt from outside presses.
+        [anchor_rect, trigger_rect]: [Rect; 2],
         parent: Option<LayerId>,
         return_focus: Option<Id>,
         open: &mut bool,
@@ -428,7 +429,7 @@ impl Popup {
             out.dismissed = dismissal(
                 rt.core(),
                 area.response.layer_id,
-                &[area.response.rect, anchor_rect],
+                &[area.response.rect, anchor_rect, trigger_rect],
                 return_focus,
             );
             *open = out.dismissed.is_none();
@@ -443,7 +444,8 @@ impl Popup {
         out
     }
 
-    /// Shows the content while `open`; clears `open` on Escape or an outside press.
+    /// Shows the content while `open`; clears `open` on Escape or a press outside the popup, the trigger and
+    /// [`Self::anchor_rect`].
     pub fn show<K, R>(
         mut self,
         rt: &Runtime<K>,
@@ -457,7 +459,7 @@ impl Popup {
         let out = self.show_open(
             rt,
             id,
-            self.anchor_rect.unwrap_or(trigger.rect),
+            [self.anchor_rect.unwrap_or(trigger.rect), trigger.rect],
             Some(trigger.layer_id),
             Some(self.return_focus.unwrap_or(trigger.id)),
             open,
@@ -473,6 +475,48 @@ impl Popup {
         });
         out
     }
+
+    /// [`Self::show`] with the open state kept under the trigger's id: a click on `trigger` toggles it, and it
+    /// closes when the trigger misses a pass.
+    pub fn show_toggled<K, R>(
+        self,
+        rt: &Runtime<K>,
+        trigger: &Response,
+        add: impl FnOnce(&mut MineralUi<'_, K>, &Placement) -> R,
+    ) -> OverlayResponse<R> {
+        let ctx = rt.ctx().clone();
+        let key = toggled_key(trigger.id, self.salt);
+        let pass = ctx.cumulative_pass_nr();
+        let last = Toggled::load(&ctx, key);
+        let kept = last.open && last.pass.is_some_and(|p| p + 1 >= pass);
+        let mut open = kept != trigger.clicked();
+        // Stored before `add` runs, so its `set_toggled` wins.
+        Toggled { open, pass: Some(pass) }.store(&ctx, key);
+        let out = self.show(rt, trigger, &mut open, add);
+        if !open {
+            Toggled { open, pass: Some(pass) }.store(&ctx, key);
+        }
+        out
+    }
+
+    /// Opens or closes the [`Self::show_toggled`] popup named `id_salt` of `trigger`, e.g. from its content after
+    /// a choice.
+    pub fn set_toggled(ctx: &egui::Context, trigger: Id, id_salt: impl Into<KeyedSalt>, open: bool) {
+        let pass = Some(ctx.cumulative_pass_nr());
+        Toggled { open, pass }.store(ctx, toggled_key(trigger, id_salt.into().id_salt()));
+    }
+}
+
+#[derive(Clone, Copy, Default)]
+struct Toggled {
+    open: bool,
+    pass: Option<u64>,
+}
+
+impl TempState for Toggled {}
+
+fn toggled_key(trigger: Id, salt: IdSalt) -> Id {
+    trigger.with_salt(salt).with("mineral::popup-open")
 }
 
 /// Why a non-modal overlay on `layer` closes this pass: Escape (consumed) or a press outside every rect of `inside`.
@@ -615,6 +659,110 @@ mod tests {
         h.step();
         assert_eq!(dismissed(&h), Some(Dismiss::Outside));
         assert!(!open(&h));
+    }
+
+    #[test]
+    fn toggled_popup_owns_its_open_state() {
+        struct Toggle {
+            close: bool,
+            open: bool,
+        }
+        let at = pos2(30.0, 20.0);
+        let mut h = harness(
+            |ui, s: &mut Toggle| {
+                let trigger = ui.interact(
+                    Rect::from_min_size(pos2(10.0, 10.0), vec2(40.0, 20.0)),
+                    Id::unique("trigger"),
+                    Sense::click(),
+                );
+                let popup = Popup::new("popup", Anchor::new(Side::Bottom, Align::Start));
+                let close = s.close;
+                let out = popup.show_toggled(ui.rt(), &trigger, |ui, _| {
+                    if close {
+                        Popup::set_toggled(ui.ctx(), trigger.id, "popup", false);
+                    }
+                });
+                s.open = out.is_open();
+            },
+            Toggle {
+                close: false,
+                open: false,
+            },
+        );
+        let click = |h: &mut Harness<'_, Run<Toggle>>| {
+            h.input_mut().events.extend(press(at));
+            h.step();
+            h.input_mut().events.push(egui::Event::PointerButton {
+                pos: at,
+                button: egui::PointerButton::Primary,
+                pressed: false,
+                modifiers: Modifiers::NONE,
+            });
+            h.step();
+            h.step();
+        };
+        assert!(!h.state().value.open);
+        click(&mut h);
+        assert!(h.state().value.open, "a click opens");
+        click(&mut h);
+        assert!(!h.state().value.open, "a second click closes");
+        click(&mut h);
+        h.state_mut().value.close = true;
+        h.step();
+        h.step();
+        assert!(!h.state().value.open, "content closes it");
+    }
+
+    #[test]
+    fn toggled_popup_with_its_own_anchor_closes_from_the_trigger_and_with_it() {
+        struct Toggle {
+            shown: bool,
+            open: bool,
+        }
+        let at = pos2(30.0, 20.0);
+        let mut h = harness(
+            |ui, s: &mut Toggle| {
+                if !s.shown {
+                    s.open = false;
+                    return;
+                }
+                let trigger = ui.interact(
+                    Rect::from_min_size(pos2(10.0, 10.0), vec2(40.0, 20.0)),
+                    Id::unique("trigger"),
+                    Sense::click(),
+                );
+                let away = Rect::from_min_size(pos2(200.0, 200.0), vec2(10.0, 10.0));
+                let popup = Popup::new("popup", Anchor::new(Side::Bottom, Align::Start)).anchor_rect(away);
+                s.open = popup.show_toggled(ui.rt(), &trigger, |_, _| ()).is_open();
+            },
+            Toggle {
+                shown: true,
+                open: false,
+            },
+        );
+        let click = |h: &mut Harness<'_, Run<Toggle>>| {
+            h.input_mut().events.extend(press(at));
+            h.step();
+            h.input_mut().events.push(egui::Event::PointerButton {
+                pos: at,
+                button: egui::PointerButton::Primary,
+                pressed: false,
+                modifiers: Modifiers::NONE,
+            });
+            h.step();
+            h.step();
+        };
+        click(&mut h);
+        assert!(h.state().value.open);
+        click(&mut h);
+        assert!(!h.state().value.open, "the trigger is not an outside press");
+        click(&mut h);
+        h.state_mut().value.shown = false;
+        h.step();
+        h.step();
+        h.state_mut().value.shown = true;
+        h.step();
+        assert!(!h.state().value.open, "closed while the trigger was gone");
     }
 
     #[test]
