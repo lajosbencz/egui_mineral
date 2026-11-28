@@ -1595,7 +1595,7 @@ dependencies = [
 
 [[package]]
 name = "egui_mineral_eframe"
-version = "0.13.1"
+version = "0.14.0"
 dependencies = [
  "eframe",
  "egui_mineral",
@@ -1645,7 +1645,7 @@ dependencies = [
 
 [[package]]
 name = "egui_mineral_mcp"
-version = "0.13.1"
+version = "0.14.0"
 dependencies = [
  "axum",
  "egui",

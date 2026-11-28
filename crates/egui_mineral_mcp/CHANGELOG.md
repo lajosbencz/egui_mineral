@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.13.1](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral_mcp-v0.13.0...egui_mineral_mcp-v0.13.1) - 2026-11-28
+## [0.14.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral_mcp-v0.13.0...egui_mineral_mcp-v0.14.0) - 2026-11-28
 
 ### Other
 
