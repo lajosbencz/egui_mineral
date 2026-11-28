@@ -1,7 +1,7 @@
 use std::ops::{Bound, Deref, DerefMut, RangeBounds};
 use std::{cell::OnceCell, rc::Rc};
 
-use egui::{IdSalt, KeyboardShortcut, Pos2, Sense, Ui, Vec2};
+use egui::{IdSalt, KeyboardShortcut, Pos2, Sense, Ui, Vec2, vec2};
 
 use crate::{
     i18n::I18n,
@@ -473,6 +473,26 @@ layout_wrappers! {
     group();
     /// Child `Ui` that is disabled unless `enabled`.
     add_enabled_ui(enabled: bool);
+}
+
+impl<K> MineralUi<'_, K> {
+    /// Row in the reading direction whose items center on its tallest item of the previous pass, where
+    /// [`Self::horizontal`] centers them on `interact_size.y`; the first show discards to measure, later height
+    /// changes apply the next pass. Keyed by position, as egui auto ids.
+    pub fn row<R>(&mut self, add_contents: impl FnOnce(&mut MineralUi<'_, K>) -> R) -> egui::InnerResponse<R> {
+        let id = self.ui.next_auto_id().with("mineral::row");
+        let ctx = self.ui.ctx().clone();
+        let last = perf::size_or_discard(&ctx, id);
+        let height = last.map_or(self.ui.spacing().interact_size.y, |s| s.y);
+        let size = vec2(self.ui.available_size_before_wrap().x, height);
+        let layout = self.rt.core().i18n().direction().row();
+        let out = self.allocate_ui_with_layout(size, layout, add_contents);
+        let tallest = vec2(0.0, out.response.rect.height());
+        if last.is_none_or(|s| perf::size_changed(tallest, s)) {
+            perf::store_size(&ctx, id, tallest);
+        }
+        out
+    }
 }
 
 /// egui container shown with a [`MineralUi`] body, so its content needs no [`Runtime::ui`] re-wrap:
@@ -991,6 +1011,24 @@ mod tests {
             None,
         );
         h.state().value.expect("ran")
+    }
+
+    #[test]
+    fn row_centers_items_on_its_tallest() {
+        let mut h = harness(
+            |ui, out: &mut Option<(f32, f32)>| {
+                let r = ui.row(|ui| {
+                    let (small, _) = ui.allocate_exact_size(vec2(20.0, 10.0), egui::Sense::hover());
+                    let (tall, _) = ui.allocate_exact_size(vec2(20.0, 60.0), egui::Sense::hover());
+                    (small.center().y, tall.center().y)
+                });
+                *out = Some(r.inner);
+            },
+            None,
+        );
+        h.run();
+        let (small, tall) = h.state().value.expect("ran");
+        assert!((small - tall).abs() < 0.5, "{small} vs {tall}");
     }
 
     struct Box(Vec2);
