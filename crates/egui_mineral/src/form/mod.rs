@@ -36,8 +36,9 @@
 //! a field's kind pass through to [`FieldSpec`] methods (`masked`, `rows = 3`, `choices = ROLES`,
 //! `range = 0.0..=50.0`), with `self` in scope for options computed from the value.
 //!
-//! Forms that arrive as data at runtime (plugin forms) use [`DynForm`]: fields of a [`DynKind`] with data rules over
-//! [`DynValue`]s, driven by the same [`Form`](struct@Form), [`FormState`] and kit [`FieldWidget`]s.
+//! Forms that arrive as data at runtime (plugin or server forms) use [`DynForm`]: keyed [`DynCell`]s of the core
+//! kinds, driven by the same [`Form`](struct@Form), [`FormState`], validators and kit [`FieldWidget`]s. A kit lists
+//! the kinds it renders in [`DynWidgets::WIDGETS`]; [`DynForm::unsupported`] finds the fields it cannot show.
 
 mod dynamic;
 mod input;
@@ -58,7 +59,7 @@ use crate::{
     semantic::KeyedSalt,
     widget::MineralUi,
 };
-pub use dynamic::{DynField, DynForm, DynKind, DynValue, DynWidgets};
+pub use dynamic::{DynCell, DynField, DynForm, DynInput, DynRender, DynTable, DynWidgets};
 /// Declares a form on a struct with named fields: a key const per field (`start_date` -> `START_DATE`, keyed
 /// `start-date`) and the [`FormModel`] and [`FormFields`] impls.
 ///

@@ -75,6 +75,23 @@ impl<T> FormUiExt for FormUi<'_, '_, '_, Material, T> {
     }
 }
 
+// Every core kind; Number needs `extras` (NumberField).
+impl egui_mineral::form::DynWidgets for Material {
+    const WIDGETS: egui_mineral::form::DynTable<Self> = egui_mineral::form::DynTable {
+        text: Some(FieldWidget::show),
+        check: Some(FieldWidget::show),
+        switch: Some(FieldWidget::show),
+        #[cfg(feature = "extras")]
+        number: Some(FieldWidget::show),
+        #[cfg(not(feature = "extras"))]
+        number: None,
+        slider: Some(FieldWidget::show),
+        date: Some(FieldWidget::show),
+        pick: Some(FieldWidget::show),
+        multi_pick: Some(FieldWidget::show),
+    };
+}
+
 // TextField; Enter in a single row submits.
 impl FieldWidget<kind::Text, String> for Material {
     fn show(ui: &mut MineralUi<'_, Self>, f: &mut FieldCtx<'_, String, kind::Text>) -> egui::Response {

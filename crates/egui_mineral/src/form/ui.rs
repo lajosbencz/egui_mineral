@@ -46,15 +46,6 @@ where
 }
 
 impl<V: FieldInput, Kd: FieldKind<V>> FieldSpec<V, Kd> {
-    pub(super) fn of(label: Label, supporting: Option<Label>, validate_on: ValidateOn, options: Kd::Options) -> Self {
-        Self {
-            label,
-            supporting,
-            validate_on,
-            options,
-        }
-    }
-
     /// `label` is the visible, accessible name.
     pub fn new(label: impl Into<Label>) -> Self {
         Self {

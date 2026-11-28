@@ -74,6 +74,20 @@ impl<T> FormUiExt for FormUi<'_, '_, '_, Fluent, T> {
     }
 }
 
+// Every core kind.
+impl egui_mineral::form::DynWidgets for Fluent {
+    const WIDGETS: egui_mineral::form::DynTable<Self> = egui_mineral::form::DynTable {
+        text: Some(FieldWidget::show),
+        check: Some(FieldWidget::show),
+        switch: Some(FieldWidget::show),
+        number: Some(FieldWidget::show),
+        slider: Some(FieldWidget::show),
+        date: Some(FieldWidget::show),
+        pick: Some(FieldWidget::show),
+        multi_pick: Some(FieldWidget::show),
+    };
+}
+
 // Input, or a Textarea past one row; masked is a password input. Enter in an Input submits.
 impl FieldWidget<kind::Text, String> for Fluent {
     fn show(ui: &mut MineralUi<'_, Self>, f: &mut FieldCtx<'_, String, kind::Text>) -> egui::Response {

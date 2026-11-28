@@ -1,217 +1,186 @@
 use std::{fmt, sync::Arc};
 
-use serde::{Deserialize, Serialize};
+use serde::ser::{Serialize, SerializeMap, Serializer};
 
 use super::{
-    Choices, FieldInput, FieldPath, FieldSpec, FieldWidget, FormFields, FormModel, FormUi, Label, MaxLength, MinLength,
-    NumberOptions, NumberRange, Required, TextOptions, ValidateOn, Validation, ValidationError, Validator, kind,
+    Blank, FieldCtx, FieldInput, FieldKind, FieldPath, FieldSpec, FormFields, FormModel, FormUi, Report, Required,
+    ValidationError, Validator, kind,
 };
-use crate::{date::Date, i18n::LocaleFormat, select::Selection};
+use crate::{date::Date, i18n::LocaleFormat, select::Selection, widget::MineralUi};
 
-/// Value of a [`DynField`]; the variant follows its [`DynKind`].
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[non_exhaustive]
-pub enum DynValue {
-    /// [`DynKind::Text`].
-    Text(String),
-    /// [`DynKind::Check`] and [`DynKind::Switch`].
-    Flag(bool),
-    /// [`DynKind::Number`] and [`DynKind::Slider`].
-    Number(f64),
-    /// [`DynKind::Date`].
-    Date(Option<Date>),
-    /// [`DynKind::Pick`]: key of the picked choice.
-    Pick(Option<String>),
-    /// [`DynKind::MultiPick`]: keys of the picked choices.
-    Picks(Selection<String>),
-}
+type Check<V> = fn(&V, &dyn LocaleFormat) -> Result<(), ValidationError>;
 
-impl DynValue {
-    /// Blank text, unchecked, no date, nothing picked ([`FieldInput::is_blank`]); a number never is.
-    pub fn is_blank(&self) -> bool {
-        match self {
-            Self::Text(v) => v.is_blank(),
-            Self::Flag(v) => v.is_blank(),
-            Self::Number(_) => false,
-            Self::Date(v) => v.is_blank(),
-            Self::Pick(v) => v.is_blank(),
-            Self::Picks(v) => v.is_blank(),
-        }
-    }
-}
-
-/// Widget kind of a [`DynField`] with its options, one per core [`kind`] marker.
-#[derive(Clone, Debug, PartialEq)]
-#[non_exhaustive]
-pub enum DynKind {
-    /// [`kind::Text`].
-    Text(TextOptions),
-    /// [`kind::Check`].
-    Check,
-    /// [`kind::Switch`].
-    Switch,
-    /// [`kind::Number`].
-    Number(NumberOptions),
-    /// [`kind::Slider`].
-    Slider(NumberOptions),
-    /// [`kind::Date`], optional.
-    Date,
-    /// [`kind::Pick`] over choice keys.
-    Pick(Choices<String>),
-    /// [`kind::MultiPick`] over choice keys.
-    MultiPick(Choices<String>),
-}
-
-impl DynKind {
-    /// Value of a new field: empty text, unchecked, the range minimum (else 0), no date, nothing picked.
-    pub fn default_value(&self) -> DynValue {
-        match self {
-            Self::Text(_) => DynValue::Text(String::new()),
-            Self::Check | Self::Switch => DynValue::Flag(false),
-            Self::Number(o) | Self::Slider(o) => DynValue::Number(o.range.map_or(0.0, |r| r.min())),
-            Self::Date => DynValue::Date(None),
-            Self::Pick(_) => DynValue::Pick(None),
-            Self::MultiPick(_) => DynValue::Picks(Selection::default()),
-        }
-    }
-
-    /// `value` is the variant this kind holds; a non-finite number is not held.
-    pub fn holds(&self, value: &DynValue) -> bool {
-        !matches!(value, DynValue::Number(n) if !n.is_finite())
-            && matches!(
-                (self, value),
-                (Self::Text(_), DynValue::Text(_))
-                    | (Self::Check | Self::Switch, DynValue::Flag(_))
-                    | (Self::Number(_) | Self::Slider(_), DynValue::Number(_))
-                    | (Self::Date, DynValue::Date(_))
-                    | (Self::Pick(_), DynValue::Pick(_))
-                    | (Self::MultiPick(_), DynValue::Picks(_))
-            )
-    }
-}
-
-// Prebuilt spec per kind, so a pass borrows label and options instead of cloning them.
-#[derive(Clone)]
-enum Spec {
-    Text(FieldSpec<String, kind::Text>),
-    Check(FieldSpec<bool, kind::Check>),
-    Switch(FieldSpec<bool, kind::Switch>),
-    Number(FieldSpec<f64, kind::Number>),
-    Slider(FieldSpec<f64, kind::Slider>),
-    Date(FieldSpec<Option<Date>, kind::Date>),
-    Pick(FieldSpec<Option<String>, kind::Pick>),
-    MultiPick(FieldSpec<Selection<String>, kind::MultiPick>),
-}
-
-macro_rules! each_spec {
-    ($spec:expr, $s:ident => $e:expr) => {
-        match $spec {
-            Spec::Text($s) => Spec::Text($e),
-            Spec::Check($s) => Spec::Check($e),
-            Spec::Switch($s) => Spec::Switch($e),
-            Spec::Number($s) => Spec::Number($e),
-            Spec::Slider($s) => Spec::Slider($e),
-            Spec::Date($s) => Spec::Date($e),
-            Spec::Pick($s) => Spec::Pick($e),
-            Spec::MultiPick($s) => Spec::MultiPick($e),
-        }
-    };
-}
-
-impl Spec {
-    fn new(kind: DynKind, label: Label) -> Self {
-        let on = ValidateOn::default();
-        match kind {
-            DynKind::Text(o) => Self::Text(FieldSpec::of(label, None, on, o)),
-            DynKind::Check => Self::Check(FieldSpec::of(label, None, on, ())),
-            DynKind::Switch => Self::Switch(FieldSpec::of(label, None, on, ())),
-            DynKind::Number(o) => Self::Number(FieldSpec::of(label, None, on, o)),
-            DynKind::Slider(o) => Self::Slider(FieldSpec::of(label, None, on, o)),
-            DynKind::Date => Self::Date(FieldSpec::of(label, None, on, ())),
-            DynKind::Pick(o) => Self::Pick(FieldSpec::of(label, None, on, o)),
-            DynKind::MultiPick(o) => Self::MultiPick(FieldSpec::of(label, None, on, o)),
-        }
-    }
-
-    fn holds(&self, value: &DynValue) -> bool {
-        !matches!(value, DynValue::Number(n) if !n.is_finite())
-            && matches!(
-                (self, value),
-                (Self::Text(_), DynValue::Text(_))
-                    | (Self::Check(_) | Self::Switch(_), DynValue::Flag(_))
-                    | (Self::Number(_) | Self::Slider(_), DynValue::Number(_))
-                    | (Self::Date(_), DynValue::Date(_))
-                    | (Self::Pick(_), DynValue::Pick(_))
-                    | (Self::MultiPick(_), DynValue::Picks(_))
-            )
-    }
-}
-
-/// Field of a [`DynForm`] described by data: key, kind, label, help text, rules and value.
-#[derive(Clone)]
+/// Field of kind `Kd` over value `V` described at runtime: the static form's [`FieldSpec`], the value and its rules.
+/// Built by the per-kind constructors ([`Self::text`], [`Self::switch`], ...).
 #[must_use]
-pub struct DynField {
-    key: String,
-    spec: Spec,
-    required: bool,
-    checks: Vec<Arc<dyn Validator<DynValue>>>,
-    value: DynValue,
+pub struct DynCell<V: FieldInput, Kd: FieldKind<V>> {
+    spec: FieldSpec<V, Kd>,
+    value: V,
+    required: Option<Check<V>>,
+    checks: Vec<Arc<dyn Validator<V>>>,
 }
 
-impl fmt::Debug for DynField {
+impl<V: FieldInput + Clone, Kd: FieldKind<V>> Clone for DynCell<V, Kd>
+where
+    Kd::Options: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            spec: self.spec.clone(),
+            value: self.value.clone(),
+            required: self.required,
+            checks: self.checks.clone(),
+        }
+    }
+}
+
+impl<V: FieldInput + fmt::Debug, Kd: FieldKind<V>> fmt::Debug for DynCell<V, Kd> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("DynField")
-            .field("key", &self.key)
+        f.debug_struct("DynCell")
             .field("value", &self.value)
             .finish_non_exhaustive()
     }
 }
 
-impl DynField {
-    /// `key` names the field: its [`FieldPath::named`] path, salt and agent key part. The value starts at
-    /// [`DynKind::default_value`].
-    pub fn new(key: impl Into<String>, kind: DynKind, label: impl Into<Label>) -> Self {
+impl<V: FieldInput, Kd: FieldKind<V>> DynCell<V, Kd> {
+    fn of(spec: FieldSpec<V, Kd>, value: V) -> Self {
         Self {
-            key: key.into(),
-            value: kind.default_value(),
-            spec: Spec::new(kind, label.into()),
-            required: false,
+            spec,
+            value,
+            required: None,
             checks: Vec::new(),
         }
     }
 
-    /// Helper text shown with the field.
-    pub fn supporting(mut self, supporting: impl Into<Label>) -> Self {
-        let supporting = supporting.into();
-        self.spec = each_spec!(self.spec, s => s.supporting(supporting));
+    /// Starting value instead of the kind's empty one.
+    pub fn initial(mut self, value: V) -> Self {
+        self.value = value;
         self
     }
 
-    /// Defaults to [`ValidateOn::Blur`].
-    pub fn validate_on(mut self, validate_on: ValidateOn) -> Self {
-        self.spec = each_spec!(self.spec, s => s.validate_on(validate_on));
-        self
-    }
-
-    /// Blank fails with [`Required`] and the label is marked; default `false`.
-    pub fn required(mut self, required: bool) -> Self {
-        self.required = required;
-        self
-    }
-
-    /// Rule run in order on a non-blank value; the first failure wins. [`MinLength`], [`MaxLength`] and
-    /// [`NumberRange`] check the variants they apply to and pass the others.
-    pub fn check(mut self, validator: impl Validator<DynValue> + 'static) -> Self {
+    /// Rule run in order on a non-blank value; the first failure wins.
+    pub fn check(mut self, validator: impl Validator<V> + 'static) -> Self {
         self.checks.push(Arc::new(validator));
         self
     }
 
-    /// Starting value; ignored unless the field's [`DynKind::holds`] it.
-    pub fn initial(mut self, value: DynValue) -> Self {
-        if self.spec.holds(&value) {
-            self.value = value;
+    /// Presentation of the field.
+    pub fn spec(&self) -> &FieldSpec<V, Kd> {
+        &self.spec
+    }
+
+    /// Current value.
+    pub fn value(&self) -> &V {
+        &self.value
+    }
+
+    /// Value to edit from code; such edits are not user edits.
+    pub fn value_mut(&mut self) -> &mut V {
+        &mut self.value
+    }
+
+    fn validate(&self, path: FieldPath, report: &mut Report, locale: &dyn LocaleFormat) {
+        report.check(&path);
+        if self.required.is_some() {
+            report.require(&path);
         }
+        let failed = if self.value.is_blank() {
+            self.required.and_then(|r| r(&self.value, locale).err())
+        } else {
+            self.checks.iter().find_map(|c| c.validate(&self.value, locale).err())
+        };
+        if let Some(e) = failed {
+            report.fail(path, e);
+        }
+    }
+}
+
+impl<V: Blank, Kd: FieldKind<V>> DynCell<V, Kd> {
+    /// Blank fails with [`Required`] and the label is marked.
+    pub fn required(mut self) -> Self {
+        self.required = Some(|v, locale| Required.validate(v, locale));
         self
+    }
+}
+
+impl DynCell<f64, kind::Number> {
+    /// Number input; starts at the range minimum, else 0.
+    pub fn number(spec: FieldSpec<f64, kind::Number>) -> Self {
+        let start = spec.options().range.map_or(0.0, |r| r.min());
+        Self::of(spec, start)
+    }
+}
+
+impl DynCell<f64, kind::Slider> {
+    /// Slider; starts at the range minimum, else 0.
+    pub fn slider(spec: FieldSpec<f64, kind::Slider>) -> Self {
+        let start = spec.options().range.map_or(0.0, |r| r.min());
+        Self::of(spec, start)
+    }
+}
+
+macro_rules! dyn_inputs {
+    ($($variant:ident($v:ty, $kd:ident) $(= $ctor:ident: $doc:literal)?),* $(,)?) => {
+        /// Field of a [`DynForm`] with its kind's value type, one variant per core [`kind`] marker.
+        #[derive(Clone, Debug)]
+        #[non_exhaustive]
+        pub enum DynInput {
+            $(#[doc = concat!("[`kind::", stringify!($kd), "`].")] $variant(DynCell<$v, kind::$kd>),)*
+        }
+
+        $(
+            impl From<DynCell<$v, kind::$kd>> for DynInput {
+                fn from(cell: DynCell<$v, kind::$kd>) -> Self {
+                    Self::$variant(cell)
+                }
+            }
+
+            $(
+                impl DynCell<$v, kind::$kd> {
+                    #[doc = $doc]
+                    pub fn $ctor(spec: FieldSpec<$v, kind::$kd>) -> Self {
+                        Self::of(spec, <$v>::default())
+                    }
+                }
+            )?
+        )*
+
+        // `$c` is the cell of whichever variant `$input` holds.
+        macro_rules! on_cell {
+            ($input:expr, $c:ident => $body:expr) => {
+                match $input {
+                    $(DynInput::$variant($c) => $body,)*
+                }
+            };
+        }
+    };
+}
+
+dyn_inputs!(
+    Text(String, Text) = text: "Text input; starts empty.",
+    Check(bool, Check) = checkbox: "Checkbox; starts unchecked.",
+    Switch(bool, Switch) = switch: "On/off switch; starts off.",
+    Number(f64, Number),
+    Slider(f64, Slider),
+    Date(Option<Date>, Date) = date: "Optional date; starts unset.",
+    Pick(Option<String>, Pick) = pick: "Pick one choice key; starts with none.",
+    MultiPick(Selection<String>, MultiPick) = multi_pick: "Pick any choice keys; starts with none.",
+);
+
+/// Field of a [`DynForm`]: its key and typed input.
+#[derive(Clone, Debug)]
+pub struct DynField {
+    key: String,
+    input: DynInput,
+}
+
+impl DynField {
+    /// `key` names the field: its [`FieldPath::named`] path, salt and agent key part.
+    pub fn new(key: impl Into<String>, input: impl Into<DynInput>) -> Self {
+        Self {
+            key: key.into(),
+            input: input.into(),
+        }
     }
 
     /// Key of the field.
@@ -219,17 +188,23 @@ impl DynField {
         &self.key
     }
 
-    /// Current value.
-    pub fn value(&self) -> &DynValue {
-        &self.value
+    /// Typed input; match it to read the value.
+    pub fn input(&self) -> &DynInput {
+        &self.input
+    }
+
+    /// Typed input, for code edits of the value.
+    pub fn input_mut(&mut self) -> &mut DynInput {
+        &mut self.input
     }
 }
 
-/// Form value whose fields arrive as data at runtime, e.g. a plugin's form. Implements [`FormModel`] and
-/// [`FormFields`], so a [`Form`](struct@super::Form) drives it with the same [`FormState`](super::FormState),
-/// validators and stylekit [`FieldWidget`]s as a `#[derive(Form)]` type; field `key` is at
+/// Form value whose fields arrive as data at runtime, e.g. a plugin's or a server's form. Implements [`FormModel`]
+/// and [`FormFields`], so a [`Form`](struct@super::Form) drives it with the same [`FormState`](super::FormState),
+/// validators and stylekit [`FieldWidget`](super::FieldWidget)s as a `#[derive(Form)]` type; field `key` is at
 /// [`FieldPath::named`]`(key)`. Cross-field rules go in [`Form::rule`](super::Form::rule) through
-/// [`Validation::error_named`].
+/// [`Validation::error_named`](super::Validation::error_named). Serializes as a map of key to value, a multi-pick as
+/// its picked keys.
 #[derive(Clone, Debug, Default)]
 pub struct DynForm {
     fields: Vec<DynField>,
@@ -254,76 +229,106 @@ impl DynForm {
         &self.fields
     }
 
-    /// Value of field `key`.
-    pub fn value(&self, key: &str) -> Option<&DynValue> {
-        self.field(key).map(DynField::value)
-    }
-
-    /// Keys and values in display order.
-    pub fn values(&self) -> impl Iterator<Item = (&str, &DynValue)> {
-        self.fields.iter().map(|f| (f.key.as_str(), &f.value))
-    }
-
-    /// Replaces the value of field `key`, as a code edit; `false` for an unknown key or a value its kind does not
-    /// hold ([`DynKind::holds`]).
-    pub fn set(&mut self, key: &str, value: DynValue) -> bool {
-        match self.fields.iter_mut().find(|f| f.key == key) {
-            Some(f) if f.spec.holds(&value) => {
-                f.value = value;
-                true
-            }
-            _ => false,
-        }
-    }
-
-    fn field(&self, key: &str) -> Option<&DynField> {
+    /// Field `key`.
+    pub fn field(&self, key: &str) -> Option<&DynField> {
         self.fields.iter().find(|f| f.key == key)
+    }
+
+    /// Field `key`, for code edits of its value.
+    pub fn field_mut(&mut self, key: &str) -> Option<&mut DynField> {
+        self.fields.iter_mut().find(|f| f.key == key)
+    }
+
+    /// Fields of kinds stylekit `K` does not render ([`DynWidgets::WIDGETS`]), in display order; check a form with it
+    /// when it arrives, since such a field is not shown.
+    pub fn unsupported<K: DynWidgets>(&self) -> impl Iterator<Item = &DynField> {
+        self.fields.iter().filter(|f| !rendered_by::<K>(&f.input))
+    }
+}
+
+impl Serialize for DynForm {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut map = serializer.serialize_map(Some(self.fields.len()))?;
+        for f in &self.fields {
+            match &f.input {
+                // The picked keys only, not the selection's anchor and mode.
+                DynInput::MultiPick(c) => {
+                    let picked: Vec<&String> = c.value.selected().collect();
+                    map.serialize_entry(&f.key, &picked)?;
+                }
+                input => on_cell!(input, c => map.serialize_entry(&f.key, &c.value)?),
+            }
+        }
+        map.end()
     }
 }
 
 impl FormModel for DynForm {
-    fn validate(&self, v: &mut Validation<'_, Self>) {
+    fn validate(&self, v: &mut super::Validation<'_, Self>) {
         for f in &self.fields {
             let (path, report, locale) = v.named(&f.key);
-            report.check(&path);
-            if f.required {
-                report.require(&path);
-            }
-            let failed = if f.value.is_blank() {
-                f.required.then(|| Required.validate(&f.value, locale).err()).flatten()
-            } else {
-                f.checks.iter().find_map(|c| c.validate(&f.value, locale).err())
-            };
-            if let Some(e) = failed {
-                report.fail(path, e);
-            }
+            on_cell!(&f.input, c => c.validate(path, report, locale));
         }
     }
 }
 
-/// Stylekit with a [`FieldWidget`] for every [`DynKind`]; implemented for each such kit.
-pub trait DynWidgets:
-    FieldWidget<kind::Text, String>
-    + FieldWidget<kind::Check, bool>
-    + FieldWidget<kind::Switch, bool>
-    + FieldWidget<kind::Number, f64>
-    + FieldWidget<kind::Slider, f64>
-    + FieldWidget<kind::Date, Option<Date>>
-    + FieldWidget<kind::Pick, Option<String>>
-    + FieldWidget<kind::MultiPick, Selection<String>>
-{
+/// Widget fn of a kind a stylekit renders: its [`FieldWidget::show`](super::FieldWidget::show).
+pub type DynRender<K, V, Kd> = fn(&mut MineralUi<'_, K>, &mut FieldCtx<'_, V, Kd>) -> egui::Response;
+
+/// Widget fn per [`DynInput`] kind of a stylekit; `None` for a kind it does not render. Kits fill the kinds they
+/// have over [`Self::NONE`]: `text: Some(FieldWidget::show), ..DynTable::NONE`.
+#[derive(Debug)]
+pub struct DynTable<K> {
+    /// [`DynInput::Text`].
+    pub text: Option<DynRender<K, String, kind::Text>>,
+    /// [`DynInput::Check`].
+    pub check: Option<DynRender<K, bool, kind::Check>>,
+    /// [`DynInput::Switch`].
+    pub switch: Option<DynRender<K, bool, kind::Switch>>,
+    /// [`DynInput::Number`].
+    pub number: Option<DynRender<K, f64, kind::Number>>,
+    /// [`DynInput::Slider`].
+    pub slider: Option<DynRender<K, f64, kind::Slider>>,
+    /// [`DynInput::Date`].
+    pub date: Option<DynRender<K, Option<Date>, kind::Date>>,
+    /// [`DynInput::Pick`].
+    pub pick: Option<DynRender<K, Option<String>, kind::Pick>>,
+    /// [`DynInput::MultiPick`].
+    pub multi_pick: Option<DynRender<K, Selection<String>, kind::MultiPick>>,
 }
 
-impl<K> DynWidgets for K where
-    K: FieldWidget<kind::Text, String>
-        + FieldWidget<kind::Check, bool>
-        + FieldWidget<kind::Switch, bool>
-        + FieldWidget<kind::Number, f64>
-        + FieldWidget<kind::Slider, f64>
-        + FieldWidget<kind::Date, Option<Date>>
-        + FieldWidget<kind::Pick, Option<String>>
-        + FieldWidget<kind::MultiPick, Selection<String>>
-{
+impl<K> DynTable<K> {
+    /// No kind rendered.
+    pub const NONE: Self = Self {
+        text: None,
+        check: None,
+        switch: None,
+        number: None,
+        slider: None,
+        date: None,
+        pick: None,
+        multi_pick: None,
+    };
+}
+
+/// Stylekit that renders [`DynForm`] fields: the kinds in [`Self::WIDGETS`].
+pub trait DynWidgets: Sized {
+    /// Widget fn per kind; the kit's [`FieldWidget`](super::FieldWidget)s.
+    const WIDGETS: DynTable<Self>;
+}
+
+fn rendered_by<K: DynWidgets>(input: &DynInput) -> bool {
+    let t = &K::WIDGETS;
+    match input {
+        DynInput::Text(_) => t.text.is_some(),
+        DynInput::Check(_) => t.check.is_some(),
+        DynInput::Switch(_) => t.switch.is_some(),
+        DynInput::Number(_) => t.number.is_some(),
+        DynInput::Slider(_) => t.slider.is_some(),
+        DynInput::Date(_) => t.date.is_some(),
+        DynInput::Pick(_) => t.pick.is_some(),
+        DynInput::MultiPick(_) => t.multi_pick.is_some(),
+    }
 }
 
 impl<K: DynWidgets> FormFields<K> for DynForm {
@@ -337,7 +342,7 @@ impl<K: DynWidgets> FormFields<K> for DynForm {
 }
 
 impl<K: DynWidgets> FormUi<'_, '_, '_, K, DynForm> {
-    /// Field `key` in the kit widget of its kind; `None` for an unknown key.
+    /// Field `key` in the kit widget of its kind; `None` for an unknown key or a kind the kit does not render.
     pub fn field(&mut self, key: &str) -> Option<egui::Response> {
         let index = self.value.fields.iter().position(|f| f.key == key)?;
         self.show_dyn(index)
@@ -347,78 +352,25 @@ impl<K: DynWidgets> FormUi<'_, '_, '_, K, DynForm> {
         if index < self.value.fields.len() {
             self.mark_index(index);
         }
-        let DynField { key, spec, value, .. } = self.value.fields.get_mut(index)?;
+        let DynField { key, input } = self.value.fields.get_mut(index)?;
         let path = FieldPath::under(self.prefix.as_ref(), key);
         let pass = &mut *self.pass;
-        let response = match (&*spec, value) {
-            (Spec::Text(s), DynValue::Text(v)) => pass.field(&path, s, v, <K as FieldWidget<kind::Text, String>>::show),
-            (Spec::Check(s), DynValue::Flag(v)) => pass.field(&path, s, v, <K as FieldWidget<kind::Check, bool>>::show),
-            (Spec::Switch(s), DynValue::Flag(v)) => {
-                pass.field(&path, s, v, <K as FieldWidget<kind::Switch, bool>>::show)
-            }
-            (Spec::Number(s), DynValue::Number(v)) => {
-                pass.field(&path, s, v, <K as FieldWidget<kind::Number, f64>>::show)
-            }
-            (Spec::Slider(s), DynValue::Number(v)) => {
-                pass.field(&path, s, v, <K as FieldWidget<kind::Slider, f64>>::show)
-            }
-            (Spec::Date(s), DynValue::Date(v)) => {
-                pass.field(&path, s, v, <K as FieldWidget<kind::Date, Option<Date>>>::show)
-            }
-            (Spec::Pick(s), DynValue::Pick(v)) => {
-                pass.field(&path, s, v, <K as FieldWidget<kind::Pick, Option<String>>>::show)
-            }
-            (Spec::MultiPick(s), DynValue::Picks(v)) => pass.field(
-                &path,
-                s,
-                v,
-                <K as FieldWidget<kind::MultiPick, Selection<String>>>::show,
-            ),
-            // `DynField` keeps the value in its kind's variant.
-            _ => {
-                crate::kit::sanitize::report(format_args!("dynamic form field {path:?} holds another kind's value"));
-                return None;
-            }
+        let t = &K::WIDGETS;
+        let shown = match input {
+            DynInput::Text(c) => t.text.map(|r| pass.field(&path, &c.spec, &mut c.value, r)),
+            DynInput::Check(c) => t.check.map(|r| pass.field(&path, &c.spec, &mut c.value, r)),
+            DynInput::Switch(c) => t.switch.map(|r| pass.field(&path, &c.spec, &mut c.value, r)),
+            DynInput::Number(c) => t.number.map(|r| pass.field(&path, &c.spec, &mut c.value, r)),
+            DynInput::Slider(c) => t.slider.map(|r| pass.field(&path, &c.spec, &mut c.value, r)),
+            DynInput::Date(c) => t.date.map(|r| pass.field(&path, &c.spec, &mut c.value, r)),
+            DynInput::Pick(c) => t.pick.map(|r| pass.field(&path, &c.spec, &mut c.value, r)),
+            DynInput::MultiPick(c) => t.multi_pick.map(|r| pass.field(&path, &c.spec, &mut c.value, r)),
         };
-        Some(response)
-    }
-}
-
-impl Validator<DynValue> for Required {
-    fn validate(&self, value: &DynValue, _locale: &dyn LocaleFormat) -> Result<(), ValidationError> {
-        if value.is_blank() {
-            Err(ValidationError::localized(crate::i18n::msg::REQUIRED))
-        } else {
-            Ok(())
+        if shown.is_none() {
+            crate::kit::sanitize::report(format_args!(
+                "dynamic form field {path:?} is of a kind the kit does not render; check DynForm::unsupported"
+            ));
         }
-    }
-}
-
-impl Validator<DynValue> for MinLength {
-    fn validate(&self, value: &DynValue, locale: &dyn LocaleFormat) -> Result<(), ValidationError> {
-        match value {
-            DynValue::Text(v) => self.validate(v, locale),
-            DynValue::Picks(v) => self.validate(v, locale),
-            _ => Ok(()),
-        }
-    }
-}
-
-impl Validator<DynValue> for MaxLength {
-    fn validate(&self, value: &DynValue, locale: &dyn LocaleFormat) -> Result<(), ValidationError> {
-        match value {
-            DynValue::Text(v) => self.validate(v, locale),
-            DynValue::Picks(v) => self.validate(v, locale),
-            _ => Ok(()),
-        }
-    }
-}
-
-impl Validator<DynValue> for NumberRange {
-    fn validate(&self, value: &DynValue, locale: &dyn LocaleFormat) -> Result<(), ValidationError> {
-        match value {
-            DynValue::Number(v) => self.validate(v, locale),
-            _ => Ok(()),
-        }
+        shown
     }
 }

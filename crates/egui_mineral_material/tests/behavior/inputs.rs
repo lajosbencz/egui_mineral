@@ -340,33 +340,37 @@ fn form_number_field_binds_integers_and_validates_them() {
 
 fn plugin_form() -> egui_mineral::form::DynForm {
     use egui_mineral::{
-        form::{Choices, DynField, DynForm, DynKind, NumberOptions, TextOptions},
+        form::{DynCell, DynField, DynForm, FieldSpec},
         range::RangeModel,
     };
 
-    let jobs = || {
-        Choices(vec![
-            ("dev".to_owned(), "Developer".into()),
-            ("pm".to_owned(), "PM".into()),
-        ])
-    };
-    let mut level = NumberOptions::default();
-    level.range = Some(RangeModel::new(0.0, 10.0));
+    let jobs = [("dev".to_owned(), "Developer"), ("pm".to_owned(), "PM")];
     DynForm::new([
-        DynField::new("name", DynKind::Text(TextOptions::default()), "Name").required(true),
-        DynField::new("terms", DynKind::Check, "Accept"),
-        DynField::new("notify", DynKind::Switch, "Notify"),
-        DynField::new("role", DynKind::Pick(jobs()), "Role"),
-        DynField::new("roles", DynKind::MultiPick(jobs()), "Roles"),
-        DynField::new("start", DynKind::Date, "Start"),
-        DynField::new("level", DynKind::Slider(level), "Level"),
-        DynField::new("count", DynKind::Number(NumberOptions::default()), "Count"),
+        DynField::new("name", DynCell::text(FieldSpec::new("Name")).required()),
+        DynField::new("terms", DynCell::checkbox(FieldSpec::new("Accept"))),
+        DynField::new("notify", DynCell::switch(FieldSpec::new("Notify"))),
+        DynField::new("role", DynCell::pick(FieldSpec::new("Role").choices(jobs.clone()))),
+        DynField::new("roles", DynCell::multi_pick(FieldSpec::new("Roles").choices(jobs))),
+        DynField::new("start", DynCell::date(FieldSpec::new("Start"))),
+        DynField::new(
+            "level",
+            DynCell::slider(FieldSpec::new("Level").range(RangeModel::new(0.0, 10.0))),
+        ),
+        DynField::new("count", DynCell::number(FieldSpec::new("Count"))),
     ])
+}
+
+fn set_name(form: &mut egui_mineral::form::DynForm, name: &str) {
+    use egui_mineral::form::{DynField, DynInput};
+
+    if let Some(DynInput::Text(c)) = form.field_mut("name").map(DynField::input_mut) {
+        name.clone_into(c.value_mut());
+    }
 }
 
 #[test]
 fn dynamic_form_renders_every_kind_and_submits() {
-    use egui_mineral::form::{DynValue, Form, FormState};
+    use egui_mineral::form::{DynInput, Form, FormState};
     use egui_mineral_material::text_inputs::FormExt;
 
     let mut h = harness(
@@ -393,10 +397,11 @@ fn dynamic_form_renders_every_kind_and_submits() {
     h.click("p-role-select");
     h.run();
     h.click("p-role-select-dev-option");
-    h.state_mut().value.1.set("name", DynValue::Text("Ann".into()));
+    set_name(&mut h.state_mut().value.1, "Ann");
     h.run();
     h.click("p-submit-button");
     let (_, value, submitted) = &h.state().value;
     assert!(*submitted);
-    assert_eq!(value.value("role"), Some(&DynValue::Pick(Some("dev".into()))));
+    let role = value.field("role").map(egui_mineral::form::DynField::input);
+    assert!(matches!(role, Some(DynInput::Pick(c)) if c.value().as_deref() == Some("dev")));
 }

@@ -2,7 +2,7 @@ use std::cell::RefCell;
 
 use super::*;
 use crate::{
-    select::Selection,
+    range::RangeModel,
     test_support::{TestKit, en_us, harness},
 };
 
@@ -29,6 +29,19 @@ impl<V: FieldInput, Kd: FieldKind<V>> FieldWidget<Kd, V> for TestKit {
     fn show(ui: &mut MineralUi<'_, Self>, f: &mut FieldCtx<'_, V, Kd>) -> egui::Response {
         record(ui, f)
     }
+}
+
+impl DynWidgets for TestKit {
+    const WIDGETS: DynTable<Self> = DynTable {
+        text: Some(FieldWidget::show),
+        check: Some(FieldWidget::show),
+        switch: Some(FieldWidget::show),
+        number: Some(FieldWidget::show),
+        slider: Some(FieldWidget::show),
+        date: Some(FieldWidget::show),
+        pick: Some(FieldWidget::show),
+        multi_pick: Some(FieldWidget::show),
+    };
 }
 
 #[expect(clippy::ptr_arg, reason = "a `Validator<String>` callback takes `&String`")]
@@ -406,39 +419,51 @@ fn review_regressions() {
 
 fn plugin_form() -> DynForm {
     DynForm::new([
-        DynField::new("name", DynKind::Text(TextOptions::default()), "Name")
-            .required(true)
-            .check(MinLength(3)),
-        DynField::new("level", DynKind::Number(NumberOptions::default()), "Level").check(NumberRange::at_most(5.0)),
-        DynField::new("tags", DynKind::MultiPick(Choices::default()), "Tags").initial(DynValue::Flag(true)),
-        DynField::new("name", DynKind::Check, "Repeated key"),
+        DynField::new(
+            "name",
+            DynCell::text(FieldSpec::new("Name")).required().check(MinLength(3)),
+        ),
+        DynField::new(
+            "level",
+            DynCell::number(FieldSpec::new("Level").range(RangeModel::new(1.0, 10.0))).check(NumberRange::at_most(5.0)),
+        ),
+        DynField::new("tags", DynCell::multi_pick(FieldSpec::new("Tags"))),
+        DynField::new("name", DynCell::checkbox(FieldSpec::new("Repeated key"))),
     ])
 }
 
+fn set_name(form: &mut DynForm, name: &str) {
+    if let Some(DynInput::Text(c)) = form.field_mut("name").map(DynField::input_mut) {
+        name.clone_into(c.value_mut());
+    }
+}
+
 #[test]
-fn dynamic_form_validates_its_data_rules() {
+fn dynamic_form_validates_its_typed_rules_and_serializes_its_values() {
     let mut form = plugin_form();
-    assert_eq!(form.fields().len(), 2 + 1, "the repeated key is dropped");
-    assert_eq!(
-        form.value("tags"),
-        Some(&DynValue::Picks(Selection::default())),
-        "a mismatched initial is ignored"
-    );
+    assert_eq!(form.fields().len(), 3, "the repeated key is dropped");
     let report = form.report(&en_us());
     assert_eq!(report.first_invalid(), Some(&FieldPath::named("name")));
     assert!(report.is_required(FieldPath::named("name")));
-    assert!(form.set("name", DynValue::Text("ab".into())));
-    assert!(!form.set("name", DynValue::Flag(true)), "another kind's value");
-    assert!(!form.set("missing", DynValue::Flag(true)));
+    set_name(&mut form, "ab");
     let report = form.report(&en_us());
     assert_eq!(
         report.error(FieldPath::named("name")).map(|e| e.code.as_ref()),
         Some("mineral-min-length")
     );
-    form.set("name", DynValue::Text("abc".into()));
-    form.set("level", DynValue::Number(9.0));
-    let report = form.report(&en_us());
-    assert_eq!(report.first_invalid(), Some(&FieldPath::named("level")));
+    set_name(&mut form, "abc");
+    assert!(
+        form.report(&en_us()).is_valid(),
+        "the level starts at its range minimum"
+    );
+    if let Some(DynInput::Number(c)) = form.field_mut("level").map(DynField::input_mut) {
+        *c.value_mut() = 9.0;
+    }
+    assert_eq!(form.report(&en_us()).first_invalid(), Some(&FieldPath::named("level")));
+    assert_eq!(
+        serde_json::to_value(&form).ok(),
+        Some(serde_json::json!({ "name": "abc", "level": 9.0, "tags": [] }))
+    );
 }
 
 #[test]
@@ -480,8 +505,31 @@ fn dynamic_form_renders_through_the_kit_and_submits() {
             .is_some()
     );
     let app = &mut h.state_mut().value;
-    app.1.set("name", DynValue::Text("Ann".into()));
+    set_name(&mut app.1, "Ann");
     app.3 = true;
     h.run();
     assert!(h.state().value.2);
+}
+
+#[test]
+fn dynamic_form_lists_the_kinds_a_kit_does_not_render() {
+    struct TextOnly;
+
+    impl FieldWidget<kind::Text, String> for TextOnly {
+        fn show(ui: &mut MineralUi<'_, Self>, _: &mut FieldCtx<'_, String, kind::Text>) -> egui::Response {
+            ui.allocate_response(egui::Vec2::ZERO, egui::Sense::hover())
+        }
+    }
+
+    impl DynWidgets for TextOnly {
+        const WIDGETS: DynTable<Self> = DynTable {
+            text: Some(FieldWidget::show),
+            ..DynTable::NONE
+        };
+    }
+
+    let form = plugin_form();
+    let missing: Vec<_> = form.unsupported::<TextOnly>().map(DynField::key).collect();
+    assert_eq!(missing, ["level", "tags"]);
+    assert_eq!(form.unsupported::<TestKit>().count(), 0);
 }
