@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral_macros-v0.13.0...egui_mineral_macros-v0.14.0) - 2026-11-28
+
+### Added
+
+- *(form)* [**breaking**] DynForm for forms described at runtime; FormFields::field_count replaces the FIELDS const.
+
 ## [0.13.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral_macros-v0.12.0...egui_mineral_macros-v0.13.0) - 2026-11-27
 
 ### Added

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral_material-v0.13.0...egui_mineral_material-v0.14.0) - 2026-11-28
+
+### Added
+
+- *(form)* [**breaking**] DynForm for forms described at runtime; FormFields::field_count replaces the FIELDS const.
+- *(kit)* kit::text::TextSession shares the buffered edit model; Fluent Input and Textarea gain commit_on_submit.
+- *(material)* ColorScheme::from_roles builds a scheme from exact roles, deriving unset ones from them.
+
 ## [0.13.0](https://github.com/lajosbencz/egui_mineral/compare/egui_mineral_material-v0.12.3...egui_mineral_material-v0.13.0) - 2026-11-27
 
 ### Added
