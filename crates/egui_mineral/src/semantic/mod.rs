@@ -302,6 +302,13 @@ pub fn emit_in(ui: &egui::Ui, id: Option<Id>, rect: Rect, node: impl FnOnce() ->
     }
 }
 
+/// [`emit_in`] of a node named by `key` alone, such as a text block painted over a texture: its egui id is
+/// `ui.unique_id()` with `key`, so AccessKit and agents address it without a second name.
+pub fn emit_keyed(ui: &egui::Ui, key: StableId, rect: Rect, node: impl FnOnce(StableId) -> SemanticNode) {
+    let id = ui.unique_id().with(key.key());
+    emit_in(ui, Some(id), rect, || node(key));
+}
+
 fn write(ctx: &Context, id: Option<Id>, rect: Rect, anchor: Option<Id>, node: impl FnOnce() -> SemanticNode) {
     let mut node = node();
     node.rect = rect;
@@ -486,6 +493,19 @@ mod tests {
 
     fn keyed(nodes: &[(&str, usize)]) -> Vec<(String, usize)> {
         nodes.iter().map(|&(k, d)| (k.to_owned(), d)).collect()
+    }
+
+    #[test]
+    fn a_keyed_node_nests_in_its_ui_under_one_name() {
+        let tree = tree_of(|ui| {
+            ui.scope(|ui| {
+                super::emit_keyed(ui, super::StableId::new("page-1"), egui::Rect::ZERO, |id| {
+                    super::SemanticNode::new(id, super::Role::Paragraph, "text")
+                });
+                node(ui, Some(ui.unique_id()), "group");
+            });
+        });
+        assert_eq!(tree, keyed(&[("group", 0), ("page-1", 1)]));
     }
 
     #[test]
