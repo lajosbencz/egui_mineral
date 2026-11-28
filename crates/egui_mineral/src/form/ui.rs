@@ -17,6 +17,20 @@ pub struct FieldSpec<V: FieldInput, Kd: FieldKind<V> = <V as FieldInput>::Kind> 
     options: Kd::Options,
 }
 
+impl<V: FieldInput, Kd: FieldKind<V>> Clone for FieldSpec<V, Kd>
+where
+    Kd::Options: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            label: self.label.clone(),
+            supporting: self.supporting.clone(),
+            validate_on: self.validate_on,
+            options: self.options.clone(),
+        }
+    }
+}
+
 impl<V: FieldInput, Kd: FieldKind<V>> std::fmt::Debug for FieldSpec<V, Kd>
 where
     Kd::Options: std::fmt::Debug,
@@ -32,6 +46,15 @@ where
 }
 
 impl<V: FieldInput, Kd: FieldKind<V>> FieldSpec<V, Kd> {
+    pub(super) fn of(label: Label, supporting: Option<Label>, validate_on: ValidateOn, options: Kd::Options) -> Self {
+        Self {
+            label,
+            supporting,
+            validate_on,
+            options,
+        }
+    }
+
     /// `label` is the visible, accessible name.
     pub fn new(label: impl Into<Label>) -> Self {
         Self {
@@ -215,10 +238,11 @@ pub trait FieldWidget<Kd: FieldKind<V>, V: FieldInput>: Sized {
     fn show(ui: &mut MineralUi<'_, Self>, field: &mut FieldCtx<'_, V, Kd>) -> egui::Response;
 }
 
-/// Declared fields of a form value, rendered in order by [`FormUi::rest`]; implemented by `#[derive(Form)]`.
+/// Declared fields of a form value, rendered in order by [`FormUi::rest`]; implemented by `#[derive(Form)]` and
+/// [`DynForm`](super::DynForm).
 pub trait FormFields<K>: FormModel {
     /// Number of declared fields.
-    const FIELDS: usize;
+    fn field_count(&self) -> usize;
 
     /// Shows the field declared at `index` through `f`.
     fn show_index(f: &mut FormUi<'_, '_, '_, K, Self>, index: usize);
@@ -237,7 +261,7 @@ pub(super) struct Pass<'p, 's, K> {
 }
 
 impl<K> Pass<'_, '_, K> {
-    fn field<V: FieldInput, Kd: FieldKind<V>>(
+    pub(super) fn field<V: FieldInput, Kd: FieldKind<V>>(
         &mut self,
         path: &FieldPath,
         spec: &FieldSpec<V, Kd>,
@@ -333,7 +357,10 @@ impl<'p, 's, K, T> FormUi<'_, 'p, 's, K, T> {
     }
 
     pub(super) fn mark(&mut self, key: impl KeyName) {
-        let index = key.index();
+        self.mark_index(key.index());
+    }
+
+    pub(super) fn mark_index(&mut self, index: usize) {
         if !self.placed.contains(&index) {
             self.placed.push(index);
         }
@@ -406,7 +433,7 @@ impl<'p, 's, K, T> FormUi<'_, 'p, 's, K, T> {
     where
         T: FormFields<K>,
     {
-        for i in 0..T::FIELDS {
+        for i in 0..self.value.field_count() {
             if !self.placed.contains(&i) {
                 T::show_index(self, i);
             }

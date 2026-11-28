@@ -817,3 +817,66 @@ fn form_number_field_binds_integers_and_validates_them() {
     assert!(!submitted, "above the validator's max");
     assert!(state.field(Exp::YEARS).and_then(|f| f.error()).is_some());
 }
+
+fn plugin_form() -> egui_mineral::form::DynForm {
+    use egui_mineral::{
+        form::{Choices, DynField, DynForm, DynKind, NumberOptions, TextOptions},
+        range::RangeModel,
+    };
+
+    let jobs = || {
+        Choices(vec![
+            ("dev".to_owned(), "Developer".into()),
+            ("pm".to_owned(), "PM".into()),
+        ])
+    };
+    let mut level = NumberOptions::default();
+    level.range = Some(RangeModel::new(0.0, 10.0));
+    DynForm::new([
+        DynField::new("name", DynKind::Text(TextOptions::default()), "Name").required(true),
+        DynField::new("terms", DynKind::Check, "Accept"),
+        DynField::new("notify", DynKind::Switch, "Notify"),
+        DynField::new("role", DynKind::Pick(jobs()), "Role"),
+        DynField::new("roles", DynKind::MultiPick(jobs()), "Roles"),
+        DynField::new("start", DynKind::Date, "Start"),
+        DynField::new("level", DynKind::Slider(level), "Level"),
+        DynField::new("count", DynKind::Number(NumberOptions::default()), "Count"),
+    ])
+}
+
+#[test]
+fn dynamic_form_renders_every_kind_and_submits() {
+    use egui_mineral::form::{DynValue, Form, FormState};
+    use egui_mineral_fluent::inputs::FormExt;
+
+    let mut h = harness(
+        (FormState::default(), plugin_form(), false),
+        |ui, (state, value, submitted)| {
+            *submitted |= Form::new("p", state, value).show_all(ui).submitted;
+        },
+    );
+    h.run();
+    for key in [
+        "p-name-input",
+        "p-terms-checkbox",
+        "p-notify-switch",
+        "p-role-dropdown",
+        "p-roles-dropdown",
+        "p-start-date-picker",
+        "p-level-slider",
+        "p-count-spin-button",
+    ] {
+        assert!(h.rect(key).width() > 0.0, "{key} shown");
+    }
+    h.click("p-submit-button");
+    assert!(!h.state().value.2, "the blank required name blocks");
+    h.click("p-role-dropdown");
+    h.run();
+    h.click("p-role-dropdown-dev-option");
+    h.state_mut().value.1.set("name", DynValue::Text("Ann".into()));
+    h.run();
+    h.click("p-submit-button");
+    let (_, value, submitted) = &h.state().value;
+    assert!(*submitted);
+    assert_eq!(value.value("role"), Some(&DynValue::Pick(Some("dev".into()))));
+}

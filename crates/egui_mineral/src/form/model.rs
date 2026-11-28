@@ -187,7 +187,7 @@ pub struct FieldPath {
 }
 
 impl FieldPath {
-    fn root(name: &'static str) -> Self {
+    fn root(name: &str) -> Self {
         let salt = KeyedSalt::from(name);
         Self {
             id: field_id(&salt),
@@ -205,7 +205,12 @@ impl FieldPath {
         }
     }
 
-    pub(super) fn under(prefix: Option<&Self>, name: &'static str) -> Self {
+    /// Path of the root field `name`, for fields named at runtime such as a [`DynForm`](super::DynForm)'s.
+    pub fn named(name: &str) -> Self {
+        Self::root(name)
+    }
+
+    pub(super) fn under(prefix: Option<&Self>, name: &str) -> Self {
         prefix.map_or_else(|| Self::root(name), |p| p.child(p.salt.child(name)))
     }
 
@@ -308,13 +313,17 @@ impl Report {
         &self.checked
     }
 
-    fn check(&mut self, path: &FieldPath) {
+    pub(super) fn check(&mut self, path: &FieldPath) {
         if !self.checked.contains(path) {
             self.checked.push(path.clone());
         }
     }
 
-    fn fail(&mut self, path: FieldPath, error: ValidationError) {
+    pub(super) fn require(&mut self, path: &FieldPath) {
+        self.required.insert(path.id);
+    }
+
+    pub(super) fn fail(&mut self, path: FieldPath, error: ValidationError) {
         self.check(&path);
         if self.error_of(path.id).is_none() {
             self.errors.push((path, error));
@@ -387,6 +396,17 @@ impl<'a, T> Validation<'a, T> {
             path,
             failed: false,
         }
+    }
+
+    // Path of the field `name` under this value, the report and the locale, for fields named at runtime.
+    pub(super) fn named(&mut self, name: &str) -> (FieldPath, &mut Report, &'a dyn LocaleFormat) {
+        (FieldPath::under(self.prefix, name), self.report, self.locale)
+    }
+
+    /// Error on the field `name` of this value, e.g. from a cross-field rule of a [`DynForm`](super::DynForm).
+    pub fn error_named(&mut self, name: &str, error: ValidationError) {
+        let path = FieldPath::under(self.prefix, name);
+        self.report.fail(path, error);
     }
 
     /// Error on field `key`, e.g. from a cross-field rule.

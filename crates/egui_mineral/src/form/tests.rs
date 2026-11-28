@@ -1,7 +1,10 @@
 use std::cell::RefCell;
 
 use super::*;
-use crate::test_support::{TestKit, en_us, harness};
+use crate::{
+    select::Selection,
+    test_support::{TestKit, en_us, harness},
+};
 
 crate::i18n::messages!(mod tmsg = "src/form/tests.ftl", crate = crate);
 
@@ -399,4 +402,86 @@ fn review_regressions() {
         !h.state_mut().value.state.touch(FieldPath::from(Item::QTY)),
         "no match is not a pass"
     );
+}
+
+fn plugin_form() -> DynForm {
+    DynForm::new([
+        DynField::new("name", DynKind::Text(TextOptions::default()), "Name")
+            .required(true)
+            .check(MinLength(3)),
+        DynField::new("level", DynKind::Number(NumberOptions::default()), "Level").check(NumberRange::at_most(5.0)),
+        DynField::new("tags", DynKind::MultiPick(Choices::default()), "Tags").initial(DynValue::Flag(true)),
+        DynField::new("name", DynKind::Check, "Repeated key"),
+    ])
+}
+
+#[test]
+fn dynamic_form_validates_its_data_rules() {
+    let mut form = plugin_form();
+    assert_eq!(form.fields().len(), 2 + 1, "the repeated key is dropped");
+    assert_eq!(
+        form.value("tags"),
+        Some(&DynValue::Picks(Selection::default())),
+        "a mismatched initial is ignored"
+    );
+    let report = form.report(&en_us());
+    assert_eq!(report.first_invalid(), Some(&FieldPath::named("name")));
+    assert!(report.is_required(FieldPath::named("name")));
+    assert!(form.set("name", DynValue::Text("ab".into())));
+    assert!(!form.set("name", DynValue::Flag(true)), "another kind's value");
+    assert!(!form.set("missing", DynValue::Flag(true)));
+    let report = form.report(&en_us());
+    assert_eq!(
+        report.error(FieldPath::named("name")).map(|e| e.code.as_ref()),
+        Some("mineral-min-length")
+    );
+    form.set("name", DynValue::Text("abc".into()));
+    form.set("level", DynValue::Number(9.0));
+    let report = form.report(&en_us());
+    assert_eq!(report.first_invalid(), Some(&FieldPath::named("level")));
+}
+
+#[test]
+fn dynamic_form_renders_through_the_kit_and_submits() {
+    let mut h = harness(
+        |ui, (state, form, submitted, press): &mut (FormState, DynForm, bool, bool)| {
+            let press = std::mem::take(press);
+            #[expect(
+                clippy::redundant_closure_for_method_calls,
+                reason = "the method path is not general over the `FormUi` lifetimes"
+            )]
+            let r = Form::new("p", state, form).show_with(ui, |f| f.rest(), |_, _| press);
+            *submitted |= r.submitted;
+        },
+        (FormState::default(), plugin_form(), false, true),
+    );
+    shown();
+    h.run();
+    let fields = shown();
+    let keys: Vec<_> = fields
+        .iter()
+        .map(|(k, l, r)| (k.as_str(), l.as_str(), *r))
+        .take(3)
+        .collect();
+    assert_eq!(
+        keys,
+        [
+            ("p-name", "Name", true),
+            ("p-level", "Level", false),
+            ("p-tags", "Tags", false)
+        ]
+    );
+    assert!(!h.state().value.2, "the blank required name blocks");
+    let state = &h.state().value.0;
+    assert!(
+        state
+            .field(FieldPath::named("name"))
+            .and_then(FieldState::error)
+            .is_some()
+    );
+    let app = &mut h.state_mut().value;
+    app.1.set("name", DynValue::Text("Ann".into()));
+    app.3 = true;
+    h.run();
+    assert!(h.state().value.2);
 }

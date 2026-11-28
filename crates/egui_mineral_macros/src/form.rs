@@ -339,7 +339,9 @@ pub(crate) fn expand(input: &DeriveInput) -> syn::Result<TokenStream2> {
             #(#bounds,)*
             #predicates
         {
-            const FIELDS: usize = #index;
+            fn field_count(&self) -> usize {
+                #index
+            }
 
             fn show_index(#f: &mut #form::FormUi<'_, '_, '_, __K, Self>, index: usize) {
                 match index {
