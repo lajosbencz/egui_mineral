@@ -1,7 +1,8 @@
 use egui::{Align, Color32, CornerRadius, Id, Pos2, Rangef, Rect, Response, Stroke, StrokeKind, TextFormat, vec2};
 use egui_mineral::{
+    edit::EditEvent,
     i18n::{Direction, Sides},
-    kit::text::BareEdit,
+    kit::text::{BareEdit, TextSession},
     widget::MineralUi,
 };
 
@@ -55,6 +56,9 @@ pub struct FieldOutput {
     pub submitted: bool,
     /// Focus left the field.
     pub blurred: bool,
+    /// End or flush of a buffered edit of [`Input`](super::Input) or [`Textarea`](super::Textarea) with
+    /// `commit_on_submit`; `None` otherwise.
+    pub edit: Option<EditEvent>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -333,6 +337,7 @@ pub(crate) struct Fill<'a> {
     pub reserve_end: f32,
     pub text_rect: Option<Rect>,
     pub metrics: Option<Metrics>,
+    pub session: Option<&'a TextSession>,
 }
 
 // Frame, contents, placeholder and editor of a text field.
@@ -375,9 +380,11 @@ pub(crate) fn show(ui: &mut MineralUi<'_, Fluent>, text: &mut String, frame: &Re
         };
         p.galley(Pos2::new(x, y), g, color);
     }
-    let response = edit(edit_id, text_rect, format, &t, f.rows)
-        .mask(f.mask)
-        .show(ui, text, |e| e.interactive(!f.chrome.disabled));
+    let mut bare = edit(edit_id, text_rect, format, &t, f.rows).mask(f.mask);
+    if let Some(session) = f.session {
+        bare = bare.session(session);
+    }
+    let response = bare.show(ui, text, |e| e.interactive(!f.chrome.disabled));
     if !focused && frame.clicked() && !f.chrome.disabled {
         ctx.memory_mut(|m| m.request_focus(edit_id));
     }

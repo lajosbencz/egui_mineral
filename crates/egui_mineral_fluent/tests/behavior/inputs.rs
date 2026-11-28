@@ -1,5 +1,8 @@
 use egui::{Event, Key};
-use egui_mineral::select::{Check, Selection};
+use egui_mineral::{
+    edit::EditEvent,
+    select::{Check, Selection},
+};
 use egui_mineral_fluent::inputs::ColorPicker;
 use egui_mineral_fluent::inputs::{Swatch, SwatchPicker};
 use egui_mineral_fluent::{
@@ -238,6 +241,30 @@ fn input_takes_typed_text() {
     h.event(Event::Text("ab".into()));
     h.run();
     assert_eq!(h.state().value, "ab");
+}
+
+#[test]
+fn buffered_input_commits_on_enter_and_reverts_on_escape() {
+    let mut h = harness((String::from("a"), Vec::new()), |ui, (text, events)| {
+        let r = ui.mineral(Input::new("i", "Name", text).commit_on_submit(true));
+        events.extend(r.output().edit);
+    });
+    h.run();
+    h.click("i-input");
+    h.event(Event::Text("b".into()));
+    h.run();
+    assert_eq!(h.state().value.0, "a", "typing stays in the draft");
+    assert_eq!(h.node("i-input").value.as_deref(), Some("ab"));
+    h.press(Key::Enter);
+    assert_eq!(h.state().value.0, "ab");
+    assert_eq!(std::mem::take(&mut h.state_mut().value.1), [EditEvent::Committed]);
+
+    h.click("i-input");
+    h.event(Event::Text("c".into()));
+    h.run();
+    h.press(Key::Escape);
+    assert_eq!(h.state().value.0, "ab", "escape restores the committed value");
+    assert_eq!(h.state().value.1, [EditEvent::Cancelled]);
 }
 
 #[test]

@@ -1,13 +1,18 @@
-//! Text editing shared by stylekits: the frameless editor inside a kit's text input chrome.
+//! Text editing shared by stylekits: the frameless editor inside a kit's text input chrome and the edit session
+//! of its bound value.
 
 use std::sync::Arc;
 
 use egui::{
-    Align, Align2, Color32, Frame, Galley, Id, Margin, Rect, Response, ScrollArea, TextBuffer, TextEdit, TextFormat,
-    Ui, UiBuilder, text::LayoutJob,
+    Align, Align2, Color32, Context, EventFilter, Frame, Galley, Id, Margin, Rect, Response, ScrollArea, TextBuffer,
+    TextEdit, TextFormat, Ui, UiBuilder, text::LayoutJob,
 };
 
-use crate::{layout::Edge, widget::MineralUi};
+use crate::{
+    edit::{EditBuffer, EditEvent, FieldFocus},
+    layout::Edge,
+    widget::MineralUi,
+};
 
 /// Frameless `TextEdit` filling `rect` in a child `Ui`, for text inputs whose kit paints the chrome (label,
 /// outline, affixes): text in `format`, masked with egui's password character, aligned to `h_align` in the text
@@ -26,6 +31,7 @@ pub struct BareEdit {
     mask: bool,
     rows: Option<usize>,
     stick_to_bottom: bool,
+    keep_escape: bool,
 }
 
 impl BareEdit {
@@ -42,6 +48,7 @@ impl BareEdit {
             mask: false,
             rows: None,
             stick_to_bottom: false,
+            keep_escape: false,
         }
     }
 
@@ -81,6 +88,12 @@ impl BareEdit {
         self
     }
 
+    /// Edits for `session`: a buffered one keeps focus on Escape, which cancels its edit.
+    pub const fn session(mut self, session: &TextSession) -> Self {
+        self.keep_escape = session.buffered;
+        self
+    }
+
     /// `add` sets the remaining `TextEdit` options (interactivity, char limit, event filter).
     pub fn show<K>(
         self,
@@ -102,7 +115,11 @@ impl BareEdit {
         .align(Align2([dir.start_align(), self.v_align]))
         .password(self.mask)
         .desired_width(self.rect.width());
-        let edit = add(edit);
+        let mut edit = add(edit);
+        if self.keep_escape {
+            let f = edit.get_event_filter();
+            edit = edit.event_filter(EventFilter { escape: true, ..f });
+        }
         // A child Ui leaves the parent cursor alone (`put`/`scope_builder` would move it back).
         let mut child = ui.new_child(UiBuilder::new().id_salt(self.id).max_rect(self.rect));
         let v = child.visuals_mut();
@@ -119,6 +136,98 @@ impl BareEdit {
             .show(&mut child, |ui| ui.add(edit));
         super::scroll::chain(&child, &out);
         out.inner
+    }
+}
+
+/// Edit session of a text field over its bound value. Live, typing writes the value. Buffered, typing edits the
+/// [`EditBuffer`] draft, which Enter, focus loss and [`commit_pending`](crate::edit::commit_pending) write to the
+/// value and Escape discards. [`Self::begin`] before painting, the editor shows [`Self::text`] through
+/// [`BareEdit::session`], then [`Self::end`].
+#[derive(Clone, Copy, Debug)]
+#[must_use = "end the session with .end(..)"]
+pub struct TextSession {
+    id: Id,
+    buffered: bool,
+    edit: Option<EditEvent>,
+}
+
+/// What a [`TextSession`] did this pass.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct SessionOutcome {
+    /// Live edit, or buffered commit of a draft that differs from the value.
+    pub changed: bool,
+    /// `Some` on the pass a buffered edit ends; `None` while live.
+    pub edit: Option<EditEvent>,
+    /// Enter pressed as a single-line edit lost focus ([`submitted`]).
+    pub submitted: bool,
+    /// Focus left the edit.
+    pub blurred: bool,
+}
+
+impl TextSession {
+    /// Session of the editor `id` (the [`BareEdit`] id); a disabled one ignores Escape.
+    pub fn begin(
+        ctx: &Context,
+        id: Id,
+        buffered: bool,
+        enabled: bool,
+        value: &String,
+        buffer: &mut EditBuffer<String>,
+    ) -> Self {
+        let mut edit = None;
+        if buffered {
+            let focus = FieldFocus::of(ctx.memory(|m| m.has_focus(id)));
+            buffer.sync(value, focus);
+            if enabled && super::layer::consume_escape_from(ctx, id) {
+                edit = buffer.cancel();
+                ctx.memory_mut(|m| m.surrender_focus(id));
+            }
+        }
+        Self { id, buffered, edit }
+    }
+
+    /// Text the editor edits.
+    pub fn text<'s>(&self, value: &'s mut String, buffer: &'s mut EditBuffer<String>) -> &'s mut String {
+        if self.buffered { buffer.draft_mut() } else { value }
+    }
+
+    /// Settles the pass after the editor `edit` showed: a buffered commit writes the draft to `value`, and
+    /// `edit` reports `changed` only when `value` did.
+    pub fn end(
+        self,
+        edit: &mut Response,
+        multiline: bool,
+        value: &mut String,
+        buffer: &mut EditBuffer<String>,
+    ) -> SessionOutcome {
+        let mut out = SessionOutcome {
+            edit: self.edit,
+            submitted: !multiline && submitted(edit),
+            blurred: edit.lost_focus(),
+            changed: false,
+        };
+        if !self.buffered {
+            out.changed = edit.changed();
+            return out;
+        }
+        let ctx = edit.ctx.clone();
+        if edit.changed() {
+            buffer.start(value);
+        }
+        let flush = buffer.commit_requested(&ctx);
+        if out.edit.is_none() && (flush || !ctx.memory(|m| m.has_focus(self.id))) {
+            out.edit = buffer.commit();
+        }
+        // The draft changed, not the bound value.
+        edit.flags.remove(egui::response::Flags::CHANGED);
+        out.changed = out.edit == Some(EditEvent::Committed) && buffer.draft() != value;
+        if out.changed {
+            value.clone_from(buffer.draft());
+            buffer.wrote(value);
+            edit.mark_changed();
+        }
+        out
     }
 }
 

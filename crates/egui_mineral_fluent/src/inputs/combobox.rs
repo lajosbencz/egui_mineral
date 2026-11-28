@@ -400,6 +400,7 @@ impl<K: ItemKey> MineralWidget for Combobox<'_, K> {
                 reserve_end: reserve,
                 text_rect: None,
                 metrics: None,
+                session: None,
             },
         );
         let chevron = self.chevron(ui, base, visual);
@@ -450,6 +451,7 @@ impl<K: ItemKey> MineralWidget for Combobox<'_, K> {
         let out = FieldOutput {
             submitted: textbox::submitted(&shown.response),
             blurred: shown.response.lost_focus(),
+            edit: None,
         };
         WidgetResponse::new(shown.response, out).with_changed(changed)
     }

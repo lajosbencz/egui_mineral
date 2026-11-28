@@ -1,6 +1,7 @@
 use egui_mineral::{
+    edit::EditBuffer,
     i18n::I18n,
-    kit,
+    kit::{self, text::TextSession},
     layout::{Constraints, Measure, MinTarget},
     semantic::{AgentKey, KeyedSalt, Role, SemanticNode},
     widget::{Availability, MineralUi, MineralWidget, WidgetFrame, WidgetResponse},
@@ -26,6 +27,7 @@ pub struct Input<'a> {
     password: bool,
     invalid: bool,
     disabled: bool,
+    commit_on_submit: bool,
 }
 
 impl<'a> Input<'a> {
@@ -44,6 +46,7 @@ impl<'a> Input<'a> {
             password: false,
             invalid: false,
             disabled: false,
+            commit_on_submit: false,
         }
     }
 
@@ -90,6 +93,14 @@ impl<'a> Input<'a> {
         self
     }
 
+    /// Edits a draft that reaches the bound value on Enter (single line), focus loss or
+    /// [`edit::commit_pending`](egui_mineral::edit::commit_pending); Escape restores the value
+    /// from before the edit. Off, typing writes the bound value live.
+    pub fn commit_on_submit(mut self, commit_on_submit: bool) -> Self {
+        self.commit_on_submit = commit_on_submit;
+        self
+    }
+
     crate::widget::setters! {
         /// Greys out the field and ignores input.
         disabled
@@ -98,6 +109,14 @@ impl<'a> Input<'a> {
     crate::widget::setters! {
         /// Replaces the `<id_salt>-input` agent key.
         agent_key(key)
+    }
+
+    fn shown<'s>(&'s self, buffer: &'s EditBuffer<String>) -> &'s str {
+        if self.commit_on_submit {
+            buffer.draft()
+        } else {
+            self.value
+        }
     }
 
     fn chrome(&self) -> Chrome {
@@ -112,7 +131,7 @@ impl<'a> Input<'a> {
 
 impl MineralWidget for Input<'_> {
     type Kit = Fluent;
-    type State = ();
+    type State = EditBuffer<String>;
     type Output = FieldOutput;
 
     kit::widget_meta!(salt, enabled, frame_sense);
@@ -121,7 +140,7 @@ impl MineralWidget for Input<'_> {
         MinTarget::None
     }
 
-    fn layout(&self, _: &MineralUi<'_, Fluent>, c: Constraints, (): &()) -> Measure {
+    fn layout(&self, _: &MineralUi<'_, Fluent>, c: Constraints, _: &EditBuffer<String>) -> Measure {
         let width = if c.max.x.is_finite() {
             c.max.x
         } else {
@@ -134,17 +153,26 @@ impl MineralWidget for Input<'_> {
         &mut self,
         ui: &mut MineralUi<'_, Fluent>,
         frame: &WidgetFrame<'_>,
-        (): &mut (),
+        buffer: &mut EditBuffer<String>,
     ) -> WidgetResponse<FieldOutput> {
         let base = ui.make_persistent_id(self.salt.id_salt());
+        let session = TextSession::begin(
+            ui.ctx(),
+            base.with("edit"),
+            self.commit_on_submit,
+            !self.disabled,
+            self.value,
+            buffer,
+        );
+        let chrome = self.chrome();
         let shown = textbox::show(
             ui,
-            self.value,
+            session.text(self.value, buffer),
             &frame.response,
             &Fill {
                 base,
                 frame: frame.zones.visual,
-                chrome: self.chrome(),
+                chrome,
                 content: Content {
                     before: self.before,
                     after: self.after,
@@ -155,21 +183,29 @@ impl MineralWidget for Input<'_> {
                 reserve_end: 0.0,
                 text_rect: None,
                 metrics: None,
+                session: Some(&session),
             },
         );
+        let mut response = shown.response;
+        let settled = session.end(&mut response, false, self.value, buffer);
         let out = FieldOutput {
-            submitted: textbox::submitted(&shown.response),
-            blurred: shown.response.lost_focus(),
+            submitted: settled.submitted,
+            blurred: settled.blurred,
+            edit: settled.edit,
         };
-        let changed = shown.response.changed();
-        WidgetResponse::new(shown.response, out).with_changed(changed)
+        WidgetResponse::new(response, out).with_changed(settled.changed)
     }
 
-    fn semantics(&self, _: &I18n, _: &WidgetResponse<FieldOutput>, (): &()) -> Option<SemanticNode> {
+    fn semantics(
+        &self,
+        _: &I18n,
+        _: &WidgetResponse<FieldOutput>,
+        buffer: &EditBuffer<String>,
+    ) -> Option<SemanticNode> {
         let (role, value) = if self.password {
-            (Role::PasswordInput, "*".repeat(self.value.chars().count()))
+            (Role::PasswordInput, "*".repeat(self.shown(buffer).chars().count()))
         } else {
-            (Role::TextInput, self.value.clone())
+            (Role::TextInput, self.shown(buffer).to_owned())
         };
         let mut n = SemanticNode::new(self.key.id(&self.salt), role, &self.label)
             .value(value)

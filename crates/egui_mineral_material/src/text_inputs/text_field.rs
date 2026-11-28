@@ -7,8 +7,8 @@ use crate::msg;
 use egui_mineral::i18n::I18n;
 use egui_mineral::i18n::Sides;
 use egui_mineral::kit::state::TempState;
-use egui_mineral::kit::text::BareEdit;
 pub(crate) use egui_mineral::kit::text::submitted;
+use egui_mineral::kit::text::{BareEdit, TextSession};
 use egui_mineral::semantic::AgentKey;
 use egui_mineral::semantic::KeyedSalt;
 use egui_mineral::widget::MineralUi;
@@ -25,7 +25,7 @@ use egui::{
 use egui_mineral::layout::{Constraints, Edge, Measure};
 use egui_mineral::widget::Availability;
 use egui_mineral::{
-    edit::{EditBuffer, EditEvent, FieldFocus},
+    edit::{EditBuffer, EditEvent},
     i18n::Direction,
     semantic::{self, Action, NumericRange, Role, SemanticNode},
     widget::{MineralWidget, WidgetFrame, WidgetResponse},
@@ -1031,37 +1031,18 @@ pub(crate) fn bare_edit(id: Id, rect: Rect, format: TextFormat, colors: &FieldCo
 }
 
 impl TextField<'_> {
-    fn sync_buffer(
-        &self,
-        ctx: &egui::Context,
-        buffer: &mut EditBuffer<String>,
-        edit_id: Id,
-        focused: bool,
-        out: &mut TextFieldOutput,
-    ) {
-        if !self.commit_on_submit {
-            return;
-        }
-        let focus = FieldFocus::of(focused);
-        buffer.sync(self.value, focus);
-        if !self.disabled && egui_mineral::kit::layer::consume_escape_from(ctx, edit_id) {
-            out.edit = buffer.cancel();
-            ctx.memory_mut(|m| m.surrender_focus(edit_id));
-        }
-    }
-
     fn show_editor(
         &mut self,
         ui: &mut MineralUi<'_, Material>,
         buffer: &mut EditBuffer<String>,
+        session: &TextSession,
         cx: &EditorCx<'_>,
     ) -> Response {
-        let buffered = self.commit_on_submit;
         let mask = self.password && !self.revealed;
         let rows = self.multiline().then_some(cx.lines);
         let (interactive, max_chars, event_filter) = (!self.disabled, self.chrome.max_chars, self.event_filter);
         let style = self.input_style();
-        let text: &mut String = if buffered { buffer.draft_mut() } else { &mut *self.value };
+        let text = session.text(self.value, buffer);
         let align = self.chrome.text_align.unwrap_or(Edge::Start);
         // The unfocused editor stays for clicks and Tab; an elided or tabular copy is painted over its
         // transparent text.
@@ -1097,6 +1078,7 @@ impl TextField<'_> {
             .mask(mask)
             .rows(rows)
             .stick_to_bottom(cx.focused)
+            .session(session)
             .show(ui, text, |mut edit| {
                 edit = edit.interactive(interactive);
                 if let Some(n) = max_chars {
@@ -1104,11 +1086,6 @@ impl TextField<'_> {
                 }
                 if let Some(f) = event_filter {
                     edit = edit.event_filter(f);
-                }
-                if buffered {
-                    // Escape cancels the edit instead of dropping focus.
-                    let f = edit.get_event_filter();
-                    edit = edit.event_filter(EventFilter { escape: true, ..f });
                 }
                 edit
             })
@@ -1166,34 +1143,6 @@ impl TextField<'_> {
                     .clickable(Availability::disabled_if(self.disabled))
             });
         }
-    }
-
-    fn settle_edit(
-        &mut self,
-        ctx: &egui::Context,
-        buffer: &mut EditBuffer<String>,
-        te: &mut Response,
-        edit_id: Id,
-        out: &mut TextFieldOutput,
-    ) -> bool {
-        if !self.commit_on_submit {
-            return te.changed();
-        }
-        if te.changed() {
-            buffer.start(self.value);
-        }
-        let flush = buffer.commit_requested(ctx);
-        if out.edit.is_none() && (flush || !ctx.memory(|m| m.has_focus(edit_id))) {
-            out.edit = buffer.commit();
-        }
-        // The draft changed, not the bound value.
-        te.flags.remove(egui::response::Flags::CHANGED);
-        let commit = out.edit == Some(EditEvent::Committed) && buffer.draft() != self.value;
-        if commit {
-            self.value.clone_from(buffer.draft());
-            buffer.wrote(self.value);
-        }
-        commit
     }
 }
 
@@ -1325,7 +1274,7 @@ impl MineralWidget for TextField<'_> {
         let lines = self.lines_in(ui.density(), field.height());
         let mut out = TextFieldOutput::default();
         let focused = ctx.memory(|m| m.has_focus(edit_id));
-        self.sync_buffer(&ctx, buffer, edit_id, focused, &mut out);
+        let session = TextSession::begin(&ctx, edit_id, self.commit_on_submit, !self.disabled, self.value, buffer);
         let empty = self.shown(Some(buffer)).is_empty();
         let decor = Decor {
             id: base,
@@ -1357,6 +1306,7 @@ impl MineralWidget for TextField<'_> {
         let mut te = self.show_editor(
             ui,
             buffer,
+            &session,
             &EditorCx {
                 id: edit_id,
                 rect: text_rect,
@@ -1372,9 +1322,9 @@ impl MineralWidget for TextField<'_> {
         if !focused && frame.response.clicked() {
             ctx.memory_mut(|m| m.request_focus(edit_id));
         }
-        out.blurred = te.lost_focus();
-        out.submitted = !self.multiline() && submitted(&te);
-        let changed = self.settle_edit(&ctx, buffer, &mut te, edit_id, &mut out);
+        let settled = session.end(&mut te, self.multiline(), self.value, buffer);
+        (out.edit, out.submitted, out.blurred) = (settled.edit, settled.submitted, settled.blurred);
+        let changed = settled.changed;
 
         if self.has_support_row() {
             let support = self.chrome.error.as_deref().or(self.chrome.supporting.as_deref());

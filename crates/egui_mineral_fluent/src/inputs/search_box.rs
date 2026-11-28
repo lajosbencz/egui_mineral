@@ -183,6 +183,7 @@ impl MineralWidget for SearchBox<'_> {
                 reserve_end: 0.0,
                 text_rect: Some(text),
                 metrics: Some(m),
+                session: None,
             },
         );
         let mut changed = shown.response.changed() || escape;
@@ -211,6 +212,7 @@ impl MineralWidget for SearchBox<'_> {
         let out = FieldOutput {
             submitted: textbox::submitted(&shown.response),
             blurred: shown.response.lost_focus(),
+            edit: None,
         };
         let mut response = shown.response;
         if changed && !response.changed() {
