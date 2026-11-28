@@ -379,6 +379,25 @@ impl ColorScheme {
     pub fn baseline(theme: Theme) -> Self {
         SchemeSpec::default().scheme(theme)
     }
+
+    /// Scheme holding the set roles of `roles` exactly, for palettes given as colors rather than a seed; install it
+    /// with [`Tokens::new`](crate::theme::Tokens::new) and [`Material::set_tokens`](crate::Material::set_tokens). Unset
+    /// roles derive from the set ones: `primary` is the seed; `secondary`, `tertiary`, `error`, `surface` (else
+    /// `background`) and `surface_variant` key their role groups ([`SchemeSpec`] key colors).
+    /// [`Material::set_contrast`](crate::Material::set_contrast) and [`Material::apply`](crate::Material::apply)
+    /// replace these tokens; [`Material::set_overrides`](crate::Material::set_overrides) keeps exact roles over them.
+    pub fn from_roles(theme: Theme, roles: &ColorOverrides) -> Self {
+        let mut spec = SchemeSpec::new(roles.primary.unwrap_or(BASELINE_SEED));
+        spec.keys = KeyColors {
+            primary: roles.primary,
+            secondary: roles.secondary,
+            tertiary: roles.tertiary,
+            error: roles.error,
+            neutral: roles.surface.or(roles.background),
+            neutral_variant: roles.surface_variant,
+        };
+        spec.scheme(theme).with(roles)
+    }
 }
 
 #[cfg(test)]
@@ -406,6 +425,23 @@ mod tests {
             .contrast(Contrast::HIGH)
             .scheme(Theme::Light);
         assert_ne!(hc.secondary, keyed.secondary, "contrast still applies to keyed roles");
+    }
+
+    #[test]
+    fn from_roles_keeps_set_roles_and_derives_the_rest_from_them() {
+        const PRIMARY: Color32 = Color32::from_rgb(0xC0, 0x30, 0x20);
+        let roles = ColorOverrides {
+            primary: Some(PRIMARY),
+            ..ColorOverrides::default()
+        };
+        let s = ColorScheme::from_roles(Theme::Dark, &roles);
+        assert_eq!((s.primary, s.theme), (PRIMARY, Theme::Dark));
+        let seeded = SchemeSpec::new(PRIMARY).primary(PRIMARY).scheme(Theme::Dark);
+        assert_eq!(s.primary_container, seeded.primary_container);
+        assert_ne!(
+            s.primary_container,
+            ColorScheme::baseline(Theme::Dark).primary_container
+        );
     }
 
     #[test]
